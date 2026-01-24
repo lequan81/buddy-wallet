@@ -13,3 +13,10 @@ pnpm-lock.yaml
 pnpm-workspace.yaml
 package-lock.json
 yarn.lock
+
+bun.lockb
+bun.lock
+.turbo
+.vercel
+.vercel.json
+

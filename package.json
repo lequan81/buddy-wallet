@@ -1,9 +1,9 @@
 {
-  "name": "with-svelte",
+  "name": "buddy-wallet",
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter @repo/api --filter @repo/web --filter @repo/db --filter @repo/permissions --filter @repo/config --filter @repo/errors",
     "lint": "turbo run lint",
     "format": "prettier --write .",
     "check-types": "turbo run check-types"
@@ -20,5 +20,8 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "overrides": {
+    "@sinclair/typebox": "^0.34.0"
+  }
 }
