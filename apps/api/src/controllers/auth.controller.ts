@@ -1,8 +1,10 @@
 import { randomUUIDv7 } from 'bun';
 import { Elysia, t } from 'elysia';
-import { jwtSecurityProvider } from '@/plugins/jwt';
-import { db, users, sessions, debts, eq, and, gte, or } from '@repo/db';
+import { jwtPlugin } from '@plugins/jwt';
+import { authRateLimiter } from '@plugins/rate-limit';
+import { db, users, sessions, debts, eq, and, gte, or, isNull, ne } from '@repo/db';
 import { DEFAULT_USER_PERMISSIONS } from '@repo/permissions';
+import { hashToken, verifyTokenHash, normalizePhoneNumber, parseUserAgent, getClientIP, getLocationFromIP } from '@/utils';
 
 // Token lifetimes
 const ACCESS_TOKEN_LIFETIME = 15 * 60 * 1000; // 15 minutes
@@ -15,6 +17,9 @@ function generateRefreshToken(): string {
   return Buffer.from(bytes).toString('base64url');
 }
 
+// Constant for minimum password length
+const MIN_PASSWORD_LENGTH = 8;
+
 /**
  * Link existing debts to a newly registered user based on phone number
  */
@@ -23,24 +28,32 @@ async function linkDebtsToUser(userId: string, phoneNumber: string) {
   await db
     .update(debts)
     .set({ debtorId: userId, updatedAt: new Date() })
-    .where(and(eq(debts.debtorPhone, phoneNumber), eq(debts.debtorId, null)));
+    .where(and(eq(debts.debtorPhone, phoneNumber), isNull(debts.debtorId)));
 
   // Link debts where this user is the creditor
   await db
     .update(debts)
     .set({ creditorId: userId, updatedAt: new Date() })
-    .where(and(eq(debts.creditorPhone, phoneNumber), eq(debts.creditorId, null)));
+    .where(and(eq(debts.creditorPhone, phoneNumber), isNull(debts.creditorId)));
 }
 
 export const authController = new Elysia({ prefix: '/auth' })
-  .use(jwtSecurityProvider)
+  .use(jwtPlugin)
+  .use(authRateLimiter) // Rate limit: 10 requests per minute
   .post(
     '/register',
     async ({ body, set }) => {
       const { name, email, password, phoneNumber } = body;
 
+      // Normalize phone number
+      const normalizedPhone = normalizePhoneNumber(phoneNumber);
+      if (!normalizedPhone) {
+        set.status = 400;
+        return { success: false, message: 'Invalid phone number format' };
+      }
+
       // Check phone uniqueness (required field)
-      const existingPhone = db.select().from(users).where(eq(users.phoneNumber, phoneNumber)).get();
+      const existingPhone = db.select().from(users).where(eq(users.phoneNumber, normalizedPhone)).get();
       if (existingPhone) {
         set.status = 400;
         return { success: false, message: 'Phone number already registered' };
@@ -64,7 +77,7 @@ export const authController = new Elysia({ prefix: '/auth' })
           id: userId,
           name,
           email: email || null,
-          phoneNumber,
+          phoneNumber: normalizedPhone,
           password: hashedPassword,
           role: 'user',
           permissions: DEFAULT_USER_PERMISSIONS,
@@ -74,9 +87,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         .returning();
 
       // Auto-link existing debts to this user based on phone number
-      if (phoneNumber) {
-        await linkDebtsToUser(userId, phoneNumber);
-      }
+      await linkDebtsToUser(userId, normalizedPhone);
 
       set.status = 200;
       return { success: true, user: { id: newUser.id, email: newUser.email } };
@@ -118,6 +129,12 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       console.log(`[AUTH] Login successful for user: ${user.id}`);
 
+      // Parse device info
+      const userAgent = request.headers.get('user-agent');
+      const deviceInfo = parseUserAgent(userAgent);
+      const clientIP = getClientIP(request) || request.headers.get('x-forwarded-for');
+      const location = await getLocationFromIP(clientIP);
+
       // Generate tokens
       const now = Date.now();
       const accessTokenExpiresAt = new Date(now + ACCESS_TOKEN_LIFETIME);
@@ -128,18 +145,24 @@ export const authController = new Elysia({ prefix: '/auth' })
         exp: Math.floor(accessTokenExpiresAt.getTime() / 1000)
       });
       const refreshToken = generateRefreshToken();
+      const refreshTokenHash = await hashToken(refreshToken); // Hash before storing
       const sessionId = randomUUIDv7('base64url');
 
-      // Store session in database
+      // Store session in database (with hashed refresh token and device info)
       await db.insert(sessions).values({
         id: sessionId,
         userId: user.id,
         accessToken,
         accessTokenExpiresAt,
-        refreshToken,
+        refreshToken: refreshTokenHash, // Store hash, not plain token
         refreshTokenExpiresAt,
-        userAgent: request.headers.get('user-agent') || null,
-        ipAddress: request.headers.get('x-forwarded-for') || null,
+        status: 'active',
+        deviceName: deviceInfo.deviceName,
+        deviceType: deviceInfo.deviceType,
+        location: location,
+        userAgent: userAgent || null,
+        ipAddress: clientIP || null,
+        lastActiveAt: new Date(),
         createdAt: new Date()
       });
 
@@ -159,7 +182,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        path: '/v1/auth', // Only sent to auth endpoints
+        path: '/', // Available to all paths (SvelteKit can read it)
         maxAge: REFRESH_TOKEN_LIFETIME / 1000 // 90 days
       });
 
@@ -178,20 +201,24 @@ export const authController = new Elysia({ prefix: '/auth' })
     }
   )
   .post('/refresh', async ({ jwt, cookie, set, request }) => {
-    const refreshToken = cookie.refresh_token.value;
+    const refreshToken = cookie.refresh_token.value as string;
 
     if (!refreshToken) {
       set.status = 401;
       return { success: false, error: 'No refresh token provided' };
     }
 
-    // Find valid session with this refresh token
+    // Hash the provided token to compare with stored hash
+    const refreshTokenHash = await hashToken(refreshToken);
+
+    // Find ACTIVE session with this refresh token hash
     const session = db
       .select()
       .from(sessions)
       .where(
         and(
-          eq(sessions.refreshToken, refreshToken),
+          eq(sessions.refreshToken, refreshTokenHash),
+          eq(sessions.status, 'active'), // CHECK STATUS - revoked sessions rejected
           gte(sessions.refreshTokenExpiresAt, new Date())
         )
       )
@@ -202,7 +229,7 @@ export const authController = new Elysia({ prefix: '/auth' })
       cookie.session.remove();
       cookie.refresh_token.remove();
       set.status = 401;
-      return { success: false, error: 'Invalid or expired refresh token' };
+      return { success: false, error: 'Session revoked or expired' };
     }
 
     // Get user
@@ -210,6 +237,18 @@ export const authController = new Elysia({ prefix: '/auth' })
     if (!user) {
       set.status = 401;
       return { success: false, error: 'User not found' };
+    }
+
+    // Check if user account is active
+    if (!user.isActive) {
+      // Revoke session if user is deactivated
+      await db.update(sessions)
+        .set({ status: 'revoked', revokedAt: new Date(), revokedReason: 'admin_revoke' })
+        .where(eq(sessions.id, session.id));
+      cookie.session.remove();
+      cookie.refresh_token.remove();
+      set.status = 401;
+      return { success: false, error: 'Account is deactivated' };
     }
 
     // Generate new access token
@@ -220,15 +259,16 @@ export const authController = new Elysia({ prefix: '/auth' })
       exp: Math.floor(accessTokenExpiresAt.getTime() / 1000)
     });
 
-    // Update session with new access token
+    // Update session with new access token and activity
     await db
       .update(sessions)
       .set({
         accessToken: newAccessToken,
         accessTokenExpiresAt,
         lastRefreshedAt: new Date(),
+        lastActiveAt: new Date(),
         userAgent: request.headers.get('user-agent') || session.userAgent,
-        ipAddress: request.headers.get('x-forwarded-for') || session.ipAddress
+        ipAddress: getClientIP(request) || session.ipAddress
       })
       .where(eq(sessions.id, session.id));
 
@@ -252,12 +292,43 @@ export const authController = new Elysia({ prefix: '/auth' })
   .get('/me', ({ user }) => {
     return { user };
   })
-  .post('/logout', async ({ cookie, set }) => {
-    const refreshToken = cookie.refresh_token.value;
+  // Secure logout - requires authenticated user and validates session ownership
+  .post('/logout', async ({ user, cookie, set }) => {
+    const refreshToken = cookie.refresh_token.value as string;
+    const accessToken = cookie.session.value as string;
 
-    // Delete session from database
+    // Security: Require at least one valid token
+    if (!refreshToken && !accessToken) {
+      set.status = 401;
+      return { success: false, error: 'No valid session' };
+    }
+
+    // If we have a refresh token, validate and invalidate the session
     if (refreshToken) {
-      await db.delete(sessions).where(eq(sessions.refreshToken, refreshToken));
+      const refreshTokenHash = await hashToken(refreshToken);
+
+      // Find the session
+      const session = db.select()
+        .from(sessions)
+        .where(eq(sessions.refreshToken, refreshTokenHash))
+        .get();
+
+      // Security: If user is authenticated, verify session belongs to them
+      if (session && user && session.userId !== user.id) {
+        set.status = 403;
+        return { success: false, error: 'Session does not belong to user' };
+      }
+
+      // Soft delete: Mark session as logged out
+      if (session) {
+        await db.update(sessions)
+          .set({
+            status: 'logged_out',
+            revokedAt: new Date(),
+            revokedReason: 'user_logout'
+          })
+          .where(eq(sessions.id, session.id));
+      }
     }
 
     // Clear both cookies
@@ -266,4 +337,193 @@ export const authController = new Elysia({ prefix: '/auth' })
 
     set.status = 200;
     return { success: true };
+  })
+  // Logout from all devices
+  .post('/logout-all', async ({ user, cookie, set }) => {
+    if (!user) {
+      set.status = 401;
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Revoke ALL active sessions for this user
+    const result = await db.update(sessions)
+      .set({
+        status: 'revoked',
+        revokedAt: new Date(),
+        revokedReason: 'logout_all_devices'
+      })
+      .where(
+        and(
+          eq(sessions.userId, user.id),
+          eq(sessions.status, 'active')
+        )
+      );
+
+    // Clear current session cookies
+    cookie.session.remove();
+    cookie.refresh_token.remove();
+
+    set.status = 200;
+    return { success: true, message: 'All sessions have been logged out' };
+  })
+  // Get list of active sessions for current user
+  .get('/sessions', async ({ user, cookie, set }) => {
+    if (!user) {
+      set.status = 401;
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Find current session ID by matching the refresh token
+    let currentSessionId: string | null = null;
+    const refreshToken = cookie.refresh_token.value as string;
+    if (refreshToken) {
+      const refreshTokenHash = await hashToken(refreshToken);
+      const currentSession = db.select({ id: sessions.id })
+        .from(sessions)
+        .where(eq(sessions.refreshToken, refreshTokenHash))
+        .get();
+      currentSessionId = currentSession?.id || null;
+    }
+
+    const activeSessions = db.select({
+      id: sessions.id,
+      deviceName: sessions.deviceName,
+      deviceType: sessions.deviceType,
+      location: sessions.location,
+      ipAddress: sessions.ipAddress,
+      lastActiveAt: sessions.lastActiveAt,
+      createdAt: sessions.createdAt
+    })
+      .from(sessions)
+      .where(
+        and(
+          eq(sessions.userId, user.id),
+          eq(sessions.status, 'active')
+        )
+      )
+      .orderBy(sessions.lastActiveAt)
+      .all();
+
+    return { success: true, sessions: activeSessions, currentSessionId };
+  })
+  // Revoke a specific session
+  .post('/sessions/:sessionId/revoke', async ({ user, params, cookie, set }) => {
+    if (!user) {
+      set.status = 401;
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Find the session and verify it belongs to this user
+    const session = db.select()
+      .from(sessions)
+      .where(
+        and(
+          eq(sessions.id, params.sessionId),
+          eq(sessions.userId, user.id),
+          eq(sessions.status, 'active')
+        )
+      )
+      .get();
+
+    if (!session) {
+      set.status = 404;
+      return { success: false, error: 'Session not found or already revoked' };
+    }
+
+    // Revoke the session
+    await db.update(sessions)
+      .set({
+        status: 'revoked',
+        revokedAt: new Date(),
+        revokedReason: 'user_revoked' as const
+      })
+      .where(eq(sessions.id, params.sessionId));
+
+    // If user is revoking their current session, clear cookies
+    const currentRefreshToken = cookie.refresh_token.value as string;
+    if (currentRefreshToken) {
+      const currentHash = await hashToken(currentRefreshToken);
+      if (session.refreshToken === currentHash) {
+        cookie.session.remove();
+        cookie.refresh_token.remove();
+      }
+    }
+
+    return { success: true, message: 'Session revoked' };
+  }, {
+    params: t.Object({
+      sessionId: t.String()
+    })
+  })
+  // Change password with session invalidation
+  .post('/change-password', async ({ user, body, cookie, set }) => {
+    if (!user) {
+      set.status = 401;
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const { currentPassword, newPassword } = body;
+
+    // Get the user with password
+    const dbUser = db.select().from(users).where(eq(users.id, user.id)).get();
+    if (!dbUser) {
+      set.status = 404;
+      return { success: false, error: 'User not found' };
+    }
+
+    // Verify current password
+    const validPassword = await Bun.password.verify(currentPassword, dbUser.password);
+    if (!validPassword) {
+      set.status = 400;
+      return { success: false, error: 'Current password is incorrect' };
+    }
+
+    // Hash new password
+    const hashedNewPassword = await Bun.password.hash(newPassword);
+
+    // Find current session to keep it active
+    let currentSessionId: string | null = null;
+    const refreshToken = cookie.refresh_token.value as string;
+    if (refreshToken) {
+      const refreshTokenHash = await hashToken(refreshToken);
+      const currentSession = db.select({ id: sessions.id })
+        .from(sessions)
+        .where(eq(sessions.refreshToken, refreshTokenHash))
+        .get();
+      currentSessionId = currentSession?.id || null;
+    }
+
+    // Update password and increment session version
+    await db.update(users)
+      .set({
+        password: hashedNewPassword,
+        sessionVersion: (dbUser.sessionVersion || 1) + 1,
+        lastPasswordChangeAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, user.id));
+
+    // Revoke ALL sessions except current (password change invalidation)
+    if (currentSessionId) {
+      await db.update(sessions)
+        .set({
+          status: 'revoked',
+          revokedAt: new Date(),
+          revokedReason: 'password_change'
+        })
+        .where(
+          and(
+            eq(sessions.userId, user.id),
+            eq(sessions.status, 'active'),
+            ne(sessions.id, currentSessionId)
+          )
+        );
+    }
+
+    return { success: true, message: 'Password changed successfully. Other sessions have been logged out.' };
+  }, {
+    body: t.Object({
+      currentPassword: t.String({ minLength: 1 }),
+      newPassword: t.String({ minLength: MIN_PASSWORD_LENGTH })
+    })
   });

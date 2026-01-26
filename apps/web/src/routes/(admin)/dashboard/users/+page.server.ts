@@ -1,7 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { API_URL, getAuthHeaders } from '$lib/api';
 
-export const load: PageServerLoad = async ({ locals, fetch, request }) => {
+export const load: PageServerLoad = async ({ locals, fetch }) => {
 	if (!locals.user) {
 		throw redirect(302, '/login');
 	}
@@ -11,11 +12,9 @@ export const load: PageServerLoad = async ({ locals, fetch, request }) => {
 		throw redirect(302, '/dashboard');
 	}
 
-	const cookie = request.headers.get('cookie') || '';
+	const headers = getAuthHeaders(locals.accessToken);
 
-	const response = await fetch('http://localhost:3000/v1/users', {
-		headers: { cookie }
-	});
+	const response = await fetch(`${API_URL}/v1/users`, { headers });
 
 	if (!response.ok) {
 		return { users: [], error: 'Failed to fetch users' };

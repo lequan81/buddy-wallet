@@ -1,24 +1,25 @@
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
+import { API_URL, getAuthHeaders } from '$lib/api';
 
-export const load: PageServerLoad = async ({ fetch, request, locals }) => {
+export const load: PageServerLoad = async ({ fetch, locals }) => {
 	// 1. Allow any logged-in user
 	if (!locals.user) {
 		throw redirect(303, '/login');
 	}
 
-	const cookie = request.headers.get('cookie') || '';
 	const isAdmin = locals.user.role === 'admin';
+	const headers = getAuthHeaders(locals.accessToken);
 
 	try {
 		// 2. Conditional Fetching
 		// Only admin gets full user list.
 		const usersPromise = isAdmin
-			? fetch('http://localhost:3000/v1/users', { headers: { cookie } })
+			? fetch(`${API_URL}/v1/users`, { headers })
 			: Promise.resolve(new Response(JSON.stringify({ success: true, users: [] })));
 
 		// Everyone gets their debts (controller handles scoping)
-		const debtsPromise = fetch('http://localhost:3000/v1/debts', { headers: { cookie } });
+		const debtsPromise = fetch(`${API_URL}/v1/debts`, { headers });
 
 		// Run in parallel
 		const [usersRes, debtsRes] = await Promise.all([usersPromise, debtsPromise]);

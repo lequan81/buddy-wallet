@@ -3,6 +3,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { createApi } from '$lib/eden';
+import { API_URL, getDefaultHeaders } from '$lib/api';
 
 const handleParaglide: Handle = async ({ event, resolve }) =>
 	paraglideMiddleware(event.request, ({ request, locale }) => {
@@ -26,31 +27,51 @@ export const handleTheme: Handle = async ({ event, resolve }) => {
 };
 
 export const handleAuth: Handle = async ({ event, resolve }) => {
-	const token = event.cookies.get('session');
+	let currentToken = event.cookies.get('session');
 	const refreshToken = event.cookies.get('refresh_token');
-	const api = createApi(event.fetch, token);
 	const pathname = event.url.pathname;
+
+	// Debug: Log what cookies we have at the start
+	console.log(`[DEBUG] Cookies present - Session: ${!!currentToken}, Refresh: ${!!refreshToken}`);
 
 	// Try to get user from API
 	let user = null;
 	let apiOffline = false;
 
 	try {
-		const { data, error } = await api.v1.auth.me.get();
+		// Only try /me if we have a session token
+		if (currentToken) {
+			console.log(`[DEBUG] Calling /me with token: ${currentToken.substring(0, 20)}...`);
 
-		if (!error && data?.user) {
-			user = data.user;
+			// BYPASS EDEN - Use raw fetch to debug
+			const rawRes = await fetch(`${API_URL}/v1/auth/me`, {
+				method: 'GET',
+				headers: {
+					'Authorization': `Bearer ${currentToken}`,
+					'Content-Type': 'application/json',
+					'Origin': 'http://localhost:5173',
+					'Referer': 'http://localhost:5173/'
+				}
+			});
+			console.log(`[DEBUG] Raw fetch status: ${rawRes.status}`);
+			const rawData = await rawRes.json();
+			console.log(`[DEBUG] Raw fetch response:`, JSON.stringify(rawData));
+
+			if (rawRes.ok && rawData?.user) {
+				user = rawData.user;
+				console.log(`[DEBUG] /me succeeded: ${user.email}`);
+			} else {
+				console.log(`[DEBUG] /me failed:`, rawData);
+			}
 		}
 
-		// If user is not found (either error or null data) and we have a refresh token, try to refresh
+		// If user is not found and we have a refresh token, try to refresh
 		if (!user && refreshToken) {
-			console.log('[AUTH] User not found or token expired, attempting refresh...');
-
-			const refreshRes = await event.fetch('http://localhost:3000/v1/auth/refresh', {
+			const refreshRes = await event.fetch(`${API_URL}/v1/auth/refresh`, {
 				method: 'POST',
 				headers: {
-					Cookie: `refresh_token=${refreshToken}`,
-					'Content-Type': 'application/json'
+					...getDefaultHeaders(),
+					Cookie: `refresh_token=${refreshToken}`
 				}
 			});
 
@@ -59,7 +80,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 				if (refreshData.success && refreshData.user) {
 					user = refreshData.user;
 
-					// Forward the new cookies to the browser
+					// Forward the new cookies to the browser and capture new token
 					const setCookieHeaders = refreshRes.headers.getSetCookie?.() || [];
 					if (setCookieHeaders.length === 0) {
 						// Fallback for older environments
@@ -70,7 +91,8 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 					for (const cookieHeader of setCookieHeaders) {
 						const sessionMatch = cookieHeader.match(/session=([^;]+)/);
 						if (sessionMatch) {
-							event.cookies.set('session', sessionMatch[1], {
+							currentToken = sessionMatch[1]; // Update current token!
+							event.cookies.set('session', currentToken, {
 								path: '/',
 								httpOnly: true,
 								secure: process.env.NODE_ENV === 'production',
@@ -107,8 +129,11 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		apiOffline = true;
 	}
 
+	// Store user, token, and pre-configured API in locals
 	event.locals.user = user;
 	event.locals.apiOffline = apiOffline;
+	event.locals.accessToken = currentToken;
+	event.locals.api = createApi(event.fetch, currentToken);
 
 	// Public routes - no auth required
 	const isPublic =
@@ -125,6 +150,10 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		console.log(
 			`[AUTH] ${pathname} → ${isPublic ? 'public' : 'protected'} | user: ${event.locals.user?.email || 'guest'}`
 		);
+		// Log why user is guest if they are on a protected route or just logged in
+		if (!event.locals.user) {
+			console.log(`[DEBUG] Cookies present - Session: ${!!currentToken}, Refresh: ${!!refreshToken}`);
+		}
 	}
 
 	// Redirect to login if accessing protected route without auth

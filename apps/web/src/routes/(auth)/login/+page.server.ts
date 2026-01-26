@@ -37,7 +37,30 @@ export const actions: Actions = {
 
 			if (data?.success) {
 				// Forward both cookies from API to browser
-				const setCookieHeaders = response.headers.getSetCookie?.() || [];
+				let setCookieHeaders = response.headers.getSetCookie?.() || [];
+
+				// Fallback: If getSetCookie() returns empty array, try getting the raw header
+				if (setCookieHeaders.length === 0) {
+					const headerVal = response.headers.get('set-cookie');
+					if (headerVal) {
+						// This might be a single string or comma-separated.
+						// Handling comma-separated Set-Cookie headers in a single string is difficult reliably,
+						// but usually frameworks/browsers provide getSetCookie for multiple.
+						// If we split by comma, we must be careful about dates.
+						// For now, if getSetCookie failed, we take what we get.
+						// In many environments (like Bun), getSetCookie should work.
+						console.log('[LOGIN] Fallback: Found set-cookie header:', headerVal);
+						setCookieHeaders = [headerVal];
+					} else {
+						console.log('[LOGIN] Warning: No Set-Cookie headers found in API response');
+						console.log(
+							'[LOGIN] Response Headers:',
+							Object.fromEntries(response.headers.entries())
+						);
+					}
+				} else {
+					console.log('[LOGIN] Found cookies via getSetCookie:', setCookieHeaders);
+				}
 
 				// Handle array of Set-Cookie headers
 				for (const cookieHeader of setCookieHeaders) {
@@ -55,7 +78,7 @@ export const actions: Actions = {
 					const refreshMatch = cookieHeader.match(/refresh_token=([^;]+)/);
 					if (refreshMatch) {
 						cookies.set('refresh_token', refreshMatch[1], {
-							path: '/',
+							path: '/', // Override path to root so hooks.server.ts sees it
 							httpOnly: true,
 							secure: process.env.NODE_ENV === 'production',
 							sameSite: 'strict',

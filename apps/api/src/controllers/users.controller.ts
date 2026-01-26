@@ -1,17 +1,23 @@
 import { Elysia, t } from 'elysia';
 import { db, users, eq } from '@repo/db';
 import { accessControlPlugin } from '@plugins/access-control';
+import { permissionPlugin } from '@plugins/permission';
+import { PERMISSIONS } from '@repo/permissions';
 
 export const usersController = new Elysia({ prefix: '/users' })
   .use(accessControlPlugin)
-  .get('/', async ({ user, set }) => {
-    if (user?.role !== 'admin') {
-      set.status = 403;
-      return { success: false, message: 'Forbidden' };
+  .use(permissionPlugin)
+  .get(
+    '/',
+    async () => {
+      // Permission checked via checkPermission macro
+      const allUsers = await db.select().from(users).all();
+      return { success: true, users: allUsers.map(({ password, ...u }) => u) };
+    },
+    {
+      checkPermission: PERMISSIONS.ADMIN_MANAGE_USERS
     }
-    const allUsers = await db.select().from(users).all();
-    return { success: true, users: allUsers.map(({ password, ...u }) => u) };
-  })
+  )
   .get(
     '/:id',
     async ({ params: { id }, set }) => {
@@ -36,13 +42,8 @@ export const usersController = new Elysia({ prefix: '/users' })
   )
   .patch(
     '/:id/status',
-    async ({ params: { id }, user, set }) => {
-      // Admin only
-      if (user?.role !== 'admin') {
-        set.status = 403;
-        return { success: false, message: 'Forbidden' };
-      }
-
+    async ({ params: { id }, set }) => {
+      // Permission checked via checkPermission macro
       // Get current user
       const targetUser = await db.select().from(users).where(eq(users.id, id)).get();
       if (!targetUser) {
@@ -62,6 +63,7 @@ export const usersController = new Elysia({ prefix: '/users' })
     {
       params: t.Object({
         id: t.String()
-      })
+      }),
+      checkPermission: PERMISSIONS.ADMIN_MANAGE_USERS
     }
   );

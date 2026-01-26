@@ -1,0 +1,4 @@
+# Bun configuration for the API
+[run]
+# Silence file watcher warnings for monorepo packages
+silent = true

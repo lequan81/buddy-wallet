@@ -188,7 +188,7 @@
                                 accept=".xlsx" 
                                 class="hidden" 
                                 onchange={handleFileSelect}
-                                bind:this={fileInput}
+                                bind:this={fileInput as any}
                             />
                         </div>
                         

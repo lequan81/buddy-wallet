@@ -13,10 +13,11 @@ const config = {
 		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		adapter: adapter(),
-		// alias: {
-		// 	'@repo/api': '../api/src/index.ts',
-		// 	'@repo/db': '../../packages/db/index.ts'
-		// },
+		alias: {
+			// 	'@repo/api': '../api/src/index.ts',
+			// 	'@repo/db': '../../packages/db/index.ts'
+			$contents: 'src/contents'
+		},
 		serviceWorker: {
 			register: false // Handled by @vite-pwa/sveltekit
 		}
@@ -25,7 +26,7 @@ const config = {
 	// 	// you don't need to do this if you're using generateSW strategy in your app
 	// 	serviceWorker: 'src/service-worker/index.ts'
 	// },
-	extensions: ['.svelte', '.svx']
+	extensions: ['.svelte', '.svx', '.md']
 };
 
 export default config;

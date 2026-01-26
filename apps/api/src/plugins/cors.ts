@@ -15,9 +15,6 @@ export const corsPlugin = new Elysia({ name: 'CORS_Plugin' })
       allowedHeaders: ['Content-Type', 'Authorization']
     })
   )
-  .derive(async ({ cookie: { session } }) => {
-    // Debug logging
-    console.error(`[CORS-PLUGIN] Checking auth. Session: ${!!(session && session.value)}`);
-
+  .derive(async () => {
     return { cors: true };
   });

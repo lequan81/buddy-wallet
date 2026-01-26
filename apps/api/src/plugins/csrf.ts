@@ -1,7 +1,10 @@
 import { Elysia } from 'elysia';
 import { configs } from '../configs';
 
-export const csrfPlugin = new Elysia({ name: 'CSRF_Protection' }).onBeforeHandle(
+// Support comma-separated origins for dev/staging/prod
+const allowedOrigins = configs.WEB_URL.split(',').map((o) => o.trim());
+
+export const csrfPlugin = new Elysia({ name: 'CSRF_Plugin' }).onBeforeHandle(
   ({ request, set }) => {
     // Skip checking for GET/HEAD/OPTIONS methods (safe methods)
     if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
@@ -10,11 +13,10 @@ export const csrfPlugin = new Elysia({ name: 'CSRF_Protection' }).onBeforeHandle
 
     const origin = request.headers.get('origin');
     const referer = request.headers.get('referer');
-    const allowedOrigin = configs.WEB_URL;
 
     // 1. Strict Origin Check
-    // If we have an origin, it MUST match the allowed origin.
-    if (origin && origin !== allowedOrigin) {
+    // If we have an origin, it MUST be in the allowed list
+    if (origin && !allowedOrigins.includes(origin)) {
       set.status = 403;
       return {
         success: false,
@@ -24,8 +26,8 @@ export const csrfPlugin = new Elysia({ name: 'CSRF_Protection' }).onBeforeHandle
     }
 
     // 2. Referer Check
-    // If we have a referer, it MUST start with the allowed origin.
-    if (referer && !referer.startsWith(allowedOrigin)) {
+    // If we have a referer, it MUST start with one of the allowed origins
+    if (referer && !allowedOrigins.some((allowed) => referer.startsWith(allowed))) {
       set.status = 403;
       return {
         success: false,
@@ -34,8 +36,7 @@ export const csrfPlugin = new Elysia({ name: 'CSRF_Protection' }).onBeforeHandle
       };
     }
 
-    // 3. Fallback: If neither Origin nor Referer is present, block request?
-    // For now, we assume at least one is present for state-changing requests from browsers.
+    // 3. Fallback: If neither Origin nor Referer is present, block request
     if (!origin && !referer) {
       set.status = 403;
       return {

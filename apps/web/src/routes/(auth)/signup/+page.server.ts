@@ -1,54 +1,45 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { createApi } from '$lib/eden';
+import { superValidate, message } from 'sveltekit-superforms';
+import { valibot } from 'sveltekit-superforms/adapters';
+import { insertUserSchema } from '@repo/db/schema';
 
 export const load: PageServerLoad = async () => {
+	const form = await superValidate(valibot(insertUserSchema));
 	return {
+		form,
 		layout: 'guest'
 	};
 };
 
 export const actions: Actions = {
 	default: async ({ request, fetch }) => {
-		const formData = await request.formData();
-		const name = formData.get('name') as string;
-		const phoneNumber = formData.get('phoneNumber') as string;
-		const email = formData.get('email') as string | null;
-		const password = formData.get('password') as string;
+		const form = await superValidate(request, valibot(insertUserSchema));
 
-		if (!name || !phoneNumber || !password) {
-			return fail(400, {
-				name,
-				phoneNumber,
-				email,
-				message: 'Name, phone number and password are required'
-			});
+		console.log('[Signup] Form valid:', form.valid);
+		console.log('[Signup] Form errors:', form.errors);
+		console.log('[Signup] Form data:', form.data);
+
+		if (!form.valid) {
+			return fail(400, { form });
 		}
 
 		try {
 			const api = createApi(fetch);
 			const { error } = await api.v1.auth.register.post({
-				name,
-				phoneNumber,
-				email: email || undefined,
-				password
+				name: form.data.name,
+				phoneNumber: form.data.phoneNumber,
+				email: form.data.email || undefined,
+				password: form.data.password
 			});
 
 			if (error) {
-				return fail(400, {
-					name,
-					phoneNumber,
-					email,
-					message: error.value || 'Registration failed'
-				});
+				console.log('[Signup] API Error:', error.value);
+				return message(form, error.value || 'Registration failed', { status: 400 });
 			}
 		} catch (_err) {
-			return fail(503, {
-				name,
-				phoneNumber,
-				email,
-				message: 'Unable to connect to server. Please try again later.'
-			});
+			return message(form, 'Unable to connect to server. Please try again later.', { status: 503 });
 		}
 
 		throw redirect(303, '/login?registered=true');

@@ -1,0 +1,52 @@
+{
+  "folders": [
+    {
+      "name": "frontend",
+      "path": "apps/web"
+    },
+    {
+      "name": "backend",
+      "path": "apps/api"
+    },
+    {
+      "name": "database",
+      "path": "packages/db"
+    },
+    {
+      "name": "configs",
+      "path": "packages/config"
+    },
+    {
+      "name": "errors",
+      "path": "packages/errors"
+    },
+    {
+      "name": "permissions",
+      "path": "packages/permissions"
+    },
+    {
+      "name": "ts-config",
+      "path": "packages/typescript-config"
+    },
+    {
+      "name": "eslint-config",
+      "path": "packages/eslint-config"
+    },
+    {
+      "name": "buddy wallet",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.git": true,
+      "**/.DS_Store": true,
+      "**/node_modules": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/.active_tasks": true
+    },
+    "typescript.tsdk": "node_modules/typescript/lib"
+  }
+}

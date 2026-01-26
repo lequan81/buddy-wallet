@@ -1,9 +1,9 @@
 import { Elysia } from 'elysia';
 import { db, debts, eq, or, and } from '@repo/db';
-import { jwtSecurityProvider } from './jwt';
+import { jwtPlugin } from './jwt';
 
 export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
-  .use(jwtSecurityProvider)
+  .use(jwtPlugin)
   .macro(({ onBeforeHandle }) => ({
     /**
      * Ensure the logged-in user has the right to view/edit the target user's data.
@@ -13,13 +13,18 @@ export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
      * 3. User can access another user IF there is a debt relationship between them.
      */
     ensureRelatedUser: (targetUserIdParamName: string = 'id') => {
-      onBeforeHandle(async ({ user, params, set }) => {
+      onBeforeHandle(async (context) => {
+        const { user, params, set } = context as typeof context & {
+          user: typeof users.$inferSelect | null;
+          params: Record<string, string>;
+        };
+
         if (!user) {
           set.status = 401;
           return { success: false, message: 'Unauthorized' };
         }
 
-        const targetUserId = (params as any)[targetUserIdParamName];
+        const targetUserId = params[targetUserIdParamName];
         if (!targetUserId) return; // No parameter to check
 
         // 1. Admin Bypass
@@ -53,7 +58,12 @@ export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
      * Ensure the user is part of the Debt (either debtor or creditor) OR is Admin.
      */
     ensureRelatedDebt: (debtIdParamName: string = 'id') => {
-      onBeforeHandle(async ({ user, params, set }) => {
+      onBeforeHandle(async (context) => {
+        const { user, params, set } = context as typeof context & {
+          user: typeof users.$inferSelect | null;
+          params: Record<string, string>;
+        };
+
         if (!user) {
           set.status = 401;
           return { success: false, message: 'Unauthorized' };
@@ -61,7 +71,7 @@ export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
 
         if (user.role === 'admin') return;
 
-        const debtId = (params as any)[debtIdParamName];
+        const debtId = params[debtIdParamName];
         if (!debtId) return;
 
         const debt = await db.query.debts.findFirst({

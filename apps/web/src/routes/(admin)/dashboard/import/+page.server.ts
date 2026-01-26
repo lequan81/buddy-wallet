@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { FE_ERRORS } from '@repo/errors';
 import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config';
+import { API_URL, getAuthHeaders } from '$lib/api';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(303, '/login');
@@ -12,7 +13,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	// Preview: Forward file to API for parsing
-	preview: async ({ request, fetch }) => {
+	preview: async ({ request, fetch, locals }) => {
 		const formData = await request.formData();
 		const file = formData.get('file') as File;
 
@@ -30,17 +31,18 @@ export const actions: Actions = {
 			});
 		}
 
-		const cookie = request.headers.get('cookie') || '';
 		const apiBody = new FormData();
 		apiBody.append('file', file);
 
 		try {
 			console.log(`[Import] Preview: ${file.name}`);
 
-			const res = await fetch('http://localhost:3000/v1/import/preview', {
+			// Note: For FormData, browser sets Content-Type with boundary automatically
+			const { 'Content-Type': _, ...headersWithoutContentType } = getAuthHeaders(locals.accessToken) as Record<string, string>;
+			const res = await fetch(`${API_URL}/v1/import/preview`, {
 				method: 'POST',
 				body: apiBody,
-				headers: { cookie }
+				headers: headersWithoutContentType
 			});
 			console.log(`[SvelteKit] API Status: ${res.status}`);
 
@@ -73,7 +75,7 @@ export const actions: Actions = {
 	},
 
 	// Import: Forward file + config to API
-	import: async ({ request, fetch }) => {
+	import: async ({ request, fetch, locals }) => {
 		const formData = await request.formData();
 		const file = formData.get('file') as File;
 		const configRaw = formData.get('config') as string;
@@ -92,7 +94,6 @@ export const actions: Actions = {
 			});
 		}
 
-		const cookie = request.headers.get('cookie') || '';
 		const apiBody = new FormData();
 		apiBody.append('file', file);
 		apiBody.append('config', configRaw);
@@ -100,10 +101,12 @@ export const actions: Actions = {
 		try {
 			console.log(`[Import] Import: ${file.name}`);
 
-			const res = await fetch('http://localhost:3000/v1/import/debts', {
+			// Note: For FormData, browser sets Content-Type with boundary automatically
+			const { 'Content-Type': _ct, ...importHeadersWithoutContentType } = getAuthHeaders(locals.accessToken) as Record<string, string>;
+			const res = await fetch(`${API_URL}/v1/import/debts`, {
 				method: 'POST',
 				body: apiBody,
-				headers: { cookie }
+				headers: importHeadersWithoutContentType
 			});
 
 			const data = await res.json();

@@ -25,7 +25,7 @@ export const jwtPlugin = new Elysia({ name: 'JWT_Plugin' })
   .use(
     jwt({
       name: 'jwt', // Helper name in context (e.g., context.jwt)
-      secret: configs.JWT_SECRET || 'ZaXIyUxCQqhgfKFcmLB6GTJ27PvdserD',
+      secret: configs.JWT_SECRET,
       schema: jwtPayloadSchema,
       exp: '7d' // Thời gian hết hạn token (ví dụ 7 ngày)
     })
@@ -45,20 +45,14 @@ export const jwtPlugin = new Elysia({ name: 'JWT_Plugin' })
         token = String(session.value);
       }
 
-      // Debug logging
-      console.error(
-        `[JWT-PLUGIN] Checking auth. Bearer: ${!!bearer}, Session: ${!!(session && session.value)}`
-      );
-      if (!token) console.error('[JWT-PLUGIN] No token found in request');
-      else console.error(`[JWT-PLUGIN] Token found (len=${token.length}), verifying...`);
-
       if (!token) return { user: null };
 
       const payload = await jwt.verify(token);
-      if (!payload) return { user: null };
+      if (!payload) {
+        return { user: null };
+      }
 
       const user = db.select().from(users).where(eq(users.id, payload.id)).get();
-
       return { user: user || null };
     }
   );

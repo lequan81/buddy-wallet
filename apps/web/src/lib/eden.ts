@@ -1,14 +1,16 @@
-import { edenTreaty } from '@elysiajs/eden';
-import type { App } from '@repo/api'; 
+import { treaty } from '@elysiajs/eden';
+import type { App } from '@repo/api';
+import { API_URL, getDefaultHeaders } from './api';
 
 export const createApi = (fetcher?: typeof fetch, token?: string) => {
-    return edenTreaty<App>('http://localhost:3000', {
-        fetcher,
-        $fetch: {
-            headers: {
-                // Đính kèm token vào mọi request gửi lên Elysia
-                Authorization: token ? `Bearer ${token}` : '',
-            }
-        }
-    });
+	return treaty<App>(API_URL, {
+		fetcher,
+		fetch: {
+			credentials: 'include' // Send cookies with cross-origin requests
+		},
+		headers: {
+			...getDefaultHeaders(), // Always include Origin/Referer for CSRF
+			...(token ? { Authorization: `Bearer ${token}` } : {})
+		}
+	});
 };

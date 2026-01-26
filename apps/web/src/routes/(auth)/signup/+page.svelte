@@ -1,38 +1,41 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
+	import { superForm } from 'sveltekit-superforms';
 	import { Eye, EyeOff, Check, Circle, Loader2 } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Card from '$lib/components/ui/card';
 	
-	let { form } = $props();
-	
-	let name = $state('');
-	let phoneNumber = $state('');
-	let email = $state('');
-	let password = $state('');
+	import type { Infer } from 'sveltekit-superforms';
+	import type { PageData } from './$types';
+	import { insertUserSchema } from '@repo/db/schema';
+
+	let { data }: { data: PageData } = $props();
+
+	// Use a getter for data.form to ensure reactivity without Svelte 5 warning
+	const { form, errors, constraints, message, enhance, delayed } = superForm<Infer<typeof insertUserSchema>>(data.form, {
+		onResult: ({ result }) => {
+			if (result.type === 'failure') {
+				toast.error('Please check your input');
+			}
+		}
+	});
+
 	let showPassword = $state(false);
-	let isSubmitting = $state(false);
-	
-	// Password validation rules
+
+	// Password validation rules (Visual feedback only, schema handles actual validation)
 	const passwordRules = $derived([
-		{ label: 'At least 8 characters', valid: password.length >= 8 },
-		{ label: 'One uppercase letter', valid: /[A-Z]/.test(password) },
-		{ label: 'One lowercase letter', valid: /[a-z]/.test(password) },
-		{ label: 'One number', valid: /\d/.test(password) },
+		{ label: 'At least 8 characters', valid: ($form.password?.length ?? 0) >= 8 },
+		{ label: 'One uppercase letter', valid: /[A-Z]/.test($form.password ?? '') },
+		{ label: 'One lowercase letter', valid: /[a-z]/.test($form.password ?? '') },
+		{ label: 'One number', valid: /\d/.test($form.password ?? '') },
 	]);
-	
-	const isPasswordValid = $derived(passwordRules.every(rule => rule.valid));
-	const isPhoneValid = $derived(phoneNumber.length >= 10);
-	const isNameValid = $derived(name.trim().length >= 2);
-	const canSubmit = $derived(isNameValid && isPhoneValid && isPasswordValid && !isSubmitting);
-	
-	// Show toast on form error
+
+	// Show toast on form error message if server returns specific message
 	$effect(() => {
-		if (form?.message) {
-			toast.error(form.message);
+		if ($message) {
+			toast.error($message);
 		}
 	});
 </script>
@@ -45,74 +48,77 @@
 				Enter your email and password to get started
 			</Card.Description>
 		</Card.Header>
-		
+
 		<Card.Content>
-			<form 
-				method="POST" 
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ update }) => {
-						isSubmitting = false;
-						await update();
-					};
-				}} 
-				class="space-y-4"
-			>
+			<form method="POST" use:enhance class="space-y-4">
 				<!-- Name Field -->
 				<div class="space-y-2">
 					<Label for="name">Full Name</Label>
-					<Input 
-						id="name" 
-						name="name" 
-						type="text" 
+					<Input
+						id="name"
+						name="name"
+						type="text"
 						placeholder="Nguyễn Văn A"
 						autocomplete="name"
-						required
-						bind:value={name}
+						aria-invalid={$errors.name ? 'true' : undefined}
+						bind:value={$form.name}
+						{...$constraints.name}
 					/>
+					{#if $errors.name}
+						<span class="text-xs text-destructive">{$errors.name}</span>
+					{/if}
 				</div>
-				
+
 				<!-- Phone Number Field (Required) -->
 				<div class="space-y-2">
 					<Label for="phoneNumber">Phone Number</Label>
-					<Input 
-						id="phoneNumber" 
-						name="phoneNumber" 
-						type="tel" 
+					<Input
+						id="phoneNumber"
+						name="phoneNumber"
+						type="tel"
 						placeholder="0901234567"
 						autocomplete="tel"
-						required
-						bind:value={phoneNumber}
+						aria-invalid={$errors.phoneNumber ? 'true' : undefined}
+						bind:value={$form.phoneNumber}
+						{...$constraints.phoneNumber}
 					/>
+					{#if $errors.phoneNumber}
+						<span class="text-xs text-destructive">{$errors.phoneNumber}</span>
+					{/if}
 					<p class="text-xs text-muted-foreground">Used to link debts to your account</p>
 				</div>
-				
+
 				<!-- Email Field (Optional) -->
 				<div class="space-y-2">
 					<Label for="email">Email (Optional)</Label>
-					<Input 
-						id="email" 
-						name="email" 
-						type="email" 
+					<Input
+						id="email"
+						name="email"
+						type="email"
 						placeholder="name@example.com"
 						autocomplete="email"
-						bind:value={email}
+						aria-invalid={$errors.email ? 'true' : undefined}
+						bind:value={$form.email}
+						{...$constraints.email}
 					/>
+					{#if $errors.email}
+						<span class="text-xs text-destructive">{$errors.email}</span>
+					{/if}
 				</div>
-				
+
 				<!-- Password Field -->
 				<div class="space-y-2">
 					<Label for="password">Password</Label>
 					<div class="relative">
-						<Input 
-							id="password" 
-							name="password" 
+						<Input
+							id="password"
+							name="password"
 							type={showPassword ? 'text' : 'password'}
 							placeholder="Create a strong password"
 							autocomplete="new-password"
-							required
-							bind:value={password}
-							class="pr-10"
+							bind:value={$form.password}
+							{...$constraints.password}
+							class="pr-10 {$errors.password ? 'border-destructive' : ''}"
 						/>
 						<button
 							type="button"
@@ -127,7 +133,10 @@
 							{/if}
 						</button>
 					</div>
-					
+					{#if $errors.password}
+						<span class="text-xs text-destructive">{$errors.password}</span>
+					{/if}
+
 					<!-- Password Requirements - Always visible, no layout shift -->
 					<div class="grid grid-cols-2 gap-x-4 gap-y-1 pt-2">
 						{#each passwordRules as rule}
@@ -143,15 +152,15 @@
 						{/each}
 					</div>
 				</div>
-				
+
 				<!-- Submit Button - Fixed height -->
-				<Button 
-					type="submit" 
-					class="w-full h-10" 
-					disabled={!canSubmit}
+				<Button
+					type="submit"
+					class="w-full h-10"
+					disabled={$delayed}
 				>
 					<span class="inline-flex items-center justify-center">
-						{#if isSubmitting}
+						{#if $delayed}
 							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 							Creating account...
 						{:else}

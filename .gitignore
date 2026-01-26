@@ -33,7 +33,6 @@ yarn-error.log*
 dist
 
 *.log
-*.code-workspace
 
 # Database files
 *.sqlite

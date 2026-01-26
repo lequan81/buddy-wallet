@@ -1,7 +1,8 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
+import { API_URL, getAuthHeaders } from '$lib/api';
 
-export const load: PageServerLoad = async ({ locals, fetch, params, request }) => {
+export const load: PageServerLoad = async ({ locals, fetch, params }) => {
 	if (!locals.user) {
 		throw redirect(302, '/login');
 	}
@@ -10,12 +11,10 @@ export const load: PageServerLoad = async ({ locals, fetch, params, request }) =
 		throw redirect(302, '/dashboard');
 	}
 
-	const cookie = request.headers.get('cookie') || '';
+	const headers = getAuthHeaders(locals.accessToken);
 
 	// Fetch user details
-	const userRes = await fetch(`http://localhost:3000/v1/users/${params.id}`, {
-		headers: { cookie }
-	});
+	const userRes = await fetch(`${API_URL}/v1/users/${params.id}`, { headers });
 
 	if (!userRes.ok) {
 		return { targetUser: null, debts: [], error: 'User not found' };
@@ -24,9 +23,7 @@ export const load: PageServerLoad = async ({ locals, fetch, params, request }) =
 	const user = await userRes.json();
 
 	// Fetch user's debts
-	const debtsRes = await fetch(`http://localhost:3000/v1/debts/user/${params.id}`, {
-		headers: { cookie }
-	});
+	const debtsRes = await fetch(`${API_URL}/v1/debts/user/${params.id}`, { headers });
 
 	const debts = debtsRes.ok ? await debtsRes.json() : [];
 
@@ -34,16 +31,16 @@ export const load: PageServerLoad = async ({ locals, fetch, params, request }) =
 };
 
 export const actions: Actions = {
-	toggleStatus: async ({ locals, fetch, params, request }) => {
+	toggleStatus: async ({ locals, fetch, params }) => {
 		if (!locals.user || locals.user.role !== 'admin') {
 			return fail(403, { error: 'Access denied' });
 		}
 
-		const cookie = request.headers.get('cookie') || '';
+		const headers = getAuthHeaders(locals.accessToken);
 
-		const response = await fetch(`http://localhost:3000/v1/users/${params.id}/status`, {
+		const response = await fetch(`${API_URL}/v1/users/${params.id}/status`, {
 			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json', cookie }
+			headers
 		});
 
 		if (!response.ok) {
