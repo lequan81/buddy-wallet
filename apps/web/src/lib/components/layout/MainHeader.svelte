@@ -1,35 +1,14 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { enhance } from '$app/forms';
 	import { buttonVariants } from '$lib/components/ui/button';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Menu, User, Settings, LogOut, Wallet, ShieldAlert } from '@lucide/svelte';
-	import { API_URL } from '$lib/api';
 
 	let user = $derived(page.data.user);
 	let isLoggingOut = $state(false);
-
-	async function handleLogout() {
-		if (isLoggingOut) return;
-		isLoggingOut = true;
-
-		try {
-			// Call backend API directly - cookies are sent automatically
-			await fetch(`${API_URL}/v1/auth/logout`, {
-				method: 'POST',
-				credentials: 'include' // Send cookies cross-origin
-			});
-		} catch (error) {
-			console.error('[AUTH] Logout error:', error);
-		}
-
-		// Always redirect regardless of response (backend clears cookies)
-		await invalidateAll();
-		await goto('/login?reason=logout', { replaceState: true });
-		isLoggingOut = false;
-	}
 </script>
 
 <header
@@ -127,10 +106,26 @@
 							</DropdownMenu.Item>
 						</DropdownMenu.Group>
 						<DropdownMenu.Separator />
-						<DropdownMenu.Item onclick={handleLogout} disabled={isLoggingOut}>
-							<LogOut class="mr-2 h-4 w-4" />
-							<span>{isLoggingOut ? 'Logging out...' : 'Log out'}</span>
-						</DropdownMenu.Item>
+						<form
+							method="POST"
+							action="/logout"
+							use:enhance={() => {
+								isLoggingOut = true;
+								return async ({ update }) => {
+									await update();
+									isLoggingOut = false;
+								};
+							}}
+						>
+							<DropdownMenu.Item disabled={isLoggingOut}>
+								{#snippet child({ props })}
+									<button type="submit" {...props} class="flex w-full items-center">
+										<LogOut class="mr-2 h-4 w-4" />
+										<span>{isLoggingOut ? 'Logging out...' : 'Log out'}</span>
+									</button>
+								{/snippet}
+							</DropdownMenu.Item>
+						</form>
 					</DropdownMenu.Content>
 				</DropdownMenu.Root>
 			{:else}

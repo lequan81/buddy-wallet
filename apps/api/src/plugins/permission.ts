@@ -1,6 +1,7 @@
 import { Elysia, type Context } from 'elysia';
 import { jwtPlugin } from './jwt';
 import type { Permission } from '@repo/permissions';
+import { logger } from '../utils/logger';
 
 export const permissionPlugin = new Elysia()
   .use(jwtPlugin)
@@ -13,8 +14,7 @@ export const permissionPlugin = new Elysia()
     checkPermission(required: Permission) {
       onBeforeHandle(({ permissions, set }: { permissions: Permission[]; set: Context['set'] }) => {
         if (!permissions.includes(required)) {
-          // Dùng error helper của Elysia hoặc trả về Response chuẩn
-          // return new Response('Unauthorized Access', { status: 403 });
+          logger.permission(`Denied: Missing '${required}'`);
           set.status = 403;
           return {
             success: false,

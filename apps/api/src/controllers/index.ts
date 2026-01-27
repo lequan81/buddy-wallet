@@ -4,3 +4,4 @@ export * from './export.controller';
 export * from './import.controller';
 export * from './public.controller';
 export * from './users.controller';
+export * from './traces.controller';

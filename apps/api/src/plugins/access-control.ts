@@ -1,9 +1,14 @@
 import { Elysia } from 'elysia';
-import { db, debts, eq, or, and } from '@repo/db';
-import { jwtPlugin } from './jwt';
+import { db, debts, eq, or, and, type User } from '@repo/db';
+import { logger } from '../utils/logger';
 
+/**
+ * Access Control Plugin
+ * 
+ * Provides macros for checking user permissions.
+ * Expects `user` to be set in context by sessionAuthPlugin at parent level.
+ */
 export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
-  .use(jwtPlugin)
   .macro(({ onBeforeHandle }) => ({
     /**
      * Ensure the logged-in user has the right to view/edit the target user's data.
@@ -15,7 +20,7 @@ export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
     ensureRelatedUser: (targetUserIdParamName: string = 'id') => {
       onBeforeHandle(async (context) => {
         const { user, params, set } = context as typeof context & {
-          user: typeof users.$inferSelect | null;
+          user: User | null;
           params: Record<string, string>;
         };
 
@@ -45,6 +50,7 @@ export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
         if (relationship) return; // Found a relationship, allow access
 
         // No relationship found
+        logger.accessControl(`Denied: User ${user.id} -> User ${targetUserId} (no relationship)`);
         set.status = 403;
         return {
           success: false,
@@ -60,7 +66,7 @@ export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
     ensureRelatedDebt: (debtIdParamName: string = 'id') => {
       onBeforeHandle(async (context) => {
         const { user, params, set } = context as typeof context & {
-          user: typeof users.$inferSelect | null;
+          user: User | null;
           params: Record<string, string>;
         };
 
@@ -85,6 +91,7 @@ export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
 
         // Check if user is involved
         if (debt.debtorId !== user.id && debt.creditorId !== user.id) {
+          logger.accessControl(`Denied: User ${user.id} not party to debt ${debtId}`);
           set.status = 403;
           return {
             success: false,

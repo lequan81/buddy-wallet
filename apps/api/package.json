@@ -3,13 +3,19 @@
   "version": "1.0.50",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
+    "dev": "LOG_LEVEL=debug bun run --watch src/index.ts",
+    "start": "bun run src/index.ts"
   },
   "dependencies": {
     "@elysiajs/bearer": "^1.4.2",
     "@elysiajs/cookie": "^0.8.0",
     "@elysiajs/cors": "^1.4.1",
     "@elysiajs/jwt": "^1.4.0",
+    "@elysiajs/opentelemetry": "^1.4.10",
+    "@opentelemetry/core": "^2.5.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.211.0",
+    "@opentelemetry/sdk-trace-base": "^2.5.0",
+    "@opentelemetry/sdk-trace-node": "^2.5.0",
     "@repo/config": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/errors": "workspace:*",

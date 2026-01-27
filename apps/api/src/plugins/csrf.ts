@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia';
 import { configs } from '../configs';
+import { logger } from '../utils/logger';
 
 // Support comma-separated origins for dev/staging/prod
 const allowedOrigins = configs.WEB_URL.split(',').map((o) => o.trim());
@@ -17,6 +18,7 @@ export const csrfPlugin = new Elysia({ name: 'CSRF_Plugin' }).onBeforeHandle(
     // 1. Strict Origin Check
     // If we have an origin, it MUST be in the allowed list
     if (origin && !allowedOrigins.includes(origin)) {
+      logger.csrf(`Blocked - Invalid Origin: ${origin}`);
       set.status = 403;
       return {
         success: false,
@@ -28,6 +30,7 @@ export const csrfPlugin = new Elysia({ name: 'CSRF_Plugin' }).onBeforeHandle(
     // 2. Referer Check
     // If we have a referer, it MUST start with one of the allowed origins
     if (referer && !allowedOrigins.some((allowed) => referer.startsWith(allowed))) {
+      logger.csrf(`Blocked - Invalid Referer: ${referer}`);
       set.status = 403;
       return {
         success: false,
@@ -38,6 +41,7 @@ export const csrfPlugin = new Elysia({ name: 'CSRF_Plugin' }).onBeforeHandle(
 
     // 3. Fallback: If neither Origin nor Referer is present, block request
     if (!origin && !referer) {
+      logger.csrf('Blocked - Missing Origin and Referer');
       set.status = 403;
       return {
         success: false,

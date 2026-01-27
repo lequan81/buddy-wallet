@@ -97,7 +97,7 @@
 						Devices where you're currently logged in. You can log out from any session.
 					</Card.Description>
 				</div>
-				{#if data.sessions.length > 1}
+				{#if data.sessions.length >= 1}
 					<AlertDialog.Root bind:open={showLogoutAllDialog}>
 						<AlertDialog.Trigger>
 							<Button variant="destructive" size="sm">

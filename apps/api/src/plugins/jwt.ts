@@ -1,12 +1,12 @@
 import { Elysia, t, type Static } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { bearer } from '@elysiajs/bearer';
-import { db, users, eq } from '@repo/db';
 import { configs } from '../configs';
+import { logger } from '../utils/logger';
 
 /**
- * 1. Define the structure of our JWT Payload
- * Tách riêng để các file khác có thể import và ép kiểu dữ liệu
+ * JWT Payload Schema
+ * Defines the structure of data stored in the JWT token
  */
 export const jwtPayloadSchema = t.Object({
   id: t.String({ description: 'User unique identifier from Database' }),
@@ -14,45 +14,28 @@ export const jwtPayloadSchema = t.Object({
   exp: t.Optional(t.Number()) // Expiration time
 });
 
-// Tạo type từ Schema để dùng trong TypeScript
 export type JWTPayload = Static<typeof jwtPayloadSchema>;
 
 /**
- * 2. JWT Security Provider Plugin
- * Cấu hình chi tiết Secret và Schema
+ * JWT Plugin
+ * 
+ * Provides JWT utilities to the context:
+ * - jwt.sign(payload) - Create a new token
+ * - jwt.verify(token) - Verify and decode a token
+ * - bearer - Extracted Bearer token from Authorization header
+ * 
+ * Note: This plugin does NOT set the user. Use sessionAuthPlugin for full authentication.
  */
 export const jwtPlugin = new Elysia({ name: 'JWT_Plugin' })
   .use(
     jwt({
-      name: 'jwt', // Helper name in context (e.g., context.jwt)
+      name: 'jwt',
       secret: configs.JWT_SECRET,
       schema: jwtPayloadSchema,
-      exp: '7d' // Thời gian hết hạn token (ví dụ 7 ngày)
+      exp: '7d'
     })
   )
   .use(bearer())
-  .derive(
-    async ({
-      jwt,
-      bearer,
-      cookie: { session }
-    }): Promise<{ user: typeof users.$inferSelect | null }> => {
-      // 1. Prioritize Bearer Token (API/Server-to-Server)
-      let token = bearer;
-
-      // 2. Fallback to Session Cookie (Browser)
-      if (!token && session && session.value) {
-        token = String(session.value);
-      }
-
-      if (!token) return { user: null };
-
-      const payload = await jwt.verify(token);
-      if (!payload) {
-        return { user: null };
-      }
-
-      const user = db.select().from(users).where(eq(users.id, payload.id)).get();
-      return { user: user || null };
-    }
-  );
+  .onStart(() => {
+    logger.jwt('JWT plugin initialized');
+  });

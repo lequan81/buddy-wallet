@@ -1,11 +1,14 @@
 import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
 import { configs } from '../configs';
+import { logger } from '../utils/logger';
 
 /**
  * 2. CORS Plugin
  * Cấu hình chi tiết Secret và Schema
  */
+logger.cors(`Initialized with origins: ${configs.WEB_URL}`);
+
 export const corsPlugin = new Elysia({ name: 'CORS_Plugin' })
   .use(
     cors({

@@ -1,4 +1,5 @@
 import { Elysia } from 'elysia';
+import { logger } from '../utils/logger';
 
 interface RateLimitEntry {
   count: number;
@@ -93,6 +94,7 @@ export function createRateLimiter(config: RateLimitConfig) {
 
       // Check if limit exceeded
       if (entry.count > maxRequests) {
+        logger.rateLimit(`Exceeded: ${key} (${entry.count}/${maxRequests})`);
         set.status = 429;
         set.headers['Retry-After'] = String(Math.ceil((entry.resetAt - now) / 1000));
         return {

@@ -4,11 +4,18 @@ import { jwtPlugin } from '@plugins/jwt';
 import { authRateLimiter } from '@plugins/rate-limit';
 import { db, users, sessions, debts, eq, and, gte, or, isNull, ne } from '@repo/db';
 import { DEFAULT_USER_PERMISSIONS } from '@repo/permissions';
-import { hashToken, verifyTokenHash, normalizePhoneNumber, parseUserAgent, getClientIP, getLocationFromIP } from '@/utils';
+import { hashToken, verifyTokenHash, normalizePhoneNumber, parseUserAgent, getClientIP, getLocationFromIP, logger } from '@/utils';
 
 // Token lifetimes
 const ACCESS_TOKEN_LIFETIME = 15 * 60 * 1000; // 15 minutes
 const REFRESH_TOKEN_LIFETIME = 90 * 24 * 60 * 60 * 1000; // 90 days
+
+// Argon2id configuration (OWASP recommended)
+const ARGON2_OPTIONS = {
+  algorithm: "argon2id" as const,
+  memoryCost: 65536,    // 64MB RAM
+  timeCost: 3,          // 3 iterations
+};
 
 // Generate secure random refresh token
 function generateRefreshToken(): string {
@@ -68,7 +75,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         }
       }
 
-      const hashedPassword = await Bun.password.hash(password);
+      const hashedPassword = await Bun.password.hash(password, ARGON2_OPTIONS);
       const userId = randomUUIDv7('base64url');
 
       const [newUser] = await db
@@ -105,7 +112,7 @@ export const authController = new Elysia({ prefix: '/auth' })
     '/login',
     async ({ body, jwt, cookie, set, request }) => {
       const { email, password } = body;
-      console.log(`[AUTH] Login attempt for: ${email}`);
+      logger.auth(`Login attempt`, { identifier: email });
 
       // Try finding user by email OR phone number
       const user = await db
@@ -115,19 +122,19 @@ export const authController = new Elysia({ prefix: '/auth' })
         .get();
 
       if (!user) {
-        console.log(`[AUTH] User not found: ${email}`);
+        logger.auth(`User not found`, { identifier: email });
         set.status = 401;
         return { success: false, error: 'Invalid credentials' };
       }
 
       const validPassword = await Bun.password.verify(password, user.password);
       if (!validPassword) {
-        console.log(`[AUTH] Invalid password for user: ${user.id}`);
+        logger.auth(`Invalid password`, { userId: user.id });
         set.status = 401;
         return { success: false, error: 'Invalid credentials' };
       }
 
-      console.log(`[AUTH] Login successful for user: ${user.id}`);
+      logger.auth(`Login successful`, { userId: user.id });
 
       // Parse device info
       const userAgent = request.headers.get('user-agent');
@@ -479,7 +486,7 @@ export const authController = new Elysia({ prefix: '/auth' })
     }
 
     // Hash new password
-    const hashedNewPassword = await Bun.password.hash(newPassword);
+    const hashedNewPassword = await Bun.password.hash(newPassword, ARGON2_OPTIONS);
 
     // Find current session to keep it active
     let currentSessionId: string | null = null;

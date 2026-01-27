@@ -1,4 +1,10 @@
 # Bun configuration for the API
+
 [run]
 # Silence file watcher warnings for monorepo packages
+silent = true
+# Preload OpenTelemetry instrumentation before main app
+preload = ["./src/instrumentation.ts"]
+
+[run.watch]
 silent = true

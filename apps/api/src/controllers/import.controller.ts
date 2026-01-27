@@ -21,10 +21,7 @@ interface ImportConfig {
 
 export const importController = new Elysia({ prefix: '/import' })
   .use(accessControlPlugin)
-  // Assert user type from jwtPlugin through accessControlPlugin
-  .derive(({ store, ...ctx }) => ({
-    user: (ctx as unknown as { user: User | null }).user
-  }))
+  // User comes from sessionAuthPlugin at parent level
   .onBeforeHandle(({ user, set }) => {
     if (!user) {
       set.status = 401;

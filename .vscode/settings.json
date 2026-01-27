@@ -1,3 +1,13 @@
 {
-  "eslint.workingDirectories": [{ "pattern": "./apps/*" }, { "pattern": "./packages/*" }]
+  "eslint.workingDirectories": [{ "pattern": "./apps/*" }, { "pattern": "./packages/*" }],
+  "[svelte]": {
+    "editor.defaultFormatter": "svelte.svelte-vscode",
+    "editor.formatOnSave": true
+  },
+  "svelte.enable-ts-plugin": true,
+  "svelte.format.options": {
+    "svelteSortOrder": "scripts-markup-styles",
+    "svelteIndentScriptAndStyle": true
+  },
+  "svelte.language-server.exclude-node-modules": true
 }
