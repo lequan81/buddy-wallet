@@ -4,6 +4,7 @@ import { accessControlPlugin } from '@plugins/access-control';
 import { permissionPlugin } from '@plugins/permission';
 import { PERMISSIONS, hasPermission } from '@repo/permissions';
 import { normalizePhoneNumber } from '@/utils/phone';
+import { configs } from '../configs';
 
 // Valid debt status transitions
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -15,12 +16,12 @@ const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
 };
 
 // Debt amount limits
-const MIN_DEBT_AMOUNT = 1000; // Minimum 1,000 (VND or smallest unit)
-const MAX_DEBT_AMOUNT = 1_000_000_000_000; // Maximum 1 trillion
+// const MIN_DEBT_AMOUNT = 1000; // Minimum 1,000 (VND or smallest unit)
+// const MAX_DEBT_AMOUNT = 1_000_000_000_000; // Maximum 1 trillion
 
 export const debtsController = new Elysia({ prefix: '/debts' })
-  .use(accessControlPlugin)
   .use(permissionPlugin)
+  .use(accessControlPlugin)
   .get(
     '/',
     async ({ user, permissions }) => {
@@ -91,19 +92,19 @@ export const debtsController = new Elysia({ prefix: '/debts' })
       }
 
       // Validate amount
-      if (amount < MIN_DEBT_AMOUNT) {
+      if (amount < configs.DEBT.MIN_AMOUNT) {
         set.status = 400;
         return {
           success: false,
-          message: `Minimum debt amount is ${MIN_DEBT_AMOUNT}`,
+          message: `Minimum debt amount is ${configs.DEBT.MIN_AMOUNT}`,
           code: 'AMOUNT_TOO_LOW'
         };
       }
-      if (amount > MAX_DEBT_AMOUNT) {
+      if (amount > configs.DEBT.MAX_AMOUNT) {
         set.status = 400;
         return {
           success: false,
-          message: `Maximum debt amount is ${MAX_DEBT_AMOUNT}`,
+          message: `Maximum debt amount is ${configs.DEBT.MAX_AMOUNT}`,
           code: 'AMOUNT_TOO_HIGH'
         };
       }

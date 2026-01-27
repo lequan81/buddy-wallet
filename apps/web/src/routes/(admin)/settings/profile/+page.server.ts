@@ -3,6 +3,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { API_URL, getAuthHeaders } from '$lib/api';
 
 export const load: PageServerLoad = async ({ parent }) => {
+	// Auth is handled by layout - just get user from parent
 	const { user } = await parent();
 	return { user };
 };
@@ -12,6 +13,7 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const phoneNumber = formData.get('phoneNumber') as string;
 
+		// Double-check auth for mutations (defense in depth)
 		if (!locals.user) return fail(401, { message: 'Unauthorized' });
 
 		const headers = getAuthHeaders(locals.accessToken);

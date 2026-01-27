@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { createApi } from '$lib/eden';
+import { createTreatyClient } from '$lib/eden';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(303, '/login');
@@ -20,7 +20,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const api = createApi(fetch);
+			const api = createTreatyClient(fetch);
 			const { error } = await api.v1.debts.post({
 				amount,
 				description,

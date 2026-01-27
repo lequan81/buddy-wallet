@@ -1,14 +1,34 @@
 import { Elysia, type Context } from 'elysia';
-import { jwtPlugin } from './jwt';
+import { sessionAuthPlugin } from './session-auth';
+import { permissionCache, isRedisAvailable } from './redis';
 import type { Permission } from '@repo/permissions';
-import { logger } from '../utils/logger';
+import { logger } from '@utils/logger';
 
 export const permissionPlugin = new Elysia()
-  .use(jwtPlugin)
-  .derive(({ user }) => {
-    return {
-      permissions: (user?.permissions as Permission[]) || []
-    };
+  .use(sessionAuthPlugin)
+  .derive({ as: 'global' }, async ({ user }): Promise<{ permissions: Permission[] }> => {
+    // If no user, no permissions
+    if (!user) {
+      return { permissions: [] as Permission[] };
+    }
+
+    // Try cache first
+    if (isRedisAvailable()) {
+      const cached = await permissionCache.get(user.id);
+      if (cached) {
+        return { permissions: cached as Permission[] };
+      }
+    }
+
+    // Get permissions from user object
+    const permissions = (user?.permissions as Permission[]) || [];
+
+    // Cache the permissions
+    if (isRedisAvailable() && permissions.length > 0) {
+      await permissionCache.set(user.id, permissions);
+    }
+
+    return { permissions };
   })
   .macro(({ onBeforeHandle }) => ({
     checkPermission(required: Permission) {

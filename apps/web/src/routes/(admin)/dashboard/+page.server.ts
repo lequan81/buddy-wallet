@@ -1,20 +1,14 @@
 import type { PageServerLoad } from './$types';
-import { redirect } from '@sveltejs/kit';
 import { API_URL, getAuthHeaders } from '$lib/api';
 
-export const load: PageServerLoad = async ({ fetch, locals }) => {
-	// 1. Allow any logged-in user
-	if (!locals.user) {
-		throw redirect(303, '/login');
-	}
-
-	const isAdmin = locals.user.role === 'admin';
+export const load: PageServerLoad = async ({ fetch, locals, parent }) => {
+	// Get server-computed permissions from layout
+	const { permissions } = await parent();
 	const headers = getAuthHeaders(locals.accessToken);
 
 	try {
-		// 2. Conditional Fetching
-		// Only admin gets full user list.
-		const usersPromise = isAdmin
+		// Only fetch users if server says user can manage them
+		const usersPromise = permissions.canManageUsers
 			? fetch(`${API_URL}/v1/users`, { headers })
 			: Promise.resolve(new Response(JSON.stringify({ success: true, users: [] })));
 
@@ -25,7 +19,7 @@ export const load: PageServerLoad = async ({ fetch, locals }) => {
 		const [usersRes, debtsRes] = await Promise.all([usersPromise, debtsPromise]);
 
 		// Helper to safely parse JSON
-		const safeJson = async (res: Response, defaultVal: any) => {
+		const safeJson = async (res: Response, defaultVal: unknown) => {
 			if (!res.ok) return defaultVal;
 			try {
 				return await res.json();
@@ -38,7 +32,7 @@ export const load: PageServerLoad = async ({ fetch, locals }) => {
 		const debtsData = await safeJson(debtsRes, []);
 
 		return {
-			users: usersData.users || [],
+			users: (usersData as { users: unknown[] }).users || [],
 			debts: Array.isArray(debtsData) ? debtsData : []
 		};
 	} catch (err) {

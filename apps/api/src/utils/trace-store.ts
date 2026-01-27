@@ -3,21 +3,9 @@
  * Stores recent traces for viewing at /traces
  */
 
-export interface TraceSpan {
-  traceId: string;
-  spanId: string;
-  parentSpanId?: string;
-  name: string;
-  method?: string;
-  path?: string;
-  status?: number;
-  duration: number; // ms
-  timestamp: Date;
-  error?: string;
-  attributes: Record<string, unknown>;
-}
+import type { TraceSpan, TraceStore } from '@/types';
 
-const MAX_TRACES = 100;
+const MAX_TRACES = parseInt(Bun.env.TRACE_MAX_ENTRIES || '100');
 const traces: TraceSpan[] = [];
 
 export const traceStore = {

@@ -14,6 +14,7 @@ export type SessionStatus = 'active' | 'revoked' | 'expired' | 'logged_out';
  * Revocation reasons for audit trail
  */
 export type RevokedReason =
+  | 'user_revoked'
   | 'user_logout'
   | 'logout_all_devices'
   | 'password_change'

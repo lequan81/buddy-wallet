@@ -1,34 +1,17 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { page } from '$app/state';
-	import { locales, localizeHref } from '$lib/paraglide/runtime';
-	import BlankLayout from '$lib/layouts/BlankLayout.svelte';
-	import GuestLayout from '$lib/layouts/GuestLayout.svelte';
-	import AuthedLayout from '$lib/layouts/AuthedLayout.svelte';
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
-	import MainHeader from '$lib/components/layout/MainHeader.svelte';
 	import { AlertTriangle, X } from '@lucide/svelte';
 	import { Toaster } from 'svelte-sonner';
 
 	let { children, data } = $props();
 	let showOfflineWarning = $state(true);
-
-	// Smart Layout Switcher Logic
-	let LayoutComponent = $derived.by(() => {
-		if (data.layout === 'blank') return BlankLayout;
-		if (data.layout === 'guest') return GuestLayout;
-		if (data.layout === 'authed') return AuthedLayout;
-
-		if (data.user) return AuthedLayout;
-		return GuestLayout;
-	});
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
 	<title>Buddy Wallet</title>
-	<meta name="description" content="Buddy Wallet" />
+	<meta name="description" content="Buddy Wallet - Manage group expenses and settle debts easily" />
 </svelte:head>
 
 <!-- Toast Notifications -->
@@ -36,27 +19,19 @@
 
 <!-- API Offline Warning Banner -->
 {#if data.apiOffline && showOfflineWarning}
-	<div class="fixed top-0 left-0 right-0 z-100 p-2 bg-yellow-500/95 text-yellow-950 flex items-center justify-center gap-2 text-sm font-medium backdrop-blur">
+	<div
+		class="fixed top-0 right-0 left-0 z-100 flex items-center justify-center gap-2 bg-yellow-500/95 p-2 text-sm font-medium text-yellow-950 backdrop-blur"
+	>
 		<AlertTriangle class="h-4 w-4" />
 		<span>Backend API is offline. Some features may be unavailable.</span>
-		<button onclick={() => showOfflineWarning = false} class="ml-2 p-1 hover:bg-yellow-600/30 rounded">
+		<button
+			onclick={() => (showOfflineWarning = false)}
+			class="ml-2 rounded p-1 hover:bg-yellow-600/30"
+		>
 			<X class="h-4 w-4" />
 		</button>
 	</div>
 {/if}
 
-<!-- Global Header -->
-<MainHeader />
-
-<!-- Render the selected layout -->
-<LayoutComponent>
-	{@render children()}
-</LayoutComponent>
-
-<div style="display:none">
-	{#each locales as locale}
-		<a href={localizeHref(page.url.pathname, { locale })}>
-			{locale}
-		</a>
-	{/each}
-</div>
+<!-- Page Content (layouts handled by route groups) -->
+{@render children()}

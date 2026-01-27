@@ -1,21 +1,33 @@
 import { randomUUIDv7 } from 'bun';
 import { Elysia, t } from 'elysia';
-import { jwtPlugin } from '@plugins/jwt';
+import { sessionAuthPlugin } from '@plugins/session-auth';
 import { authRateLimiter } from '@plugins/rate-limit';
+import { sessionCache, jwtBlacklist, userCache, isRedisAvailable } from '@plugins/redis';
 import { db, users, sessions, debts, eq, and, gte, or, isNull, ne } from '@repo/db';
+import { configs } from '../configs';
 import { DEFAULT_USER_PERMISSIONS } from '@repo/permissions';
-import { hashToken, verifyTokenHash, normalizePhoneNumber, parseUserAgent, getClientIP, getLocationFromIP, logger } from '@/utils';
+import {
+  hashToken,
+  verifyTokenHash,
+  normalizePhoneNumber,
+  parseUserAgent,
+  getClientIP,
+  getLocationFromIP,
+  logger
+} from '@utils';
 
 // Token lifetimes
-const ACCESS_TOKEN_LIFETIME = 15 * 60 * 1000; // 15 minutes
-const REFRESH_TOKEN_LIFETIME = 90 * 24 * 60 * 60 * 1000; // 90 days
+// Token lifetimes
+// const ACCESS_TOKEN_LIFETIME = 15 * 60 * 1000; // 15 minutes
+// const REFRESH_TOKEN_LIFETIME = 90 * 24 * 60 * 60 * 1000; // 90 days
+// const JWT_BLACKLIST_SECONDS = 15 * 60; // Match access token lifetime for blacklist
 
 // Argon2id configuration (OWASP recommended)
-const ARGON2_OPTIONS = {
-  algorithm: "argon2id" as const,
-  memoryCost: 65536,    // 64MB RAM
-  timeCost: 3,          // 3 iterations
-};
+// const ARGON2_OPTIONS = {
+//   algorithm: 'argon2id' as const,
+//   memoryCost: 65536, // 64MB RAM
+//   timeCost: 3 // 3 iterations
+// };
 
 // Generate secure random refresh token
 function generateRefreshToken(): string {
@@ -25,7 +37,8 @@ function generateRefreshToken(): string {
 }
 
 // Constant for minimum password length
-const MIN_PASSWORD_LENGTH = 8;
+// Constant for minimum password length
+// const MIN_PASSWORD_LENGTH = 8;
 
 /**
  * Link existing debts to a newly registered user based on phone number
@@ -45,7 +58,7 @@ async function linkDebtsToUser(userId: string, phoneNumber: string) {
 }
 
 export const authController = new Elysia({ prefix: '/auth' })
-  .use(jwtPlugin)
+  .use(sessionAuthPlugin)
   .use(authRateLimiter) // Rate limit: 10 requests per minute
   .post(
     '/register',
@@ -60,7 +73,11 @@ export const authController = new Elysia({ prefix: '/auth' })
       }
 
       // Check phone uniqueness (required field)
-      const existingPhone = db.select().from(users).where(eq(users.phoneNumber, normalizedPhone)).get();
+      const existingPhone = db
+        .select()
+        .from(users)
+        .where(eq(users.phoneNumber, normalizedPhone))
+        .get();
       if (existingPhone) {
         set.status = 400;
         return { success: false, message: 'Phone number already registered' };
@@ -75,7 +92,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         }
       }
 
-      const hashedPassword = await Bun.password.hash(password, ARGON2_OPTIONS);
+      const hashedPassword = await Bun.password.hash(password, configs.AUTH.ARGON2_OPTIONS);
       const userId = randomUUIDv7('base64url');
 
       const [newUser] = await db
@@ -115,7 +132,7 @@ export const authController = new Elysia({ prefix: '/auth' })
       logger.auth(`Login attempt`, { identifier: email });
 
       // Try finding user by email OR phone number
-      const user = await db
+      const user = db
         .select()
         .from(users)
         .where(or(eq(users.email, email), eq(users.phoneNumber, email)))
@@ -144,8 +161,8 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       // Generate tokens
       const now = Date.now();
-      const accessTokenExpiresAt = new Date(now + ACCESS_TOKEN_LIFETIME);
-      const refreshTokenExpiresAt = new Date(now + REFRESH_TOKEN_LIFETIME);
+      const accessTokenExpiresAt = new Date(now + configs.AUTH.ACCESS_TOKEN_LIFETIME);
+      const refreshTokenExpiresAt = new Date(now + configs.AUTH.REFRESH_TOKEN_LIFETIME);
 
       const accessToken = await jwt.sign({
         id: user.id,
@@ -177,27 +194,27 @@ export const authController = new Elysia({ prefix: '/auth' })
       cookie.session.set({
         value: accessToken,
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: configs.APP.IS_PROD,
         sameSite: 'strict',
         path: '/',
-        maxAge: ACCESS_TOKEN_LIFETIME / 1000 // 15 minutes
+        maxAge: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000 // 15 minutes
       });
 
       // Set refresh token cookie (long-lived)
       cookie.refresh_token.set({
         value: refreshToken,
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: configs.APP.IS_PROD,
         sameSite: 'strict',
         path: '/', // Available to all paths (SvelteKit can read it)
-        maxAge: REFRESH_TOKEN_LIFETIME / 1000 // 90 days
+        maxAge: configs.AUTH.REFRESH_TOKEN_LIFETIME / 1000 // 90 days
       });
 
       set.status = 200;
       return {
         success: true,
         user: { id: user.id, email: user.email, role: user.role },
-        expiresIn: ACCESS_TOKEN_LIFETIME / 1000
+        expiresIn: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
       };
     },
     {
@@ -249,7 +266,8 @@ export const authController = new Elysia({ prefix: '/auth' })
     // Check if user account is active
     if (!user.isActive) {
       // Revoke session if user is deactivated
-      await db.update(sessions)
+      await db
+        .update(sessions)
         .set({ status: 'revoked', revokedAt: new Date(), revokedReason: 'admin_revoke' })
         .where(eq(sessions.id, session.id));
       cookie.session.remove();
@@ -260,7 +278,7 @@ export const authController = new Elysia({ prefix: '/auth' })
 
     // Generate new access token
     const now = Date.now();
-    const accessTokenExpiresAt = new Date(now + ACCESS_TOKEN_LIFETIME);
+    const accessTokenExpiresAt = new Date(now + configs.AUTH.ACCESS_TOKEN_LIFETIME);
     const newAccessToken = await jwt.sign({
       id: user.id,
       exp: Math.floor(accessTokenExpiresAt.getTime() / 1000)
@@ -283,20 +301,20 @@ export const authController = new Elysia({ prefix: '/auth' })
     cookie.session.set({
       value: newAccessToken,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: configs.APP.IS_PROD,
       sameSite: 'strict',
       path: '/',
-      maxAge: ACCESS_TOKEN_LIFETIME / 1000
+      maxAge: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
     });
 
     set.status = 200;
     return {
       success: true,
       user: { id: user.id, email: user.email, role: user.role },
-      expiresIn: ACCESS_TOKEN_LIFETIME / 1000
+      expiresIn: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
     };
   })
-  .get('/me', ({ user }) => {
+  .get('/me', async ({ user }) => {
     return { user };
   })
   // Secure logout - requires authenticated user and validates session ownership
@@ -315,7 +333,8 @@ export const authController = new Elysia({ prefix: '/auth' })
       const refreshTokenHash = await hashToken(refreshToken);
 
       // Find the session
-      const session = db.select()
+      const session = db
+        .select()
         .from(sessions)
         .where(eq(sessions.refreshToken, refreshTokenHash))
         .get();
@@ -328,13 +347,23 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       // Soft delete: Mark session as logged out
       if (session) {
-        await db.update(sessions)
+        await db
+          .update(sessions)
           .set({
             status: 'logged_out',
             revokedAt: new Date(),
             revokedReason: 'user_logout'
           })
           .where(eq(sessions.id, session.id));
+
+        // Invalidate session cache and blacklist the access token
+        if (isRedisAvailable()) {
+          if (session.accessToken) {
+            await sessionCache.del(session.accessToken);
+            // Blacklist the access token to prevent reuse until it expires
+            await jwtBlacklist.add(session.accessToken, configs.AUTH.JWT_BLACKLIST_SECONDS);
+          }
+        }
       }
     }
 
@@ -353,18 +382,33 @@ export const authController = new Elysia({ prefix: '/auth' })
     }
 
     // Revoke ALL active sessions for this user
-    const result = await db.update(sessions)
+    const activeSessions = db
+      .select({ id: sessions.id, accessToken: sessions.accessToken })
+      .from(sessions)
+      .where(and(eq(sessions.userId, user.id), eq(sessions.status, 'active')))
+      .all();
+
+    await db
+      .update(sessions)
       .set({
         status: 'revoked',
         revokedAt: new Date(),
         revokedReason: 'logout_all_devices'
       })
-      .where(
-        and(
-          eq(sessions.userId, user.id),
-          eq(sessions.status, 'active')
-        )
+      .where(and(eq(sessions.userId, user.id), eq(sessions.status, 'active')));
+
+    // Invalidate all session caches and blacklist all access tokens
+    if (isRedisAvailable()) {
+      await Promise.all(
+        activeSessions.map(async (s) => {
+          if (s.accessToken) {
+            await sessionCache.del(s.accessToken);
+            // Blacklist to prevent reuse
+            await jwtBlacklist.add(s.accessToken, configs.AUTH.JWT_BLACKLIST_SECONDS);
+          }
+        })
       );
+    }
 
     // Clear current session cookies
     cookie.session.remove();
@@ -385,152 +429,170 @@ export const authController = new Elysia({ prefix: '/auth' })
     const refreshToken = cookie.refresh_token.value as string;
     if (refreshToken) {
       const refreshTokenHash = await hashToken(refreshToken);
-      const currentSession = db.select({ id: sessions.id })
+      const currentSession = db
+        .select({ id: sessions.id })
         .from(sessions)
         .where(eq(sessions.refreshToken, refreshTokenHash))
         .get();
       currentSessionId = currentSession?.id || null;
     }
 
-    const activeSessions = db.select({
-      id: sessions.id,
-      deviceName: sessions.deviceName,
-      deviceType: sessions.deviceType,
-      location: sessions.location,
-      ipAddress: sessions.ipAddress,
-      lastActiveAt: sessions.lastActiveAt,
-      createdAt: sessions.createdAt
-    })
+    const activeSessions = db
+      .select({
+        id: sessions.id,
+        deviceName: sessions.deviceName,
+        deviceType: sessions.deviceType,
+        location: sessions.location,
+        ipAddress: sessions.ipAddress,
+        lastActiveAt: sessions.lastActiveAt,
+        createdAt: sessions.createdAt
+      })
       .from(sessions)
-      .where(
-        and(
-          eq(sessions.userId, user.id),
-          eq(sessions.status, 'active')
-        )
-      )
+      .where(and(eq(sessions.userId, user.id), eq(sessions.status, 'active')))
       .orderBy(sessions.lastActiveAt)
       .all();
 
     return { success: true, sessions: activeSessions, currentSessionId };
   })
   // Revoke a specific session
-  .post('/sessions/:sessionId/revoke', async ({ user, params, cookie, set }) => {
-    if (!user) {
-      set.status = 401;
-      return { success: false, error: 'Unauthorized' };
-    }
-
-    // Find the session and verify it belongs to this user
-    const session = db.select()
-      .from(sessions)
-      .where(
-        and(
-          eq(sessions.id, params.sessionId),
-          eq(sessions.userId, user.id),
-          eq(sessions.status, 'active')
-        )
-      )
-      .get();
-
-    if (!session) {
-      set.status = 404;
-      return { success: false, error: 'Session not found or already revoked' };
-    }
-
-    // Revoke the session
-    await db.update(sessions)
-      .set({
-        status: 'revoked',
-        revokedAt: new Date(),
-        revokedReason: 'user_revoked' as const
-      })
-      .where(eq(sessions.id, params.sessionId));
-
-    // If user is revoking their current session, clear cookies
-    const currentRefreshToken = cookie.refresh_token.value as string;
-    if (currentRefreshToken) {
-      const currentHash = await hashToken(currentRefreshToken);
-      if (session.refreshToken === currentHash) {
-        cookie.session.remove();
-        cookie.refresh_token.remove();
+  .post(
+    '/sessions/:sessionId/revoke',
+    async ({ user, params, cookie, set }) => {
+      if (!user) {
+        set.status = 401;
+        return { success: false, error: 'Unauthorized' };
       }
-    }
 
-    return { success: true, message: 'Session revoked' };
-  }, {
-    params: t.Object({
-      sessionId: t.String()
-    })
-  })
-  // Change password with session invalidation
-  .post('/change-password', async ({ user, body, cookie, set }) => {
-    if (!user) {
-      set.status = 401;
-      return { success: false, error: 'Unauthorized' };
-    }
-
-    const { currentPassword, newPassword } = body;
-
-    // Get the user with password
-    const dbUser = db.select().from(users).where(eq(users.id, user.id)).get();
-    if (!dbUser) {
-      set.status = 404;
-      return { success: false, error: 'User not found' };
-    }
-
-    // Verify current password
-    const validPassword = await Bun.password.verify(currentPassword, dbUser.password);
-    if (!validPassword) {
-      set.status = 400;
-      return { success: false, error: 'Current password is incorrect' };
-    }
-
-    // Hash new password
-    const hashedNewPassword = await Bun.password.hash(newPassword, ARGON2_OPTIONS);
-
-    // Find current session to keep it active
-    let currentSessionId: string | null = null;
-    const refreshToken = cookie.refresh_token.value as string;
-    if (refreshToken) {
-      const refreshTokenHash = await hashToken(refreshToken);
-      const currentSession = db.select({ id: sessions.id })
+      // Find the session and verify it belongs to this user
+      const session = db
+        .select()
         .from(sessions)
-        .where(eq(sessions.refreshToken, refreshTokenHash))
+        .where(
+          and(
+            eq(sessions.id, params.sessionId),
+            eq(sessions.userId, user.id),
+            eq(sessions.status, 'active')
+          )
+        )
         .get();
-      currentSessionId = currentSession?.id || null;
-    }
 
-    // Update password and increment session version
-    await db.update(users)
-      .set({
-        password: hashedNewPassword,
-        sessionVersion: (dbUser.sessionVersion || 1) + 1,
-        lastPasswordChangeAt: new Date(),
-        updatedAt: new Date()
-      })
-      .where(eq(users.id, user.id));
+      if (!session) {
+        set.status = 404;
+        return { success: false, error: 'Session not found or already revoked' };
+      }
 
-    // Revoke ALL sessions except current (password change invalidation)
-    if (currentSessionId) {
-      await db.update(sessions)
+      // Revoke the session
+      await db
+        .update(sessions)
         .set({
           status: 'revoked',
           revokedAt: new Date(),
-          revokedReason: 'password_change'
+          revokedReason: 'user_revoked' as const
         })
-        .where(
-          and(
-            eq(sessions.userId, user.id),
-            eq(sessions.status, 'active'),
-            ne(sessions.id, currentSessionId)
-          )
-        );
-    }
+        .where(eq(sessions.id, params.sessionId));
 
-    return { success: true, message: 'Password changed successfully. Other sessions have been logged out.' };
-  }, {
-    body: t.Object({
-      currentPassword: t.String({ minLength: 1 }),
-      newPassword: t.String({ minLength: MIN_PASSWORD_LENGTH })
-    })
-  });
+      // Invalidate session cache
+      if (isRedisAvailable() && session.accessToken) {
+        await sessionCache.del(session.accessToken);
+      }
+
+      // If user is revoking their current session, clear cookies
+      const currentRefreshToken = cookie.refresh_token.value as string;
+      if (currentRefreshToken) {
+        const currentHash = await hashToken(currentRefreshToken);
+        if (session.refreshToken === currentHash) {
+          cookie.session.remove();
+          cookie.refresh_token.remove();
+        }
+      }
+
+      return { success: true, message: 'Session revoked' };
+    },
+    {
+      params: t.Object({
+        sessionId: t.String()
+      })
+    }
+  )
+  // Change password with session invalidation
+  .post(
+    '/change-password',
+    async ({ user, body, cookie, set }) => {
+      if (!user) {
+        set.status = 401;
+        return { success: false, error: 'Unauthorized' };
+      }
+
+      const { currentPassword, newPassword } = body;
+
+      // Get the user with password
+      const dbUser = db.select().from(users).where(eq(users.id, user.id)).get();
+      if (!dbUser) {
+        set.status = 404;
+        return { success: false, error: 'User not found' };
+      }
+
+      // Verify current password
+      const validPassword = await Bun.password.verify(currentPassword, dbUser.password);
+      if (!validPassword) {
+        set.status = 400;
+        return { success: false, error: 'Current password is incorrect' };
+      }
+
+      // Hash new password
+      const hashedNewPassword = await Bun.password.hash(newPassword, configs.AUTH.ARGON2_OPTIONS);
+
+      // Find current session to keep it active
+      let currentSessionId: string | null = null;
+      const refreshToken = cookie.refresh_token.value as string;
+      if (refreshToken) {
+        const refreshTokenHash = await hashToken(refreshToken);
+        const currentSession = db
+          .select({ id: sessions.id })
+          .from(sessions)
+          .where(eq(sessions.refreshToken, refreshTokenHash))
+          .get();
+        currentSessionId = currentSession?.id || null;
+      }
+
+      // Update password and increment session version
+      await db
+        .update(users)
+        .set({
+          password: hashedNewPassword,
+          sessionVersion: (dbUser.sessionVersion || 1) + 1,
+          lastPasswordChangeAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, user.id));
+
+      // Revoke ALL sessions except current (password change invalidation)
+      if (currentSessionId) {
+        await db
+          .update(sessions)
+          .set({
+            status: 'revoked',
+            revokedAt: new Date(),
+            revokedReason: 'password_change'
+          })
+          .where(
+            and(
+              eq(sessions.userId, user.id),
+              eq(sessions.status, 'active'),
+              ne(sessions.id, currentSessionId)
+            )
+          );
+      }
+
+      return {
+        success: true,
+        message: 'Password changed successfully. Other sessions have been logged out.'
+      };
+    },
+    {
+      body: t.Object({
+        currentPassword: t.String({ minLength: 1 }),
+        newPassword: t.String({ minLength: configs.AUTH.MIN_PASSWORD_LENGTH })
+      })
+    }
+  );

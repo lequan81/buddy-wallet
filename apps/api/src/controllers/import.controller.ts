@@ -1,28 +1,19 @@
+import { randomUUIDv7 } from 'bun';
 import { Elysia, t } from 'elysia';
-import { db, users, debts, importLogs, eq, or, type User } from '@repo/db';
+import { db, users, debts, importLogs, eq, or, and, lte, type User } from '@repo/db';
 import { BE_ERRORS, GEN_ERRORS, createError } from '@repo/errors';
 import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS, MAX_IMPORT_ROWS } from '@repo/config';
 import { accessControlPlugin } from '@plugins/access-control';
+import { cache, importCache, isRedisAvailable } from '@plugins/redis';
+import type { ColumnMapping, ImportConfig } from '@/types';
 import * as XLSX from 'xlsx';
-
-interface ColumnMapping {
-  name: string;
-  amount: string;
-  phone?: string;
-  email?: string;
-  description?: string;
-  dueDate?: string;
-}
-
-interface ImportConfig {
-  mapping: ColumnMapping;
-  startRow: number;
-}
+import { configs } from '../configs';
 
 export const importController = new Elysia({ prefix: '/import' })
   .use(accessControlPlugin)
   // User comes from sessionAuthPlugin at parent level
-  .onBeforeHandle(({ user, set }) => {
+  .onBeforeHandle((ctx) => {
+    const { user, set } = ctx as typeof ctx & { user: User | null };
     if (!user) {
       set.status = 401;
       return createError(GEN_ERRORS.UNAUTHORIZED, 'Authentication required');
@@ -32,7 +23,8 @@ export const importController = new Elysia({ prefix: '/import' })
   // Preview endpoint
   .post(
     '/preview',
-    async ({ user, body, set }) => {
+    async (ctx) => {
+      const { user, body, set } = ctx as typeof ctx & { user: User };
       const { file } = body;
 
       // Validate file extension
@@ -45,7 +37,7 @@ export const importController = new Elysia({ prefix: '/import' })
       }
 
       // Log the preview request
-      const logId = crypto.randomUUID();
+      const logId = randomUUIDv7('base64url');
       await db.insert(importLogs).values({
         id: logId,
         userId: user!.id,
@@ -174,8 +166,9 @@ export const importController = new Elysia({ prefix: '/import' })
   // Import endpoint
   .post(
     '/debts',
-    async ({ user, body, set }) => {
-      const { file, config: configRaw } = body;
+    async (ctx) => {
+      const { user, body, set } = ctx as typeof ctx & { user: User };
+      const { file, config: configRaw, previewLogId } = body;
 
       if (!isValidImportFile(file.name)) {
         set.status = 400;
@@ -197,16 +190,25 @@ export const importController = new Elysia({ prefix: '/import' })
         return createError(BE_ERRORS.IMPORT_PARSE_ERROR, 'Name and Amount columns required');
       }
 
-      const logId = crypto.randomUUID();
+      const logId = randomUUIDv7('base64url');
       await db.insert(importLogs).values({
         id: logId,
         userId: user!.id,
         fileName: file.name,
         fileSize: file.size,
         status: 'processing',
+        previewLogId: previewLogId || null,
         config: configRaw,
         createdAt: new Date()
       });
+
+      // Mark the preview log as linked (if provided)
+      if (previewLogId) {
+        await db
+          .update(importLogs)
+          .set({ status: 'processing' })
+          .where(eq(importLogs.id, previewLogId));
+      }
 
       try {
         const arrayBuffer = await file.arrayBuffer();
@@ -263,8 +265,30 @@ export const importController = new Elysia({ prefix: '/import' })
         };
 
         let consecutiveEmpty = 0;
+        const totalRowsToProcess = range.e.r + 1 - startRow;
+
+        // Initialize progress in Redis
+        if (isRedisAvailable()) {
+          await importCache.setProgress(logId, {
+            current: 0,
+            total: totalRowsToProcess,
+            status: 'processing'
+          });
+        }
+
         for (let excelRow = startRow; excelRow <= range.e.r + 21; excelRow++) {
-          if (excelRow % 10 === 0) console.log(`[Import] Processing row ${excelRow}...`);
+          if (excelRow % 10 === 0) {
+            console.log(`[Import] Processing row ${excelRow}...`);
+            // Update progress every 10 rows
+            if (isRedisAvailable()) {
+              await importCache.setProgress(logId, {
+                current: excelRow - startRow,
+                total: totalRowsToProcess,
+                status: 'processing',
+                errors: errors.length > 0 ? errors.slice(-5) : undefined // Last 5 errors
+              });
+            }
+          }
           if (excelRow > 10000 || consecutiveEmpty > 20) break;
 
           const name = getCellValue(mapping.name, excelRow);
@@ -293,7 +317,7 @@ export const importController = new Elysia({ prefix: '/import' })
           const debtorData = await resolveUser(phone || email || name);
 
           newDebts.push({
-            id: crypto.randomUUID(),
+            id: randomUUIDv7('base64url'),
             debtorId: debtorData?.id || null,
             creditorId: user!.id,
             debtorPhone: phone || debtorData?.phone || name,
@@ -321,6 +345,16 @@ export const importController = new Elysia({ prefix: '/import' })
           })
           .where(eq(importLogs.id, logId));
 
+        // Update final progress in Redis
+        if (isRedisAvailable()) {
+          await importCache.setProgress(logId, {
+            current: totalRowsToProcess,
+            total: totalRowsToProcess,
+            status: 'success',
+            errors: errors.length > 0 ? errors : undefined
+          });
+        }
+
         console.log(`[Import] Done: ${newDebts.length} records, ${errors.length} errors`);
 
         return { success: true, logId, imported: newDebts.length, errors };
@@ -330,9 +364,82 @@ export const importController = new Elysia({ prefix: '/import' })
           .update(importLogs)
           .set({ status: 'failed', errors: JSON.stringify([String(err)]), completedAt: new Date() })
           .where(eq(importLogs.id, logId));
+
+        // Also mark preview log as failed if linked
+        if (previewLogId) {
+          await db
+            .update(importLogs)
+            .set({ status: 'failed' })
+            .where(eq(importLogs.id, previewLogId));
+        }
+
         set.status = 500;
         return createError(BE_ERRORS.IMPORT_PARSE_ERROR, String(err));
       }
     },
-    { body: t.Object({ file: t.File(), config: t.String() }) }
+    { body: t.Object({ file: t.File(), config: t.String(), previewLogId: t.Optional(t.String()) }) }
+  )
+
+  // Cleanup stale pending logs (older than 24 hours)
+  .delete('/cleanup', async (ctx) => {
+    const { user } = ctx as typeof ctx & { user: User };
+    const oneDayAgo = new Date(Date.now() - configs.IMPORT.STALE_LOG_LIFETIME);
+
+    const result = await db
+      .delete(importLogs)
+      .where(and(eq(importLogs.status, 'pending'), lte(importLogs.createdAt, oneDayAgo)));
+
+    console.log(`[Import] Cleaned up stale pending logs older than 24h`);
+
+    return { success: true, message: 'Stale pending logs cleaned up' };
+  })
+
+  // Get import progress (real-time via Redis)
+  .get(
+    '/progress/:logId',
+    async (ctx) => {
+      const {
+        params: { logId },
+        set,
+        user
+      } = ctx as typeof ctx & { user: User };
+
+      // Try Redis first for real-time progress
+      if (isRedisAvailable()) {
+        const progress = await importCache.getProgress(logId);
+        if (progress) {
+          return {
+            success: true,
+            ...progress,
+            percentage: Math.round((progress.current / progress.total) * 100)
+          };
+        }
+      }
+
+      // Fallback to database
+      const log = await db
+        .select()
+        .from(importLogs)
+        .where(and(eq(importLogs.id, logId), eq(importLogs.userId, user.id)))
+        .get();
+
+      if (!log) {
+        set.status = 404;
+        return { success: false, message: 'Import log not found' };
+      }
+
+      return {
+        success: true,
+        current: log.importedCount || 0,
+        total: log.totalRows || 0,
+        status: log.status,
+        errors: log.errors ? JSON.parse(log.errors) : undefined,
+        percentage: log.totalRows ? Math.round(((log.importedCount || 0) / log.totalRows) * 100) : 0
+      };
+    },
+    {
+      params: t.Object({
+        logId: t.String()
+      })
+    }
   );

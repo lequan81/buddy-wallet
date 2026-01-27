@@ -9,6 +9,8 @@ export const importLogs = sqliteTable('import_logs', {
   status: text('status', { enum: ['pending', 'processing', 'success', 'failed'] })
     .notNull()
     .default('pending'),
+  // Link to preview log (for tracking preview -> import relationship)
+  previewLogId: text('preview_log_id'),
   totalRows: integer('total_rows'),
   importedCount: integer('imported_count'),
   errorCount: integer('error_count'),

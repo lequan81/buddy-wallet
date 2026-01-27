@@ -4,8 +4,15 @@ import { FE_ERRORS } from '@repo/errors';
 import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config';
 import { API_URL, getAuthHeaders } from '$lib/api';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) throw redirect(303, '/login');
+export const load: PageServerLoad = async ({ parent }) => {
+	// Get server-computed permissions from layout
+	const { permissions } = await parent();
+
+	// Only users with canImportData can access
+	if (!permissions.canImportData) {
+		throw redirect(303, '/dashboard');
+	}
+
 	return {
 		acceptedFormats: ACCEPTED_IMPORT_EXTENSIONS
 	};
@@ -79,6 +86,7 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const file = formData.get('file') as File;
 		const configRaw = formData.get('config') as string;
+		const previewLogId = formData.get('previewLogId') as string | null;
 
 		if (!file || file.size === 0) {
 			return fail(400, {
@@ -97,9 +105,12 @@ export const actions: Actions = {
 		const apiBody = new FormData();
 		apiBody.append('file', file);
 		apiBody.append('config', configRaw);
+		if (previewLogId) {
+			apiBody.append('previewLogId', previewLogId);
+		}
 
 		try {
-			console.log(`[Import] Import: ${file.name}`);
+			console.log(`[Import] Import: ${file.name}${previewLogId ? ` (linked to preview: ${previewLogId})` : ''}`);
 
 			// Note: For FormData, browser sets Content-Type with boundary automatically
 			const { 'Content-Type': _ct, ...importHeadersWithoutContentType } = getAuthHeaders(locals.accessToken) as Record<string, string>;

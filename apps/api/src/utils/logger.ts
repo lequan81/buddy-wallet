@@ -3,21 +3,15 @@
  * - Dev: Pretty print with colors
  * - Prod: JSON format for log aggregators
  * - Minimal footprint using Bun native APIs
+ *
+ * Environment variables:
+ * - LOG_LEVEL: Set log level ('debug', 'info', 'warn', 'error') - default: 'info'
  */
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+import type { LogLevel, LogContext as LogContextType } from '@/types';
 
-export interface LogContext {
-  requestId?: string;
-  userId?: string;
-  method?: string;
-  path?: string;
-  status?: number;
-  duration?: number;
-  error?: string;
-  stack?: string;
-  [key: string]: unknown;
-}
+// Re-export for consumers
+export type LogContext = LogContextType;
 
 const LOG_LEVELS: Record<LogLevel, number> = {
   debug: 0,
@@ -26,7 +20,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   error: 3,
 };
 
-const currentLevel = (Bun.env.LOG_LEVEL as LogLevel) || 'info';
+const currentLevel = (Bun.env.LOG_LEVEL?.toLocaleLowerCase() as LogLevel) || 'info';
 const isDev = Bun.env.NODE_ENV !== 'production';
 
 function shouldLog(level: LogLevel): boolean {

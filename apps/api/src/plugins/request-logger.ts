@@ -3,12 +3,13 @@
  * Automatically logs HTTP requests and responses with timing
  */
 
+import { randomUUIDv7 } from 'bun';
 import { Elysia } from 'elysia';
-import { logger, type LogContext } from '../utils/logger';
+import { logger, type LogContext } from '@utils/logger';
 
 export const requestLoggerPlugin = new Elysia({ name: 'Request_Logger' })
   .derive(() => {
-    const requestId = crypto.randomUUID().slice(0, 8);
+    const requestId = randomUUIDv7('base64url').slice(0, 12);
     const startTime = performance.now();
     return { requestId, startTime };
   })

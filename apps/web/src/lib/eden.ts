@@ -2,7 +2,7 @@ import { treaty } from '@elysiajs/eden';
 import type { App } from '@repo/api';
 import { API_URL, getDefaultHeaders } from './api';
 
-export const createApi = (fetcher?: typeof fetch, token?: string) => {
+export const createTreatyClient = (fetcher?: typeof fetch, token?: string) => {
 	return treaty<App>(API_URL, {
 		fetcher,
 		fetch: {

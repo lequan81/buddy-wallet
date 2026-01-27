@@ -1,28 +1,12 @@
 import { Elysia } from 'elysia';
-import { logger } from '../utils/logger';
+import { logger } from '@utils/logger';
+import { cache, isRedisAvailable } from './redis';
+import type { RateLimitEntry, RateLimitConfig } from '@/types';
 
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-interface RateLimitConfig {
-  /** Time window in milliseconds */
-  windowMs: number;
-  /** Maximum requests per window */
-  maxRequests: number;
-  /** Custom key generator (default: IP address) */
-  keyGenerator?: (request: Request) => string;
-  /** Skip rate limiting for certain requests */
-  skip?: (request: Request) => boolean;
-  /** Custom error message */
-  message?: string;
-}
-
-// In-memory store (consider Redis for production with multiple instances)
+// In-memory fallback store (used when Redis is not available)
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
-// Cleanup old entries periodically
+// Cleanup old entries periodically (only for in-memory store)
 setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of rateLimitStore.entries()) {
@@ -64,44 +48,57 @@ export function createRateLimiter(config: RateLimitConfig) {
   } = config;
 
   return new Elysia({ name: `Rate_Limiter_${windowMs}_${maxRequests}` }).onBeforeHandle(
-    ({ request, set }) => {
+    async ({ request, set }) => {
       // Skip if configured
       if (skip && skip(request)) {
         return;
       }
 
-      const key = keyGenerator(request);
+      const key = `ratelimit:${keyGenerator(request)}`;
       const now = Date.now();
+      const windowSeconds = Math.ceil(windowMs / 1000);
 
-      let entry = rateLimitStore.get(key);
+      let count: number;
+      let resetAt: number;
 
-      if (!entry || entry.resetAt < now) {
-        // Create new entry
-        entry = {
-          count: 1,
-          resetAt: now + windowMs
-        };
-        rateLimitStore.set(key, entry);
+      // Try Redis first, fall back to in-memory
+      if (isRedisAvailable()) {
+        // Use Redis for distributed rate limiting
+        count = await cache.incr(key, windowSeconds);
+        const ttl = await cache.ttl(key);
+        resetAt = now + (ttl > 0 ? ttl * 1000 : windowMs);
       } else {
-        // Increment existing entry
-        entry.count++;
+        // Fallback to in-memory store
+        let entry = rateLimitStore.get(key);
+
+        if (!entry || entry.resetAt < now) {
+          entry = {
+            count: 1,
+            resetAt: now + windowMs
+          };
+          rateLimitStore.set(key, entry);
+        } else {
+          entry.count++;
+        }
+        count = entry.count;
+        resetAt = entry.resetAt;
       }
 
       // Set rate limit headers
       set.headers['X-RateLimit-Limit'] = String(maxRequests);
-      set.headers['X-RateLimit-Remaining'] = String(Math.max(0, maxRequests - entry.count));
-      set.headers['X-RateLimit-Reset'] = String(Math.ceil(entry.resetAt / 1000));
+      set.headers['X-RateLimit-Remaining'] = String(Math.max(0, maxRequests - count));
+      set.headers['X-RateLimit-Reset'] = String(Math.ceil(resetAt / 1000));
 
       // Check if limit exceeded
-      if (entry.count > maxRequests) {
-        logger.rateLimit(`Exceeded: ${key} (${entry.count}/${maxRequests})`);
+      if (count > maxRequests) {
+        logger.rateLimit(`Exceeded: ${key} (${count}/${maxRequests})`);
         set.status = 429;
-        set.headers['Retry-After'] = String(Math.ceil((entry.resetAt - now) / 1000));
+        set.headers['Retry-After'] = String(Math.ceil((resetAt - now) / 1000));
         return {
           success: false,
           message,
           code: 'RATE_LIMIT_EXCEEDED',
-          retryAfter: Math.ceil((entry.resetAt - now) / 1000)
+          retryAfter: Math.ceil((resetAt - now) / 1000)
         };
       }
     }

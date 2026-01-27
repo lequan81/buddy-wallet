@@ -1,6 +1,13 @@
 import { Elysia } from 'elysia';
 import { configs } from '@/configs'; // Ensure env is loaded first
-import { corsPlugin, csrfPlugin, sessionAuthPlugin, permissionPlugin, requestLoggerPlugin } from '@plugins';
+import {
+  corsPlugin,
+  csrfPlugin,
+  sessionAuthPlugin,
+  permissionPlugin,
+  requestLoggerPlugin,
+  redisPlugin
+} from '@plugins';
 import {
   authController,
   debtsController,
@@ -12,12 +19,17 @@ import {
 } from '@controllers';
 import { telemetry } from './instrumentation';
 import { logger } from './utils/logger';
+import { startCleanupJobs, trackRequest } from './utils/scheduler';
 
 const app = new Elysia()
   // OpenTelemetry (if enabled)
   .use(telemetry ?? new Elysia())
+  // Redis (if enabled)
+  .use(redisPlugin)
   // Request logging
   .use(requestLoggerPlugin)
+  // Track requests for load estimation
+  .onRequest(() => trackRequest())
   .use(corsPlugin)
   .use(csrfPlugin) // Global CSRF Protection
   .group('/v1', (app) =>
@@ -52,12 +64,15 @@ const app = new Elysia()
   }))
   // Trace viewer (dev only)
   .use(tracesController)
-  .listen(configs.PORT);
+  .listen(configs.APP.PORT);
+
+// Start background cleanup jobs (runs hourly when load is low)
+startCleanupJobs();
 
 logger.app(`Server started`, {
   host: app.server?.hostname,
   port: app.server?.port,
-  environment: Bun.env.NODE_ENV || 'development',
+  environment: Bun.env.NODE_ENV || 'development'
 });
 
 export type App = typeof app;

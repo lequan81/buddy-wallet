@@ -1,10 +1,12 @@
 import { Elysia, t } from 'elysia';
 import { db, debts, users, eq, or } from '@repo/db';
 import { BE_ERRORS, createError } from '@repo/errors';
+import { sessionAuthPlugin } from '@plugins/session-auth';
 import { accessControlPlugin } from '@plugins/access-control';
 import * as XLSX from 'xlsx';
 
 export const exportController = new Elysia({ prefix: '/export' })
+  .use(sessionAuthPlugin)
   .use(accessControlPlugin)
 
   // Export user's own debts as Excel

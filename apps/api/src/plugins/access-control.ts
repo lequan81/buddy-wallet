@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia';
 import { db, debts, eq, or, and, type User } from '@repo/db';
-import { logger } from '../utils/logger';
+import { logger } from '@utils/logger';
 
 /**
  * Access Control Plugin
@@ -18,11 +18,8 @@ export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
      * 3. User can access another user IF there is a debt relationship between them.
      */
     ensureRelatedUser: (targetUserIdParamName: string = 'id') => {
-      onBeforeHandle(async (context) => {
-        const { user, params, set } = context as typeof context & {
-          user: User | null;
-          params: Record<string, string>;
-        };
+      onBeforeHandle(async (context: { user: User | null; params: Record<string, string>; set: { status: number } }) => {
+        const { user, params, set } = context;
 
         if (!user) {
           set.status = 401;
@@ -64,11 +61,8 @@ export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
      * Ensure the user is part of the Debt (either debtor or creditor) OR is Admin.
      */
     ensureRelatedDebt: (debtIdParamName: string = 'id') => {
-      onBeforeHandle(async (context) => {
-        const { user, params, set } = context as typeof context & {
-          user: User | null;
-          params: Record<string, string>;
-        };
+      onBeforeHandle(async (context: { user: User | null; params: Record<string, string>; set: { status: number } }) => {
+        const { user, params, set } = context;
 
         if (!user) {
           set.status = 401;

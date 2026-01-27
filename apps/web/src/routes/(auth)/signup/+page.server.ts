@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { createApi } from '$lib/eden';
+import { createTreatyClient } from '$lib/eden';
 import { superValidate, message } from 'sveltekit-superforms';
 import { valibot } from 'sveltekit-superforms/adapters';
 import { insertUserSchema } from '@repo/db/schema';
@@ -26,7 +26,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const api = createApi(fetch);
+			const api = createTreatyClient(fetch);
 			const { error } = await api.v1.auth.register.post({
 				name: form.data.name,
 				phoneNumber: form.data.phoneNumber,

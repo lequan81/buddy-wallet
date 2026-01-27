@@ -1,8 +1,9 @@
+import { dev } from "$app/environment"
 import type { Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
-import { createApi } from '$lib/eden';
+import { createTreatyClient } from '$lib/eden';
 import { API_URL, getDefaultHeaders } from '$lib/api';
 
 const handleParaglide: Handle = async ({ event, resolve }) =>
@@ -95,7 +96,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 							event.cookies.set('session', currentToken, {
 								path: '/',
 								httpOnly: true,
-								secure: process.env.NODE_ENV === 'production',
+								secure: !dev,
 								sameSite: 'strict',
 								maxAge: 15 * 60 // 15 minutes
 							});
@@ -107,7 +108,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 							event.cookies.set('refresh_token', refreshMatch[1], {
 								path: '/',
 								httpOnly: true,
-								secure: process.env.NODE_ENV === 'production',
+								secure: !dev,
 								sameSite: 'strict',
 								maxAge: 90 * 24 * 60 * 60 // 90 days
 							});
@@ -133,7 +134,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	event.locals.user = user;
 	event.locals.apiOffline = apiOffline;
 	event.locals.accessToken = currentToken;
-	event.locals.api = createApi(event.fetch, currentToken);
+	event.locals.api = createTreatyClient(event.fetch, currentToken);
 
 	// Public routes - no auth required
 	const isPublic =
@@ -146,7 +147,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		pathname.includes('/about');
 
 	// Debug log (only in dev)
-	if (process.env.NODE_ENV !== 'production') {
+	if (dev) {
 		console.log(
 			`[AUTH] ${pathname} → ${isPublic ? 'public' : 'protected'} | user: ${event.locals.user?.email || 'guest'}`
 		);
@@ -173,4 +174,12 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	return resolve(event);
 };
 
-export const handle: Handle = sequence(handleParaglide, handleTheme, handleAuth);
+export const handleDevtoolsJson: Handle = ({ event, resolve }) => {
+	if (dev && event.url.pathname === '/.well-known/appspecific/com.chrome.devtools.json') {
+		return new Response(undefined, { status: 204 });  // 204: No Content
+	}
+
+	return resolve(event);
+};
+
+export const handle: Handle = sequence(handleParaglide, handleTheme, handleAuth, handleDevtoolsJson);

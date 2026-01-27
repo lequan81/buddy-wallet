@@ -2,7 +2,7 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
 
-import type { createApi } from '$lib/eden';
+import type { createTreatyClient } from '$lib/eden';
 
 declare global {
 	namespace App {
@@ -23,7 +23,7 @@ declare global {
 			/** Current access token (valid after refresh if needed) */
 			accessToken: string | undefined;
 			/** Pre-configured API client with valid token */
-			api: ReturnType<typeof createApi>;
+			api: ReturnType<typeof createTreatyClient>;
 		}
 		// interface PageData {}
 		// interface PageState {}

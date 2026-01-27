@@ -35,7 +35,11 @@
       "@plugins": ["./src/plugins"],
       "@plugins/*": ["./src/plugins/*"],
       "@controllers": ["./src/controllers"],
-      "@controllers/*": ["./src/controllers/*"]
+      "@controllers/*": ["./src/controllers/*"],
+      "@utils": ["./src/utils"],
+      "@utils/*": ["./src/utils/*"],
+      "@/types": ["./src/types/index.d.ts"],
+      "@/types/*": ["./src/types/*"]
     },
     // "rootDirs": [],                                   /* Allow multiple folders to be treated as one when resolving modules. */
     // "typeRoots": [],                                  /* Specify multiple folders that act like './node_modules/@types'. */

@@ -1,4 +1,4 @@
-import 'dotenv/config';
+// Bun automatically loads .env files
 import { defineConfig, type Config } from 'drizzle-kit';
 
 // Database path relative to packages/db (where drizzle-kit runs)
