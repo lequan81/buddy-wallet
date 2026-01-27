@@ -1,8 +1,12 @@
 <script lang="ts">
-	let { data } = $props();
-	let Content = $derived(data.component);
+	import type { PageData } from './$types';
+	let { data }: { data: PageData } = $props();
 </script>
 
-<div class="prose dark:prose-invert mx-auto py-12 px-4">
-	<Content />
-</div>
+<svelte:head>
+	<title>{data.metadata?.title || 'Privacy'} | Buddy Wallet</title>
+</svelte:head>
+
+<article class="prose prose-slate dark:prose-invert mx-auto max-w-3xl py-12 px-4">
+	<data.component />
+</article>
