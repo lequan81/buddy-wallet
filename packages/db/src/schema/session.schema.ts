@@ -58,6 +58,11 @@ export const sessions = sqliteTable('sessions', {
   lastRefreshedAt: integer('last_refreshed_at', { mode: 'timestamp' }),
   lastActiveAt: integer('last_active_at', { mode: 'timestamp' }),
 
+  // Soft delete support (Two-Stage deletion)
+  // Stage 1: deletedAt set (record hidden from queries)
+  // Stage 2: Hard delete by cleanup worker after 30 days
+  deletedAt: integer('deleted_at', { mode: 'timestamp' }),
+
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
 });
 

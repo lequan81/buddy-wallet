@@ -17,6 +17,7 @@ import { db, users, sessions, eq, and, type User } from '@repo/db';
 import { jwtPlugin } from './jwt';
 import { logger } from '@utils/logger';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from './redis';
+import { hashToken } from '@utils';
 
 export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
   .use(jwtPlugin)
@@ -58,10 +59,20 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
 
     // 3.5. Check Redis cache first (avoids DB query)
     if (isRedisAvailable()) {
+      // sessionCache now handles hashing internally
       const cached = await sessionCache.get(token);
-      if (cached && cached.user && cached.sessionId) {
+
+      if (cached && cached.userId && cached.sessionId) {
         logger.jwt(`Session from cache`, { userId: payload.id });
-        return { user: cached.user as User, sessionId: cached.sessionId as string };
+        // Reconstruct minimal user object from cache
+        const cachedUser = {
+          id: cached.userId as string,
+          role: (cached.role as string) || 'user',
+          isActive: (cached.isActive as boolean) ?? true,
+          permissions: (cached.permissions as string[]) || []
+        } as unknown as User;
+
+        return { user: cachedUser, sessionId: cached.sessionId as string };
       }
     }
 
@@ -105,7 +116,13 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
 
     // 6. Cache session data in Redis (reduces future DB queries)
     if (isRedisAvailable()) {
-      await sessionCache.set(token, { user, sessionId: session.id });
+      await sessionCache.set(token, {
+        userId: user.id,
+        sessionId: session.id,
+        role: user.role,
+        isActive: user.isActive,
+        permissions: user.permissions
+      });
     }
 
     logger.jwt(`Session authenticated`, {

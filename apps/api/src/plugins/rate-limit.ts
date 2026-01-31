@@ -1,7 +1,8 @@
-import { Elysia } from 'elysia';
+import { Elysia, type Context } from 'elysia';
 import { logger } from '@utils/logger';
 import { cache, isRedisAvailable } from './redis';
 import type { RateLimitEntry, RateLimitConfig } from '@/types';
+import type { User } from '@repo/db';
 
 // In-memory fallback store (used when Redis is not available)
 const rateLimitStore = new Map<string, RateLimitEntry>();
@@ -18,22 +19,28 @@ setInterval(() => {
 
 /**
  * Get client IP address from request
+ * Uses X-Forwarded-For for simplicity (as requested)
  */
 function getClientIP(request: Request): string {
-  // Check common proxy headers
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
     return forwarded.split(',')[0].trim();
   }
-
-  const realIP = request.headers.get('x-real-ip');
-  if (realIP) {
-    return realIP;
-  }
-
-  // Fallback (in Bun/Elysia, this might need server context)
   return 'unknown';
 }
+
+/**
+ * Custom key generator that prioritizes authenticated User ID
+ */
+const defaultKeyGenerator = (req: Request, ctx?: Context & { user?: User | null }): string => {
+  // 1. Prefer authenticated User ID (cannot be spoofed via headers)
+  if (ctx?.user?.id) {
+    return `user:${ctx.user.id}`;
+  }
+
+  // 2. Fallback to IP for unauthenticated requests
+  return `ip:${getClientIP(req)}`;
+};
 
 /**
  * Create a rate limiting plugin with configurable options
@@ -42,19 +49,21 @@ export function createRateLimiter(config: RateLimitConfig) {
   const {
     windowMs,
     maxRequests,
-    keyGenerator = (req) => getClientIP(req),
+    keyGenerator = defaultKeyGenerator,
     skip,
     message = 'Too many requests, please try again later'
   } = config;
 
   return new Elysia({ name: `Rate_Limiter_${windowMs}_${maxRequests}` }).onBeforeHandle(
-    async ({ request, set }) => {
+    async (ctx) => {
+      const { request, set } = ctx;
       // Skip if configured
       if (skip && skip(request)) {
         return;
       }
 
-      const key = `ratelimit:${keyGenerator(request)}`;
+      // Pass full context to keyGenerator so it can access user if available
+      const key = `ratelimit:${keyGenerator(request, ctx as any)}`;
       const now = Date.now();
       const windowSeconds = Math.ceil(windowMs / 1000);
 

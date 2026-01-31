@@ -19,5 +19,8 @@ export const importLogs = sqliteTable('import_logs', {
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .$defaultFn(() => new Date()),
-  completedAt: integer('completed_at', { mode: 'timestamp' })
+  completedAt: integer('completed_at', { mode: 'timestamp' }),
+
+  // Soft delete support (Two-Stage deletion)
+  deletedAt: integer('deleted_at', { mode: 'timestamp' })
 });

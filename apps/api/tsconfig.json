@@ -36,6 +36,8 @@
       "@plugins/*": ["./src/plugins/*"],
       "@controllers": ["./src/controllers"],
       "@controllers/*": ["./src/controllers/*"],
+      "@services": ["./src/services"],
+      "@services/*": ["./src/services/*"],
       "@utils": ["./src/utils"],
       "@utils/*": ["./src/utils/*"],
       "@/types": ["./src/types/index.d.ts"],

@@ -1,9 +1,9 @@
 /**
  * OpenTelemetry Instrumentation for Buddy Wallet API
- * 
+ *
  * This file must be preloaded before the main application starts.
  * Configure in bunfig.toml: preload = ["./src/instrumentation.ts"]
- * 
+ *
  * Dev Mode: Minimal trace logs like [TRACE] GET /health 7ms
  * Production: Full OpenTelemetry with OTLP export
  */
@@ -30,10 +30,20 @@ class MinimalSpanExporter implements SpanExporter {
       const durationMs = span.duration[0] * 1000 + span.duration[1] / 1e6;
 
       // Only store HTTP request spans (top-level requests)
-      if (span.name === 'request' || span.name.startsWith('HTTP')) {
-        const method = String(span.attributes['http.method'] || span.attributes['http.request.method'] || 'REQ');
-        const path = String(span.attributes['http.target'] || span.attributes['url.path'] || span.attributes['http.route'] || '/');
-        const status = Number(span.attributes['http.status_code'] || span.attributes['http.response.status_code'] || 0);
+      const lowerName = span.name.toLowerCase();
+      if (lowerName === 'request' || span.name.startsWith('HTTP')) {
+        const method = String(
+          span.attributes['http.method'] || span.attributes['http.request.method'] || 'REQ'
+        );
+        const path = String(
+          span.attributes['http.target'] ||
+            span.attributes['url.path'] ||
+            span.attributes['http.route'] ||
+            '/'
+        );
+        const status = Number(
+          span.attributes['http.status_code'] || span.attributes['http.response.status_code'] || 0
+        );
 
         // Store in trace store for /traces UI
         traceStore.add({
@@ -46,11 +56,19 @@ class MinimalSpanExporter implements SpanExporter {
           status,
           duration: durationMs,
           timestamp: new Date(span.startTime[0] * 1000 + span.startTime[1] / 1e6),
-          attributes: span.attributes as Record<string, unknown>,
+          attributes: span.attributes as Record<string, unknown>
         });
+
+        // Log to console for immediate visibility
+        const color = status >= 500 ? '\x1b[31m' : status >= 400 ? '\x1b[33m' : '\x1b[32m';
+        const reset = '\x1b[0m';
+        console.log(
+          `[TRACE] ${method} ${path} ${color}${status}${reset} - ${durationMs.toFixed(2)}ms`
+        );
       }
       // Store error spans too
-      else if (span.status.code === 2) { // SpanStatusCode.ERROR
+      else if (span.status.code === 2) {
+        // SpanStatusCode.ERROR
         traceStore.add({
           traceId: span.spanContext().traceId,
           spanId: span.spanContext().spanId,
@@ -59,7 +77,7 @@ class MinimalSpanExporter implements SpanExporter {
           duration: durationMs,
           timestamp: new Date(span.startTime[0] * 1000 + span.startTime[1] / 1e6),
           error: span.status.message,
-          attributes: span.attributes as Record<string, unknown>,
+          attributes: span.attributes as Record<string, unknown>
         });
       }
     }
@@ -94,8 +112,8 @@ function createExporter(): SpanExporter | null {
         url: endpoint,
         headers: {
           Authorization: `Bearer ${Bun.env.AXIOM_TOKEN}`,
-          'X-Axiom-Dataset': Bun.env.AXIOM_DATASET || 'buddy-wallet',
-        },
+          'X-Axiom-Dataset': Bun.env.AXIOM_DATASET || 'buddy-wallet'
+        }
       });
     }
 
@@ -113,18 +131,18 @@ const exporter = createExporter();
 // Create the telemetry plugin
 export const telemetry = exporter
   ? opentelemetry({
-    serviceName,
-    spanProcessors: [
-      isDev
-        ? new SimpleSpanProcessor(exporter) // Immediate export in dev
-        : new BatchSpanProcessor(exporter), // Batched export in prod
-    ],
-  })
+      serviceName,
+      spanProcessors: [
+        isDev
+          ? new SimpleSpanProcessor(exporter) // Immediate export in dev
+          : new BatchSpanProcessor(exporter) // Batched export in prod
+      ]
+    })
   : null;
 
 if (exporter) {
   logger.app(`OpenTelemetry initialized`, {
     service: serviceName,
-    mode: isDev ? 'minimal (dev)' : 'full OTLP (prod)',
+    mode: isDev ? 'minimal (dev)' : 'full OTLP (prod)'
   });
 }

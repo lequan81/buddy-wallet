@@ -1,7 +1,7 @@
 import { Elysia, t, type Static } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { bearer } from '@elysiajs/bearer';
-import { configs } from '../configs';
+import { configs } from '@/configs';
 import { logger } from '@utils/logger';
 
 /**
@@ -32,7 +32,9 @@ export const jwtPlugin = new Elysia({ name: 'JWT_Plugin' })
       name: 'jwt',
       secret: configs.AUTH.JWT_SECRET,
       schema: jwtPayloadSchema,
-      exp: '7d'
+      exp: '15m', // Shorter for access tokens
+      iss: 'buddy-wallet-api',
+      aud: 'buddy-wallet-web'
     })
   )
   .use(bearer())

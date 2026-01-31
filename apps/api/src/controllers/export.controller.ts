@@ -1,89 +1,37 @@
-import { Elysia, t } from 'elysia';
-import { db, debts, users, eq, or } from '@repo/db';
+/**
+ * Export Controller
+ *
+ * Thin controller that delegates to ExportService.
+ * Handles HTTP concerns (headers, file response) only.
+ */
+import { Elysia } from 'elysia';
 import { BE_ERRORS, createError } from '@repo/errors';
 import { sessionAuthPlugin } from '@plugins/session-auth';
 import { accessControlPlugin } from '@plugins/access-control';
-import * as XLSX from 'xlsx';
+import { exportService } from '@/services';
+import type { ExportFormat } from '@/types';
 
 export const exportController = new Elysia({ prefix: '/export' })
   .use(sessionAuthPlugin)
   .use(accessControlPlugin)
 
-  // Export user's own debts as Excel
+  // Export user's own debts
   .get('/debts', async ({ user, set, query }) => {
-    const format = (query as any)?.format || 'xlsx';
+    const format = ((query as any)?.format || 'xlsx') as ExportFormat;
 
-    // Fetch debts where user is debtor OR creditor
-    const userDebts = await db
-      .select()
-      .from(debts)
-      .where(or(eq(debts.debtorId, user!.id), eq(debts.creditorId, user!.id)))
-      .all();
+    const result = await exportService.exportUserDebts(user!.id, format);
 
-    if (userDebts.length === 0) {
+    if (!result.success) {
       set.status = 404;
       return createError(BE_ERRORS.EXPORT_NO_DATA);
     }
 
-    // Get all user emails for mapping
-    const allUsers = await db
-      .select({ id: users.id, email: users.email, name: users.name })
-      .from(users)
-      .all();
-    const userMap = new Map(allUsers.map((u) => [u.id, { email: u.email, name: u.name }]));
+    set.headers['Content-Type'] = result.contentType!;
+    set.headers['Content-Disposition'] = `attachment; filename="${result.filename}"`;
 
-    // Format data for export
-    const data = userDebts.map((d) => {
-      const debtor = userMap.get(d.debtorId ?? '') || { email: d.debtorPhone, name: d.debtorPhone };
-      const creditor = userMap.get(d.creditorId ?? '') || {
-        email: d.creditorPhone,
-        name: d.creditorPhone
-      };
-      const isCreditor = d.creditorId === user!.id;
+    console.log(`[Export] User ${user!.id}: exported as ${format}`);
 
-      return {
-        Date: d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '',
-        Type: isCreditor ? 'Lent' : 'Borrowed',
-        Person: isCreditor ? debtor.name || debtor.email : creditor.name || creditor.email,
-        Amount: d.amount,
-        Status: d.status,
-        Description: d.description || ''
-      };
-    });
-
-    // Create workbook
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'My Debts');
-
-    // Auto-width columns
-    const colWidths = Object.keys(data[0] || {}).map((key) => ({
-      wch: Math.max(key.length, ...data.map((row) => String((row as any)[key] || '').length))
-    }));
-    worksheet['!cols'] = colWidths;
-
-    // Generate file
-    const filename = `debts_${new Date().toISOString().split('T')[0]}`;
-    let buf: Buffer;
-    let contentType: string;
-    let extension: string;
-
-    if (format === 'csv') {
-      buf = Buffer.from(XLSX.utils.sheet_to_csv(worksheet), 'utf-8');
-      contentType = 'text/csv';
-      extension = 'csv';
-    } else {
-      buf = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
-      contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      extension = 'xlsx';
-    }
-
-    set.headers['Content-Type'] = contentType;
-    set.headers['Content-Disposition'] = `attachment; filename="${filename}.${extension}"`;
-
-    console.log(`[Export] User ${user!.id}: ${userDebts.length} records as ${extension}`);
-
-    return buf;
+    return result.buffer;
   })
 
   // Admin: Export all debts
@@ -93,61 +41,19 @@ export const exportController = new Elysia({ prefix: '/export' })
       return createError(BE_ERRORS.EXPORT_FAILED, 'Admin access required');
     }
 
-    const format = (query as any)?.format || 'xlsx';
-    const allDebts = await db.select().from(debts).all();
+    const format = ((query as any)?.format || 'xlsx') as ExportFormat;
 
-    if (allDebts.length === 0) {
+    const result = await exportService.exportAllDebts(format);
+
+    if (!result.success) {
       set.status = 404;
       return createError(BE_ERRORS.EXPORT_NO_DATA);
     }
 
-    const allUsers = await db
-      .select({ id: users.id, email: users.email, name: users.name, phone: users.phoneNumber })
-      .from(users)
-      .all();
-    const userMap = new Map(allUsers.map((u) => [u.id, u]));
+    set.headers['Content-Type'] = result.contentType!;
+    set.headers['Content-Disposition'] = `attachment; filename="${result.filename}"`;
 
-    const data = allDebts.map((d) => {
-      const debtor = userMap.get(d.debtorId ?? '');
-      const creditor = userMap.get(d.creditorId ?? '');
+    console.log(`[Export] Admin: exported all debts as ${format}`);
 
-      return {
-        ID: d.id,
-        Debtor: debtor?.name || debtor?.email || d.debtorPhone || d.debtorId || '',
-        'Debtor Phone': debtor?.phone || d.debtorPhone || '',
-        Creditor: creditor?.name || creditor?.email || d.creditorPhone || d.creditorId || '',
-        'Creditor Phone': creditor?.phone || d.creditorPhone || '',
-        Amount: d.amount,
-        Status: d.status,
-        Description: d.description || '',
-        Created: d.createdAt ? new Date(d.createdAt).toISOString() : '',
-        Updated: d.updatedAt ? new Date(d.updatedAt).toISOString() : ''
-      };
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'All Debts');
-
-    const filename = `all_debts_${new Date().toISOString().split('T')[0]}`;
-    let buf: Buffer;
-    let contentType: string;
-    let extension: string;
-
-    if (format === 'csv') {
-      buf = Buffer.from(XLSX.utils.sheet_to_csv(worksheet), 'utf-8');
-      contentType = 'text/csv';
-      extension = 'csv';
-    } else {
-      buf = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
-      contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      extension = 'xlsx';
-    }
-
-    set.headers['Content-Type'] = contentType;
-    set.headers['Content-Disposition'] = `attachment; filename="${filename}.${extension}"`;
-
-    console.log(`[Export] Admin: ${allDebts.length} records as ${extension}`);
-
-    return buf;
+    return result.buffer;
   });

@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia';
 import { cors } from '@elysiajs/cors';
-import { configs } from '../configs';
+import { configs } from '@/configs';
 import { logger } from '@utils/logger';
 
 /**

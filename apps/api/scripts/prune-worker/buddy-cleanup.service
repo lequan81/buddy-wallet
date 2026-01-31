@@ -1,0 +1,22 @@
+[Unit]
+Description=Buddy Wallet DB Cleanup
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/bun run /app/scripts/prune-worker/index.ts
+User=buddy
+WorkingDirectory=/app
+CPUSchedulingPolicy=idle
+Nice=19
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=buddy-cleanup

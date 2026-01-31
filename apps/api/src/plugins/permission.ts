@@ -44,3 +44,9 @@ export const permissionPlugin = new Elysia()
       });
     }
   }));
+
+export async function invalidateUserPermissions(userId: string) {
+  if (isRedisAvailable()) {
+    await permissionCache.del(userId);
+  }
+}

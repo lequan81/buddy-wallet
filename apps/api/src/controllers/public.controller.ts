@@ -1,11 +1,18 @@
+/**
+ * Public Controller
+ *
+ * Thin controller for public (unauthenticated) endpoints.
+ * Delegates to DebtService for business logic.
+ */
 import { Elysia, t } from 'elysia';
-import { db, debts, eq, and, or, ne } from '@repo/db';
 import { strictRateLimiter } from '@plugins/rate-limit';
 import { normalizePhoneNumber, maskPhone } from '@/utils/phone';
+import { debtService } from '@/services';
 
 export const publicController = new Elysia({ prefix: '/public' })
-  // Apply strict rate limiting: 5 requests per minute per IP
   .use(strictRateLimiter)
+
+  // Check if a phone number has active debts
   .get(
     '/check-debt',
     async ({ query, set }) => {
@@ -22,22 +29,9 @@ export const publicController = new Elysia({ prefix: '/public' })
         };
       }
 
-      // Count active debts linked to this phone number
-      // Active = status NOT 'paid' or 'cancelled'
-      const activeDebts = db
-        .select()
-        .from(debts)
-        .where(
-          and(
-            or(eq(debts.debtorPhone, normalizedPhone), eq(debts.creditorPhone, normalizedPhone)),
-            and(ne(debts.status, 'paid'), ne(debts.status, 'cancelled'))
-          )
-        )
-        .all();
+      // Use DebtService for the lookup
+      const count = await debtService.countActiveDebtsForPhone(normalizedPhone);
 
-      const count = activeDebts.length;
-
-      // Return masked phone for privacy confirmation
       return {
         success: true,
         phone: maskPhone(normalizedPhone),

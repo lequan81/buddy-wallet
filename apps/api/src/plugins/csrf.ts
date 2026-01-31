@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { configs } from '../configs';
+import { configs } from '@/configs';
 import { logger } from '@utils/logger';
 
 // Support comma-separated origins for dev/staging/prod

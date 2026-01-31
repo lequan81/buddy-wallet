@@ -12,6 +12,16 @@ export const users = sqliteTable('users', {
   permissions: text('permissions', { mode: 'json' }).$type<string[]>().default([]),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
 
+  // Account security
+  isLocked: integer('is_locked', { mode: 'boolean' }).notNull().default(false),
+  lockoutUntil: integer('lockout_until', { mode: 'timestamp' }),
+  failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
+  lastFailedLoginAt: integer('last_failed_login_at', { mode: 'timestamp' }),
+
+  // Verification
+  emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
+  phoneVerified: integer('phone_verified', { mode: 'boolean' }).notNull().default(false),
+
   // Session management - increment to invalidate all sessions
   sessionVersion: integer('session_version').notNull().default(1),
   lastPasswordChangeAt: integer('last_password_change_at', { mode: 'timestamp' }),
@@ -31,5 +41,18 @@ export const insertUserSchema = v.omit(
     // Xử lý nested array cho permissions
     permissions: v.array(v.string())
   }),
-  ['id', 'createdAt', 'updatedAt', 'isActive', 'role', 'permissions']
+  [
+    'id',
+    'createdAt',
+    'updatedAt',
+    'isActive',
+    'role',
+    'permissions',
+    'isLocked',
+    'lockoutUntil',
+    'failedLoginAttempts',
+    'lastFailedLoginAt',
+    'emailVerified',
+    'phoneVerified'
+  ]
 );

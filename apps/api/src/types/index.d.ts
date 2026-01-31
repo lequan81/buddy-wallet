@@ -1,15 +1,23 @@
 /**
  * Buddy Wallet API Type Definitions
- * 
+ *
  * All shared types and interfaces for the API
  */
 
+// Re-export all types
 // Re-export all types
 export * from './logger';
 export * from './rate-limit';
 export * from './trace';
 export * from './import';
-export * from './redis';
+// Service Types
+export * from './services/common';
+export * from './services/auth';
+export * from './services/debt';
+export * from './services/export';
+export * from './services/session';
+export * from './services/user';
+export * from './services/import';
 
 // App type (exported from index.ts)
 import type { Elysia } from 'elysia';

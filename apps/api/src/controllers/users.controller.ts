@@ -1,101 +1,63 @@
+/**
+ * Users Controller
+ *
+ * Thin controller that delegates to UserService.
+ * Handles HTTP concerns only.
+ */
 import { Elysia, t } from 'elysia';
-import { db, users, sessions, eq, and } from '@repo/db';
 import { accessControlPlugin } from '@plugins/access-control';
 import { permissionPlugin } from '@plugins/permission';
-import { userCache, sessionCache, isRedisAvailable } from '@plugins/redis';
 import { PERMISSIONS } from '@repo/permissions';
+import { userService } from '@/services';
 
 export const usersController = new Elysia({ prefix: '/users' })
   .use(accessControlPlugin)
   .use(permissionPlugin)
+
+  // List all users (admin)
   .get(
     '/',
     async () => {
-      // Permission checked via checkPermission macro
-      const allUsers = await db.select().from(users).all();
-      return { success: true, users: allUsers.map(({ password, ...u }) => u) };
+      const users = await userService.getAllUsers();
+      return { success: true, users };
     },
-    {
-      checkPermission: PERMISSIONS.ADMIN_MANAGE_USERS
-    }
+    { checkPermission: PERMISSIONS.ADMIN_MANAGE_USERS }
   )
+
+  // Get user by ID
   .get(
     '/:id',
     async ({ params: { id }, set }) => {
-      // Try cache first
-      if (isRedisAvailable()) {
-        const cached = await userCache.get(id);
-        if (cached) {
-          return { success: true, user: cached };
-        }
-      }
+      const result = await userService.getUserById(id);
 
-      const user = await db.select().from(users).where(eq(users.id, id)).get();
-
-      if (!user) {
+      if (!result.success) {
         set.status = 404;
-        return { success: false, message: 'User not found' };
+        return result;
       }
 
-      // Hide sensitive data
-      const { password, ...safeUser } = user;
-
-      // Cache the user profile
-      if (isRedisAvailable()) {
-        await userCache.set(id, safeUser);
-      }
-
-      return { success: true, user: safeUser };
+      return result;
     },
     {
-      params: t.Object({
-        id: t.String()
-      }),
-      // Verify relationship: either Admin, Self, or Related by Debt
+      params: t.Object({ id: t.String() }),
       ensureRelatedUser: 'id'
     }
   )
+
+  // Toggle user status (admin)
   .patch(
     '/:id/status',
     async ({ params: { id }, set }) => {
-      // Permission checked via checkPermission macro
-      // Get current user
-      const targetUser = await db.select().from(users).where(eq(users.id, id)).get();
-      if (!targetUser) {
+      const result = await userService.toggleUserStatus(id);
+
+      if (!result.success) {
         set.status = 404;
-        return { success: false, message: 'User not found' };
+        return result;
       }
 
-      // Toggle status
-      const newStatus = !targetUser.isActive;
-      await db
-        .update(users)
-        .set({ isActive: newStatus, updatedAt: new Date() })
-        .where(eq(users.id, id));
-
-      // If deactivating user, revoke all their active sessions
-      if (!newStatus) {
-        await db
-          .update(sessions)
-          .set({
-            status: 'revoked',
-            revokedAt: new Date(),
-            revokedReason: 'admin_revoke'
-          })
-          .where(and(eq(sessions.userId, id), eq(sessions.status, 'active')));
-      }
-
-      // Invalidate user cache on status change
-      if (isRedisAvailable()) {
-        await userCache.del(id);
-      }
-
-      return { success: true, isActive: newStatus };
+      return result;
     },
     {
-      params: t.Object({
-        id: t.String()
-      }),
+      params: t.Object({ id: t.String() }),
       checkPermission: PERMISSIONS.ADMIN_MANAGE_USERS
     }
   );

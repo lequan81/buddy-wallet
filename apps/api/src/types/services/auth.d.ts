@@ -1,0 +1,25 @@
+/**
+ * Auth Type Definitions
+ */
+export interface RegisterInput {
+  name: string;
+  email?: string;
+  phoneNumber: string;
+  password: string;
+}
+
+export interface LoginInput {
+  identifier: string; // email or phone
+  password: string;
+  userAgent: string | null;
+  clientIP: string | null;
+}
+
+export interface AuthResult {
+  success: boolean;
+  error?: string;
+  user?: { id: string; email: string | null; role: string };
+  accessToken?: string;
+  refreshToken?: string;
+  expiresIn?: number;
+}

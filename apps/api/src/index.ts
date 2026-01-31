@@ -19,17 +19,16 @@ import {
 } from '@controllers';
 import { telemetry } from './instrumentation';
 import { logger } from './utils/logger';
-import { startCleanupJobs, trackRequest } from './utils/scheduler';
+// Cleanup jobs now run externally via scripts/prune-worker
 
-const app = new Elysia()
+export const app = new Elysia()
   // OpenTelemetry (if enabled)
   .use(telemetry ?? new Elysia())
   // Redis (if enabled)
   .use(redisPlugin)
   // Request logging
   .use(requestLoggerPlugin)
-  // Track requests for load estimation
-  .onRequest(() => trackRequest())
+
   .use(corsPlugin)
   .use(csrfPlugin) // Global CSRF Protection
   .group('/v1', (app) =>
@@ -63,16 +62,16 @@ const app = new Elysia()
     memory: process.memoryUsage().heapUsed
   }))
   // Trace viewer (dev only)
-  .use(tracesController)
-  .listen(configs.APP.PORT);
+  .use(tracesController);
 
-// Start background cleanup jobs (runs hourly when load is low)
-startCleanupJobs();
+if (import.meta.main) {
+  app.listen(configs.APP.PORT);
 
-logger.app(`Server started`, {
-  host: app.server?.hostname,
-  port: app.server?.port,
-  environment: Bun.env.NODE_ENV || 'development'
-});
+  logger.app(`Server started`, {
+    host: app.server?.hostname,
+    port: app.server?.port,
+    environment: Bun.env.NODE_ENV || 'development'
+  });
+}
 
 export type App = typeof app;
