@@ -27,6 +27,8 @@
         "@repo/db": "workspace:*",
         "@repo/errors": "workspace:*",
         "@repo/permissions": "workspace:*",
+        "@upyo/core": "^0.4.0",
+        "@upyo/smtp": "^0.4.0",
         "elysia": "^1.4.22",
         "sharp": "^0.34.5",
         "xlsx": "^0.18.5",
@@ -623,6 +625,10 @@
     "@typescript-eslint/utils": ["@typescript-eslint/utils@8.53.1", "", { "dependencies": { "@eslint-community/eslint-utils": "^4.9.1", "@typescript-eslint/scope-manager": "8.53.1", "@typescript-eslint/types": "8.53.1", "@typescript-eslint/typescript-estree": "8.53.1" }, "peerDependencies": { "eslint": "^8.57.0 || ^9.0.0", "typescript": ">=4.8.4 <6.0.0" } }, "sha512-c4bMvGVWW4hv6JmDUEG7fSYlWOl3II2I4ylt0NM+seinYQlZMQIaKaXIIVJWt9Ofh6whrpM+EdDQXKXjNovvrg=="],
 
     "@typescript-eslint/visitor-keys": ["@typescript-eslint/visitor-keys@8.53.1", "", { "dependencies": { "@typescript-eslint/types": "8.53.1", "eslint-visitor-keys": "^4.2.1" } }, "sha512-oy+wV7xDKFPRyNggmXuZQSBzvoLnpmJs+GhzRhPjrxl2b/jIlyjVokzm47CZCDUdXKr2zd7ZLodPfOBpOPyPlg=="],
+
+    "@upyo/core": ["@upyo/core@0.4.0", "", {}, "sha512-JQtwxI095eTkfdJQCaZfRskpPuTUcU1FRbqEinf+sLhP8Z0MW+9UsPGmJvFV9uSjMxfl9hhCUe6I4W4R1TqUjA=="],
+
+    "@upyo/smtp": ["@upyo/smtp@0.4.0", "", { "peerDependencies": { "@upyo/core": "0.4.0" } }, "sha512-YOlbWilM7j6gn3AW0dVIknS6RWmPIxnPc1g6iBCXLh3MylRVGrjXtmCJwS/ueCLXTQRoVv6TRd39a+kiImE6dw=="],
 
     "@valibot/to-json-schema": ["@valibot/to-json-schema@1.5.0", "", { "peerDependencies": { "valibot": "^1.2.0" } }, "sha512-GE7DmSr1C2UCWPiV0upRH6mv0cCPsqYGs819fb6srCS1tWhyXrkGGe+zxUiwzn/L1BOfADH4sNjY/YHCuP8phQ=="],
 
