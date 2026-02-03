@@ -156,7 +156,17 @@ export class FileService {
         createdAt: now
       };
 
-      this.db.insert(fileMetadata).values(metadata).run();
+      try {
+        this.db.insert(fileMetadata).values(metadata).run();
+      } catch (dbError) {
+        // Cleanup file if DB insert fails
+        try {
+          await unlink(fullPath);
+        } catch {
+          // Ignore unlink error
+        }
+        throw dbError; // Re-throw to be caught by outer catch
+      }
 
       log.debug('FILE', 'Uploaded', { id, type, size: processedBuffer.length });
 

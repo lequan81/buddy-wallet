@@ -5,13 +5,16 @@
  */
 import { Elysia, t } from 'elysia';
 import { permissionPlugin } from '@plugins/permission';
-import { standardRateLimiter } from '@plugins/rate-limit';
+import { standardRateLimiter, uploadRateLimiter } from '@plugins/rate-limit';
 import { PERMISSIONS } from '@repo/permissions';
 import { fileService, debtService } from '@/services';
 
 export const uploadController = new Elysia({ prefix: '/upload' })
   .use(permissionPlugin)
-  .use(standardRateLimiter)
+  // Use uploadRateLimiter for all routes in this controller (most are uploads)
+  // GET routes will also share this limit, which is fine (10/min is strict but acceptable)
+  // If we needed split limits, we'd apply them per-route or guard.
+  .use(uploadRateLimiter)
 
   // ==================== UPLOAD QR CODE ====================
   .post(

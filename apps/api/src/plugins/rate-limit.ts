@@ -145,3 +145,10 @@ export const burstRateLimiter = createRateLimiter({
   maxRequests: 30,
   message: 'Too many requests in a short time. Please slow down.'
 });
+
+// Upload: 10 requests per minute (for large file uploads)
+export const uploadRateLimiter = createRateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 10,
+  message: 'Upload limit exceeded. Please wait before uploading more files.'
+});
