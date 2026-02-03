@@ -14,8 +14,8 @@
 	const filteredUsers = $derived(() => {
 		let users = data.users ?? [];
 
-		if (debouncedSearch.current) {
-			const q = debouncedSearch.current.toLowerCase();
+		if (debouncedSearch.debounced()) {
+			const q = debouncedSearch.debounced().toLowerCase();
 			users = users.filter(
 				(u: any) =>
 					u.name?.toLowerCase().includes(q) ||

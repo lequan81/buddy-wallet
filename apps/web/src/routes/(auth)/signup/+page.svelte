@@ -11,9 +11,9 @@
 	import type { PageData } from './$types';
 	import { insertUserSchema } from '@repo/db/schema';
 
-	let { data }: { data: PageData } = $props();
+	const { data }: { data: PageData } = $props();
 
-	// Use a getter for data.form to ensure reactivity without Svelte 5 warning
+	// superForm expects the form data directly, not a getter
 	const { form, errors, constraints, message, enhance, delayed } = superForm<Infer<typeof insertUserSchema>>(data.form, {
 		onResult: ({ result }) => {
 			if (result.type === 'failure') {

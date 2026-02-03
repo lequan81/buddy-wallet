@@ -144,7 +144,10 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		pathname.includes('/signup') ||
 		pathname.includes('/check-debt') ||
 		pathname.includes('/public') ||
-		pathname.includes('/about');
+		pathname.includes('/about') ||
+		pathname.includes('/faq') ||
+		pathname.includes('/privacy') ||
+		pathname.includes('/terms');
 
 	// Debug log (only in dev)
 	if (dev) {

@@ -24,13 +24,12 @@ const config = {
 			$contents: 'src/contents'
 		},
 		serviceWorker: {
-			register: false // Handled by @vite-pwa/sveltekit
+			register: false // Service worker registration handled by @vite-pwa/sveltekit
 		}
 	},
-	// files: {
-	// 	// you don't need to do this if you're using generateSW strategy in your app
-	// 	serviceWorker: 'src/service-worker/index.ts'
-	// },
+	files: {
+		serviceWorker: 'src/service-worker/index.ts'
+	},
 	extensions: ['.svelte', '.svx', '.md']
 };
 
