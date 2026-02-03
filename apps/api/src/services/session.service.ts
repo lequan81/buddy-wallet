@@ -7,7 +7,7 @@
 import { users, sessions, eq, and, gte } from '@repo/db';
 import { configs } from '@/configs';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
-import { hashToken } from '@utils';
+import { hashToken, generateSecureToken } from '@utils';
 import type { DbClient, JwtService } from '@/types';
 
 import type { SessionInfo } from '@/types';
@@ -20,6 +20,11 @@ export class SessionService {
 
   /**
    * Refresh an access token using a refresh token
+   *
+   * SECURITY: Implements refresh token rotation (Facebook/Instagram pattern)
+   * - Each refresh generates a NEW refresh token
+   * - Old refresh token becomes invalid immediately
+   * - Prevents refresh token replay attacks
    */
   async refreshSession(
     refreshToken: string,
@@ -30,6 +35,7 @@ export class SessionService {
     error?: string;
     user?: { id: string; email: string | null; role: string };
     accessToken?: string;
+    refreshToken?: string; // NEW: Return rotated refresh token
     expiresIn?: number;
   }> {
     if (!refreshToken) {
@@ -74,11 +80,23 @@ export class SessionService {
       exp: Math.floor(accessTokenExpiresAt.getTime() / 1000)
     });
 
+    // REFRESH TOKEN ROTATION: Generate new refresh token
+    const newRefreshToken = generateSecureToken(32);
+    const newRefreshTokenHash = await hashToken(newRefreshToken);
+    const refreshTokenExpiresAt = new Date(now + configs.AUTH.REFRESH_TOKEN_LIFETIME);
+
+    // Invalidate old session cache before updating token
+    if (isRedisAvailable() && session.accessToken) {
+      await sessionCache.del(session.accessToken);
+    }
+
     await this.db
       .update(sessions)
       .set({
         accessToken: newAccessToken,
         accessTokenExpiresAt,
+        refreshToken: newRefreshTokenHash, // NEW: Store rotated refresh token
+        refreshTokenExpiresAt, // NEW: Reset refresh token expiry
         lastRefreshedAt: new Date(),
         lastActiveAt: new Date(),
         userAgent: requestInfo.userAgent || session.userAgent,
@@ -90,6 +108,7 @@ export class SessionService {
       success: true,
       user: { id: user.id, email: user.email, role: user.role },
       accessToken: newAccessToken,
+      refreshToken: newRefreshToken, // NEW: Return new token to client
       expiresIn: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
     };
   }

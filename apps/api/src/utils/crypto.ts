@@ -1,6 +1,7 @@
 /**
  * Cryptographic utilities for secure token handling
  */
+import { containsWeakPattern, SECRET_VALIDATION, type SecretValidationResult } from '@repo/config';
 
 /**
  * Hash a token using SHA-256
@@ -40,35 +41,41 @@ export function generateSecureToken(length: number = 32): string {
 
 /**
  * Validate JWT secret strength
+ * Uses shared validation rules from @repo/config
  */
-export function validateJWTSecret(secret: string): {
-  valid: boolean;
-  issues: string[];
-} {
+export function validateJWTSecret(secret: string): SecretValidationResult {
   const issues: string[] = [];
 
-  if (secret.length < 32) {
-    issues.push('JWT secret should be at least 32 characters long');
+  if (secret.length < SECRET_VALIDATION.MIN_LENGTH) {
+    issues.push(`JWT secret should be at least ${SECRET_VALIDATION.MIN_LENGTH} characters long`);
   }
 
-  if (secret.length < 64) {
-    issues.push('Consider using a 64+ character secret for enhanced security');
+  if (secret.length < SECRET_VALIDATION.RECOMMENDED_LENGTH) {
+    issues.push(
+      `Consider using a ${SECRET_VALIDATION.RECOMMENDED_LENGTH}+ character secret for enhanced security`
+    );
   }
 
-  // Check for common weak secrets
-  const weakSecrets = ['secret', 'password', 'jwt_secret', 'your-secret-key', 'changeme'];
-  if (weakSecrets.some((weak) => secret.toLowerCase().includes(weak))) {
+  // Check for common weak secrets using shared patterns
+  if (containsWeakPattern(secret)) {
     issues.push('JWT secret contains common weak patterns');
   }
 
   // Check entropy (simple check for variety)
   const uniqueChars = new Set(secret).size;
-  if (uniqueChars < 10) {
+  if (uniqueChars < SECRET_VALIDATION.MIN_UNIQUE_CHARS) {
     issues.push('JWT secret has low character variety');
   }
 
-  return {
-    valid: issues.length === 0 || (secret.length >= 32 && uniqueChars >= 10),
-    issues
-  };
+  const isValid =
+    secret.length >= SECRET_VALIDATION.MIN_LENGTH &&
+    uniqueChars >= SECRET_VALIDATION.MIN_UNIQUE_CHARS;
+
+  const score: SecretValidationResult['score'] = !isValid
+    ? 'weak'
+    : secret.length >= SECRET_VALIDATION.RECOMMENDED_LENGTH
+      ? 'strong'
+      : 'acceptable';
+
+  return { isValid, issues, score };
 }

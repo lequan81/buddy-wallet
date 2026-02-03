@@ -1,4 +1,5 @@
 // Bun automatically loads .env files - no dotenv needed
+import { validateSecretStrength } from '@repo/config';
 
 export const getEnv = (key: string, defaultValue?: string): string => {
   // Bun.env là cách truy cập biến môi trường nhanh nhất trong Bun
@@ -11,36 +12,20 @@ export const getEnv = (key: string, defaultValue?: string): string => {
 };
 
 /**
- * Validate JWT secret strength
+ * Validate JWT secret strength using shared validation rules
  */
-function validateJWTSecret(secret: string): void {
-  const issues: string[] = [];
+function validateJWTSecretOnStartup(secret: string): void {
+  const validation = validateSecretStrength(secret);
 
-  if (secret.length < 32) {
-    issues.push('JWT_SECRET must be at least 32 characters long');
-  }
-
-  // Check for common weak secrets
-  const weakPatterns = ['secret', 'password', 'jwt_secret', 'your-secret', 'changeme', '123456'];
-  if (weakPatterns.some((weak) => secret.toLowerCase().includes(weak))) {
-    issues.push('JWT_SECRET contains weak patterns (secret, password, etc.)');
-  }
-
-  // Check entropy (character variety)
-  const uniqueChars = new Set(secret).size;
-  if (uniqueChars < 10) {
-    issues.push('JWT_SECRET has low character variety (use more unique characters)');
-  }
-
-  if (issues.length > 0 && Bun.env.NODE_ENV === 'production') {
-    throw new Error(`❌ JWT_SECRET security issues:\n  - ${issues.join('\n  - ')}`);
-  } else if (issues.length > 0) {
-    console.warn(`⚠️ JWT_SECRET security warnings:\n  - ${issues.join('\n  - ')}`);
+  if (!validation.isValid && Bun.env.NODE_ENV === 'production') {
+    throw new Error(`❌ JWT_SECRET security issues:\n  - ${validation.issues.join('\n  - ')}`);
+  } else if (validation.issues.length > 0) {
+    console.warn(`⚠️ JWT_SECRET security warnings:\n  - ${validation.issues.join('\n  - ')}`);
   }
 }
 
 const jwtSecret = getEnv('JWT_SECRET');
-validateJWTSecret(jwtSecret);
+validateJWTSecretOnStartup(jwtSecret);
 
 export const configs = {
   APP: {

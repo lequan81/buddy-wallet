@@ -1,8 +1,8 @@
 /**
  * Redis Connection Module
  *
- * Handles TCP and REST connection to Redis/Upstash.
- * Provides connection state and availability checking.
+ * Handles TCP connection to Redis using Bun's native RedisClient.
+ * Uses component-based config (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_TLS).
  */
 import { RedisClient } from 'bun';
 import { log } from '@utils/logger';
@@ -10,19 +10,40 @@ import { circuitBreaker } from './circuit-breaker';
 
 // Connection state
 let redisClient: RedisClient | null = null;
-let redisRestUrl: string | null = null;
-let redisToken: string | null = null;
-let useTcp: boolean = true;
-
-// Configuration from environment
-const REDIS_TCP_URL = Bun.env.REDIS_TCP_URL;
-const REDIS_REST_URL = Bun.env.REDIS_REST_URL;
-const REDIS_TOKEN = Bun.env.REDIS_TOKEN;
-const REDIS_TCP_ENABLED = Bun.env.REDIS_TCP_ENABLED !== 'false';
-const REDIS_ENABLED = Bun.env.REDIS_ENABLED === 'true';
 
 /**
- * Initialize Redis connection (TCP or REST)
+ * Parse boolean env var with explicit default
+ * - 'true' → true
+ * - undefined/null/'false'/anything else → defaultValue (false)
+ */
+function getEnvBool(key: string, defaultValue: boolean = false): boolean {
+  const value = Bun.env[key];
+  if (value === undefined || value === null) return defaultValue;
+  return value.toLowerCase() === 'true';
+}
+
+// Component-based configuration (readable in .env)
+const REDIS_HOST = Bun.env.REDIS_HOST;
+const REDIS_PORT = Bun.env.REDIS_PORT || '6379';
+const REDIS_PASSWORD = Bun.env.REDIS_PASSWORD;
+const REDIS_TLS = getEnvBool('REDIS_TLS', false);
+const REDIS_ENABLED = getEnvBool('REDIS_ENABLED', false);
+
+/**
+ * Build Redis URL from components (auto-encodes password)
+ */
+function buildRedisUrl(): string | undefined {
+  if (!REDIS_HOST) return undefined;
+
+  const protocol = REDIS_TLS ? 'rediss' : 'redis';
+  const url = new URL(`${protocol}://${REDIS_HOST}:${REDIS_PORT}`);
+  if (REDIS_PASSWORD) url.password = REDIS_PASSWORD;
+
+  return url.toString();
+}
+
+/**
+ * Initialize Redis connection
  */
 export async function initRedis(): Promise<boolean> {
   if (!REDIS_ENABLED) {
@@ -30,60 +51,38 @@ export async function initRedis(): Promise<boolean> {
     return false;
   }
 
-  useTcp = REDIS_TCP_ENABLED;
-
-  if (useTcp) {
-    if (!REDIS_TCP_URL) {
-      log.warn('REDIS', 'REDIS_TCP_URL not set - falling back to in-memory');
-      return false;
-    }
-
-    try {
-      const client = new RedisClient(REDIS_TCP_URL, {
-        connectionTimeout: 5000,
-        autoReconnect: true,
-        maxRetries: 3,
-        enableOfflineQueue: true
-      });
-
-      client.onconnect = () => log.debug('REDIS', 'Connected via TCP');
-      client.onclose = (error) => {
-        if (error) log.error('REDIS', 'TCP connection closed with error', { error: String(error) });
-      };
-
-      // Test connection
-      await client.set('_health', 'ok');
-      await client.del('_health');
-
-      redisClient = client;
-      log.debug('REDIS', 'TCP connection successful');
-      return true;
-    } catch (err) {
-      log.error('REDIS', 'TCP connection failed, falling back to REST', { error: String(err) });
-      useTcp = false;
-    }
-  }
-
-  // REST fallback
-  if (!REDIS_REST_URL || !REDIS_TOKEN) {
-    log.warn('REDIS', 'REDIS_REST_URL or REDIS_TOKEN not set - using in-memory fallback');
+  const redisUrl = buildRedisUrl();
+  if (!redisUrl) {
+    log.warn('REDIS', 'REDIS_HOST not set - using in-memory fallback');
     return false;
   }
 
   try {
-    const response = await fetch(`${REDIS_REST_URL}/get/_health`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' }
+    const client = new RedisClient(redisUrl, {
+      connectionTimeout: 5000,
+      autoReconnect: true,
+      maxRetries: 3,
+      enableOfflineQueue: true
     });
 
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    client.onconnect = () => log.debug('REDIS', 'Connected via TCP');
+    client.onclose = (error) => {
+      if (error) log.error('REDIS', 'Connection closed with error', { error: String(error) });
+    };
 
-    redisRestUrl = REDIS_REST_URL;
-    redisToken = REDIS_TOKEN;
-    log.debug('REDIS', 'REST connection successful');
+    // Test connection
+    await client.set('_health', 'ok');
+    await client.del('_health');
+
+    redisClient = client;
+    log.debug('REDIS', 'Connection successful', {
+      host: REDIS_HOST,
+      port: REDIS_PORT,
+      tls: REDIS_TLS
+    });
     return true;
   } catch (err) {
-    log.error('REDIS', 'REST connection failed - using in-memory fallback', { error: String(err) });
+    log.error('REDIS', 'Connection failed - using in-memory fallback', { error: String(err) });
     return false;
   }
 }
@@ -94,7 +93,8 @@ export async function initRedis(): Promise<boolean> {
 export function closeRedis(): void {
   if (redisClient) {
     redisClient.close();
-    log.debug('REDIS', 'TCP connection closed');
+    redisClient = null;
+    log.debug('REDIS', 'Connection closed');
   }
 }
 
@@ -103,30 +103,12 @@ export function closeRedis(): void {
  */
 export function isRedisAvailable(): boolean {
   if (!circuitBreaker.isAvailable()) return false;
-  return useTcp ? redisClient !== null : redisRestUrl !== null && redisToken !== null;
+  return redisClient !== null;
 }
 
 /**
- * Get connection info for internal use
+ * Get Redis client for internal use
  */
-export function getConnection() {
-  return { client: redisClient, restUrl: redisRestUrl, token: redisToken, useTcp };
-}
-
-/**
- * Make a REST request to Redis
- */
-export async function redisRequest(command: string, args: Record<string, any> = {}): Promise<any> {
-  if (!redisRestUrl || !redisToken) throw new Error('Redis REST not available');
-
-  const response = await fetch(`${redisRestUrl}/${command}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${redisToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(args)
-  });
-
-  if (!response.ok) throw new Error(`Redis REST error: ${response.status} ${response.statusText}`);
-
-  const data = await response.json();
-  return data.result;
+export function getClient(): RedisClient | null {
+  return redisClient;
 }

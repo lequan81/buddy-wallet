@@ -2,18 +2,18 @@
  * Redis Plugin for Elysia
  *
  * Modular Redis plugin with:
- * - Connection management (TCP/REST)
+ * - Connection management (TCP only, component-based config)
  * - Circuit breaker for resilience
  * - Generic cache operations
  * - Domain-specific cache helpers
  */
 import { Elysia } from 'elysia';
-import { initRedis, closeRedis, isRedisAvailable, getConnection } from './connection';
+import { initRedis, closeRedis, isRedisAvailable, getClient } from './connection';
 import { cache } from './cache';
 import { sessionCache, userCache, permissionCache, importCache, jwtBlacklist } from './caches';
 
 // Re-export everything for consumers
-export { isRedisAvailable } from './connection';
+export { isRedisAvailable, getClient } from './connection';
 export { cache } from './cache';
 export { circuitBreaker } from './circuit-breaker';
 export { sessionCache, userCache, permissionCache, importCache, jwtBlacklist } from './caches';
@@ -29,13 +29,10 @@ export const redisPlugin = new Elysia({ name: 'Redis' })
   .onStop(async () => {
     closeRedis();
   })
-  .derive({ as: 'global' }, () => {
-    const conn = getConnection();
-    return {
-      redis: conn.useTcp ? conn.client : { restUrl: conn.restUrl, token: conn.token },
-      cache,
-      sessionCache
-    };
-  });
+  .derive({ as: 'global' }, () => ({
+    redis: getClient(),
+    cache,
+    sessionCache
+  }));
 
 export default redisPlugin;

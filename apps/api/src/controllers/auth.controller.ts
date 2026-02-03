@@ -123,6 +123,18 @@ export const authController = new Elysia({ prefix: '/auth' })
       maxAge: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
     });
 
+    // REFRESH TOKEN ROTATION: Set new refresh token cookie
+    if (result.refreshToken) {
+      cookie.refresh_token.set({
+        value: result.refreshToken,
+        httpOnly: true,
+        secure: configs.APP.IS_PROD,
+        sameSite: 'strict',
+        path: '/',
+        maxAge: configs.AUTH.REFRESH_TOKEN_LIFETIME / 1000
+      });
+    }
+
     set.status = 200;
     return {
       success: true,

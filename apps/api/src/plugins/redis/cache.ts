@@ -2,10 +2,10 @@
  * Generic Cache Module
  *
  * Provides get/set/del/incr/ttl operations.
- * Uses connection module for Redis access.
+ * Uses native Bun RedisClient for Redis access.
  */
 import { log } from '@utils/logger';
-import { getConnection, redisRequest, isRedisAvailable } from './connection';
+import { getClient, isRedisAvailable } from './connection';
 import { circuitBreaker } from './circuit-breaker';
 
 const DEFAULT_CACHE_TTL = parseInt(Bun.env.REDIS_CACHE_TTL || '600');
@@ -31,15 +31,11 @@ export const cache = {
   async get<T>(key: string): Promise<T | null> {
     if (!isRedisAvailable()) return null;
     try {
-      const namespacedKey = validateCacheKey(key);
-      const { client, useTcp } = getConnection();
-      let value: string | null = null;
+      const client = getClient();
+      if (!client) return null;
 
-      if (useTcp && client) {
-        value = await client.get(namespacedKey);
-      } else {
-        value = await redisRequest(`get/${encodeURIComponent(namespacedKey)}`);
-      }
+      const namespacedKey = validateCacheKey(key);
+      const value = await client.get(namespacedKey);
 
       circuitBreaker.trackCommand(true);
       return value ? JSON.parse(value) : null;
@@ -56,16 +52,11 @@ export const cache = {
   async set<T>(key: string, value: T, ttlSeconds: number = DEFAULT_CACHE_TTL): Promise<boolean> {
     if (!isRedisAvailable()) return false;
     try {
-      const namespacedKey = validateCacheKey(key);
-      const { client, useTcp } = getConnection();
+      const client = getClient();
+      if (!client) return false;
 
-      if (useTcp && client) {
-        await client.send('SETEX', [namespacedKey, String(ttlSeconds), JSON.stringify(value)]);
-      } else {
-        await redisRequest(
-          `set/${encodeURIComponent(namespacedKey)}/${encodeURIComponent(JSON.stringify(value))}/EX/${ttlSeconds}`
-        );
-      }
+      const namespacedKey = validateCacheKey(key);
+      await client.send('SETEX', [namespacedKey, String(ttlSeconds), JSON.stringify(value)]);
 
       circuitBreaker.trackCommand(true);
       return true;
@@ -82,14 +73,11 @@ export const cache = {
   async del(key: string): Promise<boolean> {
     if (!isRedisAvailable()) return false;
     try {
-      const namespacedKey = validateCacheKey(key);
-      const { client, useTcp } = getConnection();
+      const client = getClient();
+      if (!client) return false;
 
-      if (useTcp && client) {
-        await client.del(namespacedKey);
-      } else {
-        await redisRequest(`del/${encodeURIComponent(namespacedKey)}`);
-      }
+      const namespacedKey = validateCacheKey(key);
+      await client.del(namespacedKey);
 
       circuitBreaker.trackCommand(true);
       return true;
@@ -106,24 +94,16 @@ export const cache = {
   async incr(key: string, ttlSeconds: number = RATE_LIMIT_TTL): Promise<number> {
     if (!isRedisAvailable()) return -1;
     try {
-      const namespacedKey = validateCacheKey(key);
-      const { client, useTcp } = getConnection();
-      let count: number;
+      const client = getClient();
+      if (!client) return -1;
 
-      if (useTcp && client) {
-        count = await client.incr(namespacedKey);
+      const namespacedKey = validateCacheKey(key);
+      const count = await client.incr(namespacedKey);
+      circuitBreaker.trackCommand(true);
+
+      if (count === 1) {
+        await client.expire(namespacedKey, ttlSeconds);
         circuitBreaker.trackCommand(true);
-        if (count === 1) {
-          await client.expire(namespacedKey, ttlSeconds);
-          circuitBreaker.trackCommand(true);
-        }
-      } else {
-        count = await redisRequest(`incr/${encodeURIComponent(namespacedKey)}`);
-        circuitBreaker.trackCommand(true);
-        if (count === 1) {
-          await redisRequest(`expire/${encodeURIComponent(namespacedKey)}/${ttlSeconds}`);
-          circuitBreaker.trackCommand(true);
-        }
       }
 
       return count;
@@ -140,15 +120,11 @@ export const cache = {
   async ttl(key: string): Promise<number> {
     if (!isRedisAvailable()) return -1;
     try {
-      const namespacedKey = validateCacheKey(key);
-      const { client, useTcp } = getConnection();
-      let result: number;
+      const client = getClient();
+      if (!client) return -1;
 
-      if (useTcp && client) {
-        result = await client.ttl(namespacedKey);
-      } else {
-        result = await redisRequest(`ttl/${encodeURIComponent(namespacedKey)}`);
-      }
+      const namespacedKey = validateCacheKey(key);
+      const result = await client.ttl(namespacedKey);
 
       circuitBreaker.trackCommand(true);
       return result;
