@@ -36,6 +36,7 @@ import { DebtService } from './debt.service';
 import { UserService } from './user.service';
 import { ExportService } from './export.service';
 import { ImportService } from './import.service';
+import { FileService } from './file.service';
 
 // Singleton instances for the main app
 export const authService = new AuthService(db);
@@ -44,6 +45,7 @@ export const debtService = new DebtService(db);
 export const userService = new UserService(db);
 export const exportService = new ExportService(db);
 export const importService = new ImportService(db);
+export const fileService = new FileService(db);
 
 /**
  * Factory functions for creating services with custom dependencies

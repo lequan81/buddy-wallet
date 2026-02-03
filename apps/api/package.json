@@ -21,6 +21,7 @@
     "@repo/errors": "workspace:*",
     "@repo/permissions": "workspace:*",
     "elysia": "^1.4.22",
+    "sharp": "^0.34.5",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

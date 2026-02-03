@@ -80,6 +80,15 @@ export class DebtService {
   }
 
   /**
+   * Get a single debt by ID
+   */
+  async getDebtById(debtId: string) {
+    return this.db.query.debts.findFirst({
+      where: eq(debts.id, debtId)
+    });
+  }
+
+  /**
    * Create a new debt
    */
   async createDebt(input: CreateDebtInput, currentUser: CurrentUser): Promise<DebtResult> {
