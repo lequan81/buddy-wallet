@@ -7,6 +7,7 @@ CREATE TABLE `users` (
 	`role` text DEFAULT 'user' NOT NULL,
 	`permissions` text DEFAULT '[]',
 	`is_active` integer DEFAULT true NOT NULL,
+	`is_locked` integer DEFAULT false NOT NULL,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL
 );

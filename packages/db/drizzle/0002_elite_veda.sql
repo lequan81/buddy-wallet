@@ -6,5 +6,4 @@ ALTER TABLE `sessions` ADD `revoked_reason` text;--> statement-breakpoint
 ALTER TABLE `sessions` ADD `device_name` text;--> statement-breakpoint
 ALTER TABLE `sessions` ADD `device_type` text;--> statement-breakpoint
 ALTER TABLE `sessions` ADD `location` text;--> statement-breakpoint
-ALTER TABLE `sessions` ADD `last_active_at` integer;--> statement-breakpoint
-ALTER TABLE `import_logs` ADD `preview_log_id` text;
+ALTER TABLE `sessions` ADD `last_active_at` integer;
