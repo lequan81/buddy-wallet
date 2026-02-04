@@ -3,14 +3,16 @@
  *
  * Handles user registration, login, logout, and password management.
  * Uses constructor injection for testability.
+ * Implements IAuthService interface for LSP compliance.
  */
 import { randomUUIDv7 } from 'bun';
 import { users, sessions, debts, eq, and, or, isNull, ne, gte } from '@repo/db';
 import { DEFAULT_USER_PERMISSIONS } from '@repo/permissions';
 import { configs } from '@/configs';
 import { hashToken, normalizePhoneNumber, parseUserAgent, getLocationFromIP, logger } from '@utils';
-import type { DbClient } from '@/types';
+import type { DbClient, JwtService } from '@/types';
 import type { RegisterInput, LoginInput, AuthResult } from '@/types';
+import type { IAuthService } from '@/types/interfaces';
 
 // Dummy hash for timing attack mitigation (pre-calculated at startup)
 let DUMMY_HASH = '';
@@ -27,9 +29,10 @@ function generateRefreshToken(): string {
 
 /**
  * AuthService class with dependency injection
+ * Implements IAuthService for LSP compliance
  */
-export class AuthService {
-  constructor(private db: DbClient) {}
+export class AuthService implements IAuthService {
+  constructor(private db: DbClient) { }
 
   /**
    * Link existing debts to a newly registered user based on phone number

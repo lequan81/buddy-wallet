@@ -3,40 +3,30 @@
  *
  * Handles debt CRUD operations and status transitions.
  * Uses constructor injection for testability.
+ * Implements IDebtService interface for LSP compliance.
+ * Uses State Machine pattern for status transitions (OCP compliance).
  */
-import { debts, users, eq, or, and, ne } from '@repo/db';
+import { debts, users, eq, or, and, ne, type Debt } from '@repo/db';
 import { hasPermission, PERMISSIONS } from '@repo/permissions';
 import { normalizePhoneNumber } from '@/utils/phone';
 import { configs } from '@/configs';
+import { debtStateMachine } from '@/states';
 import type { DbClient } from '@/types';
 import type {
   DebtStatus,
-  DebtDirection,
   CreateDebtInput,
   DebtResult,
   StatusUpdateResult
 } from '@/types';
-
-// Valid debt status transitions
-const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
-  pending: ['confirmed', 'disputed', 'cancelled'],
-  confirmed: ['paid', 'disputed'],
-  disputed: ['pending', 'confirmed', 'cancelled'],
-  paid: [], // Terminal state
-  cancelled: [] // Terminal state
-};
-
-interface CurrentUser {
-  id: string;
-  phoneNumber: string | null;
-  permissions: string[];
-}
+import type { IDebtService, CurrentUser } from '@/types/interfaces';
 
 /**
  * DebtService class with dependency injection
+ * Implements IDebtService for LSP compliance
+ * Uses State Machine for status transitions (OCP compliance)
  */
-export class DebtService {
-  constructor(private db: DbClient) {}
+export class DebtService implements IDebtService {
+  constructor(private db: DbClient) { }
 
   /**
    * Get debts for a user (or all debts if admin)
@@ -176,6 +166,7 @@ export class DebtService {
 
   /**
    * Update debt status with transition validation
+   * Uses State Machine pattern for OCP compliance
    */
   async updateDebtStatus(
     debtId: string,
@@ -199,14 +190,19 @@ export class DebtService {
       return { success: false, error: 'You are not a party to this debt' };
     }
 
-    // Validate status transition
-    const validTransitions = VALID_STATUS_TRANSITIONS[debt.status] || [];
-    if (!validTransitions.includes(newStatus)) {
+    // Use State Machine for transition validation and lifecycle hooks
+    const transitionResult = await debtStateMachine.transition(debt as Debt, newStatus, {
+      userId: currentUser.id,
+      permissions: currentUser.permissions,
+      timestamp: new Date()
+    });
+
+    if (!transitionResult.success) {
       return {
         success: false,
-        error: `Cannot transition from '${debt.status}' to '${newStatus}'`,
-        code: 'INVALID_STATUS_TRANSITION',
-        validTransitions
+        error: transitionResult.error,
+        code: transitionResult.code,
+        validTransitions: transitionResult.validTransitions
       };
     }
 

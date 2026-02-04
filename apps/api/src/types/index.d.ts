@@ -5,7 +5,6 @@
  */
 
 // Re-export all types
-// Re-export all types
 export * from './logger';
 export * from './rate-limit';
 export * from './trace';
@@ -18,6 +17,10 @@ export * from './services/export';
 export * from './services/session';
 export * from './services/user';
 export * from './services/import';
+// Service Interfaces (LSP) - Dedicated location
+export * from './interfaces';
+// Debt State Types (OCP) - Dedicated location
+export * from './debt-state';
 
 // App type (exported from index.ts)
 import type { Elysia } from 'elysia';

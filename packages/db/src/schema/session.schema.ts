@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 import { users } from './user.schema';
 
 /**
@@ -64,7 +64,29 @@ export const sessions = sqliteTable('sessions', {
   deletedAt: integer('deleted_at', { mode: 'timestamp' }),
 
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
-});
+}, (table) => ({
+  // Critical: Session lookup by user + status (most common query)
+  userIdStatusIdx: index('idx_sessions_user_status').on(table.userId, table.status),
+
+  // Access token lookup (authentication - called on every request)
+  accessTokenIdx: index('idx_sessions_access_token').on(table.accessToken),
+
+  // Composite index for session validation
+  userAccessStatusIdx: index('idx_sessions_user_access_status').on(
+    table.userId,
+    table.accessToken,
+    table.status
+  ),
+
+  // Cleanup queries - find expired sessions
+  statusExpiresIdx: index('idx_sessions_status_expires').on(
+    table.status,
+    table.refreshTokenExpiresAt
+  ),
+
+  // Soft delete cleanup
+  deletedAtIdx: index('idx_sessions_deleted_at').on(table.deletedAt)
+}));
 
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;

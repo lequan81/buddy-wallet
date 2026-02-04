@@ -3,20 +3,22 @@
  *
  * Handles session management: creation, refresh, revocation.
  * Uses constructor injection for testability.
+ * Implements ISessionService interface for LSP compliance.
  */
 import { users, sessions, eq, and, gte } from '@repo/db';
 import { configs } from '@/configs';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
 import { hashToken, generateSecureToken } from '@utils';
 import type { DbClient, JwtService } from '@/types';
-
 import type { SessionInfo } from '@/types';
+import type { ISessionService, RequestInfo, RefreshSessionResult } from '@/types/interfaces';
 
 /**
  * SessionService class with dependency injection
+ * Implements ISessionService for LSP compliance
  */
-export class SessionService {
-  constructor(private db: DbClient) {}
+export class SessionService implements ISessionService {
+  constructor(private db: DbClient) { }
 
   /**
    * Refresh an access token using a refresh token

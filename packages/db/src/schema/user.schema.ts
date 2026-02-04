@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 import { createInsertSchema } from 'drizzle-valibot';
 import * as v from 'valibot';
 
@@ -28,7 +28,16 @@ export const users = sqliteTable('users', {
 
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
-});
+}, (table) => ({
+  // Index for role-based queries (admin dashboard)
+  roleIdx: index('idx_users_role').on(table.role),
+  // Index for active user filtering
+  isActiveIdx: index('idx_users_is_active').on(table.isActive),
+  // Index for locked account queries
+  isLockedIdx: index('idx_users_is_locked').on(table.isLocked),
+  // Composite index for locked account cleanup
+  lockedUntilIdx: index('idx_users_locked_until').on(table.isLocked, table.lockoutUntil)
+}));
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

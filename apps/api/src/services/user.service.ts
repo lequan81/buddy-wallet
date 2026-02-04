@@ -3,17 +3,20 @@
  *
  * Handles user management: listing, retrieval, status changes.
  * Uses constructor injection for testability.
+ * Implements IUserService interface for LSP compliance.
  */
 import { users, sessions, eq, and } from '@repo/db';
 import { userCache, isRedisAvailable } from '@plugins/redis';
 import type { DbClient } from '@/types';
 import type { SafeUser, UserResult } from '@/types';
+import type { IUserService } from '@/types/interfaces';
 
 /**
  * UserService class with dependency injection
+ * Implements IUserService for LSP compliance
  */
-export class UserService {
-  constructor(private db: DbClient) {}
+export class UserService implements IUserService {
+  constructor(private db: DbClient) { }
 
   /**
    * Get all users (admin only)

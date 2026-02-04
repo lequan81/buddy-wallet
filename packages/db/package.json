@@ -9,7 +9,9 @@
   },
   "scripts": {
     "generate": "bun drizzle-kit generate",
-    "push": "bun drizzle-kit push"
+    "migrate": "bun scripts/migrate.ts",
+    "push": "bun drizzle-kit push",
+    "studio": "bun drizzle-kit studio"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.1",
