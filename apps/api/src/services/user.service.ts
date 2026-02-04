@@ -87,6 +87,18 @@ export class UserService {
       await userCache.del(userId);
     }
 
-    return { success: true, isActive: newStatus };
+    // Fetch the updated user to return
+    const { password, ...safeUser } = (await this.db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .get())!;
+
+    return {
+      success: true,
+      user: safeUser as SafeUser,
+      isActive: newStatus,
+      message: newStatus ? 'User activated' : 'User deactivated'
+    };
   }
 }

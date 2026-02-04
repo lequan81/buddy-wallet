@@ -216,6 +216,11 @@ export class DebtService {
       .set({ status: newStatus, updatedAt: new Date() })
       .where(eq(debts.id, debtId));
 
-    return { success: true, previousStatus: debt.status, newStatus };
+    // Fetch the updated debt
+    const updatedDebt = await this.db.query.debts.findFirst({
+      where: eq(debts.id, debtId)
+    });
+
+    return { success: true, debt: updatedDebt, previousStatus: debt.status, newStatus };
   }
 }

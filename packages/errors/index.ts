@@ -61,6 +61,12 @@ export const BE_ERRORS = {
   AUTH_TOKEN_EXPIRED: { code: 'BE_010', message: 'Authentication token expired' },
   AUTH_TOKEN_INVALID: { code: 'BE_011', message: 'Invalid authentication token' },
   AUTH_SESSION_EXPIRED: { code: 'BE_012', message: 'Session expired' },
+  AUTH_INVALID_CREDENTIALS: { code: 'BE_013', message: 'Invalid email or password' },
+  AUTH_PHONE_EXISTS: { code: 'BE_014', message: 'Phone number already registered' },
+  AUTH_EMAIL_EXISTS: { code: 'BE_015', message: 'Email already registered' },
+  AUTH_INVALID_PHONE: { code: 'BE_016', message: 'Invalid phone number format' },
+  AUTH_NO_SESSION: { code: 'BE_017', message: 'No valid session' },
+  AUTH_PASSWORD_MISMATCH: { code: 'BE_018', message: 'Current password is incorrect' },
 
   // Import/Export Errors
   IMPORT_PARSE_ERROR: { code: 'BE_020', message: 'Failed to parse file' },
@@ -73,6 +79,11 @@ export const BE_ERRORS = {
   // User Errors
   USER_NOT_FOUND: { code: 'BE_030', message: 'User not found' },
   USER_INACTIVE: { code: 'BE_031', message: 'User account is inactive' },
+
+  // Debt Errors
+  DEBT_NOT_FOUND: { code: 'BE_035', message: 'Debt not found' },
+  DEBT_INVALID_STATUS: { code: 'BE_036', message: 'Invalid status transition' },
+  DEBT_PERMISSION_DENIED: { code: 'BE_037', message: 'Not authorized to modify this debt' },
 
   // Rate Limiting
   RATE_LIMITED: { code: 'BE_040', message: 'Too many requests' }
@@ -90,6 +101,20 @@ export interface AppError {
   code: ErrorCode;
   message: string;
   details?: string;
+}
+
+/**
+ * Standardized API Response format
+ * All API responses should follow this structure for consistency
+ */
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: string;
+  };
 }
 
 // ============================================
@@ -122,3 +147,30 @@ export const createError = (
   message: error.message,
   details
 });
+
+/**
+ * Create a standardized error response for API endpoints
+ * @param error - Error definition from GEN_ERRORS, BE_ERRORS, or FE_ERRORS
+ * @param details - Optional additional details about the error
+ */
+export const errorResponse = (
+  error: { code: string; message: string },
+  details?: string
+): ApiResponse => ({
+  success: false,
+  error: {
+    code: error.code,
+    message: error.message,
+    ...(details && { details })
+  }
+});
+
+/**
+ * Create a standardized success response for API endpoints
+ * @param data - The response data
+ */
+export const successResponse = <T>(data?: T): ApiResponse<T> => ({
+  success: true,
+  ...(data !== undefined && { data })
+});
+

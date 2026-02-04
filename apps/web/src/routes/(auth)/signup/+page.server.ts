@@ -36,7 +36,9 @@ export const actions: Actions = {
 
 			if (error) {
 				console.log('[Signup] API Error:', error.value);
-				return message(form, error.value || 'Registration failed', { status: 400 });
+				const errorData = error.value as { error?: { message: string } };
+				const errorMessage = errorData?.error?.message || 'Registration failed';
+				return message(form, errorMessage, { status: 400 });
 			}
 		} catch (_err) {
 			return message(form, 'Unable to connect to server. Please try again later.', { status: 503 });

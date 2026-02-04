@@ -21,7 +21,15 @@ const config = {
 		alias: {
 			// 	'@repo/api': '../api/src/index.ts',
 			// 	'@repo/db': '../../packages/db/index.ts'
-			$contents: 'src/contents'
+			$contents: 'src/contents',
+			// API Aliases for type resolution
+			'@': '../api/src',
+			'@plugins': '../api/src/plugins',
+			'@controllers': '../api/src/controllers',
+			'@services': '../api/src/services',
+			'@utils': '../api/src/utils',
+			'@types': '../api/src/types',
+			'@configs': '../api/src/configs'
 		},
 		serviceWorker: {
 			register: false // Service worker registration handled by @vite-pwa/sveltekit

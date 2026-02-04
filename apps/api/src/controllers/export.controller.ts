@@ -5,7 +5,7 @@
  * Handles HTTP concerns (headers, file response) only.
  */
 import { Elysia } from 'elysia';
-import { BE_ERRORS, createError } from '@repo/errors';
+import { GEN_ERRORS, BE_ERRORS, errorResponse } from '@repo/errors';
 import { sessionAuthPlugin } from '@plugins/session-auth';
 import { accessControlPlugin } from '@plugins/access-control';
 import { exportService } from '@/services';
@@ -23,13 +23,11 @@ export const exportController = new Elysia({ prefix: '/export' })
 
     if (!result.success) {
       set.status = 404;
-      return createError(BE_ERRORS.EXPORT_NO_DATA);
+      return errorResponse(BE_ERRORS.EXPORT_NO_DATA);
     }
 
     set.headers['Content-Type'] = result.contentType!;
     set.headers['Content-Disposition'] = `attachment; filename="${result.filename}"`;
-
-    console.log(`[Export] User ${user!.id}: exported as ${format}`);
 
     return result.buffer;
   })
@@ -38,7 +36,7 @@ export const exportController = new Elysia({ prefix: '/export' })
   .get('/admin/debts', async ({ user, set, query }) => {
     if (user?.role !== 'admin') {
       set.status = 403;
-      return createError(BE_ERRORS.EXPORT_FAILED, 'Admin access required');
+      return errorResponse(GEN_ERRORS.FORBIDDEN, 'Admin access required');
     }
 
     const format = ((query as any)?.format || 'xlsx') as ExportFormat;
@@ -47,13 +45,11 @@ export const exportController = new Elysia({ prefix: '/export' })
 
     if (!result.success) {
       set.status = 404;
-      return createError(BE_ERRORS.EXPORT_NO_DATA);
+      return errorResponse(BE_ERRORS.EXPORT_NO_DATA);
     }
 
     set.headers['Content-Type'] = result.contentType!;
     set.headers['Content-Disposition'] = `attachment; filename="${result.filename}"`;
-
-    console.log(`[Export] Admin: exported all debts as ${format}`);
 
     return result.buffer;
   });

@@ -1,8 +1,10 @@
-/// <reference types="vite/client" />
-/// <reference types="@vite-pwa/sveltekit" />
-/// <reference path="./lib/types/pwa.d.ts" />
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
+
+import 'vite-plugin-pwa/svelte';
+import 'vite-plugin-pwa/info';
+import 'vite-plugin-pwa/client';
+
 
 import type { createTreatyClient } from '$lib/eden';
 

@@ -5,7 +5,7 @@
  * Handles HTTP concerns (validation, response) only.
  */
 import { Elysia, t } from 'elysia';
-import { BE_ERRORS, GEN_ERRORS, createError } from '@repo/errors';
+import { BE_ERRORS, GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { accessControlPlugin } from '@plugins/access-control';
 import { importService } from '@/services';
 import type { ImportConfig } from '@/types';
@@ -17,7 +17,7 @@ export const importController = new Elysia({ prefix: '/import' })
     const { user, set } = ctx as typeof ctx & { user: User | null };
     if (!user) {
       set.status = 401;
-      return createError(GEN_ERRORS.UNAUTHORIZED, 'Authentication required');
+      return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'Authentication required');
     }
   })
 
@@ -32,12 +32,10 @@ export const importController = new Elysia({ prefix: '/import' })
 
       if (!result.success) {
         set.status = 400;
-        return createError(BE_ERRORS.IMPORT_INVALID_FORMAT, result.error);
+        return errorResponse(BE_ERRORS.IMPORT_INVALID_FORMAT, result.error);
       }
 
-      console.log(`[Import] Preview: ${file.name}, ${result.totalRows} rows`);
-
-      return result;
+      return successResponse(result);
     },
     { body: t.Object({ file: t.File() }) }
   )
@@ -54,7 +52,7 @@ export const importController = new Elysia({ prefix: '/import' })
         config = JSON.parse(configRaw);
       } catch {
         set.status = 400;
-        return createError(BE_ERRORS.IMPORT_PARSE_ERROR, 'Invalid config format');
+        return errorResponse(BE_ERRORS.IMPORT_PARSE_ERROR, 'Invalid config format');
       }
 
       const result = await importService.importDebts(
@@ -66,14 +64,13 @@ export const importController = new Elysia({ prefix: '/import' })
 
       if (!result.success) {
         set.status = result.error?.includes('Empty') ? 400 : 500;
-        return createError(BE_ERRORS.IMPORT_PARSE_ERROR, result.error);
+        return errorResponse(BE_ERRORS.IMPORT_PARSE_ERROR, result.error);
       }
 
-      console.log(
-        `[Import] Done: ${result.imported} records, ${result.errors?.length || 0} errors`
-      );
-
-      return result;
+      return successResponse({
+        imported: result.imported,
+        errors: result.errors
+      });
     },
     { body: t.Object({ file: t.File(), config: t.String(), previewLogId: t.Optional(t.String()) }) }
   )
@@ -82,8 +79,7 @@ export const importController = new Elysia({ prefix: '/import' })
   .delete('/cleanup', async (ctx) => {
     const { user } = ctx as typeof ctx & { user: User };
     await importService.cleanupStaleLogs();
-    console.log(`[Import] Cleaned up stale pending logs`);
-    return { success: true, message: 'Stale pending logs cleaned up' };
+    return successResponse({ message: 'Stale pending logs cleaned up' });
   })
 
   // Get import progress
@@ -100,10 +96,10 @@ export const importController = new Elysia({ prefix: '/import' })
 
       if (!result.success) {
         set.status = 404;
-        return result;
+        return errorResponse(GEN_ERRORS.NOT_FOUND, result.error);
       }
 
-      return result;
+      return successResponse(result);
     },
     { params: t.Object({ logId: t.String() }) }
   );

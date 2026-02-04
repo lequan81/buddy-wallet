@@ -20,4 +20,5 @@ export interface UserResult {
   users?: SafeUser[];
   isActive?: boolean;
   permissions?: string[];
+  message?: string;
 }

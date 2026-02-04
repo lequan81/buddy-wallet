@@ -5,6 +5,7 @@
  * Handles HTTP concerns only.
  */
 import { Elysia, t } from 'elysia';
+import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { accessControlPlugin } from '@plugins/access-control';
 import { permissionPlugin } from '@plugins/permission';
 import { PERMISSIONS } from '@repo/permissions';
@@ -19,7 +20,7 @@ export const usersController = new Elysia({ prefix: '/users' })
     '/',
     async () => {
       const users = await userService.getAllUsers();
-      return { success: true, users };
+      return successResponse({ users });
     },
     { checkPermission: PERMISSIONS.ADMIN_MANAGE_USERS }
   )
@@ -32,10 +33,10 @@ export const usersController = new Elysia({ prefix: '/users' })
 
       if (!result.success) {
         set.status = 404;
-        return result;
+        return errorResponse(BE_ERRORS.USER_NOT_FOUND);
       }
 
-      return result;
+      return successResponse({ user: result.user });
     },
     {
       params: t.Object({ id: t.String() }),
@@ -51,10 +52,10 @@ export const usersController = new Elysia({ prefix: '/users' })
 
       if (!result.success) {
         set.status = 404;
-        return result;
+        return errorResponse(BE_ERRORS.USER_NOT_FOUND);
       }
 
-      return result;
+      return successResponse({ user: result.user, message: result.message });
     },
     {
       params: t.Object({ id: t.String() }),

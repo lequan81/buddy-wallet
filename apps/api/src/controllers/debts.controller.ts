@@ -5,6 +5,7 @@
  * Handles HTTP concerns (status codes, params) only.
  */
 import { Elysia, t } from 'elysia';
+import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { accessControlPlugin } from '@plugins/access-control';
 import { permissionPlugin } from '@plugins/permission';
 import { PERMISSIONS, hasPermission } from '@repo/permissions';
@@ -19,7 +20,8 @@ export const debtsController = new Elysia({ prefix: '/debts' })
     '/',
     async ({ user, permissions }) => {
       const hasViewAll = hasPermission(permissions, PERMISSIONS.DEBT_VIEW_ALL);
-      return await debtService.getDebtsForUser(user!.id, hasViewAll);
+      const debts = await debtService.getDebtsForUser(user!.id, hasViewAll);
+      return successResponse({ debts });
     },
     { checkPermission: PERMISSIONS.DEBT_VIEW_OWN }
   )
@@ -29,7 +31,7 @@ export const debtsController = new Elysia({ prefix: '/debts' })
     '/user/:userId',
     async ({ params: { userId } }) => {
       const debts = await debtService.getDebtsByUserId(userId);
-      return { success: true, debts };
+      return successResponse({ debts });
     },
     {
       params: t.Object({ userId: t.String() }),
@@ -49,10 +51,10 @@ export const debtsController = new Elysia({ prefix: '/debts' })
 
       if (!result.success) {
         set.status = 400;
-        return result;
+        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
 
-      return result;
+      return successResponse({ debt: result.debt });
     },
     {
       body: t.Object({
@@ -76,11 +78,15 @@ export const debtsController = new Elysia({ prefix: '/debts' })
       });
 
       if (!result.success) {
-        set.status = result.error === 'Debt not found' ? 404 : 400;
-        return result;
+        if (result.error === 'Debt not found') {
+          set.status = 404;
+          return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+        }
+        set.status = 400;
+        return errorResponse(BE_ERRORS.DEBT_INVALID_STATUS, result.error);
       }
 
-      return result;
+      return successResponse({ debt: result.debt });
     },
     {
       params: t.Object({ id: t.String() }),

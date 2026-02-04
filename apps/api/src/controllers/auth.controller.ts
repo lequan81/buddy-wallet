@@ -5,6 +5,7 @@
  * Handles HTTP concerns (cookies, headers, status codes) only.
  */
 import { Elysia, t } from 'elysia';
+import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { sessionAuthPlugin } from '@plugins/session-auth';
 import { authRateLimiter } from '@plugins/rate-limit';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
@@ -24,11 +25,18 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       if (!result.success) {
         set.status = 400;
-        return { success: false, message: result.error };
+        // Map service errors to standardized error codes
+        const errorMap: Record<string, typeof BE_ERRORS[keyof typeof BE_ERRORS]> = {
+          'Invalid phone number format': BE_ERRORS.AUTH_INVALID_PHONE,
+          'Phone number already registered': BE_ERRORS.AUTH_PHONE_EXISTS,
+          'Email already registered': BE_ERRORS.AUTH_EMAIL_EXISTS
+        };
+        const error = errorMap[result.error!] || GEN_ERRORS.INVALID_INPUT;
+        return errorResponse(error, result.error);
       }
 
       set.status = 200;
-      return { success: true, user: result.user };
+      return successResponse({ user: result.user });
     },
     {
       body: t.Object({
@@ -59,7 +67,7 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       if (!result.success) {
         set.status = 401;
-        return { success: false, error: result.error };
+        return errorResponse(BE_ERRORS.AUTH_INVALID_CREDENTIALS, result.error);
       }
 
       // Set access token cookie (short-lived)
@@ -83,11 +91,10 @@ export const authController = new Elysia({ prefix: '/auth' })
       });
 
       set.status = 200;
-      return {
-        success: true,
+      return successResponse({
         user: result.user,
         expiresIn: result.expiresIn
-      };
+      });
     },
     {
       body: t.Object({
@@ -110,7 +117,7 @@ export const authController = new Elysia({ prefix: '/auth' })
       cookie.session.remove();
       cookie.refresh_token.remove();
       set.status = 401;
-      return { success: false, error: result.error };
+      return errorResponse(BE_ERRORS.AUTH_SESSION_EXPIRED, result.error);
     }
 
     // Set new access token cookie
@@ -136,16 +143,15 @@ export const authController = new Elysia({ prefix: '/auth' })
     }
 
     set.status = 200;
-    return {
-      success: true,
+    return successResponse({
       user: result.user,
       expiresIn: result.expiresIn
-    };
+    });
   })
 
   // ==================== ME ====================
   .get('/me', async ({ user }) => {
-    return { user };
+    return successResponse({ user });
   })
 
   // ==================== LOGOUT ====================
@@ -156,14 +162,14 @@ export const authController = new Elysia({ prefix: '/auth' })
     // Security: Require at least one valid token
     if (!refreshToken && !accessToken) {
       set.status = 401;
-      return { success: false, error: 'No valid session' };
+      return errorResponse(BE_ERRORS.AUTH_NO_SESSION);
     }
 
     if (refreshToken) {
       const result = await authService.logout(refreshToken, user?.id);
       if (!result.success) {
         set.status = 403;
-        return result;
+        return errorResponse(GEN_ERRORS.FORBIDDEN, result.error);
       }
 
       // Blacklist the access token
@@ -178,14 +184,14 @@ export const authController = new Elysia({ prefix: '/auth' })
     cookie.refresh_token.remove();
 
     set.status = 200;
-    return { success: true };
+    return successResponse();
   })
 
   // ==================== LOGOUT ALL ====================
   .post('/logout-all', async ({ user, cookie, set }) => {
     if (!user) {
       set.status = 401;
-      return { success: false, error: 'Unauthorized' };
+      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
     }
 
     await sessionService.revokeAllSessions(user.id);
@@ -195,20 +201,20 @@ export const authController = new Elysia({ prefix: '/auth' })
     cookie.refresh_token.remove();
 
     set.status = 200;
-    return { success: true, message: 'All sessions have been logged out' };
+    return successResponse({ message: 'All sessions have been logged out' });
   })
 
   // ==================== LIST SESSIONS ====================
   .get('/sessions', async ({ user, cookie, set }) => {
     if (!user) {
       set.status = 401;
-      return { success: false, error: 'Unauthorized' };
+      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
     }
 
     const refreshToken = cookie.refresh_token.value as string;
     const result = await sessionService.getUserSessions(user.id, refreshToken);
 
-    return { success: true, ...result };
+    return successResponse(result);
   })
 
   // ==================== REVOKE SESSION ====================
@@ -217,7 +223,7 @@ export const authController = new Elysia({ prefix: '/auth' })
     async ({ user, params, cookie, set }) => {
       if (!user) {
         set.status = 401;
-        return { success: false, error: 'Unauthorized' };
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
 
       const refreshToken = cookie.refresh_token.value as string;
@@ -225,7 +231,7 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       if (!result.success) {
         set.status = 404;
-        return result;
+        return errorResponse(GEN_ERRORS.NOT_FOUND, result.error);
       }
 
       // If user revoked their current session, clear cookies
@@ -234,7 +240,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         cookie.refresh_token.remove();
       }
 
-      return { success: true, message: 'Session revoked' };
+      return successResponse({ message: 'Session revoked' });
     },
     {
       params: t.Object({
@@ -249,7 +255,7 @@ export const authController = new Elysia({ prefix: '/auth' })
     async ({ user, body, cookie, set }) => {
       if (!user) {
         set.status = 401;
-        return { success: false, error: 'Unauthorized' };
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
 
       // Get current session ID
@@ -271,13 +277,12 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       if (!result.success) {
         set.status = 400;
-        return result;
+        return errorResponse(BE_ERRORS.AUTH_PASSWORD_MISMATCH, result.error);
       }
 
-      return {
-        success: true,
+      return successResponse({
         message: 'Password changed successfully. Other sessions have been logged out.'
-      };
+      });
     },
     {
       body: t.Object({

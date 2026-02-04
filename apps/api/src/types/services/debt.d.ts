@@ -23,6 +23,7 @@ export interface StatusUpdateResult {
   success: boolean;
   error?: string;
   code?: string;
+  debt?: any;
   previousStatus?: string;
   newStatus?: string;
   validTransitions?: string[];

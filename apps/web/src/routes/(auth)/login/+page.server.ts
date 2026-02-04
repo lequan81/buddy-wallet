@@ -28,10 +28,8 @@ export const actions: Actions = {
 			const { data, error, response } = await api.v1.auth.login.post({ email, password });
 
 			if (error) {
-				const errorMessage =
-					typeof error.value === 'object' && error.value !== null
-						? (error.value as { error?: string }).error || 'Login failed'
-						: String(error.value);
+				const errorData = error.value as { error?: { message: string } };
+				const errorMessage = errorData?.error?.message || 'Login failed';
 				return fail(401, { email, message: errorMessage });
 			}
 
@@ -53,10 +51,8 @@ export const actions: Actions = {
 						setCookieHeaders = [headerVal];
 					} else {
 						console.log('[LOGIN] Warning: No Set-Cookie headers found in API response');
-						console.log(
-							'[LOGIN] Response Headers:',
-							Object.fromEntries(response.headers.entries())
-						);
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						console.log('[LOGIN] Response Headers:', Object.fromEntries(response.headers as any));
 					}
 				} else {
 					console.log('[LOGIN] Found cookies via getSetCookie:', setCookieHeaders);

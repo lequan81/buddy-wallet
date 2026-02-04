@@ -1,8 +1,39 @@
 <script lang="ts">
-	import './layout.css';
-	import favicon from '$lib/assets/favicon.svg';
+	import { onMount } from 'svelte';
 	import { AlertTriangle, X } from '@lucide/svelte';
 	import { Toaster } from 'svelte-sonner';
+	import { useRegisterSW } from 'virtual:pwa-register/svelte';
+	import favicon from '$lib/assets/favicon.svg';
+	import './layout.css';
+
+	onMount(() => {
+		useRegisterSW({
+			onRegisteredSW(swScriptUrl, registration) {
+				console.log('[SW] Service worker registered:', swScriptUrl);
+				console.log('[SW] Registration:', registration);
+			},
+			onOfflineReady() {
+				console.log('[SW] App ready to work offline');
+			}
+		});
+
+		// Clear potentially corrupted Service Worker caches (fixes {} download bug)
+		// This runs once per page load to ensure stale responses are purged
+		if ('caches' in window) {
+			caches.keys().then((names) => {
+				names.forEach((name) => {
+					// Only clear the pages cache which may have cached {} responses
+					if (name === 'pages-cache') {
+						caches.delete(name).then(() => {
+							console.log('[SW] Cleared pages-cache to fix potential caching issues');
+						});
+					}
+				});
+			});
+		}
+	});
+
+	
 
 	let { children, data } = $props();
 	let showOfflineWarning = $state(true);
