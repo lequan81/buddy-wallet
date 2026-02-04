@@ -20,7 +20,7 @@ function validateJWTSecretOnStartup(secret: string): void {
   if (!validation.isValid && Bun.env.NODE_ENV === 'production') {
     throw new Error(`❌ JWT_SECRET security issues:\n  - ${validation.issues.join('\n  - ')}`);
   } else if (validation.issues.length > 0) {
-    console.warn(`⚠️ JWT_SECRET security warnings:\n  - ${validation.issues.join('\n  - ')}`);
+    console.warn(`[WARN] JWT_SECRET security warnings:\n  - ${validation.issues.join('\n  - ')}`);
   }
 }
 

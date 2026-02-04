@@ -29,17 +29,17 @@ const missingUsers = criticalUsers.filter(c => !userNames.includes(c));
 const missingSessions = criticalSessions.filter(c => !sessionNames.includes(c));
 
 if (missingUsers.length > 0) {
-  console.log(`❌ Users missing: ${missingUsers.join(', ')}`);
+  console.log(`[FAIL] Users missing: ${missingUsers.join(', ')}`);
 } else {
-  console.log('✓ Users table: all critical columns present');
+  console.log('[OK] Users table: all critical columns present');
 }
 
 if (missingSessions.length > 0) {
-  console.log(`❌ Sessions missing: ${missingSessions.join(', ')}`);
+  console.log(`[FAIL] Sessions missing: ${missingSessions.join(', ')}`);
 } else {
-  console.log('✓ Sessions table: all critical columns present');
+  console.log('[OK] Sessions table: all critical columns present');
 }
 
 if (missingUsers.length === 0 && missingSessions.length === 0) {
-  console.log('\n✅ Database schema is complete and ready!');
+  console.log('\n[OK] Database schema is complete and ready!');
 }

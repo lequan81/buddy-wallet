@@ -58,9 +58,9 @@ async function runMigrations() {
 
   for (const file of migrationFiles) {
     const tag = file.replace('.sql', '');
-    
+
     if (appliedTags.has(tag)) {
-      console.log(`✓ ${tag} (already applied)`);
+      console.log(`[OK] ${tag} (already applied)`);
       continue;
     }
 
@@ -101,9 +101,9 @@ async function runMigrations() {
       appliedTags.add(tag);
       hasChanges = true;
 
-      console.log(`✓ ${tag}`);
+      console.log(`[OK] ${tag}`);
     } catch (error) {
-      console.error(`✗ ${tag}`);
+      console.error(`[FAIL] ${tag}`);
       console.error(error instanceof Error ? error.message : String(error));
       process.exit(1);
     }
@@ -113,7 +113,7 @@ async function runMigrations() {
     writeJournal(journal);
   }
 
-  console.log(hasChanges ? '\n✓ Migrations applied successfully' : '\n✓ No migrations to apply');
+  console.log(hasChanges ? '\n[OK] Migrations applied successfully' : '\n[OK] No migrations to apply');
 }
 
 runMigrations().catch(err => {
