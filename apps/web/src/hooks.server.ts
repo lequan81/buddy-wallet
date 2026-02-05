@@ -32,9 +32,6 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	const refreshToken = event.cookies.get('refresh_token');
 	const pathname = event.url.pathname;
 
-	// DEBUG: Log what cookies we have
-	console.log('[HOOKS] Path:', pathname, '| session:', currentToken ? 'present' : 'missing', '| refresh:', refreshToken ? 'present' : 'missing');
-
 	// Try to get user from API
 	let user = null;
 	let apiOffline = false;
@@ -47,8 +44,6 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 				headers: getAuthHeaders(currentToken)
 			});
 			const rawData = await rawRes.json();
-
-			console.log('[HOOKS] /me response:', rawRes.status, rawData?.success ? 'success' : 'failed');
 
 			if (rawRes.ok && rawData?.data?.user) {
 				user = rawData.data.user;

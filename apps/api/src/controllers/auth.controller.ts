@@ -10,7 +10,7 @@ import { sessionAuthPlugin } from '@plugins/session-auth';
 import { authRateLimiter } from '@plugins/rate-limit';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
 import { configs } from '@/configs';
-import { authService, sessionService } from '@/services';
+import { authService, sessionService, activityService } from '@/services';
 import { getClientIP, hashToken } from '@utils';
 
 export const authController = new Elysia({ prefix: '/auth' })
@@ -90,6 +90,15 @@ export const authController = new Elysia({ prefix: '/auth' })
         maxAge: configs.AUTH.REFRESH_TOKEN_LIFETIME / 1000
       });
 
+      // Log the login activity
+      await activityService.log({
+        userId: result.user!.id,
+        action: 'login',
+        resource: 'session',
+        ipAddress: clientIP || undefined,
+        userAgent: userAgent || undefined
+      });
+
       set.status = 200;
       return successResponse({
         user: result.user,
@@ -155,7 +164,7 @@ export const authController = new Elysia({ prefix: '/auth' })
   })
 
   // ==================== LOGOUT ====================
-  .post('/logout', async ({ user, cookie, set }) => {
+  .post('/logout', async ({ user, cookie, set, request }) => {
     const refreshToken = cookie.refresh_token.value as string;
     const accessToken = cookie.session.value as string;
 
@@ -180,6 +189,17 @@ export const authController = new Elysia({ prefix: '/auth' })
       }
     }
 
+    // Log the logout activity
+    if (user) {
+      await activityService.log({
+        userId: user.id,
+        action: 'logout',
+        resource: 'session',
+        ipAddress: getClientIP(request) || undefined,
+        userAgent: request.headers.get('user-agent') || undefined
+      });
+    }
+
     // Clear both cookies
     cookie.session.remove();
     cookie.refresh_token.remove();
@@ -189,13 +209,22 @@ export const authController = new Elysia({ prefix: '/auth' })
   })
 
   // ==================== LOGOUT ALL ====================
-  .post('/logout-all', async ({ user, cookie, set }) => {
+  .post('/logout-all', async ({ user, cookie, set, request }) => {
     if (!user) {
       set.status = 401;
       return errorResponse(GEN_ERRORS.UNAUTHORIZED);
     }
 
     await sessionService.revokeAllSessions(user.id);
+
+    // Log the logout-all activity
+    await activityService.log({
+      userId: user.id,
+      action: 'logout_all',
+      resource: 'session',
+      ipAddress: getClientIP(request) || undefined,
+      userAgent: request.headers.get('user-agent') || undefined
+    });
 
     // Clear current session cookies
     cookie.session.remove();

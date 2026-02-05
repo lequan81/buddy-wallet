@@ -16,7 +16,8 @@
 		Shield,
 		Menu,
 		X,
-		ChevronDown
+		ChevronDown,
+		Activity
 	} from '@lucide/svelte';
 
 	let { children, data } = $props();
@@ -42,7 +43,8 @@
 
 	const settingsItems = [
 		{ href: '/settings/profile', label: 'Profile', icon: User },
-		{ href: '/settings/security', label: 'Security', icon: Shield }
+		{ href: '/settings/security', label: 'Security', icon: Shield },
+		{ href: '/settings/activity', label: 'Activity', icon: Activity }
 	];
 </script>
 
@@ -188,6 +190,14 @@
 							<a href="/settings/security" {...props} class="flex w-full items-center">
 								<Shield class="mr-2 h-4 w-4" />
 								Security
+							</a>
+						{/snippet}
+					</DropdownMenu.Item>
+					<DropdownMenu.Item>
+						{#snippet child({ props })}
+							<a href="/settings/activity" {...props} class="flex w-full items-center">
+								<Activity class="mr-2 h-4 w-4" />
+								Activity
 							</a>
 						{/snippet}
 					</DropdownMenu.Item>

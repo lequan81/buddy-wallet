@@ -29,7 +29,8 @@ export const debts = sqliteTable('debts', {
 
   // Timestamps
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+  deletedAt: integer('deleted_at', { mode: 'timestamp' }) // Soft delete support
 }, (table) => ({
   // Index for user's debts lookup (most common query)
   debtorIdIdx: index('idx_debts_debtor_id').on(table.debtorId),

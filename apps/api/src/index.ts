@@ -9,6 +9,7 @@ import {
   redisPlugin
 } from '@plugins';
 import {
+  activityController,
   authController,
   debtsController,
   exportController,
@@ -59,6 +60,7 @@ export const app = new Elysia()
             .use(debtsController)
             .use(importController)
             .use(exportController)
+            .use(activityController)
       )
   )
   .get('/health', () => ({

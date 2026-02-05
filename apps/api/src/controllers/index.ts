@@ -1,3 +1,4 @@
+export * from './activity.controller';
 export * from './auth.controller';
 export * from './debts.controller';
 export * from './export.controller';

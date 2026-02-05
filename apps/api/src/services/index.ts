@@ -14,6 +14,7 @@ export { UserService } from './user.service';
 export { ExportService } from './export.service';
 export { ImportService } from './import.service';
 export { PushService } from './push.service';
+export { ActivityService } from './activity.service';
 export { cleanupService } from './cleanup.service';
 
 // Re-export types
@@ -40,6 +41,7 @@ import { ImportService } from './import.service';
 import { FileService } from './file.service';
 import { EmailService, emailService } from './email.service';
 import { PushService } from './push.service';
+import { ActivityService } from './activity.service';
 
 // Singleton instances for the main app
 export const authService = new AuthService(db);
@@ -50,6 +52,7 @@ export const exportService = new ExportService(db);
 export const importService = new ImportService(db);
 export const fileService = new FileService(db);
 export const pushService = new PushService(db);
+export const activityService = new ActivityService(db);
 export { EmailService, emailService };
 
 /**
@@ -78,4 +81,8 @@ export function createExportService(customDb: typeof db) {
 
 export function createImportService(customDb: typeof db) {
   return new ImportService(customDb);
+}
+
+export function createActivityService(customDb: typeof db) {
+  return new ActivityService(customDb);
 }

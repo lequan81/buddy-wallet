@@ -106,9 +106,6 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
     // 3. Validate session is active (not revoked/logged out)
     const tokenHash = await hashToken(token); // SECURITY: Hash token for database lookup
 
-    // DEBUG: Log the token hash we're looking for
-    logger.debug(`Looking for session with tokenHash: ${tokenHash}`, { userId: payload.id });
-
     const session = db
       .select()
       .from(sessions)
@@ -122,19 +119,7 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
       .get();
 
     if (!session) {
-      // DEBUG: Show all active sessions for this user
-      const allUserSessions = db
-        .select()
-        .from(sessions)
-        .where(and(eq(sessions.userId, payload.id), eq(sessions.status, 'active')))
-        .all();
-
-      logger.auth(`Session invalid or revoked`, {
-        userId: payload.id,
-        tokenHash,
-        activeSessions: allUserSessions.length,
-        sessionHashes: allUserSessions.map((s) => s.accessTokenHash)
-      });
+      logger.auth(`Session invalid or revoked`, { userId: payload.id });
       return { user: null, sessionId: null };
     }
 

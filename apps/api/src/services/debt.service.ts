@@ -219,4 +219,181 @@ export class DebtService implements IDebtService {
 
     return { success: true, debt: updatedDebt, previousStatus: debt.status, newStatus };
   }
+
+  /**
+   * Update debt details (description, amount)
+   * Can only update if status is 'pending' or 'disputed'
+   */
+  async updateDebt(
+    debtId: string,
+    data: { description?: string; amount?: number },
+    currentUser: CurrentUser
+  ): Promise<DebtResult> {
+    // Get current debt
+    const debt = await this.db.query.debts.findFirst({
+      where: eq(debts.id, debtId)
+    });
+
+    if (!debt) {
+      return { success: false, error: 'Debt not found', code: 'NOT_FOUND' };
+    }
+
+    // Check if user is owner (uploaded the debt) or admin
+    const isAdmin = hasPermission(currentUser.permissions, PERMISSIONS.DEBT_VIEW_ALL);
+    const isOwner = debt.uploadedById === currentUser.id;
+
+    if (!isAdmin && !isOwner) {
+      return { success: false, error: 'You can only edit debts you created', code: 'FORBIDDEN' };
+    }
+
+    // Can only edit if status is pending or disputed
+    if (!['pending', 'disputed'].includes(debt.status)) {
+      return {
+        success: false,
+        error: `Cannot edit debt with status '${debt.status}'. Only pending or disputed debts can be edited.`,
+        code: 'INVALID_STATUS'
+      };
+    }
+
+    // Validate amount if provided
+    if (data.amount !== undefined) {
+      if (data.amount < configs.DEBT.MIN_AMOUNT) {
+        return {
+          success: false,
+          error: `Minimum debt amount is ${configs.DEBT.MIN_AMOUNT}`,
+          code: 'AMOUNT_TOO_LOW'
+        };
+      }
+      if (data.amount > configs.DEBT.MAX_AMOUNT) {
+        return {
+          success: false,
+          error: `Maximum debt amount is ${configs.DEBT.MAX_AMOUNT}`,
+          code: 'AMOUNT_TOO_HIGH'
+        };
+      }
+    }
+
+    // Update debt
+    await this.db
+      .update(debts)
+      .set({
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.amount !== undefined && { amount: data.amount }),
+        updatedAt: new Date()
+      })
+      .where(eq(debts.id, debtId));
+
+    // Fetch updated debt
+    const updatedDebt = await this.db.query.debts.findFirst({
+      where: eq(debts.id, debtId)
+    });
+
+    return { success: true, debt: updatedDebt };
+  }
+
+  /**
+   * Soft delete a single debt
+   */
+  async deleteDebt(debtId: string, currentUser: CurrentUser): Promise<DebtResult> {
+    // Get current debt
+    const debt = await this.db.query.debts.findFirst({
+      where: eq(debts.id, debtId)
+    });
+
+    if (!debt) {
+      return { success: false, error: 'Debt not found', code: 'NOT_FOUND' };
+    }
+
+    // Check if user is owner or admin
+    const isAdmin = hasPermission(currentUser.permissions, PERMISSIONS.DEBT_DELETE_ALL);
+    const isOwner = debt.uploadedById === currentUser.id;
+
+    if (!isAdmin && !isOwner) {
+      return { success: false, error: 'You can only delete debts you created', code: 'FORBIDDEN' };
+    }
+
+    // Soft delete by setting deletedAt
+    await this.db
+      .update(debts)
+      .set({
+        deletedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(debts.id, debtId));
+
+    return { success: true };
+  }
+
+  /**
+   * Soft delete multiple debts
+   */
+  async deleteDebts(debtIds: string[], currentUser: CurrentUser): Promise<{ success: boolean; deleted: number; errors: string[] }> {
+    const errors: string[] = [];
+    let deletedCount = 0;
+
+    // Limit batch size
+    if (debtIds.length > 50) {
+      return { success: false, deleted: 0, errors: ['Maximum 50 debts can be deleted at once'] };
+    }
+
+    const isAdmin = hasPermission(currentUser.permissions, PERMISSIONS.DEBT_DELETE_ALL);
+
+    for (const debtId of debtIds) {
+      const debt = await this.db.query.debts.findFirst({
+        where: eq(debts.id, debtId)
+      });
+
+      if (!debt) {
+        errors.push(`Debt ${debtId} not found`);
+        continue;
+      }
+
+      const isOwner = debt.uploadedById === currentUser.id;
+      if (!isAdmin && !isOwner) {
+        errors.push(`Not authorized to delete debt ${debtId}`);
+        continue;
+      }
+
+      await this.db
+        .update(debts)
+        .set({
+          deletedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(debts.id, debtId));
+
+      deletedCount++;
+    }
+
+    return {
+      success: errors.length === 0,
+      deleted: deletedCount,
+      errors
+    };
+  }
+
+  /**
+   * Delete all debts for a user
+   */
+  async deleteAllDebts(userId: string): Promise<{ success: boolean; deleted: number }> {
+    // Get all debts uploaded by this user
+    const userDebts = await this.db.query.debts.findMany({
+      where: eq(debts.uploadedById, userId)
+    });
+
+    if (userDebts.length === 0) {
+      return { success: true, deleted: 0 };
+    }
+
+    // Soft delete all
+    await this.db
+      .update(debts)
+      .set({
+        deletedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(debts.uploadedById, userId));
+
+    return { success: true, deleted: userDebts.length };
+  }
 }
