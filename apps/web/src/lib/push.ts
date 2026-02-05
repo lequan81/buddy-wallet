@@ -1,0 +1,374 @@
+/**
+ * Push Notification Helper
+ *
+ * Client-side utilities for managing Web Push notifications:
+ * - Permission management
+ * - Subscription handling
+ * - VAPID key retrieval
+ */
+
+import { writable, get } from 'svelte/store';
+import { apiFetch, API_URL, getDefaultHeaders } from './api';
+
+// Push notification state
+export type PushPermissionState = 'prompt' | 'granted' | 'denied' | 'unsupported';
+
+export interface PushState {
+	permission: PushPermissionState;
+	isSubscribed: boolean;
+	isLoading: boolean;
+	error: string | null;
+	vapidPublicKey: string | null;
+}
+
+// Store for push notification state
+export const pushState = writable<PushState>({
+	permission: 'prompt',
+	isSubscribed: false,
+	isLoading: false,
+	error: null,
+	vapidPublicKey: null
+});
+
+// Check if push notifications are supported
+export function isPushSupported(): boolean {
+	return (
+		typeof window !== 'undefined' &&
+		'serviceWorker' in navigator &&
+		'PushManager' in window &&
+		'Notification' in window
+	);
+}
+
+// Get current notification permission
+export function getPermissionState(): PushPermissionState {
+	if (!isPushSupported()) return 'unsupported';
+	return Notification.permission as PushPermissionState;
+}
+
+// Initialize push state
+export async function initializePushState(): Promise<void> {
+	if (!isPushSupported()) {
+		pushState.update((s) => ({ ...s, permission: 'unsupported' }));
+		return;
+	}
+
+	const permission = getPermissionState();
+	let isSubscribed = false;
+
+	if (permission === 'granted') {
+		// Check if already subscribed
+		try {
+			const registration = await navigator.serviceWorker.ready;
+			const subscription = await registration.pushManager.getSubscription();
+			isSubscribed = !!subscription;
+		} catch {
+			// Ignore errors
+		}
+	}
+
+	pushState.update((s) => ({ ...s, permission, isSubscribed }));
+}
+
+// Fetch VAPID public key from server
+export async function fetchVapidKey(): Promise<string | null> {
+	const currentState = get(pushState);
+	if (currentState.vapidPublicKey) {
+		return currentState.vapidPublicKey;
+	}
+
+	try {
+		const { data, error } = await apiFetch<{ publicKey: string }>('/v1/push/vapid-key');
+
+		if (error || !data?.publicKey) {
+			pushState.update((s) => ({ ...s, error: error || 'Failed to fetch VAPID key' }));
+			return null;
+		}
+
+		pushState.update((s) => ({ ...s, vapidPublicKey: data.publicKey, error: null }));
+		return data.publicKey;
+	} catch (err) {
+		const errorMsg = err instanceof Error ? err.message : 'Failed to fetch VAPID key';
+		pushState.update((s) => ({ ...s, error: errorMsg }));
+		return null;
+	}
+}
+
+// Convert URL-safe base64 to Uint8Array (for VAPID key)
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+	const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+	const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+
+	const rawData = window.atob(base64);
+	const outputArray = new Uint8Array(rawData.length);
+
+	for (let i = 0; i < rawData.length; ++i) {
+		outputArray[i] = rawData.charCodeAt(i);
+	}
+	return outputArray;
+}
+
+// Convert ArrayBuffer to base64url
+function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
+	const bytes = new Uint8Array(buffer);
+	let binary = '';
+	for (let i = 0; i < bytes.byteLength; i++) {
+		binary += String.fromCharCode(bytes[i]);
+	}
+	return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Request notification permission
+export async function requestPermission(): Promise<PushPermissionState> {
+	if (!isPushSupported()) return 'unsupported';
+
+	pushState.update((s) => ({ ...s, isLoading: true, error: null }));
+
+	try {
+		const permission = await Notification.requestPermission();
+		pushState.update((s) => ({
+			...s,
+			permission: permission as PushPermissionState,
+			isLoading: false
+		}));
+		return permission as PushPermissionState;
+	} catch (err) {
+		const errorMsg = err instanceof Error ? err.message : 'Failed to request permission';
+		pushState.update((s) => ({
+			...s,
+			isLoading: false,
+			error: errorMsg
+		}));
+		return 'denied';
+	}
+}
+
+// Get device info for subscription
+function getDeviceInfo(): { deviceName: string; deviceType: 'desktop' | 'mobile' | 'tablet' } {
+	const ua = navigator.userAgent;
+	let deviceType: 'desktop' | 'mobile' | 'tablet' = 'desktop';
+	let deviceName = 'Unknown Device';
+
+	// Detect device type
+	if (/tablet|ipad|playbook|silk/i.test(ua)) {
+		deviceType = 'tablet';
+	} else if (/mobile|iphone|ipod|android|blackberry|opera mini|iemobile/i.test(ua)) {
+		deviceType = 'mobile';
+	}
+
+	// Detect browser/OS for device name
+	if (/Chrome/i.test(ua)) {
+		deviceName = 'Chrome';
+	} else if (/Firefox/i.test(ua)) {
+		deviceName = 'Firefox';
+	} else if (/Safari/i.test(ua)) {
+		deviceName = 'Safari';
+	} else if (/Edge/i.test(ua)) {
+		deviceName = 'Edge';
+	}
+
+	if (/Windows/i.test(ua)) {
+		deviceName += ' on Windows';
+	} else if (/Mac/i.test(ua)) {
+		deviceName += ' on macOS';
+	} else if (/Linux/i.test(ua)) {
+		deviceName += ' on Linux';
+	} else if (/Android/i.test(ua)) {
+		deviceName += ' on Android';
+	} else if (/iOS|iPhone|iPad/i.test(ua)) {
+		deviceName += ' on iOS';
+	}
+
+	return { deviceName, deviceType };
+}
+
+// Subscribe to push notifications
+export async function subscribeToPush(): Promise<boolean> {
+	if (!isPushSupported()) return false;
+
+	pushState.update((s) => ({ ...s, isLoading: true, error: null }));
+
+	try {
+		// Request permission if not granted
+		const permission = getPermissionState();
+		if (permission !== 'granted') {
+			const newPermission = await requestPermission();
+			if (newPermission !== 'granted') {
+				pushState.update((s) => ({ ...s, isLoading: false }));
+				return false;
+			}
+		}
+
+		// Get VAPID key
+		const vapidKey = await fetchVapidKey();
+		if (!vapidKey) {
+			pushState.update((s) => ({
+				...s,
+				isLoading: false,
+				error: 'Push notifications not configured on server'
+			}));
+			return false;
+		}
+
+		// Get service worker registration
+		const registration = await navigator.serviceWorker.ready;
+
+		// Subscribe to push
+		const subscription = await registration.pushManager.subscribe({
+			userVisibleOnly: true,
+			applicationServerKey: urlBase64ToUint8Array(vapidKey)
+		});
+
+		// Get subscription keys
+		const p256dhKey = subscription.getKey('p256dh');
+		const authKey = subscription.getKey('auth');
+
+		if (!p256dhKey || !authKey) {
+			throw new Error('Failed to get subscription keys');
+		}
+
+		// Get device info
+		const { deviceName, deviceType } = getDeviceInfo();
+
+		// Send subscription to server
+		const response = await fetch(`${API_URL}/v1/push/subscribe`, {
+			method: 'POST',
+			headers: getDefaultHeaders(),
+			credentials: 'include',
+			body: JSON.stringify({
+				endpoint: subscription.endpoint,
+				keys: {
+					p256dh: arrayBufferToBase64Url(p256dhKey),
+					auth: arrayBufferToBase64Url(authKey)
+				},
+				expirationTime: subscription.expirationTime,
+				deviceName,
+				deviceType
+			})
+		});
+
+		if (!response.ok) {
+			throw new Error('Failed to save subscription on server');
+		}
+
+		pushState.update((s) => ({
+			...s,
+			isSubscribed: true,
+			isLoading: false,
+			error: null
+		}));
+
+		return true;
+	} catch (err) {
+		const errorMsg = err instanceof Error ? err.message : 'Failed to subscribe';
+		pushState.update((s) => ({
+			...s,
+			isLoading: false,
+			error: errorMsg
+		}));
+		return false;
+	}
+}
+
+// Unsubscribe from push notifications
+export async function unsubscribeFromPush(): Promise<boolean> {
+	if (!isPushSupported()) return false;
+
+	pushState.update((s) => ({ ...s, isLoading: true, error: null }));
+
+	try {
+		const registration = await navigator.serviceWorker.ready;
+		const subscription = await registration.pushManager.getSubscription();
+
+		if (!subscription) {
+			pushState.update((s) => ({
+				...s,
+				isSubscribed: false,
+				isLoading: false
+			}));
+			return true;
+		}
+
+		// Unsubscribe locally
+		await subscription.unsubscribe();
+
+		// Remove from server
+		await fetch(`${API_URL}/v1/push/unsubscribe`, {
+			method: 'POST',
+			headers: getDefaultHeaders(),
+			credentials: 'include',
+			body: JSON.stringify({
+				endpoint: subscription.endpoint
+			})
+		});
+
+		pushState.update((s) => ({
+			...s,
+			isSubscribed: false,
+			isLoading: false,
+			error: null
+		}));
+
+		return true;
+	} catch (err) {
+		const errorMsg = err instanceof Error ? err.message : 'Failed to unsubscribe';
+		pushState.update((s) => ({
+			...s,
+			isLoading: false,
+			error: errorMsg
+		}));
+		return false;
+	}
+}
+
+// Send test notification
+export async function sendTestNotification(): Promise<boolean> {
+	try {
+		const response = await fetch(`${API_URL}/v1/push/test`, {
+			method: 'POST',
+			headers: getDefaultHeaders(),
+			credentials: 'include'
+		});
+
+		return response.ok;
+	} catch {
+		return false;
+	}
+}
+
+// Check if banner should be shown (not dismissed, permission is 'prompt')
+const BANNER_DISMISSED_KEY = 'push_banner_dismissed';
+const BANNER_DISMISSED_UNTIL_KEY = 'push_banner_dismissed_until';
+
+export function shouldShowBanner(): boolean {
+	if (typeof window === 'undefined') return false;
+
+	const state = get(pushState);
+
+	// Don't show if unsupported, already granted/denied, or already subscribed
+	if (state.permission !== 'prompt' || state.isSubscribed) return false;
+
+	// Check if permanently dismissed
+	if (localStorage.getItem(BANNER_DISMISSED_KEY) === 'true') return false;
+
+	// Check if temporarily dismissed
+	const dismissedUntil = localStorage.getItem(BANNER_DISMISSED_UNTIL_KEY);
+	if (dismissedUntil && Date.now() < parseInt(dismissedUntil, 10)) return false;
+
+	return true;
+}
+
+export function dismissBanner(permanent = false): void {
+	if (permanent) {
+		localStorage.setItem(BANNER_DISMISSED_KEY, 'true');
+	} else {
+		// Dismiss for 7 days
+		const dismissUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
+		localStorage.setItem(BANNER_DISMISSED_UNTIL_KEY, dismissUntil.toString());
+	}
+}
+
+export function resetBannerDismissal(): void {
+	localStorage.removeItem(BANNER_DISMISSED_KEY);
+	localStorage.removeItem(BANNER_DISMISSED_UNTIL_KEY);
+}

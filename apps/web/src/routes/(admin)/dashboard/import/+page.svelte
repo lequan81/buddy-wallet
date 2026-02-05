@@ -97,7 +97,7 @@
 
 	// Handle form results
 	$effect(() => {
-		// Handle preview result
+		// Handle preview state updates
 		if (form?.preview && form.logId !== lastLogId) {
 			fileName = form.fileName || '';
 			totalRows = form.totalRows || 0;
@@ -112,36 +112,12 @@
 				columnMapping = { ...current, ...form.autoMapping };
 			}
 			isAnalyzing = false;
-
-			if (toastId) toast.dismiss(toastId);
-			toast.success(`Loaded ${totalRows} rows from "${fileName}"`);
 		}
 
-		// Handle errors
-		if (form?.code && form?.message) {
-			if (toastId) toast.dismiss(toastId);
+		// Handle errors display (fallback if not caught in enhance)
+		if (form?.code) {
 			isAnalyzing = false;
 			isSubmitting = false;
-			toast.error(`[${form.code}] ${form.message}`, { duration: 8000 });
-		} else if (form?.message && !form?.preview && !form?.success) {
-			if (toastId) toast.dismiss(toastId);
-			isAnalyzing = false;
-			isSubmitting = false;
-			toast.error(form.message, { duration: 5000 });
-		}
-
-		// Handle import success
-		if (form?.success) {
-			if (toastId) toast.dismiss(toastId);
-			const warningCount = form.errors?.length || 0;
-			if (warningCount > 0) {
-				toast.warning(`Imported ${form.imported} records with ${warningCount} warnings`);
-			} else {
-				toast.success(`Successfully imported ${form.imported} records!`);
-			}
-			isSubmitting = false;
-			progress = 100;
-			resetForm();
 		}
 	});
 
@@ -202,8 +178,24 @@
 							stopProgress();
 							await update({ reset: false });
 							isSubmitting = false;
-							if (result.type === 'failure') {
-								console.error('[Frontend] Import Failure:', result);
+
+							if (result.type === 'success' && result.data?.success) {
+								const d = result.data;
+								const count = d.imported;
+								const warnings = d.errors?.length || 0;
+								if (warnings > 0) {
+									toast.warning(`Imported ${count} records with ${warnings} warnings`, {
+										id: toastId
+									});
+								} else {
+									toast.success(`Successfully imported ${count} records!`, { id: toastId });
+								}
+								// Reset form manually since we used reset: false
+								resetForm();
+							} else if (result.type === 'failure') {
+								toast.error('Import failed', { id: toastId });
+							} else {
+								toast.dismiss(toastId);
 							}
 						};
 					} else {
@@ -221,8 +213,19 @@
 						return async ({ update, result }) => {
 							await update({ reset: false });
 							isAnalyzing = false;
-							if (result.type === 'failure') {
-								console.error('[Frontend] Preview Failure:', result);
+
+							if (result.type === 'success' && result.data?.preview) {
+								const d = result.data;
+								toast.success(`Loaded ${d.totalRows} rows from "${d.fileName}"`, {
+									id: toastId,
+									duration: 4000
+								});
+							} else if (result.type === 'failure') {
+								// Failure handled by form prop update usually, but we should clear loading
+								toast.error(`Analysis failed`, { id: toastId });
+							} else {
+								// Redirect or other cases
+								toast.dismiss(toastId);
 							}
 						};
 					}

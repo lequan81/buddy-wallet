@@ -4,6 +4,7 @@
 	import { buttonVariants } from '$lib/components/ui/button';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Avatar from '$lib/components/ui/avatar';
+	import PushPermissionBanner from '$lib/components/shared/PushPermissionBanner.svelte';
 	import {
 		Wallet,
 		LayoutDashboard,
@@ -220,4 +221,7 @@
 			{@render children()}
 		</main>
 	</div>
+
+	<!-- Push notification permission banner -->
+	<PushPermissionBanner />
 </div>

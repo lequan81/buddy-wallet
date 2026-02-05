@@ -19,7 +19,10 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		isAdmin: user.role === 'admin',
 		canManageUsers: user.role === 'admin' || permissions.includes('users:manage'),
 		canViewAnalytics: user.role === 'admin' || permissions.includes('analytics:view'),
-		canImportData: user.role === 'admin' || permissions.includes('data:import'),
+		canImportData:
+			user.role === 'admin' ||
+			permissions.includes('data:import') ||
+			permissions.includes('debt:create'),
 		canExportData: user.role === 'admin' || permissions.includes('data:export')
 	};
 

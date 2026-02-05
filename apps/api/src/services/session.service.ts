@@ -35,7 +35,7 @@ export class SessionService implements ISessionService {
   ): Promise<{
     success: boolean;
     error?: string;
-    user?: { id: string; email: string | null; role: string };
+    user?: { id: string; email: string | null; phoneNumber: string; role: string };
     accessToken?: string;
     refreshToken?: string; // NEW: Return rotated refresh token
     expiresIn?: number;
@@ -79,23 +79,27 @@ export class SessionService implements ISessionService {
     const accessTokenExpiresAt = new Date(now + configs.AUTH.ACCESS_TOKEN_LIFETIME);
     const newAccessToken = await jwt.sign({
       id: user.id,
+      phoneNumber: user.phoneNumber,
+      sessionVersion: user.sessionVersion || 1,
       exp: Math.floor(accessTokenExpiresAt.getTime() / 1000)
     });
 
     // REFRESH TOKEN ROTATION: Generate new refresh token
     const newRefreshToken = generateSecureToken(32);
     const newRefreshTokenHash = await hashToken(newRefreshToken);
+    const newAccessTokenHash = await hashToken(newAccessToken); // SECURITY: Hash access token
     const refreshTokenExpiresAt = new Date(now + configs.AUTH.REFRESH_TOKEN_LIFETIME);
 
     // Invalidate old session cache before updating token
-    if (isRedisAvailable() && session.accessToken) {
-      await sessionCache.del(session.accessToken);
+    if (isRedisAvailable() && session.accessTokenHash) {
+      await sessionCache.del(session.accessTokenHash);
     }
 
     await this.db
       .update(sessions)
       .set({
-        accessToken: newAccessToken,
+        accessToken: null, // DEPRECATED: No longer store plaintext
+        accessTokenHash: newAccessTokenHash, // Store hashed token
         accessTokenExpiresAt,
         refreshToken: newRefreshTokenHash, // NEW: Store rotated refresh token
         refreshTokenExpiresAt, // NEW: Reset refresh token expiry
@@ -108,7 +112,7 @@ export class SessionService implements ISessionService {
 
     return {
       success: true,
-      user: { id: user.id, email: user.email, role: user.role },
+      user: { id: user.id, email: user.email, phoneNumber: user.phoneNumber, role: user.role },
       accessToken: newAccessToken,
       refreshToken: newRefreshToken, // NEW: Return new token to client
       expiresIn: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
@@ -183,8 +187,8 @@ export class SessionService implements ISessionService {
       })
       .where(eq(sessions.id, sessionId));
 
-    if (isRedisAvailable() && session.accessToken) {
-      await sessionCache.del(session.accessToken);
+    if (isRedisAvailable() && session.accessTokenHash) {
+      await sessionCache.del(session.accessTokenHash);
     }
 
     let isCurrent = false;
@@ -201,7 +205,7 @@ export class SessionService implements ISessionService {
    */
   async revokeAllSessions(userId: string): Promise<{ success: boolean; count: number }> {
     const activeSessions = this.db
-      .select({ id: sessions.id, accessToken: sessions.accessToken })
+      .select({ id: sessions.id, accessTokenHash: sessions.accessTokenHash })
       .from(sessions)
       .where(and(eq(sessions.userId, userId), eq(sessions.status, 'active')))
       .all();
@@ -218,9 +222,9 @@ export class SessionService implements ISessionService {
     if (isRedisAvailable()) {
       await Promise.all(
         activeSessions.map(async (s) => {
-          if (s.accessToken) {
-            await sessionCache.del(s.accessToken);
-            await jwtBlacklist.add(s.accessToken, configs.AUTH.JWT_BLACKLIST_SECONDS);
+          if (s.accessTokenHash) {
+            await sessionCache.del(s.accessTokenHash);
+            await jwtBlacklist.add(s.accessTokenHash, configs.AUTH.JWT_BLACKLIST_SECONDS);
           }
         })
       );

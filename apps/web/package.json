@@ -58,11 +58,11 @@
 	"dependencies": {
 		"@elysiajs/eden": "^1.4.6",
 		"@lucide/svelte": "^0.561.0",
-		"svelte-sonner": "^1.0.7",
-		"valibot": "^1.2.0",
 		"@repo/api": "workspace:*",
 		"@repo/config": "workspace:*",
 		"@repo/db": "workspace:*",
-		"@repo/errors": "workspace:*"
+		"@repo/errors": "workspace:*",
+		"svelte-sonner": "^1.0.7",
+		"valibot": "^1.2.0"
 	}
 }

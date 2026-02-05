@@ -7,9 +7,23 @@
 import { Elysia, t } from 'elysia';
 import { BE_ERRORS, GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { accessControlPlugin } from '@plugins/access-control';
+import { deleteRateLimiter } from '@plugins/rate-limit';
 import { importService } from '@/services';
 import type { ImportConfig } from '@/types';
 import type { User } from '@repo/db';
+
+// SECURITY: Validation schema for import config
+const ImportConfigSchema = t.Object({
+  mapping: t.Object({
+    name: t.String({ minLength: 1 }),
+    amount: t.String({ minLength: 1 }),
+    phone: t.Optional(t.String()),
+    email: t.Optional(t.String()),
+    description: t.Optional(t.String()),
+    dueDate: t.Optional(t.String())
+  }),
+  startRow: t.Number({ minimum: 1 })
+});
 
 export const importController = new Elysia({ prefix: '/import' })
   .use(accessControlPlugin)
@@ -47,12 +61,25 @@ export const importController = new Elysia({ prefix: '/import' })
       const { user, body, set } = ctx as typeof ctx & { user: User };
       const { file, config: configRaw, previewLogId } = body;
 
+      // SECURITY: Parse and validate JSON config
       let config: ImportConfig;
       try {
-        config = JSON.parse(configRaw);
-      } catch {
+        const parsed = JSON.parse(configRaw);
+
+        // Validate against schema
+        const validation = ImportConfigSchema.Check(parsed);
+        if (!validation) {
+          set.status = 400;
+          return errorResponse(
+            BE_ERRORS.IMPORT_PARSE_ERROR,
+            'Invalid config format: missing required fields or invalid types'
+          );
+        }
+
+        config = parsed as ImportConfig;
+      } catch (error) {
         set.status = 400;
-        return errorResponse(BE_ERRORS.IMPORT_PARSE_ERROR, 'Invalid config format');
+        return errorResponse(BE_ERRORS.IMPORT_PARSE_ERROR, 'Invalid JSON format');
       }
 
       const result = await importService.importDebts(
@@ -75,10 +102,11 @@ export const importController = new Elysia({ prefix: '/import' })
     { body: t.Object({ file: t.File(), config: t.String(), previewLogId: t.Optional(t.String()) }) }
   )
 
-  // Cleanup stale logs
+  // Cleanup stale logs (user-specific)
+  .use(deleteRateLimiter) // Rate limit: 20 deletes per minute
   .delete('/cleanup', async (ctx) => {
     const { user } = ctx as typeof ctx & { user: User };
-    await importService.cleanupStaleLogs();
+    await importService.cleanupStaleLogs(user.id);
     return successResponse({ message: 'Stale pending logs cleaned up' });
   })
 

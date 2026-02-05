@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { Eye, EyeOff, Loader2 } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -49,9 +49,17 @@
 				method="POST"
 				use:enhance={() => {
 					isSubmitting = true;
-					return async ({ update }) => {
+					return async ({ result, update }) => {
 						isSubmitting = false;
-						await update();
+
+						// If login successful (redirect), invalidate all data to reload user state
+						if (result.type === 'redirect') {
+							await invalidateAll();
+							await goto(result.location, { invalidateAll: true });
+						} else {
+							// For errors, just update the form
+							await update();
+						}
 					};
 				}}
 				class="space-y-4"

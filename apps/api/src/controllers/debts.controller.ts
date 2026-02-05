@@ -8,6 +8,7 @@ import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { accessControlPlugin } from '@plugins/access-control';
 import { permissionPlugin } from '@plugins/permission';
+import { getUserWithFreshData } from '@plugins/session-auth';
 import { PERMISSIONS, hasPermission } from '@repo/permissions';
 import { debtService } from '@/services';
 
@@ -43,10 +44,18 @@ export const debtsController = new Elysia({ prefix: '/debts' })
   .post(
     '/',
     async ({ user, body, set }) => {
+      // SECURITY FIX 2: Get fresh user data from database (bypassing cache)
+      // This ensures phoneNumber is from authoritative source
+      const freshUser = await getUserWithFreshData(user!.id);
+      if (!freshUser) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
+      }
+
       const result = await debtService.createDebt(body, {
-        id: user!.id,
-        phoneNumber: user!.phoneNumber,
-        permissions: user!.permissions as string[]
+        id: freshUser.id,
+        phoneNumber: freshUser.phoneNumber,
+        permissions: freshUser.permissions as string[]
       });
 
       if (!result.success) {
@@ -71,10 +80,17 @@ export const debtsController = new Elysia({ prefix: '/debts' })
   .patch(
     '/:id/status',
     async ({ user, params: { id }, body, set }) => {
+      // SECURITY FIX 2: Get fresh user data from database (bypassing cache)
+      const freshUser = await getUserWithFreshData(user!.id);
+      if (!freshUser) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
+      }
+
       const result = await debtService.updateDebtStatus(id, body.status, {
-        id: user!.id,
-        phoneNumber: user!.phoneNumber,
-        permissions: user!.permissions as string[]
+        id: freshUser.id,
+        phoneNumber: freshUser.phoneNumber,
+        permissions: freshUser.permissions as string[]
       });
 
       if (!result.success) {

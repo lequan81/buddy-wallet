@@ -26,13 +26,13 @@
 			</p>
 			<div class="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
 				<button
-					on:click={() => goto('/login')}
+					onclick={() => goto('/login')}
 					class="rounded-lg bg-blue-600 px-8 py-4 text-lg font-semibold text-white shadow-lg transition-colors hover:bg-blue-700"
 				>
 					Get Started
 				</button>
 				<button
-					on:click={() => goto('/about')}
+					onclick={() => goto('/about')}
 					class="rounded-lg border-2 border-gray-300 px-8 py-4 text-lg font-semibold text-gray-900 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:text-white dark:hover:bg-slate-800"
 				>
 					Learn More
@@ -145,7 +145,7 @@
 			expenses.
 		</p>
 		<button
-			on:click={() => goto('/login')}
+			onclick={() => goto('/login')}
 			class="rounded-lg bg-white px-8 py-4 text-lg font-semibold text-blue-600 shadow-lg transition-colors hover:bg-blue-50"
 		>
 			Start for Free

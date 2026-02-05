@@ -7,6 +7,7 @@ export const PERMISSIONS = {
   ADMIN_VIEW: 'admin:view',
   ADMIN_MANAGE_USERS: 'admin:manage-users',
   ADMIN_IMPORT: 'admin:import',
+  ADMIN_BROADCAST: 'admin:broadcast', // For sending broadcasts to all users
 
   // User permissions
   USER_VIEW_PROFILE: 'user:view-profile',
@@ -42,6 +43,7 @@ export const ADMIN_PERMISSIONS: Permission[] = [
   PERMISSIONS.ADMIN_VIEW,
   PERMISSIONS.ADMIN_MANAGE_USERS,
   PERMISSIONS.ADMIN_IMPORT,
+  PERMISSIONS.ADMIN_BROADCAST, // New: Admin can send broadcasts
   PERMISSIONS.DEBT_VIEW_ALL,
   PERMISSIONS.DEBT_DELETE_ALL
 ];

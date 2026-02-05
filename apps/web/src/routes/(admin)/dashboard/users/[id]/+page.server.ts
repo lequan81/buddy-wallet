@@ -20,12 +20,16 @@ export const load: PageServerLoad = async ({ locals, fetch, params }) => {
 		return { targetUser: null, debts: [], error: 'User not found' };
 	}
 
-	const user = await userRes.json();
+	const userWrapper = await userRes.json();
+	// API returns { success: true, data: { user: {...} } }
+	const user = userWrapper.data?.user || null;
 
 	// Fetch user's debts
 	const debtsRes = await fetch(`${API_URL}/v1/debts/user/${params.id}`, { headers });
 
-	const debts = debtsRes.ok ? await debtsRes.json() : [];
+	const debtsWrapper = debtsRes.ok ? await debtsRes.json() : { data: { debts: [] } };
+	// API returns { success: true, data: { debts: [...] } }
+	const debts = debtsWrapper.data?.debts || [];
 
 	return { targetUser: user, debts };
 };
@@ -45,7 +49,8 @@ export const actions: Actions = {
 
 		if (!response.ok) {
 			const data = await response.json().catch(() => ({}));
-			return fail(response.status, { error: data.message || 'Failed to update status' });
+			const errorMsg = data.error?.message || data.error?.details || data.message || 'Failed to update status';
+			return fail(response.status, { error: errorMsg });
 		}
 
 		return { success: true };

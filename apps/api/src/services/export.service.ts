@@ -10,10 +10,27 @@ import type { DbClient } from '@/types';
 import type { ExportFormat, ExportResult } from '@/types';
 
 /**
+ * SECURITY: Mask phone number to protect PII in exports
+ * Shows first 3 and last 3 digits, masks the rest
+ * Example: +1234567890 → +123****890
+ */
+function maskPhoneNumber(phone: string | null): string {
+  if (!phone || phone.length < 6) return '****';
+
+  const visible = 3;
+  const start = phone.slice(0, visible);
+  const end = phone.slice(-visible);
+  const maskedLength = phone.length - (visible * 2);
+  const masked = '*'.repeat(Math.max(maskedLength, 4));
+
+  return `${start}${masked}${end}`;
+}
+
+/**
  * ExportService class with dependency injection
  */
 export class ExportService {
-  constructor(private db: DbClient) {}
+  constructor(private db: DbClient) { }
 
   /**
    * Export user's own debts
@@ -82,9 +99,9 @@ export class ExportService {
       return {
         ID: d.id,
         Debtor: debtor?.name || debtor?.email || d.debtorPhone || d.debtorId || '',
-        'Debtor Phone': debtor?.phone || d.debtorPhone || '',
+        'Debtor Phone': maskPhoneNumber(debtor?.phone || d.debtorPhone || ''),
         Creditor: creditor?.name || creditor?.email || d.creditorPhone || d.creditorId || '',
-        'Creditor Phone': creditor?.phone || d.creditorPhone || '',
+        'Creditor Phone': maskPhoneNumber(creditor?.phone || d.creditorPhone || ''),
         Amount: d.amount,
         Status: d.status,
         Description: d.description || '',

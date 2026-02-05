@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -16,8 +17,18 @@
 		Shield,
 		LogOut,
 		AlertTriangle,
-		Key
+		Key,
+		Bell,
+		BellOff
 	} from '@lucide/svelte';
+	import {
+		pushState,
+		initializePushState,
+		subscribeToPush,
+		unsubscribeFromPush,
+		sendTestNotification,
+		isPushSupported
+	} from '$lib/push';
 
 	let { data, form } = $props();
 
@@ -25,6 +36,32 @@
 	let isLoggingOutAll = $state(false);
 	let showLogoutAllDialog = $state(false);
 	let isChangingPassword = $state(false);
+	let isTogglingPush = $state(false);
+	let isSendingTest = $state(false);
+	let pushSupported = $state(false);
+
+	onMount(async () => {
+		pushSupported = isPushSupported();
+		if (pushSupported) {
+			await initializePushState();
+		}
+	});
+
+	async function handleTogglePush() {
+		isTogglingPush = true;
+		if ($pushState.isSubscribed) {
+			await unsubscribeFromPush();
+		} else {
+			await subscribeToPush();
+		}
+		isTogglingPush = false;
+	}
+
+	async function handleTestNotification() {
+		isSendingTest = true;
+		await sendTestNotification();
+		isSendingTest = false;
+	}
 
 	// Format date to relative time
 	function formatRelativeTime(dateStr: string | null): string {
@@ -100,10 +137,12 @@
 				{#if data.sessions.length >= 1}
 					<AlertDialog.Root bind:open={showLogoutAllDialog}>
 						<AlertDialog.Trigger>
-							<Button variant="destructive" size="sm">
-								<LogOut class="mr-2 h-4 w-4" />
-								Logout All Devices
-							</Button>
+							{#snippet child({ props })}
+								<Button variant="destructive" size="sm" {...props}>
+									<LogOut class="mr-2 h-4 w-4" />
+									Logout All Devices
+								</Button>
+							{/snippet}
 						</AlertDialog.Trigger>
 						<AlertDialog.Content>
 							<AlertDialog.Header>
@@ -217,6 +256,85 @@
 			{/if}
 		</Card.Content>
 	</Card.Root>
+
+	<!-- Push Notifications -->
+	{#if pushSupported}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="flex items-center gap-2">
+					{#if $pushState.isSubscribed}
+						<Bell class="h-5 w-5 text-primary" />
+					{:else}
+						<BellOff class="h-5 w-5" />
+					{/if}
+					Push Notifications
+				</Card.Title>
+				<Card.Description>
+					Receive notifications about debt reminders, payment updates, and important alerts.
+				</Card.Description>
+			</Card.Header>
+			<Card.Content class="space-y-4">
+				<div class="flex items-center justify-between">
+					<div class="space-y-1">
+						<p class="font-medium">
+							{#if $pushState.isSubscribed}
+								Notifications enabled
+							{:else if $pushState.permission === 'denied'}
+								Notifications blocked
+							{:else}
+								Notifications disabled
+							{/if}
+						</p>
+						<p class="text-sm text-muted-foreground">
+							{#if $pushState.isSubscribed}
+								You'll receive push notifications on this device.
+							{:else if $pushState.permission === 'denied'}
+								You've blocked notifications. Enable them in your browser settings.
+							{:else}
+								Enable to receive push notifications on this device.
+							{/if}
+						</p>
+					</div>
+					<div class="flex gap-2">
+						{#if $pushState.isSubscribed}
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={handleTestNotification}
+								disabled={isSendingTest}
+							>
+								{#if isSendingTest}
+									Sending...
+								{:else}
+									Test
+								{/if}
+							</Button>
+						{/if}
+						<Button
+							variant={$pushState.isSubscribed ? 'destructive' : 'default'}
+							size="sm"
+							onclick={handleTogglePush}
+							disabled={isTogglingPush || $pushState.permission === 'denied'}
+						>
+							{#if isTogglingPush}
+								{$pushState.isSubscribed ? 'Disabling...' : 'Enabling...'}
+							{:else if $pushState.isSubscribed}
+								Disable
+							{:else}
+								Enable
+							{/if}
+						</Button>
+					</div>
+				</div>
+
+				{#if $pushState.error}
+					<div class="rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
+						{$pushState.error}
+					</div>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+	{/if}
 
 	<!-- Security Tips -->
 	<Card.Root>

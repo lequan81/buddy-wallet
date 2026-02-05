@@ -1,0 +1,119 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { fade, slide } from 'svelte/transition';
+	import {
+		pushState,
+		initializePushState,
+		subscribeToPush,
+		dismissBanner,
+		shouldShowBanner
+	} from '$lib/push';
+	import { Bell, X } from '@lucide/svelte';
+
+	let visible = $state(false);
+	let isSubscribing = $state(false);
+
+	onMount(async () => {
+		await initializePushState();
+		// Small delay to prevent flash on page load
+		setTimeout(() => {
+			visible = shouldShowBanner();
+		}, 1500);
+	});
+
+	// Watch for permission changes
+	$effect(() => {
+		if ($pushState.permission !== 'prompt' || $pushState.isSubscribed) {
+			visible = false;
+		}
+	});
+
+	async function handleEnable() {
+		isSubscribing = true;
+		const success = await subscribeToPush();
+		isSubscribing = false;
+
+		if (success) {
+			visible = false;
+		}
+	}
+
+	function handleDismiss() {
+		dismissBanner(false); // Temporary dismiss (7 days)
+		visible = false;
+	}
+
+	function handleNeverShow() {
+		dismissBanner(true); // Permanent dismiss
+		visible = false;
+	}
+</script>
+
+{#if visible}
+	<div
+		class="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md"
+		transition:slide={{ duration: 300 }}
+	>
+		<div
+			class="relative rounded-lg border border-border bg-card p-4 shadow-lg"
+			in:fade={{ duration: 200, delay: 100 }}
+		>
+			<!-- Close button -->
+			<button
+				type="button"
+				onclick={handleDismiss}
+				class="absolute right-2 top-2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+				aria-label="Dismiss"
+			>
+				<X class="h-4 w-4" />
+			</button>
+
+			<div class="flex items-start gap-3">
+				<!-- Icon -->
+				<div
+					class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+				>
+					<Bell class="h-5 w-5" />
+				</div>
+
+				<!-- Content -->
+				<div class="flex-1 pr-6">
+					<h3 class="font-semibold text-foreground">Enable Notifications</h3>
+					<p class="mt-1 text-sm text-muted-foreground">
+						Get notified about debt reminders, payment updates, and important alerts.
+					</p>
+
+					<!-- Actions -->
+					<div class="mt-3 flex flex-wrap items-center gap-2">
+						<button
+							type="button"
+							onclick={handleEnable}
+							disabled={isSubscribing || $pushState.isLoading}
+							class="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+						>
+							{#if isSubscribing || $pushState.isLoading}
+								<span class="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+								Enabling...
+							{:else}
+								Enable
+							{/if}
+						</button>
+
+						<button
+							type="button"
+							onclick={handleNeverShow}
+							class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+						>
+							Don't ask again
+						</button>
+					</div>
+
+					<!-- Error message -->
+					{#if $pushState.error}
+						<p class="mt-2 text-xs text-destructive">{$pushState.error}</p>
+					{/if}
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}

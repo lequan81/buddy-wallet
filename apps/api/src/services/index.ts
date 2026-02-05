@@ -13,6 +13,7 @@ export { DebtService } from './debt.service';
 export { UserService } from './user.service';
 export { ExportService } from './export.service';
 export { ImportService } from './import.service';
+export { PushService } from './push.service';
 export { cleanupService } from './cleanup.service';
 
 // Re-export types
@@ -38,6 +39,7 @@ import { ExportService } from './export.service';
 import { ImportService } from './import.service';
 import { FileService } from './file.service';
 import { EmailService, emailService } from './email.service';
+import { PushService } from './push.service';
 
 // Singleton instances for the main app
 export const authService = new AuthService(db);
@@ -47,6 +49,7 @@ export const userService = new UserService(db);
 export const exportService = new ExportService(db);
 export const importService = new ImportService(db);
 export const fileService = new FileService(db);
+export const pushService = new PushService(db);
 export { EmailService, emailService };
 
 /**

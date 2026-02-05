@@ -2,8 +2,7 @@
  * Caching Strategies Module (InjectManifest)
  *
  * Configures Workbox caching strategies for the service worker.
- * - Network-Only: Real-time endpoints (WebSocket, auth, API mutations)
- * - Network-First: API GET requests with cache fallback
+ * - Network-Only: All API requests (always fresh data)
  * - Cache-First: Static assets (images, fonts)
  * - StaleWhileRevalidate: App shell and pages
  */
@@ -12,7 +11,7 @@
 
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
-import { NetworkFirst, NetworkOnly, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { NetworkOnly, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
@@ -30,40 +29,16 @@ cleanupOutdatedCaches();
 // Network-Only (never cache - real-time data)
 // ============================================
 
-// WebSocket, Server-Sent Events, Authentication endpoints
-// These should NEVER be cached as they require real-time data
+// All API endpoints should use NetworkOnly
+// This ensures fresh data and prevents stale cache issues
 registerRoute(
 	({ url, request }) =>
 		url.pathname.match(/\/(ws|socket|api\/ws)/) ||
 		url.pathname.includes('/auth/') ||
+		url.pathname.startsWith('/api/') ||
+		url.pathname.startsWith('/v1/') ||
 		request.method !== 'GET',
 	new NetworkOnly()
-);
-
-// ============================================
-// Network-First (cache fallback for offline)
-// ============================================
-
-// API GET requests - try network first, fall back to cache
-registerRoute(
-	({ url, request }) =>
-		(url.pathname.startsWith('/api/') || url.pathname.startsWith('/v1/')) &&
-		request.method === 'GET' &&
-		!url.pathname.includes('/auth/'),
-	new NetworkFirst({
-		cacheName: 'api-cache',
-		networkTimeoutSeconds: 10,
-		plugins: [
-			new ExpirationPlugin({
-				maxEntries: 50,
-				maxAgeSeconds: 60 * 60, // 1 hour
-				purgeOnQuotaError: true
-			}),
-			new CacheableResponsePlugin({
-				statuses: [0, 200]
-			})
-		]
-	})
 );
 
 // ============================================

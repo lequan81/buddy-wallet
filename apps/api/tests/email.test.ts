@@ -19,22 +19,22 @@ describe('EmailService (Integration)', () => {
   describe('when SMTP is configured', () => {
     it.skipIf(!Bun.env.SMTP_USER)('should send OTP email successfully', async () => {
       if (!testEmail) {
-        console.log('[SKIP] TEST_EMAIL not set');
+        console.log('⏭️ Skipping: TEST_EMAIL not set');
         return;
       }
 
-      console.log('[INFO] Sending test OTP email to:', testEmail);
+      console.log('📧 Sending test OTP email to:', testEmail);
 
       const result = await emailService.sendOtp(testEmail, '123456', 'Test User');
 
       expect(result.success).toBe(true);
       expect(result.messageId).toBeDefined();
-      console.log('[OK] Email sent, Message ID:', result.messageId);
+      console.log('Email sent, Message ID:', result.messageId);
     });
 
     it.skipIf(!Bun.env.SMTP_USER)('should send generic email successfully', async () => {
       if (!testEmail) {
-        console.log('[SKIP] TEST_EMAIL not set');
+        console.log('⏭️ Skipping: TEST_EMAIL not set');
         return;
       }
 

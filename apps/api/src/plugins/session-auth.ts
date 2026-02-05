@@ -18,6 +18,12 @@ import { jwtPlugin } from './jwt';
 import { logger } from '@utils/logger';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from './redis';
 import { hashToken } from '@utils';
+import {
+  logJWTTampered,
+  logTokenReplay,
+  logSessionHijack,
+  logSecurityEvent
+} from '@utils/security-logger';
 
 export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
   .use(jwtPlugin)
@@ -41,7 +47,8 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
 
     // 2. Check JWT blacklist first (fast rejection of revoked tokens)
     if (isRedisAvailable()) {
-      const isBlacklisted = await jwtBlacklist.isBlacklisted(token);
+      const tokenHash = await hashToken(token); // SECURITY: Hash token for blacklist lookup
+      const isBlacklisted = await jwtBlacklist.isBlacklisted(tokenHash);
       if (isBlacklisted) {
         logger.jwt(`Token blacklisted`, { source: tokenSource });
         return { user: null, sessionId: null };
@@ -52,6 +59,23 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
     const payload = await jwt.verify(token);
     if (!payload) {
       logger.jwt(`Verification failed`, { source: tokenSource });
+      // Security: Log JWT tampering attempt
+      logJWTTampered(undefined, undefined); // IP/UserAgent can be added if available
+      return { user: null, sessionId: null };
+    }
+
+    // SECURITY: Validate JWT issuer and audience to prevent token reuse from other systems
+    if (payload.iss !== 'buddy-wallet-api' || payload.aud !== 'buddy-wallet-web') {
+      logger.jwt(`Invalid JWT issuer or audience`, {
+        source: tokenSource,
+        iss: payload.iss,
+        aud: payload.aud
+      });
+      logSecurityEvent({
+        type: 'jwt_tampered',
+        userId: payload.id,
+        details: { reason: 'Invalid issuer or audience', iss: payload.iss, aud: payload.aud }
+      });
       return { user: null, sessionId: null };
     }
 
@@ -59,17 +83,20 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
 
     // 3.5. Check Redis cache first (avoids DB query)
     if (isRedisAvailable()) {
-      // sessionCache now handles hashing internally
-      const cached = await sessionCache.get(token);
+      const tokenHash = await hashToken(token); // Use hash for cache key
+      const cached = await sessionCache.get(tokenHash);
 
       if (cached && cached.userId && cached.sessionId) {
         logger.jwt(`Session from cache`, { userId: payload.id });
         // Reconstruct minimal user object from cache
+        // SECURITY: PII (phoneNumber, email) from JWT payload or omitted, not cache
         const cachedUser = {
           id: cached.userId as string,
           role: (cached.role as string) || 'user',
           isActive: (cached.isActive as boolean) ?? true,
-          permissions: (cached.permissions as string[]) || []
+          permissions: (cached.permissions as string[]) || [],
+          email: null, // Not cached for security - fetch from DB if needed
+          phoneNumber: payload.phoneNumber // From JWT payload, not cache
         } as unknown as User;
 
         return { user: cachedUser, sessionId: cached.sessionId as string };
@@ -77,20 +104,37 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
     }
 
     // 3. Validate session is active (not revoked/logged out)
+    const tokenHash = await hashToken(token); // SECURITY: Hash token for database lookup
+
+    // DEBUG: Log the token hash we're looking for
+    logger.debug(`Looking for session with tokenHash: ${tokenHash}`, { userId: payload.id });
+
     const session = db
       .select()
       .from(sessions)
       .where(
         and(
           eq(sessions.userId, payload.id),
-          eq(sessions.accessToken, token),
+          eq(sessions.accessTokenHash, tokenHash), // Lookup by hash, not plaintext
           eq(sessions.status, 'active')
         )
       )
       .get();
 
     if (!session) {
-      logger.auth(`Session invalid or revoked`, { userId: payload.id });
+      // DEBUG: Show all active sessions for this user
+      const allUserSessions = db
+        .select()
+        .from(sessions)
+        .where(and(eq(sessions.userId, payload.id), eq(sessions.status, 'active')))
+        .all();
+
+      logger.auth(`Session invalid or revoked`, {
+        userId: payload.id,
+        tokenHash,
+        activeSessions: allUserSessions.length,
+        sessionHashes: allUserSessions.map((s) => s.accessTokenHash)
+      });
       return { user: null, sessionId: null };
     }
 
@@ -102,11 +146,35 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
       return { user: null, sessionId: session.id };
     }
 
+    // SECURITY: Validate sessionVersion for instant token invalidation
+    // When user changes password or admin revokes sessions, sessionVersion increments
+    // Old tokens with stale sessionVersion are immediately rejected
+    if (payload.sessionVersion !== (user.sessionVersion || 1)) {
+      logger.security(`Stale sessionVersion - token invalidated`, {
+        userId: user.id,
+        jwtVersion: payload.sessionVersion,
+        currentVersion: user.sessionVersion,
+        reason: 'Password change or forced logout'
+      });
+
+      // Security: Log session hijacking attempt
+      logSessionHijack(user.id, payload.sessionVersion, user.sessionVersion || 1);
+
+      // Invalidate cache for this token
+      if (isRedisAvailable()) {
+        const tokenHash = await hashToken(token);
+        await sessionCache.del(tokenHash);
+      }
+
+      return { user: null, sessionId: session.id };
+    }
+
     if (!user.isActive) {
       logger.auth(`Account deactivated`, { userId: user.id, email: user.email });
       // Invalidate cache if user is deactivated
       if (isRedisAvailable()) {
-        await sessionCache.del(token);
+        const tokenHash = await hashToken(token);
+        await sessionCache.del(tokenHash);
       }
       return { user: null, sessionId: session.id };
     }
@@ -115,13 +183,16 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
     db.update(sessions).set({ lastActiveAt: new Date() }).where(eq(sessions.id, session.id)).run();
 
     // 6. Cache session data in Redis (reduces future DB queries)
+    // SECURITY: Only cache non-sensitive data. PII (email, phoneNumber) comes from JWT
     if (isRedisAvailable()) {
-      await sessionCache.set(token, {
+      const tokenHash = await hashToken(token);
+      await sessionCache.set(tokenHash, {
         userId: user.id,
         sessionId: session.id,
         role: user.role,
         isActive: user.isActive,
         permissions: user.permissions
+        // email and phoneNumber NOT cached - comes from JWT payload
       });
     }
 
@@ -133,3 +204,19 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
 
     return { user, sessionId: session.id };
   });
+
+/**
+ * Get fresh user data from database (bypassing cache)
+ *
+ * USE THIS FOR CRITICAL OPERATIONS:
+ * - Debt creation/modification
+ * - Payment processing
+ * - Authorization decisions that use phoneNumber
+ *
+ * SECURITY: Ensures phoneNumber is from authoritative database source,
+ * not from potentially compromised cache.
+ */
+export async function getUserWithFreshData(userId: string): Promise<User | null> {
+  const user = db.select().from(users).where(eq(users.id, userId)).get();
+  return user || null;
+}

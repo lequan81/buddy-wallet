@@ -174,8 +174,9 @@ export const authController = new Elysia({ prefix: '/auth' })
 
       // Blacklist the access token
       if (isRedisAvailable() && accessToken) {
-        await sessionCache.del(accessToken);
-        await jwtBlacklist.add(accessToken, configs.AUTH.JWT_BLACKLIST_SECONDS);
+        const tokenHash = await hashToken(accessToken); // SECURITY: Hash before blacklisting
+        await sessionCache.del(tokenHash);
+        await jwtBlacklist.add(tokenHash, configs.AUTH.JWT_BLACKLIST_SECONDS);
       }
     }
 

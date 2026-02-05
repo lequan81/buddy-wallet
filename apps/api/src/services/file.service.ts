@@ -102,7 +102,7 @@ function validateFile(
 }
 
 export class FileService {
-  constructor(private db: DbClient) {}
+  constructor(private db: DbClient) { }
 
   /**
    * Upload and process a file
@@ -264,7 +264,7 @@ export class FileService {
   async approveProof(
     fileId: string,
     reviewerId: string,
-    reviewerPhone?: string
+    reviewerPhone?: string // DEPRECATED: No longer used for authorization
   ): Promise<{ success: boolean; error?: string }> {
     const file = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
 
@@ -290,7 +290,8 @@ export class FileService {
       return { success: false, error: 'Related debt not found' };
     }
 
-    const isCreditor = debt.creditorId === reviewerId || debt.creditorPhone === reviewerPhone;
+    // SECURITY FIX 1: Use user ID for authorization (not phoneNumber)
+    const isCreditor = debt.creditorId === reviewerId;
     if (!isCreditor) {
       return { success: false, error: 'Only creditor can approve payment proofs' };
     }
@@ -315,7 +316,7 @@ export class FileService {
   async rejectProof(
     fileId: string,
     reviewerId: string,
-    reviewerPhone?: string,
+    reviewerPhone?: string, // DEPRECATED: No longer used for authorization
     reason?: string
   ): Promise<{ success: boolean; error?: string }> {
     const file = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
@@ -342,7 +343,8 @@ export class FileService {
       return { success: false, error: 'Related debt not found' };
     }
 
-    const isCreditor = debt.creditorId === reviewerId || debt.creditorPhone === reviewerPhone;
+    // SECURITY FIX 1: Use user ID for authorization (not phoneNumber)
+    const isCreditor = debt.creditorId === reviewerId;
     if (!isCreditor) {
       return { success: false, error: 'Only creditor can reject payment proofs' };
     }

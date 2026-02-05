@@ -20,5 +20,6 @@ export const load: PageServerLoad = async ({ locals, fetch, parent }) => {
 
 	const data = await response.json();
 
-	return { users: data.users || [] };
+	// API returns { success: true, data: { users: [...] } }
+	return { users: data.data?.users || [] };
 };

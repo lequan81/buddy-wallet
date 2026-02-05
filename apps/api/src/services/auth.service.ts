@@ -9,7 +9,15 @@ import { randomUUIDv7 } from 'bun';
 import { users, sessions, debts, eq, and, or, isNull, ne, gte } from '@repo/db';
 import { DEFAULT_USER_PERMISSIONS } from '@repo/permissions';
 import { configs } from '@/configs';
-import { hashToken, normalizePhoneNumber, parseUserAgent, getLocationFromIP, logger } from '@utils';
+import {
+  hashToken,
+  normalizePhoneNumber,
+  parseUserAgent,
+  getLocationFromIP,
+  logger,
+  validatePasswordComplexity,
+  isCommonPassword
+} from '@utils';
 import type { DbClient, JwtService } from '@/types';
 import type { RegisterInput, LoginInput, AuthResult } from '@/types';
 import type { IAuthService } from '@/types/interfaces';
@@ -54,6 +62,23 @@ export class AuthService implements IAuthService {
    */
   async register(input: RegisterInput): Promise<AuthResult> {
     const { name, email, password, phoneNumber } = input;
+
+    // SECURITY: Validate password complexity
+    const passwordValidation = validatePasswordComplexity(password);
+    if (!passwordValidation.isValid) {
+      return {
+        success: false,
+        error: passwordValidation.errors.join('. ')
+      };
+    }
+
+    // SECURITY: Check against common passwords
+    if (isCommonPassword(password)) {
+      return {
+        success: false,
+        error: 'Password is too common. Please choose a stronger password.'
+      };
+    }
 
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
     if (!normalizedPhone) {
@@ -100,7 +125,12 @@ export class AuthService implements IAuthService {
 
     return {
       success: true,
-      user: { id: newUser.id, email: newUser.email, role: newUser.role }
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        phoneNumber: newUser.phoneNumber,
+        role: newUser.role
+      }
     };
   }
 
@@ -190,17 +220,21 @@ export class AuthService implements IAuthService {
 
     const accessToken = await jwt.sign({
       id: user.id,
+      phoneNumber: user.phoneNumber,
+      sessionVersion: user.sessionVersion || 1,
       exp: Math.floor(accessTokenExpiresAt.getTime() / 1000)
     });
     const refreshToken = generateRefreshToken();
     const refreshTokenHash = await hashToken(refreshToken);
+    const accessTokenHash = await hashToken(accessToken); // SECURITY: Hash access token
     const sessionId = randomUUIDv7('base64url');
 
     // Store session
     await this.db.insert(sessions).values({
       id: sessionId,
       userId: user.id,
-      accessToken,
+      accessToken: null, // DEPRECATED: No longer store plaintext token
+      accessTokenHash,   // Store hashed token for secure lookup
       accessTokenExpiresAt,
       refreshToken: refreshTokenHash,
       refreshTokenExpiresAt,
@@ -216,7 +250,7 @@ export class AuthService implements IAuthService {
 
     return {
       success: true,
-      user: { id: user.id, email: user.email, role: user.role },
+      user: { id: user.id, email: user.email, phoneNumber: user.phoneNumber, role: user.role },
       accessToken,
       refreshToken,
       sessionId,
@@ -278,6 +312,23 @@ export class AuthService implements IAuthService {
     const validPassword = await Bun.password.verify(currentPassword, dbUser.password);
     if (!validPassword) {
       return { success: false, error: 'Current password is incorrect' };
+    }
+
+    // SECURITY: Validate new password complexity
+    const passwordValidation = validatePasswordComplexity(newPassword);
+    if (!passwordValidation.isValid) {
+      return {
+        success: false,
+        error: passwordValidation.errors.join('. ')
+      };
+    }
+
+    // SECURITY: Check against common passwords
+    if (isCommonPassword(newPassword)) {
+      return {
+        success: false,
+        error: 'Password is too common. Please choose a stronger password.'
+      };
     }
 
     const hashedNewPassword = await Bun.password.hash(newPassword, configs.AUTH.ARGON2_OPTIONS);

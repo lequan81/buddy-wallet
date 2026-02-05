@@ -15,7 +15,8 @@ import {
   importController,
   publicController,
   usersController,
-  tracesController
+  tracesController,
+  pushController
 } from '@controllers';
 import { telemetry } from './instrumentation';
 import { logger } from './utils/logger';
@@ -38,6 +39,7 @@ export const app = new Elysia()
       // Auth routes (login/register work without user, /me/logout need user)
       .use(authController)
       .use(publicController) // /v1/check-debt
+      .use(pushController) // Push notifications (vapid-key is public, others check user internally)
       .use(permissionPlugin)
       // Guarded Routes (Require Authentication)
       .guard(
@@ -52,7 +54,11 @@ export const app = new Elysia()
           }
         },
         (app) =>
-          app.use(usersController).use(debtsController).use(importController).use(exportController)
+          app
+            .use(usersController)
+            .use(debtsController)
+            .use(importController)
+            .use(exportController)
       )
   )
   .get('/health', () => ({

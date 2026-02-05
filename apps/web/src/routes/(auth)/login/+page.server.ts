@@ -62,7 +62,9 @@ export const actions: Actions = {
 				for (const cookieHeader of setCookieHeaders) {
 					const sessionMatch = cookieHeader.match(/session=([^;]+)/);
 					if (sessionMatch) {
-						cookies.set('session', sessionMatch[1], {
+						const tokenValue = sessionMatch[1];
+						console.log('[LOGIN] Extracted session token:', tokenValue.substring(0, 20) + '...');
+						cookies.set('session', tokenValue, {
 							path: '/',
 							httpOnly: true,
 							secure: process.env.NODE_ENV === 'production',
@@ -73,6 +75,7 @@ export const actions: Actions = {
 
 					const refreshMatch = cookieHeader.match(/refresh_token=([^;]+)/);
 					if (refreshMatch) {
+						console.log('[LOGIN] Extracted refresh_token');
 						cookies.set('refresh_token', refreshMatch[1], {
 							path: '/', // Override path to root so hooks.server.ts sees it
 							httpOnly: true,
@@ -83,9 +86,8 @@ export const actions: Actions = {
 					}
 				}
 
-				// Redirect with success param for toast
-				const successUrl = redirectTo === '/' ? '/?login=success' : redirectTo;
-				throw redirect(303, successUrl);
+				// Redirect to target page (hooks.server.ts will load user data)
+				throw redirect(303, redirectTo);
 			}
 
 			return fail(500, { email, message: 'Unexpected error occurred' });

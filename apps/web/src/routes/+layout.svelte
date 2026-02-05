@@ -6,7 +6,11 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import './layout.css';
 
+	let mounted = $state(false);
+
 	onMount(() => {
+		mounted = true;
+
 		useRegisterSW({
 			onRegisteredSW(swScriptUrl, registration) {
 				console.log('[SW] Service worker registered:', swScriptUrl);
@@ -45,8 +49,10 @@
 	<meta name="description" content="Buddy Wallet - Manage group expenses and settle debts easily" />
 </svelte:head>
 
-<!-- Toast Notifications -->
-<Toaster richColors position="top-center" />
+<!-- Toast Notifications (client-only to prevent hydration mismatch) -->
+{#if mounted}
+	<Toaster richColors position="top-center" />
+{/if}
 
 <!-- API Offline Warning Banner -->
 {#if data.apiOffline && showOfflineWarning}

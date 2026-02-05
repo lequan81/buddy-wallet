@@ -81,6 +81,7 @@ export const logger = {
   auth: (msg: string, ctx?: LogContext) => log.info('AUTH', msg, ctx),
   http: (msg: string, ctx?: LogContext) => log.info('HTTP', msg, ctx),
   app: (msg: string, ctx?: LogContext) => log.info('APP', msg, ctx),
+  push: (msg: string, ctx?: LogContext) => log.info('PUSH', msg, ctx),
 
   // Security-critical logs (warn level - always visible)
   csrf: (msg: string, ctx?: LogContext) => log.warn('CSRF', msg, ctx),
@@ -93,4 +94,9 @@ export const logger = {
 
   // Error level
   error: (msg: string, ctx?: LogContext) => log.error('ERROR', msg, ctx),
+
+  // Generic log level methods (for flexibility)
+  warn: (msg: string, ctx?: LogContext) => log.warn('WARN', msg, ctx),
+  info: (msg: string, ctx?: LogContext) => log.info('INFO', msg, ctx),
+  debug: (msg: string, ctx?: LogContext) => log.debug('DEBUG', msg, ctx),
 };

@@ -45,7 +45,9 @@ export const actions: Actions = {
 			console.log(`[Import] Preview: ${file.name}`);
 
 			// Note: For FormData, browser sets Content-Type with boundary automatically
-			const { 'Content-Type': _, ...headersWithoutContentType } = getAuthHeaders(locals.accessToken) as Record<string, string>;
+			const { 'Content-Type': _, ...headersWithoutContentType } = getAuthHeaders(
+				locals.accessToken
+			) as Record<string, string>;
 			const res = await fetch(`${API_URL}/v1/import/preview`, {
 				method: 'POST',
 				body: apiBody,
@@ -65,12 +67,12 @@ export const actions: Actions = {
 
 			return {
 				preview: true,
-				logId: data.logId,
-				fileName: data.fileName,
-				totalRows: data.totalRows,
-				columnHeaders: data.columnHeaders,
-				previewData: data.previewData,
-				autoMapping: data.autoMapping
+				logId: data.data?.logId || data.logId,
+				fileName: data.data?.fileName || data.fileName,
+				totalRows: data.data?.totalRows || data.totalRows,
+				columnHeaders: data.data?.columnHeaders || data.columnHeaders,
+				previewData: data.data?.previewData || data.previewData,
+				autoMapping: data.data?.autoMapping || data.autoMapping
 			};
 		} catch (err) {
 			console.error('[Import] Preview error:', err);
@@ -110,10 +112,14 @@ export const actions: Actions = {
 		}
 
 		try {
-			console.log(`[Import] Import: ${file.name}${previewLogId ? ` (linked to preview: ${previewLogId})` : ''}`);
+			console.log(
+				`[Import] Import: ${file.name}${previewLogId ? ` (linked to preview: ${previewLogId})` : ''}`
+			);
 
 			// Note: For FormData, browser sets Content-Type with boundary automatically
-			const { 'Content-Type': _ct, ...importHeadersWithoutContentType } = getAuthHeaders(locals.accessToken) as Record<string, string>;
+			const { 'Content-Type': _ct, ...importHeadersWithoutContentType } = getAuthHeaders(
+				locals.accessToken
+			) as Record<string, string>;
 			const res = await fetch(`${API_URL}/v1/import/debts`, {
 				method: 'POST',
 				body: apiBody,
@@ -131,9 +137,9 @@ export const actions: Actions = {
 
 			return {
 				success: true,
-				logId: data.logId,
-				imported: data.imported,
-				errors: data.errors
+				logId: data.data?.logId || data.logId,
+				imported: data.data?.imported || data.imported,
+				errors: data.data?.errors || data.errors
 			};
 		} catch (err) {
 			console.error('[Import] Error:', err);

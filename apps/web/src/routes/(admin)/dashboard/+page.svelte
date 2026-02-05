@@ -21,8 +21,21 @@
 	let debts = $derived(data.debts || []);
 	let permissions = $derived(data.permissions);
 
-	let pendingDebts = $derived(debts.filter((d: any) => d.status === 'pending'));
-	let totalAmount = $derived(debts.reduce((acc: number, d: any) => acc + d.amount, 0));
+	let pendingDebts = $derived.by(() => {
+		try {
+			// Debug: Ensure debts is an array
+			// console.log('[Frontend] Dashboard Debts:', debts);
+			if (!Array.isArray(debts)) return [];
+			return debts.filter((d: any) => d.status === 'pending');
+		} catch (e) {
+			console.error('[Frontend] Filter error:', e);
+			return [];
+		}
+	});
+	let totalAmount = $derived.by(() => {
+		if (!Array.isArray(debts)) return 0;
+		return debts.reduce((acc: number, d: any) => acc + d.amount, 0);
+	});
 </script>
 
 <div class="space-y-6">

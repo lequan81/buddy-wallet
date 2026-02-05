@@ -23,7 +23,7 @@ interface CurrentUser {
  * ImportService class with dependency injection
  */
 export class ImportService {
-  constructor(private db: DbClient) {}
+  constructor(private db: DbClient) { }
 
   /**
    * Preview an import file
@@ -283,13 +283,20 @@ export class ImportService {
   }
 
   /**
-   * Cleanup stale pending logs
+   * Cleanup stale pending logs (user-specific)
+   * SECURITY: Filter by userId to prevent cleaning other users' logs
    */
-  async cleanupStaleLogs(): Promise<{ success: boolean }> {
+  async cleanupStaleLogs(userId: string): Promise<{ success: boolean }> {
     const cutoff = new Date(Date.now() - configs.IMPORT.STALE_LOG_LIFETIME);
     await this.db
       .delete(importLogs)
-      .where(and(eq(importLogs.status, 'pending'), lte(importLogs.createdAt, cutoff)));
+      .where(
+        and(
+          eq(importLogs.userId, userId),
+          eq(importLogs.status, 'pending'),
+          lte(importLogs.createdAt, cutoff)
+        )
+      );
     return { success: true };
   }
 

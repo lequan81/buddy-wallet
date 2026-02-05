@@ -6,7 +6,7 @@ export const getEnv = (key: string, defaultValue?: string): string => {
   const value = Bun.env[key] || defaultValue;
 
   if (value === undefined) {
-    throw new Error(`❌ Missing required environment variable: ${key}`);
+    throw new Error(`[ERROR] Missing required environment variable: ${key}`);
   }
   return value;
 };
@@ -18,7 +18,7 @@ function validateJWTSecretOnStartup(secret: string): void {
   const validation = validateSecretStrength(secret);
 
   if (!validation.isValid && Bun.env.NODE_ENV === 'production') {
-    throw new Error(`❌ JWT_SECRET security issues:\n  - ${validation.issues.join('\n  - ')}`);
+    throw new Error(`[ERROR] JWT_SECRET security issues:\n  - ${validation.issues.join('\n  - ')}`);
   } else if (validation.issues.length > 0) {
     console.warn(`[WARN] JWT_SECRET security warnings:\n  - ${validation.issues.join('\n  - ')}`);
   }
@@ -54,5 +54,11 @@ export const configs = {
   IMPORT: {
     MAX_ROWS: parseInt(Bun.env.IMPORT_MAX_ROWS || '1000'),
     STALE_LOG_LIFETIME: parseInt(Bun.env.IMPORT_STALE_LOG_LIFETIME || '86400000') // 24h
+  },
+  PUSH: {
+    VAPID_PUBLIC_KEY: Bun.env.VAPID_PUBLIC_KEY || '',
+    VAPID_PRIVATE_KEY: Bun.env.VAPID_PRIVATE_KEY || '',
+    VAPID_SUBJECT: Bun.env.VAPID_SUBJECT || 'mailto:support@buddywallet.app',
+    MAX_FAILED_ATTEMPTS: parseInt(Bun.env.PUSH_MAX_FAILED_ATTEMPTS || '5')
   }
 };

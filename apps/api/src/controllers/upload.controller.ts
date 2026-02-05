@@ -5,7 +5,7 @@
  */
 import { Elysia, t } from 'elysia';
 import { permissionPlugin } from '@plugins/permission';
-import { standardRateLimiter, uploadRateLimiter } from '@plugins/rate-limit';
+import { standardRateLimiter, uploadRateLimiter, deleteRateLimiter } from '@plugins/rate-limit';
 import { PERMISSIONS } from '@repo/permissions';
 import { fileService, debtService } from '@/services';
 
@@ -61,9 +61,10 @@ export const uploadController = new Elysia({ prefix: '/upload' })
         return { success: false, error: 'Debt not found' };
       }
 
-      // Only debtor or creditor can upload proof
-      const isDebtor = debt.debtorId === user!.id || debt.debtorPhone === user!.phoneNumber;
-      const isCreditor = debt.creditorId === user!.id || debt.creditorPhone === user!.phoneNumber;
+      // SECURITY FIX 1: Use user ID for authorization (not phoneNumber)
+      // phoneNumber could be spoofed if Redis cache is compromised
+      const isDebtor = debt.debtorId === user!.id;
+      const isCreditor = debt.creditorId === user!.id;
 
       if (!isDebtor && !isCreditor) {
         set.status = 403;
@@ -120,11 +121,8 @@ export const uploadController = new Elysia({ prefix: '/upload' })
       if (!hasAccess && meta.relatedDebtId) {
         const debt = await debtService.getDebtById(meta.relatedDebtId);
         if (debt) {
-          hasAccess =
-            debt.debtorId === user?.id ||
-            debt.creditorId === user?.id ||
-            debt.debtorPhone === user?.phoneNumber ||
-            debt.creditorPhone === user?.phoneNumber;
+          // SECURITY FIX 1: Use user ID for authorization (not phoneNumber)
+          hasAccess = debt.debtorId === user?.id || debt.creditorId === user?.id;
         }
       }
 
@@ -180,7 +178,8 @@ export const uploadController = new Elysia({ prefix: '/upload' })
         return { success: false, error: 'Debt not found' };
       }
 
-      const isCreditor = debt.creditorId === user!.id || debt.creditorPhone === user!.phoneNumber;
+      // SECURITY FIX 1: Use user ID for authorization (not phoneNumber)
+      const isCreditor = debt.creditorId === user!.id;
       if (!isCreditor) {
         set.status = 403;
         return { success: false, error: 'Only creditor can view pending proofs' };
@@ -253,6 +252,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
   )
 
   // ==================== DELETE FILE ====================
+  .use(deleteRateLimiter) // Rate limit: 20 deletes per minute
   .delete(
     '/file/:id',
     async ({ user, params: { id }, set }) => {

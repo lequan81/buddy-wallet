@@ -40,8 +40,13 @@ export const actions: Actions = {
 				const errorMessage = errorData?.error?.message || 'Registration failed';
 				return message(form, errorMessage, { status: 400 });
 			}
-		} catch (_err) {
-			return message(form, 'Unable to connect to server. Please try again later.', { status: 503 });
+		} catch (err) {
+			console.error('[Signup] Connection Error:', err);
+			const errorMessage =
+				err instanceof Error && err.message.includes('fetch failed')
+					? 'Unable to connect to API server. Please ensure the API is running on port 3000.'
+					: 'Unable to connect to server. Please try again later.';
+			return message(form, errorMessage, { status: 503 });
 		}
 
 		throw redirect(303, '/login?registered=true');

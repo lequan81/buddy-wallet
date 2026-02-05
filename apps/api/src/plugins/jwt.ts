@@ -7,9 +7,23 @@ import { logger } from '@utils/logger';
 /**
  * JWT Payload Schema
  * Defines the structure of data stored in the JWT token
+ *
+ * SECURITY NOTE: phoneNumber is included in JWT payload to prevent session tampering.
+ * The JWT is signed with a secret key, making it cryptographically secure against modification.
+ *
+ * sessionVersion is included to enable instant token invalidation when:
+ * - User changes password
+ * - Admin forces logout of all sessions
+ * - User explicitly revokes all devices
+ *
+ * iss (issuer) and aud (audience) are validated to prevent token reuse from other systems
  */
 export const jwtPayloadSchema = t.Object({
   id: t.String({ description: 'User unique identifier from Database' }),
+  phoneNumber: t.String({ description: 'User phone number (tamper-proof)' }),
+  sessionVersion: t.Number({ description: 'Session version for instant invalidation' }),
+  iss: t.Optional(t.String()), // Issuer
+  aud: t.Optional(t.String()), // Audience
   iat: t.Optional(t.Number()), // Issued at
   exp: t.Optional(t.Number()) // Expiration time
 });

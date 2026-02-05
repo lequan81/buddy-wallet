@@ -15,6 +15,51 @@ export const usersController = new Elysia({ prefix: '/users' })
   .use(accessControlPlugin)
   .use(permissionPlugin)
 
+  // Get current user profile
+  .get(
+    '/me',
+    async ({ user, set }) => {
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
+
+      return successResponse({ user });
+    }
+  )
+
+  // Update current user profile
+  .patch(
+    '/me',
+    async ({ user, body, set }) => {
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
+
+      const result = await userService.updateProfile(user.id, {
+        name: body.name,
+        email: body.email,
+        phoneNumber: body.phoneNumber
+      });
+
+      if (!result.success) {
+        set.status = 400;
+        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+      }
+
+      return successResponse({ user: result.user, message: result.message });
+    },
+    {
+      body: t.Object({
+        name: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
+        email: t.Optional(t.String({ format: 'email' })),
+        phoneNumber: t.Optional(t.String({ pattern: '^\\+?[1-9]\\d{1,14}$' }))
+      }),
+      checkPermission: PERMISSIONS.USER_UPDATE_PROFILE
+    }
+  )
+
   // List all users (admin)
   .get(
     '/',
