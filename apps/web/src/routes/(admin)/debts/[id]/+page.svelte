@@ -551,7 +551,7 @@
 					{#if canDelete()}
 						<AlertDialog.Root>
 							<AlertDialog.Trigger>
-								{#snippet child({ props })}
+								{#snippet child({ props }: { props: Record<string, any> })}
 									<Button variant="destructive" {...props}>
 										<Trash2 class="mr-2 h-4 w-4" />
 										Delete

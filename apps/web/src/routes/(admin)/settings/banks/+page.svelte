@@ -37,7 +37,7 @@
 			<h3 class="text-lg font-medium">Bank Accounts</h3>
 			<p class="text-sm text-muted-foreground">Manage your bank accounts for receiving payments.</p>
 		</div>
-		<Dialog.Root open={isAdding} onOpenChange={(open) => (isAdding = open)}>
+		<Dialog.Root open={isAdding} onOpenChange={(open: boolean) => (isAdding = open)}>
 			<Dialog.Trigger>
 				<Button size="sm">
 					<Plus class="mr-2 h-4 w-4" />

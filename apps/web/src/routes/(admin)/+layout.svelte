@@ -179,7 +179,7 @@
 					</DropdownMenu.Label>
 					<DropdownMenu.Separator />
 					<DropdownMenu.Item>
-						{#snippet child({ props })}
+						{#snippet child({ props }: { props: Record<string, any> })}
 							<a href="/settings/profile" {...props} class="flex w-full items-center">
 								<User class="mr-2 h-4 w-4" />
 								Profile
@@ -187,7 +187,7 @@
 						{/snippet}
 					</DropdownMenu.Item>
 					<DropdownMenu.Item>
-						{#snippet child({ props })}
+						{#snippet child({ props }: { props: Record<string, any> })}
 							<a href="/settings/security" {...props} class="flex w-full items-center">
 								<Shield class="mr-2 h-4 w-4" />
 								Security
@@ -195,7 +195,7 @@
 						{/snippet}
 					</DropdownMenu.Item>
 					<DropdownMenu.Item>
-						{#snippet child({ props })}
+						{#snippet child({ props }: { props: Record<string, any> })}
 							<a href="/settings/activity" {...props} class="flex w-full items-center">
 								<Activity class="mr-2 h-4 w-4" />
 								Activity
@@ -215,7 +215,7 @@
 						}}
 					>
 						<DropdownMenu.Item disabled={isLoggingOut}>
-							{#snippet child({ props })}
+							{#snippet child({ props }: { props: Record<string, any> })}
 								<button type="submit" {...props} class="flex w-full items-center text-destructive">
 									<LogOut class="mr-2 h-4 w-4" />
 									{isLoggingOut ? 'Logging out...' : 'Log out'}

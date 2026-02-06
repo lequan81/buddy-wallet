@@ -4,7 +4,8 @@
     "moduleResolution": "bundler",
     "paths": {
       "$lib": ["./src/lib"],
-      "$lib/*": ["./src/lib/*"]
+      "$lib/*": ["./src/lib/*"],
+      "@repo/ui/*": ["./src/*"]
     }
   },
   "include": ["src/**/*"],

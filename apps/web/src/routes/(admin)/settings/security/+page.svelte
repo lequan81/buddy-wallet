@@ -137,7 +137,7 @@
 				{#if data.sessions.length >= 1}
 					<AlertDialog.Root bind:open={showLogoutAllDialog}>
 						<AlertDialog.Trigger>
-							{#snippet child({ props })}
+							{#snippet child({ props }: { props: Record<string, any> })}
 								<Button variant="destructive" size="sm" {...props}>
 									<LogOut class="mr-2 h-4 w-4" />
 									Logout All Devices
@@ -328,7 +328,9 @@
 				</div>
 
 				{#if $pushState.error}
-					<div class="rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
+					<div
+						class="rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950 dark:text-red-400"
+					>
 						{$pushState.error}
 					</div>
 				{/if}
