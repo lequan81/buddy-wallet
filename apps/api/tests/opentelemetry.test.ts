@@ -1,5 +1,5 @@
 import { describe, expect, it, test, beforeAll, afterAll } from 'bun:test';
-import { app } from '@/index';
+import { app } from '../src';
 import { traceStore } from '@utils/trace-store';
 import { trace } from '@opentelemetry/api';
 

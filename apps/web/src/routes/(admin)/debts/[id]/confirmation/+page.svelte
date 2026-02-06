@@ -1,6 +1,13 @@
 <script lang="ts">
-	import { CheckCircle, PartyPopper, ArrowRight, Home, TrendingUp, TrendingDown } from '@lucide/svelte';
-	import { Button } from '$lib/components/ui/button';
+	import {
+		CheckCircle,
+		PartyPopper,
+		ArrowRight,
+		Home,
+		TrendingUp,
+		TrendingDown
+	} from '@lucide/svelte';
+	import { Button } from '@repo/ui/components/ui/button';
 	import confetti from 'canvas-confetti';
 	import { onMount } from 'svelte';
 
@@ -40,13 +47,16 @@
 	};
 
 	const statusInfo = $derived(getStatusMessage());
+	const StatusIcon = $derived(statusInfo.icon);
 </script>
 
 <svelte:head>
 	<title>{data.status === 'paid' ? 'Debt Paid' : 'Debt Confirmed'}</title>
 </svelte:head>
 
-<div class="container mx-auto flex min-h-[70vh] max-w-2xl flex-col items-center justify-center px-4 py-8">
+<div
+	class="container mx-auto flex min-h-[70vh] max-w-2xl flex-col items-center justify-center px-4 py-8"
+>
 	{#if !data.debt}
 		<!-- Error state -->
 		<div class="text-center">
@@ -62,11 +72,12 @@
 		<div class="w-full rounded-xl border bg-card p-8 text-center shadow-lg">
 			<!-- Icon -->
 			<div
-				class="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full {data.status === 'paid'
+				class="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full {data.status ===
+				'paid'
 					? 'bg-green-100 dark:bg-green-900/30'
 					: 'bg-blue-100 dark:bg-blue-900/30'}"
 			>
-				<svelte:component this={statusInfo.icon} class="h-12 w-12 {statusInfo.color}" />
+				<StatusIcon class="h-12 w-12 {statusInfo.color}" />
 			</div>
 
 			<!-- Title -->

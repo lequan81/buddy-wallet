@@ -15,17 +15,55 @@
 		Check,
 		X,
 		AlertTriangle,
-		Clock
+		Clock,
+		QrCode,
+		Upload,
+		Image as ImageIcon,
+		Landmark
 	} from '@lucide/svelte';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Button } from '$lib/components/ui/button';
+	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
+	import { Button } from '@repo/ui/components/ui/button';
+	import * as Card from '@repo/ui/components/ui/card';
+	import { Separator } from '@repo/ui/components/ui/separator';
+	import { Label } from '@repo/ui/components/ui/label';
+	import { Input } from '@repo/ui/components/ui/input';
+	import { apiFetch } from '$lib/api';
 
-	let { data, form } = $props();
+	let { data, form } = $props<{ data: any; form: any }>();
+
+	// Ensure arrays are defined even if data is partial
+	let creditorBanks = $derived(data.creditorBanks || []);
+	let pendingProofs = $derived(data.pendingProofs || []);
+
+	// Payment/QR State
+	let showPayModal = $state(false);
 
 	let isSubmitting = $state(false);
 	let isEditing = $state(false);
-	let editDescription = $state(data.debt?.description || '');
-	let editAmount = $state(data.debt?.amount?.toString() || '');
+	let editDescription = $state('');
+	let editAmount = $state('');
+	let selectedBankId = $state('');
+	let selectedBank = $derived(
+		creditorBanks.find((b: any) => b.id === selectedBankId) ||
+			creditorBanks.find((b: any) => b.isDefault) ||
+			creditorBanks[0]
+	);
+
+	// Upload State
+	let uploadFile: FileList | undefined = $state(undefined);
+	let isUploading = $state(false);
+	let uploadError = $state('');
+	let uploadSuccess = $state(false);
+
+	$effect(() => {
+		editDescription = data.debt?.description || '';
+		editAmount = data.debt?.amount?.toString() || '';
+		if (creditorBanks.length > 0 && !selectedBankId) {
+			const def = creditorBanks.find((b: any) => b.isDefault);
+			if (def) selectedBankId = def.id;
+			else selectedBankId = creditorBanks[0].id;
+		}
+	});
 
 	const formatDate = (date: string | null) => {
 		if (!date) return '—';
@@ -96,6 +134,60 @@
 	});
 
 	const validTransitions = $derived(getValidTransitions(data.debt?.status || ''));
+
+	// Generate QR URL
+	const qrUrl = $derived(() => {
+		if (!selectedBank || !data.debt) return '';
+		const amount = data.debt.amount;
+		const addInfo = `Debt ${data.debt.id}`;
+		return `https://img.vietqr.io/image/${selectedBank.bankBin}-${selectedBank.accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent(selectedBank.accountName)}`;
+	});
+
+	async function handleUpload() {
+		if (!uploadFile || !uploadFile[0]) return;
+		isUploading = true;
+		uploadError = '';
+		uploadSuccess = false;
+
+		const formData = new FormData();
+		formData.append('file', uploadFile[0]);
+
+		const res = await apiFetch(`/upload/payment-proof/${data.debt.id}`, {
+			method: 'POST',
+			body: formData
+			// Don't set Content-Type header, browser sets it with boundary
+		});
+
+		isUploading = false;
+		if (res.error) {
+			uploadError = res.error;
+		} else {
+			uploadSuccess = true;
+			uploadFile = undefined;
+			// Ideally invalidate to show it... but we don't have a "my proofs" list yet for debtor
+			// Just show success msg
+		}
+	}
+
+	async function approveProof(proofId: string) {
+		const res = await apiFetch(`/upload/proof/${proofId}/approve`, { method: 'POST' });
+		if (!res.error) {
+			invalidateAll();
+		}
+	}
+
+	async function rejectProof(proofId: string) {
+		const reason = prompt('Enter rejection reason:');
+		if (reason === null) return;
+
+		const res = await apiFetch(`/upload/proof/${proofId}/reject`, {
+			method: 'POST',
+			body: JSON.stringify({ reason })
+		});
+		if (!res.error) {
+			invalidateAll();
+		}
+	}
 </script>
 
 <svelte:head>
@@ -212,6 +304,147 @@
 			</div>
 		</div>
 
+		<!-- Payment Section (For Debtor) -->
+		{#if data.isDebtor && data.debt.status !== 'paid' && data.debt.status !== 'cancelled'}
+			<div class="mb-6 rounded-xl border bg-card p-6 shadow-sm">
+				<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
+					<QrCode class="h-5 w-5 text-primary" />
+					Payment
+				</h2>
+
+				<div class="grid gap-8 md:grid-cols-2">
+					<!-- QR Code -->
+					<div>
+						<h3 class="mb-4 text-sm font-medium tracking-wider text-muted-foreground uppercase">
+							Step 1: Scan to Pay
+						</h3>
+						{#if creditorBanks.length === 0}
+							<div class="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
+								<p>Creditor has not added any bank accounts yet.</p>
+								<p class="mt-1 text-sm">Please contact them to ask for payment details.</p>
+							</div>
+						{:else}
+							<div class="space-y-4">
+								{#if creditorBanks.length > 1}
+									<div class="grid gap-2">
+										<Label>Select Bank</Label>
+										<select
+											class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+											bind:value={selectedBankId}
+										>
+											{#each creditorBanks as bank}
+												<option value={bank.id}>{bank.shortName} - {bank.accountNumber}</option>
+											{/each}
+										</select>
+									</div>
+								{/if}
+
+								{#if selectedBank}
+									<div
+										class="flex flex-col items-center rounded-lg border bg-white p-4 dark:bg-white/10"
+									>
+										<img src={qrUrl()} alt="Payment QR Code" class="w-full max-w-64 rounded-lg" />
+										<div class="mt-4 text-center text-sm">
+											<p class="font-bold">{selectedBank.bankName}</p>
+											<p class="font-mono">{selectedBank.accountNumber}</p>
+											<p>{selectedBank.accountName}</p>
+										</div>
+									</div>
+								{/if}
+							</div>
+						{/if}
+					</div>
+
+					<!-- Upload Proof -->
+					<div>
+						<h3 class="mb-4 text-sm font-medium tracking-wider text-muted-foreground uppercase">
+							Step 2: Upload Proof
+						</h3>
+						<Card.Root>
+							<div class="p-6">
+								<div class="grid gap-4">
+									<div class="grid gap-2">
+										<Label for="proof">Transaction Screenshot</Label>
+										<Input id="proof" type="file" accept="image/*" bind:files={uploadFile} />
+									</div>
+									<Button onclick={handleUpload} disabled={!uploadFile || isUploading}>
+										{#if isUploading}
+											Uploading...
+										{:else}
+											<Upload class="mr-2 h-4 w-4" />
+											Upload Proof
+										{/if}
+									</Button>
+
+									{#if uploadError}
+										<p class="text-sm text-red-500">{uploadError}</p>
+									{/if}
+									{#if uploadSuccess}
+										<div
+											class="rounded-md bg-green-50 p-2 text-sm text-green-600 dark:bg-green-900/10"
+										>
+											Proof uploaded successfully! The creditor will review it.
+										</div>
+									{/if}
+								</div>
+							</div>
+						</Card.Root>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Pending Proofs Section (For Creditor) -->
+		{#if data.isCreditor && pendingProofs.length > 0}
+			<div
+				class="mb-6 rounded-xl border border-blue-200 bg-card p-6 shadow-sm dark:border-blue-900"
+			>
+				<h2
+					class="mb-4 flex items-center gap-2 text-xl font-semibold text-blue-700 dark:text-blue-400"
+				>
+					<ImageIcon class="h-5 w-5" />
+					Pending Payment Proofs
+				</h2>
+
+				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					{#each pendingProofs as proof}
+						<Card.Root>
+							<div class="aspect-video w-full overflow-hidden rounded-t-lg bg-muted">
+								<!-- svelte-ignore a11y_img_redundant_alt -->
+								<img
+									src={`${import.meta.env.VITE_API_URL || ''}${proof.url}`}
+									alt="Proof Image"
+									class="h-full w-full object-cover"
+								/>
+							</div>
+							<div class="p-4">
+								<div class="mb-4 flex items-center justify-between">
+									<span class="text-xs text-muted-foreground">{formatDate(proof.createdAt)}</span>
+								</div>
+								<div class="flex gap-2">
+									<Button
+										size="sm"
+										class="w-full bg-green-600 hover:bg-green-700"
+										onclick={() => approveProof(proof.id)}
+									>
+										<Check class="mr-2 h-4 w-4" /> Approve
+									</Button>
+									<Button
+										size="sm"
+										variant="destructive"
+										class="w-full"
+										onclick={() => rejectProof(proof.id)}
+									>
+										<X class="mr-2 h-4 w-4" /> Reject
+									</Button>
+								</div>
+							</div>
+						</Card.Root>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
 		<!-- Edit Form (shown when editing) -->
 		{#if isEditing && canEdit()}
 			<div class="mb-6 rounded-xl border bg-card p-6 shadow-sm">
@@ -296,7 +529,8 @@
 											? 'destructive'
 											: 'default'}
 									>
-										<svelte:component this={transition.icon} class="mr-2 h-4 w-4" />
+										{@const Icon = transition.icon}
+										<Icon class="mr-2 h-4 w-4" />
 										{transition.label}
 									</Button>
 								</form>

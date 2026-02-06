@@ -17,7 +17,8 @@ import {
   publicController,
   usersController,
   tracesController,
-  pushController
+  pushController,
+  bankController
 } from '@controllers';
 import { telemetry } from './instrumentation';
 import { logger } from './utils/logger';
@@ -61,6 +62,7 @@ export const app = new Elysia()
             .use(importController)
             .use(exportController)
             .use(activityController)
+            .use(bankController)
       )
   )
   .get('/health', () => ({

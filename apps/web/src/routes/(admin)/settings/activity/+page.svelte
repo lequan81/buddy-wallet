@@ -15,9 +15,9 @@
 		ChevronLeft,
 		ChevronRight
 	} from '@lucide/svelte';
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Separator } from '$lib/components/ui/separator';
+	import * as Card from '@repo/ui/components/ui/card';
+	import { Button } from '@repo/ui/components/ui/button';
+	import { Separator } from '@repo/ui/components/ui/separator';
 
 	let { data } = $props();
 
@@ -103,10 +103,10 @@
 	};
 
 	// Pagination
-	const limit = data.limit || 50;
-	const offset = data.offset || 0;
-	const hasMore = data.logs.length === limit;
-	const hasPrev = offset > 0;
+	let limit = $derived(data.limit || 50);
+	let offset = $derived(data.offset || 0);
+	let hasMore = $derived(data.logs.length === limit);
+	let hasPrev = $derived(offset > 0);
 
 	const goToPage = (newOffset: number) => {
 		goto(`/settings/activity?limit=${limit}&offset=${newOffset}`, { replaceState: true });
@@ -137,9 +137,7 @@
 				<Activity class="h-5 w-5" />
 				Recent Activity
 			</Card.Title>
-			<Card.Description>
-				Your actions and events from the last 30 days.
-			</Card.Description>
+			<Card.Description>Your actions and events from the last 30 days.</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			{#if data.logs.length === 0}
@@ -152,10 +150,16 @@
 					{#each data.logs as log (log.id)}
 						{@const ActionIcon = getActionIcon(log.action)}
 						{@const ResourceIcon = getResourceIcon(log.resource)}
-						<div class="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50">
+						<div
+							class="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50"
+						>
 							<!-- Action Icon -->
-							<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full {getActionColor(log.action)}">
-								<svelte:component this={ActionIcon} class="h-5 w-5" />
+							<div
+								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full {getActionColor(
+									log.action
+								)}"
+							>
+								<ActionIcon class="h-5 w-5" />
 							</div>
 
 							<!-- Content -->
@@ -165,7 +169,9 @@
 										{formatAction(log.action, log.resource)}
 									</p>
 									{#if log.resourceId}
-										<span class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+										<span
+											class="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground"
+										>
 											{log.resourceId.slice(0, 8)}...
 										</span>
 									{/if}
@@ -175,7 +181,9 @@
 								{#if log.changes}
 									<div class="mt-1 text-sm text-muted-foreground">
 										{#if log.changes.after?.status}
-											Status changed to <span class="font-medium capitalize">{log.changes.after.status}</span>
+											Status changed to <span class="font-medium capitalize"
+												>{log.changes.after.status}</span
+											>
 										{:else if log.changes.after?.amount}
 											Amount: {log.changes.after.amount}
 										{/if}
@@ -185,7 +193,7 @@
 								<!-- Metadata -->
 								<div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
 									<span class="flex items-center gap-1">
-										<svelte:component this={ResourceIcon} class="h-3 w-3" />
+										<ResourceIcon class="h-3 w-3" />
 										{log.resource}
 									</span>
 									{#if log.ipAddress}

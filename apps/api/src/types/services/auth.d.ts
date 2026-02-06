@@ -18,7 +18,7 @@ export interface LoginInput {
 export interface AuthResult {
   success: boolean;
   error?: string;
-  user?: { id: string; email: string | null; role: string };
+  user?: { id: string; email: string | null; phoneNumber: string; role: string };
   accessToken?: string;
   refreshToken?: string;
   expiresIn?: number;

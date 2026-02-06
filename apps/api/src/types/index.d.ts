@@ -11,6 +11,7 @@ export * from './trace';
 export * from './import';
 // Service Types
 export * from './services/common';
+/// <reference path="./web-push.d.ts" />
 export * from './services/auth';
 export * from './services/debt';
 export * from './services/export';

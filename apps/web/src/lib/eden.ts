@@ -46,13 +46,14 @@ async function refreshForEden(): Promise<boolean> {
  */
 export const createTreatyClient = (fetcher?: typeof fetch, token?: string) => {
 	// Custom fetcher with auto-refresh
-	const autoRefreshFetcher: typeof fetch = async (input, init) => {
+	const autoRefreshFetcher: any = async (input: RequestInfo | URL, init?: RequestInit) => {
 		const originalFetcher = fetcher || fetch;
 		const response = await originalFetcher(input, init);
 
 		// Auto-refresh on 401 (except for refresh endpoint itself)
-		const url = typeof input === 'string' ? input : input.url;
-		const isRefreshEndpoint = url.includes('/auth/refresh');
+		const urlString =
+			typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+		const isRefreshEndpoint = urlString.includes('/auth/refresh');
 
 		if (response.status === 401 && !isRefreshEndpoint) {
 			console.log('[Eden] 401 detected, attempting token refresh...');

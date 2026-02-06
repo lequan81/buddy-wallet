@@ -9,7 +9,7 @@ import { logger } from '@utils/logger';
  */
 
 // SECURITY: Fail fast in production if WEB_URL not configured
-if (configs.APP.ENV === 'production' && !configs.APP.WEB_URL) {
+if (configs.APP.NODE_ENV === 'production' && !configs.APP.WEB_URL) {
   logger.error('FATAL: WEB_URL not set in production environment');
   throw new Error('WEB_URL environment variable is required in production');
 }

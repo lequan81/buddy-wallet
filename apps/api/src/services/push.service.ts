@@ -13,28 +13,28 @@ import type { DbClient } from '@/types';
 
 // Configure web-push with VAPID keys (only if valid keys are provided)
 const hasValidVapidKeys =
-	configs.PUSH.VAPID_PUBLIC_KEY &&
-	configs.PUSH.VAPID_PRIVATE_KEY &&
-	configs.PUSH.VAPID_PUBLIC_KEY.length > 20 &&
-	configs.PUSH.VAPID_PRIVATE_KEY.length > 20;
+  configs.PUSH.VAPID_PUBLIC_KEY &&
+  configs.PUSH.VAPID_PRIVATE_KEY &&
+  configs.PUSH.VAPID_PUBLIC_KEY.length > 20 &&
+  configs.PUSH.VAPID_PRIVATE_KEY.length > 20;
 
 if (hasValidVapidKeys) {
-	try {
-		webpush.setVapidDetails(
-			configs.PUSH.VAPID_SUBJECT,
-			configs.PUSH.VAPID_PUBLIC_KEY,
-			configs.PUSH.VAPID_PRIVATE_KEY
-		);
-		logger.push('Web Push configured with VAPID keys');
-	} catch (error) {
-		logger.error('Failed to configure VAPID keys:', error);
-		logger.warn(
-			'Push notifications will not work. Generate VAPID keys with: bunx web-push generate-vapid-keys'
-		);
-	}
+  try {
+    webpush.setVapidDetails(
+      configs.PUSH.VAPID_SUBJECT,
+      configs.PUSH.VAPID_PUBLIC_KEY,
+      configs.PUSH.VAPID_PRIVATE_KEY
+    );
+    logger.push('Web Push configured with VAPID keys');
+  } catch (error) {
+    logger.error('Failed to configure VAPID keys:', { error: String(error) });
+    logger.warn(
+      'Push notifications will not work. Generate VAPID keys with: bunx web-push generate-vapid-keys'
+    );
+  }
 } else {
-	logger.warn('VAPID keys not configured. Push notifications disabled.');
-	logger.warn('Generate keys with: bunx web-push generate-vapid-keys');
+  logger.warn('VAPID keys not configured. Push notifications disabled.');
+  logger.warn('Generate keys with: bunx web-push generate-vapid-keys');
 }
 
 export interface PushPayload {
@@ -68,7 +68,7 @@ export interface SendResult {
 }
 
 export class PushService {
-  constructor(private db: DbClient) { }
+  constructor(private db: DbClient) {}
 
   /**
    * Check if push notifications are configured
@@ -139,7 +139,7 @@ export class PushService {
       logger.app(`Push subscription created`, { userId, subscriptionId: id });
       return { success: true, subscriptionId: id };
     } catch (error) {
-      logger.error(`Failed to create push subscription`, { userId, error });
+      logger.error(`Failed to create push subscription`, { userId, error: String(error) });
       return { success: false, error: 'Failed to save subscription' };
     }
   }
@@ -154,16 +154,11 @@ export class PushService {
     try {
       const result = await this.db
         .delete(pushSubscriptions)
-        .where(
-          and(
-            eq(pushSubscriptions.userId, userId),
-            eq(pushSubscriptions.endpoint, endpoint)
-          )
-        );
+        .where(and(eq(pushSubscriptions.userId, userId), eq(pushSubscriptions.endpoint, endpoint)));
 
       return { success: true };
     } catch (error) {
-      logger.error(`Failed to unsubscribe`, { userId, error });
+      logger.error(`Failed to unsubscribe`, { userId, error: String(error) });
       return { success: false, error: 'Failed to remove subscription' };
     }
   }
@@ -197,12 +192,7 @@ export class PushService {
     const subscriptions = this.db
       .select()
       .from(pushSubscriptions)
-      .where(
-        and(
-          eq(pushSubscriptions.userId, userId),
-          eq(pushSubscriptions.isActive, true)
-        )
-      )
+      .where(and(eq(pushSubscriptions.userId, userId), eq(pushSubscriptions.isActive, true)))
       .all();
 
     if (subscriptions.length === 0) {
@@ -233,13 +223,10 @@ export class PushService {
             p256dh: sub.p256dhKey,
             auth: sub.authKey
           }
-        };
+        } as any;
 
         try {
-          await webpush.sendNotification(
-            pushSubscription,
-            JSON.stringify(payload)
-          );
+          await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
 
           // Update last used timestamp
           await this.db
@@ -257,9 +244,7 @@ export class PushService {
           // Handle expired or invalid subscriptions
           if (statusCode === 404 || statusCode === 410) {
             logger.app(`Removing expired subscription`, { subscriptionId: sub.id });
-            await this.db
-              .delete(pushSubscriptions)
-              .where(eq(pushSubscriptions.id, sub.id));
+            await this.db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
           } else {
             // Increment failed attempts
             const newAttempts = sub.failedAttempts + 1;

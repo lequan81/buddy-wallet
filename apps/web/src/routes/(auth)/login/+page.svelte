@@ -3,10 +3,10 @@
 	import { toast } from 'svelte-sonner';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { Eye, EyeOff, Loader2 } from '@lucide/svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
+	import { Button } from '@repo/ui/components/ui/button';
+	import { Input } from '@repo/ui/components/ui/input';
+	import { Label } from '@repo/ui/components/ui/label';
+	import * as Card from '@repo/ui/components/ui/card';
 
 	let { form, data } = $props();
 

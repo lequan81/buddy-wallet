@@ -2,11 +2,11 @@
 	import { toast } from 'svelte-sonner';
 	import { superForm } from 'sveltekit-superforms';
 	import { Eye, EyeOff, Check, Circle, Loader2 } from '@lucide/svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
-	
+	import { Button } from '@repo/ui/components/ui/button';
+	import { Input } from '@repo/ui/components/ui/input';
+	import { Label } from '@repo/ui/components/ui/label';
+	import * as Card from '@repo/ui/components/ui/card';
+
 	import type { Infer } from 'sveltekit-superforms';
 	import type { PageData } from './$types';
 	import { insertUserSchema } from '@repo/db/schema';
@@ -14,7 +14,10 @@
 	const { data }: { data: PageData } = $props();
 
 	// superForm expects the form data directly, not a getter
-	const { form, errors, constraints, message, enhance, delayed } = superForm<Infer<typeof insertUserSchema>>(data.form, {
+	// svelte-ignore state_referenced_locally
+	const { form, errors, constraints, message, enhance, delayed } = superForm<
+		Infer<typeof insertUserSchema>
+	>(data.form, {
 		onResult: ({ result }) => {
 			if (result.type === 'failure') {
 				toast.error('Please check your input');
@@ -29,7 +32,7 @@
 		{ label: 'At least 8 characters', valid: ($form.password?.length ?? 0) >= 8 },
 		{ label: 'One uppercase letter', valid: /[A-Z]/.test($form.password ?? '') },
 		{ label: 'One lowercase letter', valid: /[a-z]/.test($form.password ?? '') },
-		{ label: 'One number', valid: /\d/.test($form.password ?? '') },
+		{ label: 'One number', valid: /\d/.test($form.password ?? '') }
 	]);
 
 	// Show toast on form error message if server returns specific message
@@ -44,9 +47,7 @@
 	<Card.Root class="w-full max-w-md">
 		<Card.Header class="space-y-1 text-center">
 			<Card.Title class="text-2xl font-bold">Create an account</Card.Title>
-			<Card.Description>
-				Enter your email and password to get started
-			</Card.Description>
+			<Card.Description>Enter your email and password to get started</Card.Description>
 		</Card.Header>
 
 		<Card.Content>
@@ -122,8 +123,8 @@
 						/>
 						<button
 							type="button"
-							onclick={() => showPassword = !showPassword}
-							class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+							onclick={() => (showPassword = !showPassword)}
+							class="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
 							aria-label={showPassword ? 'Hide password' : 'Show password'}
 						>
 							{#if showPassword}
@@ -142,10 +143,10 @@
 						{#each passwordRules as rule}
 							<div class="flex items-center gap-1.5 text-xs">
 								{#if rule.valid}
-									<Check class="h-3 w-3 text-green-500 shrink-0" />
+									<Check class="h-3 w-3 shrink-0 text-green-500" />
 									<span class="text-green-600 dark:text-green-400">{rule.label}</span>
 								{:else}
-									<Circle class="h-3 w-3 text-muted-foreground/50 shrink-0" />
+									<Circle class="h-3 w-3 shrink-0 text-muted-foreground/50" />
 									<span class="text-muted-foreground">{rule.label}</span>
 								{/if}
 							</div>
@@ -154,11 +155,7 @@
 				</div>
 
 				<!-- Submit Button - Fixed height -->
-				<Button
-					type="submit"
-					class="w-full h-10"
-					disabled={$delayed}
-				>
+				<Button type="submit" class="h-10 w-full" disabled={$delayed}>
 					<span class="inline-flex items-center justify-center">
 						{#if $delayed}
 							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
@@ -170,21 +167,17 @@
 				</Button>
 			</form>
 		</Card.Content>
-		
+
 		<Card.Footer class="flex flex-col space-y-4">
 			<div class="relative w-full">
 				<div class="absolute inset-0 flex items-center">
 					<span class="w-full border-t"></span>
 				</div>
 				<div class="relative flex justify-center text-xs uppercase">
-					<span class="bg-card px-2 text-muted-foreground">
-						Already have an account?
-					</span>
+					<span class="bg-card px-2 text-muted-foreground"> Already have an account? </span>
 				</div>
 			</div>
-			<Button variant="outline" class="w-full h-10" href="/login">
-				Sign in
-			</Button>
+			<Button variant="outline" class="h-10 w-full" href="/login">Sign in</Button>
 		</Card.Footer>
 	</Card.Root>
 </div>

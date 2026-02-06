@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
+	import { Button } from '@repo/ui/components/ui/button';
+	import { Input } from '@repo/ui/components/ui/input';
+	import { Label } from '@repo/ui/components/ui/label';
+	import * as Card from '@repo/ui/components/ui/card';
 	import { ArrowLeft, Loader2 } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 

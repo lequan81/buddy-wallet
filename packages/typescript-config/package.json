@@ -6,5 +6,9 @@
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "exports": {
+    "./base.json": "./base.json",
+    "./svelte.json": "./svelte.json"
   }
 }

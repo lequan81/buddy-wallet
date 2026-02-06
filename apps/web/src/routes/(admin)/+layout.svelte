@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
-	import { buttonVariants } from '$lib/components/ui/button';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Avatar from '$lib/components/ui/avatar';
+	import { buttonVariants } from '@repo/ui/components/ui/button';
+	import * as DropdownMenu from '@repo/ui/components/ui/dropdown-menu';
+	import * as Avatar from '@repo/ui/components/ui/avatar';
 	import PushPermissionBanner from '$lib/components/shared/PushPermissionBanner.svelte';
 	import {
 		Wallet,
@@ -44,7 +44,8 @@
 	const settingsItems = [
 		{ href: '/settings/profile', label: 'Profile', icon: User },
 		{ href: '/settings/security', label: 'Security', icon: Shield },
-		{ href: '/settings/activity', label: 'Activity', icon: Activity }
+		{ href: '/settings/activity', label: 'Activity', icon: Activity },
+		{ href: '/settings/banks', label: 'Banks', icon: Wallet }
 	];
 </script>
 

@@ -26,7 +26,8 @@ export const load: PageServerLoad = async ({ locals, fetch, params }) => {
 	}
 
 	// Check if user is related to this debt
-	const isCreditor = debt.creditorId === locals.user.id || debt.creditorPhone === locals.user.phoneNumber;
+	const isCreditor =
+		debt.creditorId === locals.user.id || debt.creditorPhone === locals.user.phoneNumber;
 	const isDebtor = debt.debtorId === locals.user.id || debt.debtorPhone === locals.user.phoneNumber;
 	const isUploader = debt.uploadedById === locals.user.id;
 
@@ -34,12 +35,38 @@ export const load: PageServerLoad = async ({ locals, fetch, params }) => {
 		return { debt: null, error: 'Access denied' };
 	}
 
+	// Fetch additional data based on role
+	let creditorBanks = [];
+	let pendingProofs = [];
+
+	// If I am the debtor, I need creditor's bank info to pay
+	if (isDebtor && debt.creditorId) {
+		const bankRes = await fetch(`${API_URL}/v1/banks/user/${debt.creditorId}`, { headers });
+		if (bankRes.ok) {
+			const bankData = await bankRes.json();
+			creditorBanks = bankData.accounts || [];
+		}
+	}
+
+	// If I am the creditor, I need bank info too (to see my own details in context) OR
+	// if I am just viewing, maybe not.
+	// Actually, if I am the creditor, I want to see pending proofs.
+	if (isCreditor) {
+		const proofsRes = await fetch(`${API_URL}/v1/upload/pending-proofs/${debt.id}`, { headers });
+		if (proofsRes.ok) {
+			const proofsData = await proofsRes.json();
+			pendingProofs = proofsData.files || [];
+		}
+	}
+
 	return {
 		debt,
 		isCreditor,
 		isDebtor,
 		isUploader,
-		currentUser: locals.user
+		currentUser: locals.user,
+		creditorBanks,
+		pendingProofs
 	};
 };
 

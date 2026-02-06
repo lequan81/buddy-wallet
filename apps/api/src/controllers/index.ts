@@ -8,3 +8,4 @@ export * from './users.controller';
 export * from './traces.controller';
 export * from './upload.controller';
 export * from './push.controller';
+export * from './bank.controller';

@@ -47,10 +47,6 @@ export const configs = {
       timeCost: parseInt(Bun.env.ARGON2_TIME_COST || '3') // 3 iterations
     }
   },
-  DEBT: {
-    MIN_AMOUNT: parseInt(Bun.env.DEBT_MIN_AMOUNT || '1000'),
-    MAX_AMOUNT: parseInt(Bun.env.DEBT_MAX_AMOUNT || '1000000000000') // 1T
-  },
   IMPORT: {
     MAX_ROWS: parseInt(Bun.env.IMPORT_MAX_ROWS || '1000'),
     STALE_LOG_LIFETIME: parseInt(Bun.env.IMPORT_STALE_LOG_LIFETIME || '86400000') // 24h

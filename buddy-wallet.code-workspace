@@ -17,6 +17,14 @@
       "path": "packages/config"
     },
     {
+      "name": "validation",
+      "path": "packages/validation"
+    },
+    {
+      "name": "interfaces",
+      "path": "packages/interfaces"
+    },
+    {
       "name": "errors",
       "path": "packages/errors"
     },

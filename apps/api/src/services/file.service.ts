@@ -1,23 +1,14 @@
-/**
- * File Service
- *
- * Handles file upload, processing, storage, and retrieval.
- * - Processes images: strips EXIF, converts to WebP at 82% quality
- * - Stores files on filesystem, metadata in SQLite
- * - Caches frequently accessed files in Redis
- */
-import sharp from 'sharp';
-import { unlink } from 'node:fs/promises';
 import { fileMetadata, debts, eq, and } from '@repo/db';
 import { cache } from '@plugins/redis';
 import { log } from '@utils/logger';
 import type { DbClient } from '@/types';
 import type { FileType, FileStatus, FileMetadata } from '@repo/db';
+import { DiskStorageProvider, type IStorageProvider } from './storage.provider';
+import { ImageProcessor } from './image.processor';
 
 // Configuration
 const UPLOAD_DIR = Bun.env.UPLOAD_DIR || './uploads';
 const MAX_FILE_SIZE = parseInt(Bun.env.MAX_FILE_SIZE_MB || '4') * 1024 * 1024;
-const WEBP_QUALITY = 82;
 const ALLOWED_MIME_TYPES = [
   'image/jpeg',
   'image/png',
@@ -28,119 +19,86 @@ const ALLOWED_MIME_TYPES = [
 ];
 const IMAGE_CACHE_TTL = 3600; // 1 hour
 
-// Magic bytes for image format validation (prevents MIME spoofing)
+// Magic bytes for validation
 const MAGIC_BYTES: Record<string, number[]> = {
   jpeg: [0xff, 0xd8, 0xff],
-  png: [0x89, 0x50, 0x4e, 0x47], // \x89PNG
-  gif: [0x47, 0x49, 0x46], // GIF
-  webp: [0x52, 0x49, 0x46, 0x46], // RIFF (WebP container)
-  // HEIC/HEIF - starts with ftyp box
-  heic: [0x00, 0x00, 0x00] // First 3 bytes of ftyp box (size varies)
+  png: [0x89, 0x50, 0x4e, 0x47],
+  gif: [0x47, 0x49, 0x46],
+  webp: [0x52, 0x49, 0x46, 0x46],
+  heic: [0x00, 0x00, 0x00]
 };
 
-/**
- * Validate file content using magic bytes (not just MIME header)
- */
 function isValidImageMagicBytes(buffer: Buffer): boolean {
   if (buffer.length < 12) return false;
-
-  // Check standard formats
   for (const [format, bytes] of Object.entries(MAGIC_BYTES)) {
-    if (format === 'heic') continue; // Special handling below
+    if (format === 'heic') continue;
     if (bytes.every((b, i) => buffer[i] === b)) return true;
   }
-
-  // HEIC/HEIF check: look for 'ftyp' marker and heic/heif/mif1 brand
-  // Format: [size(4)] [ftyp(4)] [brand(4)]
   const ftypMarker = buffer.slice(4, 8).toString('ascii');
   if (ftypMarker === 'ftyp') {
     const brand = buffer.slice(8, 12).toString('ascii');
     if (['heic', 'heif', 'mif1', 'heix'].includes(brand)) return true;
   }
-
   return false;
 }
 
-// Ensure upload directories exist
-async function ensureUploadDirs() {
-  await Bun.write(`${UPLOAD_DIR}/qr/.gitkeep`, '');
-  await Bun.write(`${UPLOAD_DIR}/proofs/.gitkeep`, '');
-}
-ensureUploadDirs();
-
-/**
- * Process image: strip metadata, convert to WebP
- */
-async function processImage(buffer: Buffer): Promise<Buffer> {
-  return sharp(buffer)
-    .rotate() // Auto-rotate based on EXIF orientation
-    .webp({ quality: WEBP_QUALITY }) // Convert to WebP, strips all metadata
-    .toBuffer();
-}
-
-/**
- * Validate file before processing
- */
-function validateFile(
-  file: File,
-  buffer: Buffer
-): { valid: true } | { valid: false; error: string } {
-  if (file.size > MAX_FILE_SIZE) {
-    return { valid: false, error: `File too large. Max size: ${MAX_FILE_SIZE / 1024 / 1024}MB` };
-  }
-
-  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-    return { valid: false, error: `Invalid file type. Allowed: ${ALLOWED_MIME_TYPES.join(', ')}` };
-  }
-
-  // Validate actual file content (magic bytes)
-  if (!isValidImageMagicBytes(buffer)) {
-    return { valid: false, error: 'Invalid image format - file content does not match image type' };
-  }
-
-  return { valid: true };
-}
-
 export class FileService {
-  constructor(private db: DbClient) { }
+  private storage: IStorageProvider;
+  private imageProcessor: ImageProcessor;
 
-  /**
-   * Upload and process a file
-   */
+  constructor(
+    private db: DbClient,
+    storage?: IStorageProvider,
+    imageProcessor?: ImageProcessor
+  ) {
+    this.storage = storage || new DiskStorageProvider(UPLOAD_DIR);
+    this.imageProcessor = imageProcessor || new ImageProcessor();
+    this.ensureDirs();
+  }
+
+  private async ensureDirs() {
+    // Basic init - could be moved to storage provider init
+    // await this.storage.init(); // If needed in future
+  }
+
   async uploadFile(
     file: File,
     userId: string,
     type: FileType,
     relatedDebtId?: string
-  ): Promise<{
-    success: boolean;
-    error?: string;
-    file?: FileMetadata;
-  }> {
+  ): Promise<{ success: boolean; error?: string; file?: FileMetadata }> {
     try {
-      // Read buffer first for magic bytes validation
       const buffer = Buffer.from(await file.arrayBuffer());
 
-      // Validate (size, MIME, magic bytes)
-      const validation = validateFile(file, buffer);
-      if (!validation.valid) {
-        return { success: false, error: validation.error };
+      // Validation
+      if (file.size > MAX_FILE_SIZE) {
+        return {
+          success: false,
+          error: `File too large. Max size: ${MAX_FILE_SIZE / 1024 / 1024}MB`
+        };
+      }
+      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+        return {
+          success: false,
+          error: `Invalid file type. Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`
+        };
+      }
+      if (!isValidImageMagicBytes(buffer)) {
+        return { success: false, error: 'Invalid image format' };
       }
 
-      // Process image
-      const processedBuffer = await processImage(buffer);
+      // Process
+      const processedBuffer = await this.imageProcessor.process(buffer);
 
-      // Generate unique filename using Bun's built-in UUID v7 (time-sortable)
+      // Save
       const id = Bun.randomUUIDv7();
       const filename = `${id}.webp`;
       const subdir = type === 'qr_code' ? 'qr' : 'proofs';
-      const storagePath = `${subdir}/${filename}`;
-      const fullPath = `${UPLOAD_DIR}/${storagePath}`;
+      const relativePath = `${subdir}/${filename}`;
 
-      // Save to disk
-      await Bun.write(fullPath, processedBuffer);
+      await this.storage.save(relativePath, processedBuffer);
 
-      // Save metadata to DB
+      // Metadata
       const now = new Date();
       const metadata: typeof fileMetadata.$inferInsert = {
         id,
@@ -148,41 +106,29 @@ export class FileService {
         originalName: file.name,
         mimeType: 'image/webp',
         sizeBytes: processedBuffer.length,
-        storagePath,
+        storagePath: relativePath,
         uploadedById: userId,
         fileType: type,
         relatedDebtId,
-        status: type === 'qr_code' ? 'approved' : 'pending', // QR codes auto-approved
+        status: type === 'qr_code' ? 'approved' : 'pending',
         createdAt: now
       };
 
       try {
         this.db.insert(fileMetadata).values(metadata).run();
       } catch (dbError) {
-        // Cleanup file if DB insert fails
-        try {
-          await unlink(fullPath);
-        } catch {
-          // Ignore unlink error
-        }
-        throw dbError; // Re-throw to be caught by outer catch
+        await this.storage.delete(relativePath);
+        throw dbError;
       }
 
       log.debug('FILE', 'Uploaded', { id, type, size: processedBuffer.length });
-
-      return {
-        success: true,
-        file: metadata as FileMetadata
-      };
+      return { success: true, file: metadata as FileMetadata };
     } catch (err) {
       log.error('FILE', 'Upload failed', { error: String(err) });
       return { success: false, error: 'Failed to process file' };
     }
   }
 
-  /**
-   * Get file by ID (with Redis caching)
-   */
   async getFile(fileId: string): Promise<{
     success: boolean;
     error?: string;
@@ -190,14 +136,9 @@ export class FileService {
     mimeType?: string;
     metadata?: FileMetadata;
   }> {
-    // Get metadata
     const metadata = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
+    if (!metadata) return { success: false, error: 'File not found' };
 
-    if (!metadata) {
-      return { success: false, error: 'File not found' };
-    }
-
-    // Check Redis cache first
     const cacheKey = `file:${fileId}`;
     const cached = await cache.get<string>(cacheKey);
     if (cached) {
@@ -209,30 +150,23 @@ export class FileService {
       };
     }
 
-    // Read from disk
-    const fullPath = `${UPLOAD_DIR}/${metadata.storagePath}`;
-    const file = Bun.file(fullPath);
+    try {
+      // Direct access via file system for now as DiskStorageProvider exposes resolvePath?
+      // Better to add read() to StorageProvider?
+      // For now, assume DiskStorageProvider logic:
+      const fullPath = (this.storage as DiskStorageProvider).resolvePath(metadata.storagePath);
+      const file = Bun.file(fullPath);
+      if (!(await file.exists())) return { success: false, error: 'File not found on disk' };
 
-    if (!(await file.exists())) {
-      return { success: false, error: 'File not found on disk' };
+      const data = Buffer.from(await file.arrayBuffer());
+      await cache.set(cacheKey, data.toString('base64'), IMAGE_CACHE_TTL);
+
+      return { success: true, data, mimeType: metadata.mimeType, metadata };
+    } catch (e) {
+      return { success: false, error: 'Read error' };
     }
-
-    const data = Buffer.from(await file.arrayBuffer());
-
-    // Cache in Redis
-    await cache.set(cacheKey, data.toString('base64'), IMAGE_CACHE_TTL);
-
-    return {
-      success: true,
-      data,
-      mimeType: metadata.mimeType,
-      metadata
-    };
   }
 
-  /**
-   * Get user's QR codes
-   */
   async getUserQRCodes(userId: string): Promise<FileMetadata[]> {
     return this.db
       .select()
@@ -241,9 +175,6 @@ export class FileService {
       .all();
   }
 
-  /**
-   * Get pending payment proofs for a debt (for creditor to review)
-   */
   async getPendingProofs(debtId: string): Promise<FileMetadata[]> {
     return this.db
       .select()
@@ -258,41 +189,21 @@ export class FileService {
       .all();
   }
 
-  /**
-   * Approve a payment proof (only creditor can approve)
-   */
   async approveProof(
     fileId: string,
-    reviewerId: string,
-    reviewerPhone?: string // DEPRECATED: No longer used for authorization
+    reviewerId: string
   ): Promise<{ success: boolean; error?: string }> {
     const file = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
 
-    if (!file) {
-      return { success: false, error: 'File not found' };
-    }
-
-    if (file.fileType !== 'payment_proof') {
-      return { success: false, error: 'Not a payment proof' };
-    }
-
-    if (file.status !== 'pending') {
-      return { success: false, error: 'Already reviewed' };
-    }
-
-    // Verify reviewer is the creditor of related debt
-    if (!file.relatedDebtId) {
-      return { success: false, error: 'No related debt found' };
-    }
+    if (!file) return { success: false, error: 'File not found' };
+    if (file.fileType !== 'payment_proof') return { success: false, error: 'Not a payment proof' };
+    if (file.status !== 'pending') return { success: false, error: 'Already reviewed' };
+    if (!file.relatedDebtId) return { success: false, error: 'No related debt found' };
 
     const debt = this.db.select().from(debts).where(eq(debts.id, file.relatedDebtId)).get();
-    if (!debt) {
-      return { success: false, error: 'Related debt not found' };
-    }
+    if (!debt) return { success: false, error: 'Related debt not found' };
 
-    // SECURITY FIX 1: Use user ID for authorization (not phoneNumber)
-    const isCreditor = debt.creditorId === reviewerId;
-    if (!isCreditor) {
+    if (debt.creditorId !== reviewerId) {
       return { success: false, error: 'Only creditor can approve payment proofs' };
     }
 
@@ -310,42 +221,22 @@ export class FileService {
     return { success: true };
   }
 
-  /**
-   * Reject a payment proof (only creditor can reject)
-   */
   async rejectProof(
     fileId: string,
     reviewerId: string,
-    reviewerPhone?: string, // DEPRECATED: No longer used for authorization
     reason?: string
   ): Promise<{ success: boolean; error?: string }> {
     const file = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
 
-    if (!file) {
-      return { success: false, error: 'File not found' };
-    }
-
-    if (file.fileType !== 'payment_proof') {
-      return { success: false, error: 'Not a payment proof' };
-    }
-
-    if (file.status !== 'pending') {
-      return { success: false, error: 'Already reviewed' };
-    }
-
-    // Verify reviewer is the creditor of related debt
-    if (!file.relatedDebtId) {
-      return { success: false, error: 'No related debt found' };
-    }
+    if (!file) return { success: false, error: 'File not found' };
+    if (file.fileType !== 'payment_proof') return { success: false, error: 'Not a payment proof' };
+    if (file.status !== 'pending') return { success: false, error: 'Already reviewed' };
+    if (!file.relatedDebtId) return { success: false, error: 'No related debt found' };
 
     const debt = this.db.select().from(debts).where(eq(debts.id, file.relatedDebtId)).get();
-    if (!debt) {
-      return { success: false, error: 'Related debt not found' };
-    }
+    if (!debt) return { success: false, error: 'Related debt not found' };
 
-    // SECURITY FIX 1: Use user ID for authorization (not phoneNumber)
-    const isCreditor = debt.creditorId === reviewerId;
-    if (!isCreditor) {
+    if (debt.creditorId !== reviewerId) {
       return { success: false, error: 'Only creditor can reject payment proofs' };
     }
 
@@ -364,33 +255,13 @@ export class FileService {
     return { success: true };
   }
 
-  /**
-   * Delete a file
-   */
   async deleteFile(fileId: string, userId: string): Promise<{ success: boolean; error?: string }> {
     const file = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
+    if (!file) return { success: false, error: 'File not found' };
+    if (file.uploadedById !== userId) return { success: false, error: 'Not authorized' };
 
-    if (!file) {
-      return { success: false, error: 'File not found' };
-    }
-
-    // Only owner can delete
-    if (file.uploadedById !== userId) {
-      return { success: false, error: 'Not authorized' };
-    }
-
-    // Delete from disk using proper fs.unlink
-    const fullPath = `${UPLOAD_DIR}/${file.storagePath}`;
-    try {
-      await unlink(fullPath);
-    } catch {
-      // File might not exist, continue
-    }
-
-    // Delete from DB
+    await this.storage.delete(file.storagePath);
     this.db.delete(fileMetadata).where(eq(fileMetadata.id, fileId)).run();
-
-    // Clear cache
     await cache.del(`file:${fileId}`);
 
     log.debug('FILE', 'Deleted', { fileId });

@@ -57,3 +57,13 @@ export const MAX_IMPORT_ROWS = 10000;
 // ============================================
 
 export * from './security';
+
+// ============================================
+// DEBT CONFIGURATION
+// ============================================
+
+/** Minimum debt amount (1,000 VND) */
+export const DEBT_MIN_AMOUNT = 1000;
+
+/** Maximum debt amount (1 Trillion VND) */
+export const DEBT_MAX_AMOUNT = 1000000000000;

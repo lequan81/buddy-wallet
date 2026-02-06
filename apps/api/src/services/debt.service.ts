@@ -9,15 +9,12 @@
 import { debts, users, eq, or, and, ne, type Debt } from '@repo/db';
 import { hasPermission, PERMISSIONS } from '@repo/permissions';
 import { normalizePhoneNumber } from '@/utils/phone';
-import { configs } from '@/configs';
+// import { configs } from '@/configs'; // Deprecated local config usage for limits
+import { DEBT_MIN_AMOUNT, DEBT_MAX_AMOUNT } from '@repo/config';
+import { CreateDebtInputSchema, safeParse } from '@repo/validation';
 import { debtStateMachine } from '@/states';
 import type { DbClient } from '@/types';
-import type {
-  DebtStatus,
-  CreateDebtInput,
-  DebtResult,
-  StatusUpdateResult
-} from '@/types';
+import type { DebtStatus, CreateDebtInput, DebtResult, StatusUpdateResult } from '@/types';
 import type { IDebtService, CurrentUser } from '@/types/interfaces';
 
 /**
@@ -26,7 +23,7 @@ import type { IDebtService, CurrentUser } from '@/types/interfaces';
  * Uses State Machine for status transitions (OCP compliance)
  */
 export class DebtService implements IDebtService {
-  constructor(private db: DbClient) { }
+  constructor(private db: DbClient) {}
 
   /**
    * Get debts for a user (or all debts if admin)
@@ -90,7 +87,16 @@ export class DebtService implements IDebtService {
       };
     }
 
-    const { amount, description, counterpartyPhone, direction } = input;
+    // Validate input using shared schema
+    const parseResult = safeParse(CreateDebtInputSchema, input);
+    if (!parseResult.success) {
+      return {
+        success: false,
+        error: parseResult.issues[0].message,
+        code: 'VALIDATION_ERROR'
+      };
+    }
+    const { amount, description, counterpartyPhone, direction } = parseResult.output;
 
     // Normalize counterparty phone
     const normalizedCounterpartyPhone = normalizePhoneNumber(counterpartyPhone);
@@ -109,22 +115,6 @@ export class DebtService implements IDebtService {
         success: false,
         error: 'Cannot create a debt with yourself',
         code: 'SELF_DEBT_NOT_ALLOWED'
-      };
-    }
-
-    // Validate amount
-    if (amount < configs.DEBT.MIN_AMOUNT) {
-      return {
-        success: false,
-        error: `Minimum debt amount is ${configs.DEBT.MIN_AMOUNT}`,
-        code: 'AMOUNT_TOO_LOW'
-      };
-    }
-    if (amount > configs.DEBT.MAX_AMOUNT) {
-      return {
-        success: false,
-        error: `Maximum debt amount is ${configs.DEBT.MAX_AMOUNT}`,
-        code: 'AMOUNT_TOO_HIGH'
       };
     }
 
@@ -257,17 +247,17 @@ export class DebtService implements IDebtService {
 
     // Validate amount if provided
     if (data.amount !== undefined) {
-      if (data.amount < configs.DEBT.MIN_AMOUNT) {
+      if (data.amount < DEBT_MIN_AMOUNT) {
         return {
           success: false,
-          error: `Minimum debt amount is ${configs.DEBT.MIN_AMOUNT}`,
+          error: `Minimum debt amount is ${DEBT_MIN_AMOUNT}`,
           code: 'AMOUNT_TOO_LOW'
         };
       }
-      if (data.amount > configs.DEBT.MAX_AMOUNT) {
+      if (data.amount > DEBT_MAX_AMOUNT) {
         return {
           success: false,
-          error: `Maximum debt amount is ${configs.DEBT.MAX_AMOUNT}`,
+          error: `Maximum debt amount is ${DEBT_MAX_AMOUNT}`,
           code: 'AMOUNT_TOO_HIGH'
         };
       }
@@ -327,7 +317,10 @@ export class DebtService implements IDebtService {
   /**
    * Soft delete multiple debts
    */
-  async deleteDebts(debtIds: string[], currentUser: CurrentUser): Promise<{ success: boolean; deleted: number; errors: string[] }> {
+  async deleteDebts(
+    debtIds: string[],
+    currentUser: CurrentUser
+  ): Promise<{ success: boolean; deleted: number; errors: string[] }> {
     const errors: string[] = [];
     let deletedCount = 0;
 

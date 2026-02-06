@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
-	import { Separator } from '$lib/components/ui/separator';
+	import { Button } from '@repo/ui/components/ui/button';
+	import { Input } from '@repo/ui/components/ui/input';
+	import { Label } from '@repo/ui/components/ui/label';
+	import * as Card from '@repo/ui/components/ui/card';
+	import { Separator } from '@repo/ui/components/ui/separator';
 	import { User, Phone } from '@lucide/svelte';
 
 	let { data, form } = $props();

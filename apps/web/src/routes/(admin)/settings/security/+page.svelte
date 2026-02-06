@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
-	import { Separator } from '$lib/components/ui/separator';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '@repo/ui/components/ui/button';
+	import { Input } from '@repo/ui/components/ui/input';
+	import { Label } from '@repo/ui/components/ui/label';
+	import * as Card from '@repo/ui/components/ui/card';
+	import { Separator } from '@repo/ui/components/ui/separator';
+	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
+	import { Badge } from '@repo/ui/components/ui/badge';
 	import {
 		Monitor,
 		Smartphone,

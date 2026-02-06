@@ -209,7 +209,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
   .post(
     '/proof/:id/approve',
     async ({ user, params: { id }, set }) => {
-      const result = await fileService.approveProof(id, user!.id, user!.phoneNumber || undefined);
+      const result = await fileService.approveProof(id, user!.id);
 
       if (!result.success) {
         set.status = 400;
@@ -228,12 +228,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
   .post(
     '/proof/:id/reject',
     async ({ user, params: { id }, body, set }) => {
-      const result = await fileService.rejectProof(
-        id,
-        user!.id,
-        user!.phoneNumber || undefined,
-        body.reason
-      );
+      const result = await fileService.rejectProof(id, user!.id, body.reason);
 
       if (!result.success) {
         set.status = 400;

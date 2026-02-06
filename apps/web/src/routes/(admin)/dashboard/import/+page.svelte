@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
-	import { Progress } from '$lib/components/ui/progress';
+	import { Button } from '@repo/ui/components/ui/button';
+	import { Input } from '@repo/ui/components/ui/input';
+	import { Label } from '@repo/ui/components/ui/label';
+	import * as Card from '@repo/ui/components/ui/card';
+	import { Progress } from '@repo/ui/components/ui/progress';
 	import {
 		ArrowLeft,
 		Upload,
@@ -182,7 +182,7 @@
 							if (result.type === 'success' && result.data?.success) {
 								const d = result.data;
 								const count = d.imported;
-								const warnings = d.errors?.length || 0;
+								const warnings = (d.errors as any[])?.length || 0;
 								if (warnings > 0) {
 									toast.warning(`Imported ${count} records with ${warnings} warnings`, {
 										id: toastId

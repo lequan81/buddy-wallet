@@ -42,6 +42,7 @@ import { FileService } from './file.service';
 import { EmailService, emailService } from './email.service';
 import { PushService } from './push.service';
 import { ActivityService } from './activity.service';
+import { BankAccountService } from './bank-account.service';
 
 // Singleton instances for the main app
 export const authService = new AuthService(db);
@@ -54,6 +55,11 @@ export const fileService = new FileService(db);
 export const pushService = new PushService(db);
 export const activityService = new ActivityService(db);
 export { EmailService, emailService };
+export * from './vietqr.service';
+// Consolidated imports
+// Exported above
+//export { BankAccountService };
+export const bankAccountService = new BankAccountService(db);
 
 /**
  * Factory functions for creating services with custom dependencies

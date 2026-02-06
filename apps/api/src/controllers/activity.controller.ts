@@ -18,7 +18,7 @@ export const activityController = new Elysia({ prefix: '/activity' })
       const limit = query.limit ? parseInt(query.limit) : 50;
       const offset = query.offset ? parseInt(query.offset) : 0;
 
-      const logs = await activityService.getLogsForUser(user!.id, limit, offset);
+      const logs = await activityService.getLogsForUser(user!.id, { limit, offset });
       return successResponse({ logs });
     },
     {
@@ -30,10 +30,7 @@ export const activityController = new Elysia({ prefix: '/activity' })
   )
 
   // Get recent activity summary
-  .get(
-    '/recent',
-    async ({ user }) => {
-      const logs = await activityService.getRecentActivity(user!.id, 10);
-      return successResponse({ logs });
-    }
-  );
+  .get('/recent', async ({ user }) => {
+    const logs = await activityService.getRecentActivity(user!.id, 10);
+    return successResponse({ logs });
+  });

@@ -216,7 +216,7 @@ export async function subscribeToPush(): Promise<boolean> {
 		// Subscribe to push
 		const subscription = await registration.pushManager.subscribe({
 			userVisibleOnly: true,
-			applicationServerKey: urlBase64ToUint8Array(vapidKey)
+			applicationServerKey: urlBase64ToUint8Array(vapidKey) as unknown as BufferSource
 		});
 
 		// Get subscription keys

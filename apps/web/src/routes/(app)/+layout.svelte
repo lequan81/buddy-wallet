@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { Wallet } from '@lucide/svelte';
-	import { buttonVariants } from '$lib/components/ui/button';
+	import { buttonVariants } from '@repo/ui/components/ui/button';
 
 	let { children } = $props();
 	let user = $derived(page.data.user);

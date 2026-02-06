@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import * as Card from '$lib/components/ui/card';
+	import * as Card from '@repo/ui/components/ui/card';
 	import {
 		Users,
 		FileText,
@@ -17,11 +17,11 @@
 		Square,
 		ExternalLink
 	} from '@lucide/svelte';
-	import { Separator } from '$lib/components/ui/separator';
-	import { Badge } from '$lib/components/ui/badge';
-	import * as Table from '$lib/components/ui/table';
-	import { Button } from '$lib/components/ui/button';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import { Separator } from '@repo/ui/components/ui/separator';
+	import { Badge } from '@repo/ui/components/ui/badge';
+	import * as Table from '@repo/ui/components/ui/table';
+	import { Button } from '@repo/ui/components/ui/button';
+	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
 
 	let { data, form } = $props();
 
@@ -37,6 +37,10 @@
 
 	// Filter state
 	let statusFilter = $state(data.statusFilter || 'all');
+
+	$effect(() => {
+		statusFilter = data.statusFilter || 'all';
+	});
 
 	// Filtered debts based on status
 	let filteredDebts = $derived.by(() => {
@@ -115,7 +119,9 @@
 	};
 
 	// Status badge variant
-	const getStatusVariant = (status: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
+	const getStatusVariant = (
+		status: string
+	): 'default' | 'secondary' | 'destructive' | 'outline' => {
 		switch (status) {
 			case 'pending':
 				return 'outline';
@@ -150,7 +156,7 @@
 				<a
 					href="/api/v1/export/debts"
 					download
-					class="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md border border-input bg-background px-4 py-2 text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+					class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium whitespace-nowrap ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
 				>
 					<FileSpreadsheet class="mr-2 h-4 w-4" /> Export
 				</a>
@@ -167,12 +173,16 @@
 		</div>
 	{/if}
 	{#if form?.success}
-		<div class="rounded-lg bg-green-100 p-3 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+		<div
+			class="rounded-lg bg-green-100 p-3 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+		>
 			{form.deleted} debt(s) deleted successfully.
 		</div>
 	{/if}
 	{#if $page.url.searchParams.get('deleted')}
-		<div class="rounded-lg bg-green-100 p-3 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+		<div
+			class="rounded-lg bg-green-100 p-3 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+		>
 			Debt deleted successfully.
 		</div>
 	{/if}
@@ -273,8 +283,8 @@
 									<AlertDialog.Header>
 										<AlertDialog.Title>Delete Selected Debts</AlertDialog.Title>
 										<AlertDialog.Description>
-											Are you sure you want to delete {selectedIds.size} debt(s)? This action cannot
-											be undone.
+											Are you sure you want to delete {selectedIds.size} debt(s)? This action cannot be
+											undone.
 										</AlertDialog.Description>
 									</AlertDialog.Header>
 									<AlertDialog.Footer>
@@ -295,7 +305,7 @@
 											<input type="hidden" name="ids" value={Array.from(selectedIds).join(',')} />
 											<AlertDialog.Action
 												type="submit"
-												class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+												class="text-destructive-foreground bg-destructive hover:bg-destructive/90"
 											>
 												{isSubmitting ? 'Deleting...' : 'Delete'}
 											</AlertDialog.Action>
@@ -362,7 +372,7 @@
 											<span class="h-4 w-4"></span>
 										{/if}
 									</Table.Cell>
-									<Table.Cell class="max-w-[200px] truncate font-medium">
+									<Table.Cell class="max-w-50 truncate font-medium">
 										{debt.description || '—'}
 									</Table.Cell>
 									<Table.Cell>

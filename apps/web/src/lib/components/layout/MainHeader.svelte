@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
-	import { buttonVariants } from '$lib/components/ui/button';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Avatar from '$lib/components/ui/avatar';
+	import { buttonVariants } from '@repo/ui/components/ui/button';
+	import * as Sheet from '@repo/ui/components/ui/sheet';
+	import * as DropdownMenu from '@repo/ui/components/ui/dropdown-menu';
+	import * as Avatar from '@repo/ui/components/ui/avatar';
 	import { Menu, User, Settings, LogOut, Wallet, ShieldAlert } from '@lucide/svelte';
 
 	let user = $derived(page.data.user);
