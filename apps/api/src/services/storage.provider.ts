@@ -11,6 +11,13 @@ export interface IStorageProvider {
   save(path: string, buffer: Buffer | Blob): Promise<string>;
 
   /**
+   * Read a file from storage
+   * @param path Relative path to read
+   * @returns File content as Buffer
+   */
+  read(path: string): Promise<Buffer>;
+
+  /**
    * Delete a file from storage
    * @param path Relative path to delete
    */
@@ -29,6 +36,15 @@ export class DiskStorageProvider implements IStorageProvider {
     const fullPath = this.resolvePath(relativePath);
     await Bun.write(fullPath, buffer);
     return relativePath; // Return relative path for DB storage
+  }
+
+  async read(relativePath: string): Promise<Buffer> {
+    const fullPath = this.resolvePath(relativePath);
+    const file = Bun.file(fullPath);
+    if (!(await file.exists())) {
+      throw new Error(`File not found: ${relativePath}`);
+    }
+    return Buffer.from(await file.arrayBuffer());
   }
 
   async delete(relativePath: string): Promise<void> {

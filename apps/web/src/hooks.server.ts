@@ -1,5 +1,5 @@
-import { dev } from "$app/environment"
-import type { Handle } from '@sveltejs/kit';
+import { dev } from '$app/environment';
+import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
@@ -103,7 +103,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		}
 	} catch (_err: unknown) {
 		// Backend unavailable - running in offline mode
-		console.warn("[WARN] Backend API unavailable");
+		console.warn('[WARN] Backend API unavailable');
 		apiOffline = true;
 	}
 
@@ -148,10 +148,39 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 
 export const handleDevtoolsJson: Handle = ({ event, resolve }) => {
 	if (dev && event.url.pathname === '/.well-known/appspecific/com.chrome.devtools.json') {
-		return new Response(undefined, { status: 204 });  // 204: No Content
+		return new Response(undefined, { status: 204 }); // 204: No Content
 	}
 
 	return resolve(event);
 };
 
-export const handle: Handle = sequence(handleParaglide, handleTheme, handleAuth, handleDevtoolsJson);
+export const handle: Handle = sequence(
+	handleParaglide,
+	handleTheme,
+	handleAuth,
+	handleDevtoolsJson
+);
+
+/**
+ * Server-side error handler
+ * Logs errors and returns user-friendly messages
+ */
+export const handleError: HandleServerError = async ({ error, event, status, message }) => {
+	// Log error details
+	console.error('[Server Error]', {
+		error,
+		status,
+		message,
+		url: event.url.pathname,
+		timestamp: new Date().toISOString()
+	});
+
+	// In production, send to error tracking service
+	// await sendToErrorTracking({ error, status, url: event.url.pathname });
+
+	// Return user-friendly error
+	return {
+		message: status === 404 ? 'Page not found' : 'An unexpected error occurred',
+		code: status === 404 ? 'NOT_FOUND' : 'SERVER_ERROR'
+	};
+};

@@ -1,14 +1,41 @@
 import sharp from 'sharp';
 
+interface ImageProcessorConfig {
+  format: 'webp' | 'jpeg';
+  quality: number;
+  maxWidth: number;
+  maxHeight: number;
+  timeoutSeconds: number;
+}
+
+const DEFAULT_CONFIG: ImageProcessorConfig = {
+  format: 'webp',
+  quality: 80,
+  maxWidth: 1920,
+  maxHeight: 1080,
+  timeoutSeconds: 10
+};
+
 export class ImageProcessor {
+  private config: ImageProcessorConfig;
+
+  constructor(config: Partial<ImageProcessorConfig> = {}) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+
   /**
    * Process an image: rotate based on EXIF, resize if too large, convert to WebP
+   * Includes timeout to prevent DoS attacks with malformed images
    */
   async process(buffer: Buffer): Promise<Buffer> {
-    return await sharp(buffer)
+    return await sharp(buffer, { failOn: 'error' }) // Fail fast on corrupt images
       .rotate() // Auto-rotate based on EXIF
-      .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true }) // reasonable max 1080p
-      .webp({ quality: 80 }) // standardized to webp
+      .resize(this.config.maxWidth, this.config.maxHeight, {
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .webp({ quality: this.config.quality })
+      .timeout({ seconds: this.config.timeoutSeconds }) // Prevent DoS
       .toBuffer();
   }
 

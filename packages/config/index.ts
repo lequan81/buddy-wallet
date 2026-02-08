@@ -57,6 +57,7 @@ export const MAX_IMPORT_ROWS = 10000;
 // ============================================
 
 export * from './security';
+export * from './env';
 
 // ============================================
 // DEBT CONFIGURATION

@@ -13,6 +13,13 @@ export interface LoginInput {
   password: string;
   userAgent: string | null;
   clientIP: string | null;
+  clientLocation?: string | null; // Text location from browser geolocation (e.g., "Ho Chi Minh City, Vietnam")
+  clientHints?: {
+    // From navigator.userAgentData
+    browser?: string;
+    os?: string;
+    mobile?: boolean;
+  };
 }
 
 export interface AuthResult {

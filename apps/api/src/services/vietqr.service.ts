@@ -8,16 +8,9 @@
 import { cache } from '@plugins/redis';
 import { log } from '@utils/logger';
 
-interface VietQRBank {
-  id: number;
-  name: string;
-  code: string;
-  bin: string;
-  shortName: string;
-  logo: string;
-  transferSupported: number;
-  lookupSupported: number;
-}
+import { cache } from '@plugins/redis';
+import { log } from '@utils/logger';
+import { MAJOR_BANKS_FALLBACK, type VietQRBank } from '@repo/interfaces';
 
 interface VietQRResponse {
   code: string;
@@ -30,13 +23,15 @@ const CACHE_TTL = 86400; // 24 hours
 
 export class VietQRService {
   /**
-   * Get list of supported banks from VietQR
-   * Caches results in Redis for 24 hours
+   * Get list of supported banks
+   * 1. Try Redis cache
+   * 2. Try VietQR API (backend fallback for frontend)
+   * 3. Return hardcoded fallback
    */
   async getBanks(): Promise<VietQRBank[]> {
     const cacheKey = 'vietqr:banks';
 
-    // Check cache
+    // 1. Check Redis cache
     const cached = await cache.get<string>(cacheKey);
     if (cached) {
       try {
@@ -46,27 +41,29 @@ export class VietQRService {
       }
     }
 
+    // 2. Try VietQR API with timeout
     try {
-      const response = await fetch(VIETQR_API_URL);
-      if (!response.ok) {
-        throw new Error(`VietQR API error: ${response.statusText}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+      const response = await fetch(VIETQR_API_URL, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const result = (await response.json()) as VietQRResponse;
+
+        if (result.code === '00' && result.data.length > 0) {
+          // Cache fresh data
+          await cache.set(cacheKey, JSON.stringify(result.data), CACHE_TTL);
+          return result.data;
+        }
       }
-
-      const result = (await response.json()) as VietQRResponse;
-
-      if (result.code !== '00') {
-        throw new Error(`VietQR API error code: ${result.code} - ${result.desc}`);
-      }
-
-      // Cache result
-      await cache.set(cacheKey, JSON.stringify(result.data), CACHE_TTL);
-
-      return result.data;
     } catch (error) {
-      log.error('VIETQR', 'Failed to fetch banks', { error: String(error) });
-      // Fallback: return empty array or retry? For now empty.
-      return [];
+      log.warn('VIETQR', 'API timeout or error, using fallback', { error: String(error) });
     }
+
+    // 3. Last resort: return hardcoded major banks from shared package
+    return MAJOR_BANKS_FALLBACK;
   }
 
   /**
@@ -99,6 +96,32 @@ export class VietQRService {
 
     const queryString = searchParams.toString();
     return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+  }
+
+  /**
+   * Generate QR URL for debt payment
+   */
+  generateDebtPaymentQR(params: {
+    bankBin: string;
+    accountNumber: string;
+    accountName: string;
+    amount: number;
+    debtId: string;
+    debtorName?: string;
+  }): string {
+    // Description format: BW-<Last8CharsOfDebtId> <DebtorName>
+    // VietQR description limit is usually short (often 25-50 chars depends on bank)
+    const shortId = params.debtId.slice(-8);
+    const description = `BW-${shortId}${params.debtorName ? ` ${params.debtorName}` : ''}`;
+
+    return this.generateQRUrl({
+      bankBin: params.bankBin,
+      accountNumber: params.accountNumber,
+      accountName: params.accountName,
+      amount: params.amount,
+      description: description.slice(0, 25), // Safe limit
+      template: 'compact2'
+    });
   }
 }
 

@@ -151,19 +151,13 @@ export class FileService {
     }
 
     try {
-      // Direct access via file system for now as DiskStorageProvider exposes resolvePath?
-      // Better to add read() to StorageProvider?
-      // For now, assume DiskStorageProvider logic:
-      const fullPath = (this.storage as DiskStorageProvider).resolvePath(metadata.storagePath);
-      const file = Bun.file(fullPath);
-      if (!(await file.exists())) return { success: false, error: 'File not found on disk' };
-
-      const data = Buffer.from(await file.arrayBuffer());
+      // Use storage provider's read() method (no more type casting!)
+      const data = await this.storage.read(metadata.storagePath);
       await cache.set(cacheKey, data.toString('base64'), IMAGE_CACHE_TTL);
 
       return { success: true, data, mimeType: metadata.mimeType, metadata };
-    } catch (e) {
-      return { success: false, error: 'Read error' };
+    } catch {
+      return { success: false, error: 'File not found on disk' };
     }
   }
 

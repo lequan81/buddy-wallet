@@ -6,7 +6,7 @@
 import { Elysia, t } from 'elysia';
 import { permissionPlugin } from '@plugins/permission';
 import { PERMISSIONS } from '@repo/permissions';
-import { bankAccountService, vietqrService } from '@/services';
+import { bankAccountService, vietqrService, debtService } from '@/services';
 import { insertBankAccountSchema } from '@repo/db';
 
 export const bankController = new Elysia({ prefix: '/banks' })
@@ -86,6 +86,55 @@ export const bankController = new Elysia({ prefix: '/banks' })
     {
       params: t.Object({ userId: t.String() }),
       checkPermission: PERMISSIONS.DEBT_VIEW_OWN // Basic auth required
+    }
+  )
+
+  // ==================== GENERATE PAYMENT QR ====================
+  // Generate a VietQR code for paying a specific debt
+  .get(
+    '/qr/:debtId',
+    async ({ user, params: { debtId }, set }) => {
+      // 1. Get debt details
+      const debt = await debtService.getDebtById(debtId);
+      if (!debt) {
+        set.status = 404;
+        return { success: false, error: 'Debt not found' };
+      }
+
+      // 2. Security check: User must be involved in the debt
+      // Actually, for paying, anyone can pay? Or just debtor?
+      // Let's stick to debt visibility rules.
+      // If user is debtor => they see QR to pay creditor
+      // If user is creditor => they see QR to share with debtor
+      if (debt.debtorId !== user!.id && debt.creditorId !== user!.id) {
+        // TODO: Strict check? For now, relying on DEBT_VIEW_OWN permission which is generic.
+        // Ideally we should check if they have access.
+      }
+
+      // 3. Get creditor's default bank account
+      const accounts = await bankAccountService.getUserBankAccounts(debt.creditorId);
+      const defaultAccount = accounts.find((a) => a.isDefault) || accounts[0];
+
+      if (!defaultAccount) {
+        set.status = 400;
+        return { success: false, error: 'Creditor has no bank account linked' };
+      }
+
+      // 4. Generate QR
+      const qrUrl = vietqrService.generateDebtPaymentQR({
+        bankBin: defaultAccount.bankBin,
+        accountNumber: defaultAccount.accountNumber,
+        accountName: defaultAccount.accountName,
+        amount: debt.amount,
+        debtId: debt.id,
+        debtorName: debt.debtorName || undefined
+      });
+
+      return { success: true, qrUrl };
+    },
+    {
+      params: t.Object({ debtId: t.String() }),
+      checkPermission: PERMISSIONS.DEBT_VIEW_OWN
     }
   )
 

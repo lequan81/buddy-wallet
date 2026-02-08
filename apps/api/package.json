@@ -22,6 +22,7 @@
     "@repo/interfaces": "workspace:*",
     "@repo/permissions": "workspace:*",
     "@repo/validation": "workspace:*",
+    "@repo/email-templates": "workspace:*",
     "@upyo/core": "^0.4.0",
     "@upyo/smtp": "^0.4.0",
     "elysia": "^1.4.22",

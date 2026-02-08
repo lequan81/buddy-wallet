@@ -32,8 +32,7 @@ export const configs = {
     NODE_ENV: Bun.env.NODE_ENV || 'development',
     PORT: Bun.env.PORT || '3000',
     WEB_URL: getEnv('WEB_URL', 'http://localhost:5173'),
-    IS_DEV: (Bun.env.NODE_ENV || 'development') !== 'production',
-    IS_PROD: Bun.env.NODE_ENV === 'production'
+    IS_DEV: (Bun.env.NODE_ENV || 'development') !== 'production'
   },
   AUTH: {
     JWT_SECRET: jwtSecret,

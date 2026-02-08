@@ -11,23 +11,64 @@ interface DeviceInfo {
 }
 
 /**
- * Parse user agent string to extract device information
- * This is a lightweight implementation - for production, consider using ua-parser-js
+ * Client hints from navigator.userAgentData (sent from frontend)
  */
-export function parseUserAgent(userAgent: string | null): DeviceInfo {
+interface ClientHints {
+  browser?: string;
+  os?: string;
+  mobile?: boolean;
+}
+
+/**
+ * Private IP ranges for RFC 1918
+ */
+const PRIVATE_IP_PATTERNS = [
+  /^10\./, // 10.0.0.0/8
+  /^192\.168\./, // 192.168.0.0/16
+  /^172\.(1[6-9]|2\d|3[0-1])\./, // 172.16.0.0/12
+  /^127\./, // Loopback
+  /^::1$/, // IPv6 loopback
+  /^fc00:/, // IPv6 private
+  /^fe80:/ // IPv6 link-local
+];
+
+function isPrivateIP(ip: string): boolean {
+  return PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(ip));
+}
+
+function isLocalhost(ip: string): boolean {
+  return ip === '127.0.0.1' || ip === '::1' || ip === 'localhost';
+}
+
+/**
+ * Parse user agent string to extract device information
+ * Supports client hints from modern browsers for more accurate detection
+ */
+export function parseUserAgent(userAgent: string | null, clientHints?: ClientHints): DeviceInfo {
+  // Prefer client hints if provided (more accurate from navigator.userAgentData)
+  if (clientHints?.browser && clientHints?.os) {
+    return {
+      deviceName: `${clientHints.browser} on ${clientHints.os}`,
+      deviceType: clientHints.mobile ? 'mobile' : 'desktop',
+      browser: clientHints.browser,
+      os: clientHints.os
+    };
+  }
+
+  // Fallback: parse userAgent string
   if (!userAgent) {
     return {
-      deviceName: 'Unknown Device',
+      deviceName: 'Web Browser',
       deviceType: 'unknown',
-      browser: 'Unknown',
-      os: 'Unknown'
+      browser: 'Browser',
+      os: 'Unknown OS'
     };
   }
 
   const ua = userAgent.toLowerCase();
 
   // Detect OS
-  let os = 'Unknown';
+  let os = 'Unknown OS';
   if (ua.includes('windows nt 10') || ua.includes('windows nt 11')) os = 'Windows';
   else if (ua.includes('windows')) os = 'Windows';
   else if (ua.includes('mac os x')) os = 'macOS';
@@ -38,7 +79,7 @@ export function parseUserAgent(userAgent: string | null): DeviceInfo {
   else if (ua.includes('cros')) os = 'Chrome OS';
 
   // Detect Browser
-  let browser = 'Unknown';
+  let browser = 'Browser';
   if (ua.includes('edg/')) browser = 'Edge';
   else if (ua.includes('chrome') && !ua.includes('chromium')) browser = 'Chrome';
   else if (ua.includes('firefox')) browser = 'Firefox';
@@ -66,53 +107,59 @@ export function parseUserAgent(userAgent: string | null): DeviceInfo {
 }
 
 /**
- * Get approximate location from IP address
- * In production, use a proper IP geolocation service like:
- * - ipinfo.io
- * - ip-api.com
- * - MaxMind GeoIP
+ * Get location - prefer client-provided text location, fallback to IP lookup
+ * Client location should already be reverse geocoded (e.g., "Ho Chi Minh City, Vietnam")
  */
-export async function getLocationFromIP(ipAddress: string | null): Promise<string | null> {
-  if (!ipAddress || ipAddress === '127.0.0.1' || ipAddress === '::1') {
-    return 'Local';
+export async function getLocationFromIP(
+  ipAddress: string | null,
+  clientLocation?: string | null
+): Promise<string> {
+  // 1. Use client-provided text location if valid (already privacy-safe)
+  if (clientLocation && clientLocation.length > 2 && clientLocation !== 'Location unavailable') {
+    return clientLocation;
+  }
+
+  // 2. Handle missing IP
+  if (!ipAddress) {
+    return 'Unknown Location';
   }
 
   // Remove IPv6 prefix if present
   const cleanIP = ipAddress.replace('::ffff:', '');
 
-  // Skip private IP ranges
-  if (
-    cleanIP.startsWith('10.') ||
-    cleanIP.startsWith('192.168.') ||
-    cleanIP.startsWith('172.16.') ||
-    cleanIP.startsWith('172.17.') ||
-    cleanIP.startsWith('172.18.') ||
-    cleanIP.startsWith('172.19.') ||
-    cleanIP.startsWith('172.2') ||
-    cleanIP.startsWith('172.30.') ||
-    cleanIP.startsWith('172.31.')
-  ) {
+  // 3. Check for localhost
+  if (isLocalhost(cleanIP)) {
+    return 'Local Development';
+  }
+
+  // 4. Check for private network (cleaner than long if-chain)
+  if (isPrivateIP(cleanIP)) {
     return 'Private Network';
   }
 
+  // 5. Try IP geolocation as last resort
   try {
-    // Use free IP geolocation API (rate limited, for dev/small scale)
-    // For production, use a paid service with API key
-    const response = await fetch(`http://ip-api.com/json/${cleanIP}?fields=city,country`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+
+    const response = await fetch(`http://ip-api.com/json/${cleanIP}?fields=city,country,status`, {
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
     if (response.ok) {
       const data = await response.json();
-      if (data.city && data.country) {
-        return `${data.city}, ${data.country}`;
-      }
-      if (data.country) {
-        return data.country;
+      if (data.status === 'success') {
+        if (data.city && data.country) return `${data.city}, ${data.country}`;
+        if (data.country) return data.country;
       }
     }
-  } catch (error) {
-    console.warn('[Device] Failed to get location from IP:', error);
+  } catch {
+    console.warn('[Device] IP geolocation failed:', cleanIP);
   }
 
-  return null;
+  // 6. Final fallback - show partial IP
+  return `IP: ${cleanIP.substring(0, 8)}...`;
 }
 
 /**
@@ -140,3 +187,6 @@ export function getClientIP(request: Request): string | null {
 
   return null;
 }
+
+// Re-export ClientHints type for use in other modules
+export type { ClientHints };

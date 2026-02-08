@@ -7,3 +7,4 @@ export * from './rate-limit';
 export * from './request-logger';
 export * from './session-auth';
 export * from './redis';
+export * from './security-headers';

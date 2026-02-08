@@ -1,12 +1,5 @@
 /**
  * Session Type Definitions
+ * Re-exported from shared interfaces
  */
-export interface SessionInfo {
-  id: string;
-  deviceName: string | null;
-  deviceType: string | null;
-  location: string | null;
-  ipAddress: string | null;
-  lastActiveAt: Date | null;
-  createdAt: Date | null;
-}
+export type { SessionInfo } from '@repo/interfaces';

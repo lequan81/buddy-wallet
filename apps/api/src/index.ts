@@ -6,7 +6,8 @@ import {
   sessionAuthPlugin,
   permissionPlugin,
   requestLoggerPlugin,
-  redisPlugin
+  redisPlugin,
+  securityHeadersPlugin
 } from '@plugins';
 import {
   activityController,
@@ -18,7 +19,8 @@ import {
   usersController,
   tracesController,
   pushController,
-  bankController
+  bankController,
+  uploadController
 } from '@controllers';
 import { telemetry } from './instrumentation';
 import { logger } from './utils/logger';
@@ -31,7 +33,8 @@ export const app = new Elysia()
   .use(redisPlugin)
   // Request logging
   .use(requestLoggerPlugin)
-
+  // Security headers (CSP, X-Frame-Options, etc.)
+  .use(securityHeadersPlugin)
   .use(corsPlugin)
   .use(csrfPlugin) // Global CSRF Protection
   .group('/v1', (app) =>
@@ -63,6 +66,7 @@ export const app = new Elysia()
             .use(exportController)
             .use(activityController)
             .use(bankController)
+            .use(uploadController) // File uploads for QR codes and payment proofs
       )
   )
   .get('/health', () => ({

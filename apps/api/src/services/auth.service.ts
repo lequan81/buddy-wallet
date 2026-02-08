@@ -40,7 +40,7 @@ function generateRefreshToken(): string {
  * Implements IAuthService for LSP compliance
  */
 export class AuthService implements IAuthService {
-  constructor(private db: DbClient) { }
+  constructor(private db: DbClient) {}
 
   /**
    * Link existing debts to a newly registered user based on phone number
@@ -63,6 +63,11 @@ export class AuthService implements IAuthService {
   async register(input: RegisterInput): Promise<AuthResult> {
     const { name, email, password, phoneNumber } = input;
 
+    const normalizedPhone = normalizePhoneNumber(phoneNumber);
+    if (!normalizedPhone) {
+      return { success: false, error: 'Invalid phone number format' };
+    }
+
     // SECURITY: Validate password complexity
     const passwordValidation = validatePasswordComplexity(password);
     if (!passwordValidation.isValid) {
@@ -78,11 +83,6 @@ export class AuthService implements IAuthService {
         success: false,
         error: 'Password is too common. Please choose a stronger password.'
       };
-    }
-
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    if (!normalizedPhone) {
-      return { success: false, error: 'Invalid phone number format' };
     }
 
     // Check phone uniqueness
@@ -209,9 +209,9 @@ export class AuthService implements IAuthService {
         .where(eq(users.id, user.id));
     }
 
-    // Parse device info
-    const deviceInfo = parseUserAgent(userAgent);
-    const location = await getLocationFromIP(clientIP);
+    // Parse device info (use client hints if provided for more accuracy)
+    const deviceInfo = parseUserAgent(userAgent, input.clientHints);
+    const location = await getLocationFromIP(clientIP, input.clientLocation);
 
     // Generate tokens
     const now = Date.now();
@@ -234,7 +234,7 @@ export class AuthService implements IAuthService {
       id: sessionId,
       userId: user.id,
       accessToken: null, // DEPRECATED: No longer store plaintext token
-      accessTokenHash,   // Store hashed token for secure lookup
+      accessTokenHash, // Store hashed token for secure lookup
       accessTokenExpiresAt,
       refreshToken: refreshTokenHash,
       refreshTokenExpiresAt,

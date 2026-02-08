@@ -26,7 +26,7 @@ export const authController = new Elysia({ prefix: '/auth' })
       if (!result.success) {
         set.status = 400;
         // Map service errors to standardized error codes
-        const errorMap: Record<string, typeof BE_ERRORS[keyof typeof BE_ERRORS]> = {
+        const errorMap: Record<string, (typeof BE_ERRORS)[keyof typeof BE_ERRORS]> = {
           'Invalid phone number format': BE_ERRORS.AUTH_INVALID_PHONE,
           'Phone number already registered': BE_ERRORS.AUTH_PHONE_EXISTS,
           'Email already registered': BE_ERRORS.AUTH_EMAIL_EXISTS
@@ -74,7 +74,7 @@ export const authController = new Elysia({ prefix: '/auth' })
       cookie.session.set({
         value: result.accessToken!,
         httpOnly: true,
-        secure: configs.APP.IS_PROD,
+        secure: !configs.APP.IS_DEV,
         sameSite: 'strict',
         path: '/',
         maxAge: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
@@ -84,7 +84,7 @@ export const authController = new Elysia({ prefix: '/auth' })
       cookie.refresh_token.set({
         value: result.refreshToken!,
         httpOnly: true,
-        secure: configs.APP.IS_PROD,
+        secure: !configs.APP.IS_DEV,
         sameSite: 'strict',
         path: '/',
         maxAge: configs.AUTH.REFRESH_TOKEN_LIFETIME / 1000
@@ -133,7 +133,7 @@ export const authController = new Elysia({ prefix: '/auth' })
     cookie.session.set({
       value: result.accessToken!,
       httpOnly: true,
-      secure: configs.APP.IS_PROD,
+      secure: !configs.APP.IS_DEV,
       sameSite: 'strict',
       path: '/',
       maxAge: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
@@ -144,7 +144,7 @@ export const authController = new Elysia({ prefix: '/auth' })
       cookie.refresh_token.set({
         value: result.refreshToken,
         httpOnly: true,
-        secure: configs.APP.IS_PROD,
+        secure: !configs.APP.IS_DEV,
         sameSite: 'strict',
         path: '/',
         maxAge: configs.AUTH.REFRESH_TOKEN_LIFETIME / 1000

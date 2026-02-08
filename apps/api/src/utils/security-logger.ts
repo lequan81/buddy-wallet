@@ -13,21 +13,21 @@ import { logger } from '@utils/logger';
  * Security event types
  */
 export type SecurityEventType =
-  | 'jwt_tampered'           // JWT signature validation failed
-  | 'jwt_expired'            // Expired token used
-  | 'token_replay'           // Blacklisted token reused
-  | 'session_hijack'         // sessionVersion mismatch
-  | 'permission_escalation'  // Attempt to access unauthorized resource
-  | 'suspicious_refresh'     // Multiple failed refresh attempts
-  | 'account_lockout'        // Too many failed login attempts
-  | 'credential_stuffing'    // Login from multiple IPs rapidly
-  | 'brute_force'            // Multiple password attempts
-  | 'csrf_violation'         // CSRF token validation failed
-  | 'rate_limit_exceeded'    // Rate limit threshold exceeded
-  | 'invalid_origin'         // Request from unauthorized origin
-  | 'sql_injection_attempt'  // SQL injection pattern detected
-  | 'xss_attempt'            // XSS pattern detected
-  | 'unauthorized_access';   // Access attempt to forbidden resource
+  | 'jwt_tampered' // JWT signature validation failed
+  | 'jwt_expired' // Expired token used
+  | 'token_replay' // Blacklisted token reused
+  | 'session_hijack' // sessionVersion mismatch
+  | 'permission_escalation' // Attempt to access unauthorized resource
+  | 'suspicious_refresh' // Multiple failed refresh attempts
+  | 'account_lockout' // Too many failed login attempts
+  | 'credential_stuffing' // Login from multiple IPs rapidly
+  | 'brute_force' // Multiple password attempts
+  | 'csrf_violation' // CSRF token validation failed
+  | 'rate_limit_exceeded' // Rate limit threshold exceeded
+  | 'invalid_origin' // Request from unauthorized origin
+  | 'sql_injection_attempt' // SQL injection pattern detected
+  | 'xss_attempt' // XSS pattern detected
+  | 'unauthorized_access'; // Access attempt to forbidden resource
 
 /**
  * Security event context
@@ -97,10 +97,13 @@ export function logSecurityEvent(event: SecurityEvent): void {
   }
 
   // TODO: In production, send to security monitoring service
-  // if (configs.APP.IS_PROD) {
-  //   await sendToSentryOrDatadog(event);
-  //   await sendToSecurityTeamSlack(event);
-  // }
+  // TODO: In production, send to security monitoring service
+  /*
+  if (config.APP.IS_PROD) {
+    await sendToSentryOrDatadog(event);
+    await sendToSecurityTeamSlack(event);
+  }
+  */
 }
 
 /**
@@ -130,11 +133,7 @@ export function logTokenReplay(userId: string, ipAddress?: string): void {
 /**
  * Log session hijacking attempt
  */
-export function logSessionHijack(
-  userId: string,
-  jwtVersion: number,
-  currentVersion: number
-): void {
+export function logSessionHijack(userId: string, jwtVersion: number, currentVersion: number): void {
   logSecurityEvent({
     type: 'session_hijack',
     userId,
@@ -170,10 +169,7 @@ export function logPermissionEscalation(
 /**
  * Log suspicious refresh token activity
  */
-export function logSuspiciousRefresh(
-  attemptCount: number,
-  ipAddress?: string
-): void {
+export function logSuspiciousRefresh(attemptCount: number, ipAddress?: string): void {
   logSecurityEvent({
     type: 'suspicious_refresh',
     ipAddress,
@@ -187,11 +183,7 @@ export function logSuspiciousRefresh(
 /**
  * Log brute force attack
  */
-export function logBruteForce(
-  identifier: string,
-  attemptCount: number,
-  ipAddress?: string
-): void {
+export function logBruteForce(identifier: string, attemptCount: number, ipAddress?: string): void {
   logSecurityEvent({
     type: 'brute_force',
     ipAddress,

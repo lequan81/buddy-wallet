@@ -7,6 +7,7 @@
 import { SmtpTransport } from '@upyo/smtp';
 import { createMessage } from '@upyo/core';
 import { log } from '@utils/logger';
+import { renderOtp } from '@repo/email-templates';
 
 type EmailFrom = 'noreply' | 'support';
 
@@ -80,25 +81,11 @@ export class EmailService {
     otp: string,
     name?: string
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    const html = `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; background: #f9fafb;">
-  <div style="background: white; padding: 30px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-    <h2 style="color: #2563eb; margin-top: 0;">BuddyWallet Verification</h2>
-    <p style="color: #374151;">Hi${name ? ` <strong>${name}</strong>` : ''},</p>
-    <p style="color: #374151;">Your verification code is:</p>
-    <div style="background: #eff6ff; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0; border: 1px solid #bfdbfe;">
-      <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1e40af;">${otp}</span>
-    </div>
-    <p style="color: #6b7280; font-size: 14px;">This code expires in <strong>10 minutes</strong>.</p>
-    <p style="color: #9ca3af; font-size: 13px;">If you didn't request this, please ignore this email.</p>
-    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;">
-    <p style="color: #9ca3af; font-size: 12px; margin-bottom: 0;">© ${new Date().getFullYear()} BuddyWallet</p>
-  </div>
-</body>
-</html>`;
+    const html = renderOtp({
+      otp,
+      name,
+      year: new Date().getFullYear()
+    });
 
     return this.send({
       to,
