@@ -1,10 +1,24 @@
-export * from './cors';
-export * from './csrf';
-export * from './jwt';
-export * from './permission';
-export * from './access-control';
-export * from './rate-limit';
-export * from './request-logger';
-export * from './session-auth';
+/**
+ * Plugins - Central export for all Elysia plugins
+ *
+ * Organized into subfolders:
+ * - guards/     - Permission and access control guards
+ * - middleware/ - Request processing, security, logging
+ * - auth/       - JWT and session authentication
+ * - redis/      - Redis caching and connection
+ */
+
+// Auth plugins
+export * from './auth';
+
+// Guards
+export * from './guards';
+
+// Middleware
+export * from './middleware';
+
+// Redis
 export * from './redis';
-export * from './security-headers';
+
+// Access control (combined plugin)
+export { accessControlPlugin } from './access-control.plugin';

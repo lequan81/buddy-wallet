@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 
-interface ImageProcessorConfig {
+interface ImageServiceConfig {
   format: 'webp' | 'jpeg';
   quality: number;
   maxWidth: number;
@@ -8,7 +8,7 @@ interface ImageProcessorConfig {
   timeoutSeconds: number;
 }
 
-const DEFAULT_CONFIG: ImageProcessorConfig = {
+const DEFAULT_CONFIG: ImageServiceConfig = {
   format: 'webp',
   quality: 80,
   maxWidth: 1920,
@@ -16,10 +16,10 @@ const DEFAULT_CONFIG: ImageProcessorConfig = {
   timeoutSeconds: 10
 };
 
-export class ImageProcessor {
-  private config: ImageProcessorConfig;
+export class ImageService {
+  private config: ImageServiceConfig;
 
-  constructor(config: Partial<ImageProcessorConfig> = {}) {
+  constructor(config: Partial<ImageServiceConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 

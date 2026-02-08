@@ -6,11 +6,17 @@
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { sessionAuthPlugin } from '@plugins/session-auth';
-import { authRateLimiter } from '@plugins/rate-limit';
+import { sessionAuthPlugin } from '@plugins/auth';
+import { authRateLimiter } from '@plugins/middleware';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
 import { configs } from '@/configs';
-import { authService, sessionService, activityService } from '@/services';
+import {
+  authService,
+  sessionService,
+  activityService,
+  emailVerificationService,
+  emailService
+} from '@/services';
 import { getClientIP, hashToken } from '@utils';
 
 export const authController = new Elysia({ prefix: '/auth' })
@@ -320,4 +326,66 @@ export const authController = new Elysia({ prefix: '/auth' })
         newPassword: t.String({ minLength: configs.AUTH.MIN_PASSWORD_LENGTH })
       })
     }
-  );
+  )
+
+  // ==================== VERIFY OTP ====================
+  .post(
+    '/verify-otp',
+    async ({ body, set }) => {
+      const result = await emailVerificationService.verifyOtp(body.email, body.otp);
+
+      if (!result.success) {
+        set.status = 400;
+        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+      }
+
+      return successResponse({ message: 'Email verified successfully' });
+    },
+    {
+      body: t.Object({
+        email: t.String({ format: 'email' }),
+        otp: t.String({ minLength: 6, maxLength: 6 })
+      })
+    }
+  )
+
+  // ==================== RESEND OTP ====================
+  .post('/resend-otp', async ({ user, set }) => {
+    if (!user) {
+      set.status = 401;
+      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+    }
+
+    const result = await emailVerificationService.resendOtp(user.id);
+
+    if (!result.success) {
+      set.status = 429; // Too Many Requests
+      const details = result.retryAfter
+        ? `${result.error} Retry after ${result.retryAfter} seconds.`
+        : result.error;
+      return errorResponse(BE_ERRORS.RATE_LIMITED, details);
+    }
+
+    // Send the new OTP via email
+    if (result.otp && user.email) {
+      await emailService.sendOtp(user.email, result.otp, user.name);
+    }
+
+    return successResponse({ message: 'Verification code sent' });
+  })
+
+  // ==================== VERIFICATION STATUS ====================
+  .get('/verification-status', async ({ user, set }) => {
+    if (!user) {
+      set.status = 401;
+      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+    }
+
+    const status = await emailVerificationService.getVerificationStatus(user.id);
+
+    return successResponse({
+      email: status.email,
+      emailVerified: status.emailVerified,
+      pendingVerification: status.pendingVerification
+    });
+  });

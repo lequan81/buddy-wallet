@@ -18,6 +18,7 @@ import { EmailService, emailService } from './email.service';
 import { PushService } from './push.service';
 import { ActivityService } from './activity.service';
 import { BankAccountService } from './bank-account.service';
+import { EmailVerificationService } from './email-verification.service';
 export { cleanupService } from './cleanup.service';
 
 // Re-export service classes
@@ -32,7 +33,8 @@ export {
   EmailService,
   PushService,
   ActivityService,
-  BankAccountService
+  BankAccountService,
+  EmailVerificationService
 };
 
 // Re-export types
@@ -57,6 +59,7 @@ export const fileService = new FileService(db);
 export const pushService = new PushService(db);
 export const activityService = new ActivityService(db);
 export const bankAccountService = new BankAccountService(db);
+export const emailVerificationService = new EmailVerificationService(db);
 export { emailService };
 export * from './vietqr.service';
 
@@ -90,4 +93,8 @@ export function createImportService(customDb: typeof db) {
 
 export function createActivityService(customDb: typeof db) {
   return new ActivityService(customDb);
+}
+
+export function createEmailVerificationService(customDb: typeof db) {
+  return new EmailVerificationService(customDb);
 }

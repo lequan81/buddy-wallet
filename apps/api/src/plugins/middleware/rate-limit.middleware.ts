@@ -1,6 +1,6 @@
 import { Elysia, type Context } from 'elysia';
 import { logger } from '@utils/logger';
-import { cache, isRedisAvailable } from './redis';
+import { cache, isRedisAvailable } from '../redis';
 import { configs } from '@/configs';
 import type { RateLimitEntry, RateLimitConfig } from '@/types';
 import type { User } from '@repo/db';
@@ -27,7 +27,7 @@ setInterval(() => {
 const TRUSTED_PROXIES = new Set<string>(
   (Bun.env.TRUSTED_PROXIES || '127.0.0.1,::1')
     .split(',')
-    .map(ip => ip.trim())
+    .map((ip) => ip.trim())
     .filter(Boolean)
 );
 
@@ -97,7 +97,7 @@ function getUserAgentFingerprint(request: Request): string {
   // Simple hash of user agent (first 8 chars)
   let hash = 0;
   for (let i = 0; i < ua.length; i++) {
-    hash = ((hash << 5) - hash) + ua.charCodeAt(i);
+    hash = (hash << 5) - hash + ua.charCodeAt(i);
     hash = hash & hash;
   }
   return Math.abs(hash).toString(16).substring(0, 8);

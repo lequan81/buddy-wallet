@@ -6,8 +6,8 @@
  */
 import { Elysia, t } from 'elysia';
 import { BE_ERRORS, GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { accessControlPlugin } from '@plugins/access-control';
-import { deleteRateLimiter } from '@plugins/rate-limit';
+import { accessControlPlugin } from '@plugins';
+import { deleteRateLimiter } from '@plugins/middleware';
 import { importService } from '@/services';
 import type { ImportConfig } from '@/types';
 import type { User } from '@repo/db';

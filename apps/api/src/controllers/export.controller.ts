@@ -6,8 +6,8 @@
  */
 import { Elysia } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse } from '@repo/errors';
-import { sessionAuthPlugin } from '@plugins/session-auth';
-import { accessControlPlugin } from '@plugins/access-control';
+import { sessionAuthPlugin } from '@plugins/auth';
+import { accessControlPlugin } from '@plugins';
 import { exportService } from '@/services';
 import type { ExportFormat } from '@/types';
 

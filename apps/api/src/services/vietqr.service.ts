@@ -7,9 +7,6 @@
  */
 import { cache } from '@plugins/redis';
 import { log } from '@utils/logger';
-
-import { cache } from '@plugins/redis';
-import { log } from '@utils/logger';
 import { MAJOR_BANKS_FALLBACK, type VietQRBank } from '@repo/interfaces';
 
 interface VietQRResponse {

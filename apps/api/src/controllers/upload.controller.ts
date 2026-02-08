@@ -4,8 +4,8 @@
  * Handles file uploads for QR codes and payment proofs.
  */
 import { Elysia, t } from 'elysia';
-import { permissionPlugin } from '@plugins/permission';
-import { standardRateLimiter, uploadRateLimiter, deleteRateLimiter } from '@plugins/rate-limit';
+import { permissionPlugin } from '@plugins/guards';
+import { standardRateLimiter, uploadRateLimiter, deleteRateLimiter } from '@plugins/middleware';
 import { PERMISSIONS } from '@repo/permissions';
 import { fileService, debtService } from '@/services';
 

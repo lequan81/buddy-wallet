@@ -1,7 +1,7 @@
 import { join } from 'path';
 import { unlink } from 'node:fs/promises';
 
-export interface IStorageProvider {
+export interface IStorageService {
   /**
    * Save a file buffer to storage
    * @param path Relative path to save (e.g., 'proofs/file.webp')
@@ -29,7 +29,7 @@ export interface IStorageProvider {
   resolvePath(path: string): string;
 }
 
-export class DiskStorageProvider implements IStorageProvider {
+export class DiskStorageService implements IStorageService {
   constructor(private readonly uploadDir: string) {}
 
   async save(relativePath: string, buffer: Buffer | Blob): Promise<string> {

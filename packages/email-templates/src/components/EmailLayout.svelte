@@ -8,7 +8,7 @@
   - Responsive container
 -->
 <script lang="ts">
-  import type { EmailLayoutProps } from '../types/index';
+  import type { EmailLayoutProps } from '../types';
   import { Html, Head, Body, Preview, Container } from 'better-svelte-email/components';
 
   let { title, preview, children }: EmailLayoutProps = $props();

@@ -6,8 +6,8 @@
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { accessControlPlugin } from '@plugins/access-control';
-import { permissionPlugin } from '@plugins/permission';
+import { accessControlPlugin } from '@plugins';
+import { permissionPlugin } from '@plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
 import { userService } from '@/services';
 
@@ -16,17 +16,14 @@ export const usersController = new Elysia({ prefix: '/users' })
   .use(permissionPlugin)
 
   // Get current user profile
-  .get(
-    '/me',
-    async ({ user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
-      }
-
-      return successResponse({ user });
+  .get('/me', async ({ user, set }) => {
+    if (!user) {
+      set.status = 401;
+      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
     }
-  )
+
+    return successResponse({ user });
+  })
 
   // Update current user profile
   .patch(

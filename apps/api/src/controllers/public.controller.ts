@@ -5,7 +5,7 @@
  * Delegates to DebtService for business logic.
  */
 import { Elysia, t } from 'elysia';
-import { strictRateLimiter } from '@plugins/rate-limit';
+import { strictRateLimiter } from '@plugins/middleware';
 import { normalizePhoneNumber, maskPhone } from '@/utils/phone';
 import { debtService } from '@/services';
 

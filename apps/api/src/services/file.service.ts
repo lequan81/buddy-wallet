@@ -3,8 +3,8 @@ import { cache } from '@plugins/redis';
 import { log } from '@utils/logger';
 import type { DbClient } from '@/types';
 import type { FileType, FileStatus, FileMetadata } from '@repo/db';
-import { DiskStorageProvider, type IStorageProvider } from './storage.provider';
-import { ImageProcessor } from './image.processor';
+import { DiskStorageService, type IStorageService } from './storage.service';
+import { ImageService } from './image.service';
 
 // Configuration
 const UPLOAD_DIR = Bun.env.UPLOAD_DIR || './uploads';
@@ -43,16 +43,16 @@ function isValidImageMagicBytes(buffer: Buffer): boolean {
 }
 
 export class FileService {
-  private storage: IStorageProvider;
-  private imageProcessor: ImageProcessor;
+  private storage: IStorageService;
+  private imageService: ImageService;
 
   constructor(
     private db: DbClient,
-    storage?: IStorageProvider,
-    imageProcessor?: ImageProcessor
+    storage?: IStorageService,
+    imageService?: ImageService
   ) {
-    this.storage = storage || new DiskStorageProvider(UPLOAD_DIR);
-    this.imageProcessor = imageProcessor || new ImageProcessor();
+    this.storage = storage || new DiskStorageService(UPLOAD_DIR);
+    this.imageService = imageService || new ImageService();
     this.ensureDirs();
   }
 
@@ -88,7 +88,7 @@ export class FileService {
       }
 
       // Process
-      const processedBuffer = await this.imageProcessor.process(buffer);
+      const processedBuffer = await this.imageService.process(buffer);
 
       // Save
       const id = Bun.randomUUIDv7();

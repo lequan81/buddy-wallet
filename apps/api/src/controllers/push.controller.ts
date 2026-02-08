@@ -5,10 +5,10 @@
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { permissionPlugin } from '@plugins/permission';
+import { permissionPlugin } from '@plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
 import { pushService } from '@/services';
-import { broadcastRateLimiter } from '@plugins/rate-limit';
+import { broadcastRateLimiter } from '@plugins/middleware';
 
 export const pushController = new Elysia({ prefix: '/push' })
   .use(permissionPlugin)
@@ -58,11 +58,9 @@ export const pushController = new Elysia({ prefix: '/push' })
         }),
         expirationTime: t.Optional(t.Nullable(t.Number())),
         deviceName: t.Optional(t.String()),
-        deviceType: t.Optional(t.Union([
-          t.Literal('desktop'),
-          t.Literal('mobile'),
-          t.Literal('tablet')
-        ]))
+        deviceType: t.Optional(
+          t.Union([t.Literal('desktop'), t.Literal('mobile'), t.Literal('tablet')])
+        )
       })
     }
   )

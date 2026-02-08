@@ -4,7 +4,7 @@
  * Handles bank account management and VietQR integration.
  */
 import { Elysia, t } from 'elysia';
-import { permissionPlugin } from '@plugins/permission';
+import { permissionPlugin } from '@plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
 import { bankAccountService, vietqrService, debtService } from '@/services';
 import { insertBankAccountSchema } from '@repo/db';
@@ -112,6 +112,10 @@ export const bankController = new Elysia({ prefix: '/banks' })
       }
 
       // 3. Get creditor's default bank account
+      if (!debt.creditorId) {
+        set.status = 400;
+        return { success: false, error: 'Debt has no creditor assigned' };
+      }
       const accounts = await bankAccountService.getUserBankAccounts(debt.creditorId);
       const defaultAccount = accounts.find((a) => a.isDefault) || accounts[0];
 
@@ -126,8 +130,7 @@ export const bankController = new Elysia({ prefix: '/banks' })
         accountNumber: defaultAccount.accountNumber,
         accountName: defaultAccount.accountName,
         amount: debt.amount,
-        debtId: debt.id,
-        debtorName: debt.debtorName || undefined
+        debtId: debt.id
       });
 
       return { success: true, qrUrl };

@@ -14,9 +14,9 @@
 
 import { Elysia } from 'elysia';
 import { db, users, sessions, eq, and, type User } from '@repo/db';
-import { jwtPlugin } from './jwt';
+import { jwtPlugin } from './jwt.plugin';
 import { logger } from '@utils/logger';
-import { sessionCache, jwtBlacklist, isRedisAvailable } from './redis';
+import { sessionCache, jwtBlacklist, isRedisAvailable } from '../redis';
 import { hashToken } from '@utils';
 import {
   logJWTTampered,

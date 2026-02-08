@@ -6,9 +6,9 @@
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { accessControlPlugin } from '@plugins/access-control';
-import { permissionPlugin } from '@plugins/permission';
-import { getUserWithFreshData } from '@plugins/session-auth';
+import { accessControlPlugin } from '@plugins';
+import { permissionPlugin } from '@plugins/guards';
+import { getUserWithFreshData } from '@plugins/auth';
 import { PERMISSIONS, hasPermission } from '@repo/permissions';
 import { debtService, activityService } from '@/services';
 import { getClientIP } from '@utils';
