@@ -8,6 +8,20 @@
 // FILE IMPORT CONFIGURATION
 // ============================================
 
+// Helper to get env var safely across environments (Vite, Bun, Node)
+const getEnv = (key: string, def: string) => {
+  try {
+    // @ts-ignore - Vite
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key])
+      return import.meta.env[key];
+    // @ts-ignore - Bun
+    if (typeof Bun !== 'undefined' && Bun.env && Bun.env[key]) return Bun.env[key];
+    // @ts-ignore - Node
+    if (typeof process !== 'undefined' && process.env && process.env[key]) return process.env[key];
+  } catch {}
+  return def;
+};
+
 /** Accepted file extensions for spreadsheet import */
 export const ACCEPTED_IMPORT_EXTENSIONS = ['.xlsx', '.xls', '.csv'] as const;
 
@@ -75,20 +89,6 @@ export const DEBT_MAX_AMOUNT = 1000000000000;
 // ============================================
 // EXTERNAL SERVICES
 // ============================================
-
-// Helper to get env var safely across environments (Vite, Bun, Node)
-const getEnv = (key: string, def: string) => {
-  try {
-    // @ts-ignore - Vite
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key])
-      return import.meta.env[key];
-    // @ts-ignore - Bun
-    if (typeof Bun !== 'undefined' && Bun.env && Bun.env[key]) return Bun.env[key];
-    // @ts-ignore - Node
-    if (typeof process !== 'undefined' && process.env && process.env[key]) return process.env[key];
-  } catch {}
-  return def;
-};
 
 export const VIETQR_API_URL = getEnv('VIETQR_API_URL', 'https://api.vietqr.io/v2/banks');
 export const VIETQR_TIMEOUT = Number(getEnv('VIETQR_TIMEOUT', '5000'));
