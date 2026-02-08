@@ -81,10 +81,9 @@ export class EmailService {
     otp: string,
     name?: string
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    const html = renderOtp({
+    const html = await renderOtp({
       otp,
-      name,
-      year: new Date().getFullYear()
+      name
     });
 
     return this.send({

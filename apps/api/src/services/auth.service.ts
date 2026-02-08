@@ -21,6 +21,7 @@ import {
 import type { DbClient, JwtService } from '@/types';
 import type { RegisterInput, LoginInput, AuthResult } from '@/types';
 import type { IAuthService } from '@/types/interfaces';
+import { emailService } from './email.service';
 
 // Dummy hash for timing attack mitigation (pre-calculated at startup)
 let DUMMY_HASH = '';
@@ -122,6 +123,14 @@ export class AuthService implements IAuthService {
       .returning();
 
     await this.linkDebtsToUser(userId, normalizedPhone);
+
+    // Send verification OTP email if user has email
+    if (newUser.email) {
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      // TODO: Store OTP in database with expiry for verification
+      // For now, just send the email
+      await emailService.sendOtp(newUser.email, otp, newUser.name);
+    }
 
     return {
       success: true,

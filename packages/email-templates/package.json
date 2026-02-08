@@ -1,16 +1,29 @@
 {
   "name": "@repo/email-templates",
   "version": "0.0.0",
-  "main": "./index.ts",
-  "types": "./index.ts",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
     "lint": "eslint ."
   },
   "dependencies": {
-    "handlebars": "^4.7.8"
+    "better-svelte-email": "^1.4.0",
+    "svelte": "^5.45.6"
   },
   "devDependencies": {
-    "@types/handlebars": "*",
-    "typescript": "^5.0.0"
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-dts": "^4.5.4"
   }
 }
