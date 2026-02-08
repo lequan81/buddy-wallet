@@ -1,7 +1,5 @@
 import type { VietQRBank } from '@repo/interfaces';
-
-const VIETQR_API = 'https://api.vietqr.io/v2/banks';
-const TIMEOUT = 5000;
+import { VIETQR_API_URL, VIETQR_TIMEOUT } from '@repo/config';
 
 /**
  * Fetch supported banks with frontend-first strategy
@@ -14,9 +12,9 @@ export async function fetchBanks(
 ): Promise<VietQRBank[]> {
 	try {
 		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
+		const timeoutId = setTimeout(() => controller.abort(), VIETQR_TIMEOUT);
 
-		const response = await fetch(VIETQR_API, { signal: controller.signal });
+		const response = await fetch(VIETQR_API_URL, { signal: controller.signal });
 		clearTimeout(timeoutId);
 
 		if (response.ok) {

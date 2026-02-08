@@ -7,7 +7,7 @@
 		subscribeToPush,
 		dismissBanner,
 		shouldShowBanner
-	} from '$lib/push';
+	} from '$lib/push.svelte';
 	import { Bell, X } from '@lucide/svelte';
 
 	let visible = $state(false);
@@ -23,7 +23,7 @@
 
 	// Watch for permission changes
 	$effect(() => {
-		if ($pushState.permission !== 'prompt' || $pushState.isSubscribed) {
+		if (pushState.permission !== 'prompt' || pushState.isSubscribed) {
 			visible = false;
 		}
 	});
@@ -51,10 +51,7 @@
 
 {#if visible}
 	<!-- Mobile: Top banner -->
-	<div
-		class="fixed left-0 right-0 top-0 z-50 p-4 md:hidden"
-		transition:slide={{ duration: 300 }}
-	>
+	<div class="fixed top-0 right-0 left-0 z-50 p-4 md:hidden" transition:slide={{ duration: 300 }}>
 		<div
 			class="relative rounded-lg border border-border bg-card p-4 shadow-lg"
 			in:fade={{ duration: 200, delay: 100 }}
@@ -63,7 +60,7 @@
 			<button
 				type="button"
 				onclick={handleDismiss}
-				class="absolute right-2 top-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+				class="absolute top-2 right-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 				aria-label="Dismiss"
 			>
 				<X class="h-4 w-4" />
@@ -89,10 +86,10 @@
 						<button
 							type="button"
 							onclick={handleEnable}
-							disabled={isSubscribing || $pushState.isLoading}
-							class="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+							disabled={isSubscribing || pushState.isLoading}
+							class="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							{#if isSubscribing || $pushState.isLoading}
+							{#if isSubscribing || pushState.isLoading}
 								<span
 									class="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
 								></span>
@@ -112,8 +109,8 @@
 					</div>
 
 					<!-- Error message -->
-					{#if $pushState.error}
-						<p class="mt-2 text-xs text-destructive">{$pushState.error}</p>
+					{#if pushState.error}
+						<p class="mt-2 text-xs text-destructive">{pushState.error}</p>
 					{/if}
 				</div>
 			</div>
@@ -122,7 +119,7 @@
 
 	<!-- Desktop: Bottom-right corner -->
 	<div
-		class="fixed bottom-4 right-4 z-50 hidden max-w-sm md:block"
+		class="fixed right-4 bottom-4 z-50 hidden max-w-sm md:block"
 		transition:slide={{ duration: 300 }}
 	>
 		<div
@@ -133,7 +130,7 @@
 			<button
 				type="button"
 				onclick={handleDismiss}
-				class="absolute right-2 top-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+				class="absolute top-2 right-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 				aria-label="Dismiss"
 			>
 				<X class="h-4 w-4" />
@@ -159,10 +156,10 @@
 						<button
 							type="button"
 							onclick={handleEnable}
-							disabled={isSubscribing || $pushState.isLoading}
-							class="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+							disabled={isSubscribing || pushState.isLoading}
+							class="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							{#if isSubscribing || $pushState.isLoading}
+							{#if isSubscribing || pushState.isLoading}
 								<span
 									class="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
 								></span>
@@ -182,8 +179,8 @@
 					</div>
 
 					<!-- Error message -->
-					{#if $pushState.error}
-						<p class="mt-2 text-xs text-destructive">{$pushState.error}</p>
+					{#if pushState.error}
+						<p class="mt-2 text-xs text-destructive">{pushState.error}</p>
 					{/if}
 				</div>
 			</div>

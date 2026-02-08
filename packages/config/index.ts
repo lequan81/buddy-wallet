@@ -35,6 +35,9 @@ export const getImportAcceptString = (): string => ACCEPTED_IMPORT_EXTENSIONS.jo
 /** API base URL - should be overridden by env in production */
 export const API_BASE_URL = 'http://localhost:3000';
 
+/** Web base URL - should be overridden by env in production */
+export const WEB_BASE_URL = getEnv('VITE_WEB_URL', 'http://localhost:5173');
+
 // ============================================
 // PAGINATION DEFAULTS
 // ============================================
@@ -68,3 +71,24 @@ export const DEBT_MIN_AMOUNT = 1000;
 
 /** Maximum debt amount (1 Trillion VND) */
 export const DEBT_MAX_AMOUNT = 1000000000000;
+
+// ============================================
+// EXTERNAL SERVICES
+// ============================================
+
+// Helper to get env var safely across environments (Vite, Bun, Node)
+const getEnv = (key: string, def: string) => {
+  try {
+    // @ts-ignore - Vite
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key])
+      return import.meta.env[key];
+    // @ts-ignore - Bun
+    if (typeof Bun !== 'undefined' && Bun.env && Bun.env[key]) return Bun.env[key];
+    // @ts-ignore - Node
+    if (typeof process !== 'undefined' && process.env && process.env[key]) return process.env[key];
+  } catch {}
+  return def;
+};
+
+export const VIETQR_API_URL = getEnv('VIETQR_API_URL', 'https://api.vietqr.io/v2/banks');
+export const VIETQR_TIMEOUT = Number(getEnv('VIETQR_TIMEOUT', '5000'));

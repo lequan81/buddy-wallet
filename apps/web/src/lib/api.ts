@@ -3,11 +3,11 @@
  * Centralizes all API-related settings and utilities
  */
 
-import { API_BASE_URL } from '@repo/config';
+import { API_BASE_URL, WEB_BASE_URL } from '@repo/config';
 
 // Environment-based URLs (works in both SSR and client)
 export const API_URL = import.meta.env.VITE_API_URL || API_BASE_URL;
-export const WEB_URL = import.meta.env.VITE_WEB_URL || 'http://localhost:5173';
+export const WEB_URL = import.meta.env.VITE_WEB_URL || WEB_BASE_URL;
 
 /**
  * Default headers required for all API requests
@@ -59,14 +59,13 @@ async function refreshAccessToken(): Promise<boolean> {
 
 	refreshPromise = (async () => {
 		try {
-			const response = await fetch(`${API_URL}/auth/refresh`, {
+			const response = await fetch(`${API_URL}${AUTH_ROUTES.REFRESH}`, {
 				method: 'POST',
 				credentials: 'include', // Send refresh_token cookie
 				headers: getDefaultHeaders()
 			});
 
 			if (response.ok) {
-				const data = await response.json();
 				// Refresh successful - new cookies are automatically set by browser
 				console.log('[Auth] Token refreshed successfully');
 				return true;
@@ -101,7 +100,8 @@ export async function apiFetch<T>(
 
 	// Don't retry refresh endpoint itself to avoid infinite loops
 	const isRefreshEndpoint = endpoint.includes('/auth/refresh');
-	const isRetry = (options as any)._isRetry === true;
+
+	const isRetry = (options as unknown as { _isRetry?: boolean })._isRetry === true;
 
 	try {
 		const response = await fetch(url, {
@@ -125,7 +125,7 @@ export async function apiFetch<T>(
 				return apiFetch<T>(endpoint, {
 					...options,
 					_isRetry: true // Prevent infinite retry loops
-				} as any);
+				} as RequestInit & { _isRetry: boolean });
 			} else {
 				// Refresh failed - redirect to login
 				console.log('[Auth] Refresh failed, redirecting to login');

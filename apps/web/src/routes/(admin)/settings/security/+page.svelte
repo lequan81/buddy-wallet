@@ -28,7 +28,7 @@
 		unsubscribeFromPush,
 		sendTestNotification,
 		isPushSupported
-	} from '$lib/push';
+	} from '$lib/push.svelte';
 
 	let { data, form } = $props();
 
@@ -49,7 +49,7 @@
 
 	async function handleTogglePush() {
 		isTogglingPush = true;
-		if ($pushState.isSubscribed) {
+		if (pushState.isSubscribed) {
 			await unsubscribeFromPush();
 		} else {
 			await subscribeToPush();
@@ -262,7 +262,7 @@
 		<Card.Root>
 			<Card.Header>
 				<Card.Title class="flex items-center gap-2">
-					{#if $pushState.isSubscribed}
+					{#if pushState.isSubscribed}
 						<Bell class="h-5 w-5 text-primary" />
 					{:else}
 						<BellOff class="h-5 w-5" />
@@ -277,18 +277,18 @@
 				<div class="flex items-center justify-between">
 					<div class="space-y-1">
 						<p class="font-medium">
-							{#if $pushState.isSubscribed}
+							{#if pushState.isSubscribed}
 								Notifications enabled
-							{:else if $pushState.permission === 'denied'}
+							{:else if pushState.permission === 'denied'}
 								Notifications blocked
 							{:else}
 								Notifications disabled
 							{/if}
 						</p>
 						<p class="text-sm text-muted-foreground">
-							{#if $pushState.isSubscribed}
+							{#if pushState.isSubscribed}
 								You'll receive push notifications on this device.
-							{:else if $pushState.permission === 'denied'}
+							{:else if pushState.permission === 'denied'}
 								You've blocked notifications. Enable them in your browser settings.
 							{:else}
 								Enable to receive push notifications on this device.
@@ -296,7 +296,7 @@
 						</p>
 					</div>
 					<div class="flex gap-2">
-						{#if $pushState.isSubscribed}
+						{#if pushState.isSubscribed}
 							<Button
 								variant="outline"
 								size="sm"
@@ -311,14 +311,14 @@
 							</Button>
 						{/if}
 						<Button
-							variant={$pushState.isSubscribed ? 'destructive' : 'default'}
+							variant={pushState.isSubscribed ? 'destructive' : 'default'}
 							size="sm"
 							onclick={handleTogglePush}
-							disabled={isTogglingPush || $pushState.permission === 'denied'}
+							disabled={isTogglingPush || pushState.permission === 'denied'}
 						>
 							{#if isTogglingPush}
-								{$pushState.isSubscribed ? 'Disabling...' : 'Enabling...'}
-							{:else if $pushState.isSubscribed}
+								{pushState.isSubscribed ? 'Disabling...' : 'Enabling...'}
+							{:else if pushState.isSubscribed}
 								Disable
 							{:else}
 								Enable
@@ -327,11 +327,11 @@
 					</div>
 				</div>
 
-				{#if $pushState.error}
+				{#if pushState.error}
 					<div
 						class="rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950 dark:text-red-400"
 					>
-						{$pushState.error}
+						{pushState.error}
 					</div>
 				{/if}
 			</Card.Content>

@@ -7,22 +7,20 @@
  * - VAPID key retrieval
  */
 
-import { writable, get } from 'svelte/store';
 import { apiFetch, API_URL, getDefaultHeaders } from './api';
+import { getDeviceInfo } from '$lib/utils/device';
+const STORAGE_KEYS = {
+	PUSH_BANNER_DISMISSED: 'push_banner_dismissed',
+	PUSH_BANNER_DISMISSED_UNTIL: 'push_banner_dismissed_until'
+} as const;
 
 // Push notification state
-export type PushPermissionState = 'prompt' | 'granted' | 'denied' | 'unsupported';
+import type { PushPermissionState, PushState } from '$lib/interfaces/push';
 
-export interface PushState {
-	permission: PushPermissionState;
-	isSubscribed: boolean;
-	isLoading: boolean;
-	error: string | null;
-	vapidPublicKey: string | null;
-}
+export type { PushPermissionState, PushState };
 
-// Store for push notification state
-export const pushState = writable<PushState>({
+// Reactive state using runes
+export const pushState = $state<PushState>({
 	permission: 'prompt',
 	isSubscribed: false,
 	isLoading: false,
@@ -34,6 +32,7 @@ export const pushState = writable<PushState>({
 export function isPushSupported(): boolean {
 	return (
 		typeof window !== 'undefined' &&
+		window.isSecureContext &&
 		'serviceWorker' in navigator &&
 		'PushManager' in window &&
 		'Notification' in window
@@ -49,7 +48,7 @@ export function getPermissionState(): PushPermissionState {
 // Initialize push state
 export async function initializePushState(): Promise<void> {
 	if (!isPushSupported()) {
-		pushState.update((s) => ({ ...s, permission: 'unsupported' }));
+		pushState.permission = 'unsupported';
 		return;
 	}
 
@@ -67,29 +66,30 @@ export async function initializePushState(): Promise<void> {
 		}
 	}
 
-	pushState.update((s) => ({ ...s, permission, isSubscribed }));
+	pushState.permission = permission;
+	pushState.isSubscribed = isSubscribed;
 }
 
 // Fetch VAPID public key from server
 export async function fetchVapidKey(): Promise<string | null> {
-	const currentState = get(pushState);
-	if (currentState.vapidPublicKey) {
-		return currentState.vapidPublicKey;
+	if (pushState.vapidPublicKey) {
+		return pushState.vapidPublicKey;
 	}
 
 	try {
 		const { data, error } = await apiFetch<{ publicKey: string }>('/v1/push/vapid-key');
 
 		if (error || !data?.publicKey) {
-			pushState.update((s) => ({ ...s, error: error || 'Failed to fetch VAPID key' }));
+			pushState.error = error || 'Failed to fetch VAPID key';
 			return null;
 		}
 
-		pushState.update((s) => ({ ...s, vapidPublicKey: data.publicKey, error: null }));
+		pushState.vapidPublicKey = data.publicKey;
+		pushState.error = null;
 		return data.publicKey;
 	} catch (err) {
 		const errorMsg = err instanceof Error ? err.message : 'Failed to fetch VAPID key';
-		pushState.update((s) => ({ ...s, error: errorMsg }));
+		pushState.error = errorMsg;
 		return null;
 	}
 }
@@ -122,71 +122,30 @@ function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
 export async function requestPermission(): Promise<PushPermissionState> {
 	if (!isPushSupported()) return 'unsupported';
 
-	pushState.update((s) => ({ ...s, isLoading: true, error: null }));
+	pushState.isLoading = true;
+	pushState.error = null;
 
 	try {
 		const permission = await Notification.requestPermission();
-		pushState.update((s) => ({
-			...s,
-			permission: permission as PushPermissionState,
-			isLoading: false
-		}));
+		pushState.permission = permission as PushPermissionState;
+		pushState.isLoading = false;
 		return permission as PushPermissionState;
 	} catch (err) {
 		const errorMsg = err instanceof Error ? err.message : 'Failed to request permission';
-		pushState.update((s) => ({
-			...s,
-			isLoading: false,
-			error: errorMsg
-		}));
+		pushState.isLoading = false;
+		pushState.error = errorMsg;
 		return 'denied';
 	}
 }
 
 // Get device info for subscription
-function getDeviceInfo(): { deviceName: string; deviceType: 'desktop' | 'mobile' | 'tablet' } {
-	const ua = navigator.userAgent;
-	let deviceType: 'desktop' | 'mobile' | 'tablet' = 'desktop';
-	let deviceName = 'Unknown Device';
-
-	// Detect device type
-	if (/tablet|ipad|playbook|silk/i.test(ua)) {
-		deviceType = 'tablet';
-	} else if (/mobile|iphone|ipod|android|blackberry|opera mini|iemobile/i.test(ua)) {
-		deviceType = 'mobile';
-	}
-
-	// Detect browser/OS for device name
-	if (/Chrome/i.test(ua)) {
-		deviceName = 'Chrome';
-	} else if (/Firefox/i.test(ua)) {
-		deviceName = 'Firefox';
-	} else if (/Safari/i.test(ua)) {
-		deviceName = 'Safari';
-	} else if (/Edge/i.test(ua)) {
-		deviceName = 'Edge';
-	}
-
-	if (/Windows/i.test(ua)) {
-		deviceName += ' on Windows';
-	} else if (/Mac/i.test(ua)) {
-		deviceName += ' on macOS';
-	} else if (/Linux/i.test(ua)) {
-		deviceName += ' on Linux';
-	} else if (/Android/i.test(ua)) {
-		deviceName += ' on Android';
-	} else if (/iOS|iPhone|iPad/i.test(ua)) {
-		deviceName += ' on iOS';
-	}
-
-	return { deviceName, deviceType };
-}
 
 // Subscribe to push notifications
 export async function subscribeToPush(): Promise<boolean> {
 	if (!isPushSupported()) return false;
 
-	pushState.update((s) => ({ ...s, isLoading: true, error: null }));
+	pushState.isLoading = true;
+	pushState.error = null;
 
 	try {
 		// Request permission if not granted
@@ -194,7 +153,7 @@ export async function subscribeToPush(): Promise<boolean> {
 		if (permission !== 'granted') {
 			const newPermission = await requestPermission();
 			if (newPermission !== 'granted') {
-				pushState.update((s) => ({ ...s, isLoading: false }));
+				pushState.isLoading = false;
 				return false;
 			}
 		}
@@ -202,11 +161,8 @@ export async function subscribeToPush(): Promise<boolean> {
 		// Get VAPID key
 		const vapidKey = await fetchVapidKey();
 		if (!vapidKey) {
-			pushState.update((s) => ({
-				...s,
-				isLoading: false,
-				error: 'Push notifications not configured on server'
-			}));
+			pushState.isLoading = false;
+			pushState.error = 'Push notifications not configured on server';
 			return false;
 		}
 
@@ -251,21 +207,15 @@ export async function subscribeToPush(): Promise<boolean> {
 			throw new Error('Failed to save subscription on server');
 		}
 
-		pushState.update((s) => ({
-			...s,
-			isSubscribed: true,
-			isLoading: false,
-			error: null
-		}));
+		pushState.isSubscribed = true;
+		pushState.isLoading = false;
+		pushState.error = null;
 
 		return true;
 	} catch (err) {
 		const errorMsg = err instanceof Error ? err.message : 'Failed to subscribe';
-		pushState.update((s) => ({
-			...s,
-			isLoading: false,
-			error: errorMsg
-		}));
+		pushState.isLoading = false;
+		pushState.error = errorMsg;
 		return false;
 	}
 }
@@ -274,18 +224,16 @@ export async function subscribeToPush(): Promise<boolean> {
 export async function unsubscribeFromPush(): Promise<boolean> {
 	if (!isPushSupported()) return false;
 
-	pushState.update((s) => ({ ...s, isLoading: true, error: null }));
+	pushState.isLoading = true;
+	pushState.error = null;
 
 	try {
 		const registration = await navigator.serviceWorker.ready;
 		const subscription = await registration.pushManager.getSubscription();
 
 		if (!subscription) {
-			pushState.update((s) => ({
-				...s,
-				isSubscribed: false,
-				isLoading: false
-			}));
+			pushState.isSubscribed = false;
+			pushState.isLoading = false;
 			return true;
 		}
 
@@ -302,21 +250,15 @@ export async function unsubscribeFromPush(): Promise<boolean> {
 			})
 		});
 
-		pushState.update((s) => ({
-			...s,
-			isSubscribed: false,
-			isLoading: false,
-			error: null
-		}));
+		pushState.isSubscribed = false;
+		pushState.isLoading = false;
+		pushState.error = null;
 
 		return true;
 	} catch (err) {
 		const errorMsg = err instanceof Error ? err.message : 'Failed to unsubscribe';
-		pushState.update((s) => ({
-			...s,
-			isLoading: false,
-			error: errorMsg
-		}));
+		pushState.isLoading = false;
+		pushState.error = errorMsg;
 		return false;
 	}
 }
@@ -337,22 +279,18 @@ export async function sendTestNotification(): Promise<boolean> {
 }
 
 // Check if banner should be shown (not dismissed, permission is 'prompt')
-const BANNER_DISMISSED_KEY = 'push_banner_dismissed';
-const BANNER_DISMISSED_UNTIL_KEY = 'push_banner_dismissed_until';
 
 export function shouldShowBanner(): boolean {
 	if (typeof window === 'undefined') return false;
 
-	const state = get(pushState);
-
 	// Don't show if unsupported, already granted/denied, or already subscribed
-	if (state.permission !== 'prompt' || state.isSubscribed) return false;
+	if (pushState.permission !== 'prompt' || pushState.isSubscribed) return false;
 
 	// Check if permanently dismissed
-	if (localStorage.getItem(BANNER_DISMISSED_KEY) === 'true') return false;
+	if (localStorage.getItem(STORAGE_KEYS.PUSH_BANNER_DISMISSED) === 'true') return false;
 
 	// Check if temporarily dismissed
-	const dismissedUntil = localStorage.getItem(BANNER_DISMISSED_UNTIL_KEY);
+	const dismissedUntil = localStorage.getItem(STORAGE_KEYS.PUSH_BANNER_DISMISSED_UNTIL);
 	if (dismissedUntil && Date.now() < parseInt(dismissedUntil, 10)) return false;
 
 	return true;
@@ -360,15 +298,15 @@ export function shouldShowBanner(): boolean {
 
 export function dismissBanner(permanent = false): void {
 	if (permanent) {
-		localStorage.setItem(BANNER_DISMISSED_KEY, 'true');
+		localStorage.setItem(STORAGE_KEYS.PUSH_BANNER_DISMISSED, 'true');
 	} else {
 		// Dismiss for 7 days
 		const dismissUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
-		localStorage.setItem(BANNER_DISMISSED_UNTIL_KEY, dismissUntil.toString());
+		localStorage.setItem(STORAGE_KEYS.PUSH_BANNER_DISMISSED_UNTIL, dismissUntil.toString());
 	}
 }
 
 export function resetBannerDismissal(): void {
-	localStorage.removeItem(BANNER_DISMISSED_KEY);
-	localStorage.removeItem(BANNER_DISMISSED_UNTIL_KEY);
+	localStorage.removeItem(STORAGE_KEYS.PUSH_BANNER_DISMISSED);
+	localStorage.removeItem(STORAGE_KEYS.PUSH_BANNER_DISMISSED_UNTIL);
 }

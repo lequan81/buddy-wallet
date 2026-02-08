@@ -46,7 +46,10 @@ async function refreshForEden(): Promise<boolean> {
  */
 export const createTreatyClient = (fetcher?: typeof fetch, token?: string) => {
 	// Custom fetcher with auto-refresh
-	const autoRefreshFetcher: any = async (input: RequestInfo | URL, init?: RequestInit) => {
+	const autoRefreshFetcher = async (
+		input: RequestInfo | URL,
+		init?: RequestInit
+	): Promise<Response> => {
 		const originalFetcher = fetcher || fetch;
 		const response = await originalFetcher(input, init);
 
@@ -77,7 +80,7 @@ export const createTreatyClient = (fetcher?: typeof fetch, token?: string) => {
 	};
 
 	return treaty<App>(API_URL, {
-		fetcher: autoRefreshFetcher,
+		fetcher: autoRefreshFetcher as typeof fetch,
 		fetch: {
 			credentials: 'include' // Send cookies with cross-origin requests
 		},
