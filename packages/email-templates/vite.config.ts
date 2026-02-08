@@ -7,8 +7,7 @@ export default defineConfig({
   plugins: [
     svelte({
       compilerOptions: {
-        runes: true,
-        generate: 'server' // SSR mode for email rendering
+        runes: true
       }
     }),
     dts({ include: ['src'] })

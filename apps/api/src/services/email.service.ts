@@ -7,7 +7,7 @@
 import { SmtpTransport } from '@upyo/smtp';
 import { createMessage } from '@upyo/core';
 import { log } from '@utils/logger';
-import { renderOtp } from '@repo/email-templates';
+import { renderOtp, renderWelcome } from '@repo/email-templates';
 
 type EmailFrom = 'noreply' | 'support';
 
@@ -91,6 +91,28 @@ export class EmailService {
       subject: `${otp} is your BuddyWallet verification code`,
       html,
       text: `Your BuddyWallet verification code is: ${otp}. This code expires in 10 minutes.`,
+      from: 'noreply'
+    });
+  }
+
+  /**
+   * Send welcome email to new users
+   */
+  async sendWelcome(
+    to: string,
+    name: string,
+    loginUrl?: string
+  ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    const html = await renderWelcome({
+      name,
+      loginUrl
+    });
+
+    return this.send({
+      to,
+      subject: 'Welcome to BuddyWallet!',
+      html,
+      text: `Welcome to BuddyWallet, ${name}! Your account is ready. Visit ${loginUrl || 'https://buddywallet.app/login'} to get started.`,
       from: 'noreply'
     });
   }
