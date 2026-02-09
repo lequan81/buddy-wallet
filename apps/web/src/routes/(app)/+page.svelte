@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { Button } from '@repo/ui/components/ui/button';
+	import { ArrowRight, CheckCircle2, Shield, Zap, Globe, Users, BarChart3 } from '@lucide/svelte';
 </script>
 
 <svelte:head>
@@ -7,127 +9,171 @@
 </svelte:head>
 
 <!-- Hero Section -->
-<section
-	class="relative overflow-hidden bg-linear-to-br from-blue-50 via-white to-indigo-50 px-4 py-20 sm:px-6 sm:py-32 lg:px-8 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900"
->
-	<div class="mx-auto max-w-5xl">
-		<div class="text-center">
+<section class="relative overflow-hidden pt-24 pb-12 lg:pt-32 lg:pb-20">
+	<div class="container px-4 md:px-6">
+		<div class="mx-auto max-w-4xl text-center">
 			<h1
-				class="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl lg:text-6xl dark:text-white"
+				class="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl"
 			>
-				Split Expenses,<br />
-				<span class="bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-					Build Harmony
-				</span>
+				Split Expenses, <br />
+				<span class="text-primary">Build Harmony</span>
 			</h1>
-			<p class="mx-auto mt-6 max-w-2xl text-xl text-gray-600 dark:text-gray-300">
-				Buddy Wallet makes it effortless to track shared expenses, settle debts, and maintain
-				transparency with friends and roommates.
+			<p class="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground sm:text-xl">
+				The easiest way to track shared expenses, settle debts, and maintain financial transparency
+				with friends, roommates, and groups.
 			</p>
 			<div class="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
-				<button
-					onclick={() => goto('/login')}
-					class="rounded-lg bg-blue-600 px-8 py-4 text-lg font-semibold text-white shadow-lg transition-colors hover:bg-blue-700"
-				>
+				<Button size="lg" onclick={() => goto('/signup')} class="h-14 gap-2 px-8 text-lg">
 					Get Started
-				</button>
-				<button
+					<ArrowRight class="h-5 w-5" />
+				</Button>
+				<Button
+					variant="outline"
+					size="lg"
 					onclick={() => goto('/about')}
-					class="rounded-lg border-2 border-gray-300 px-8 py-4 text-lg font-semibold text-gray-900 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:text-white dark:hover:bg-slate-800"
+					class="h-14 px-8 text-lg"
 				>
 					Learn More
-				</button>
+				</Button>
 			</div>
 		</div>
 	</div>
 
-	<!-- Background decoration -->
-	<div class="absolute inset-0 -z-10 overflow-hidden">
-		<div
-			class="absolute top-0 left-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-100 opacity-50 blur-3xl dark:bg-blue-900/20"
-		></div>
-		<div
-			class="absolute top-1/2 right-0 h-96 w-96 -translate-y-1/2 rounded-full bg-indigo-100 opacity-50 blur-3xl dark:bg-indigo-900/20"
-		></div>
+	<!-- Decorator -->
+	<div
+		class="absolute top-0 left-1/2 -z-10 h-150 w-150 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[100px]"
+	></div>
+</section>
+
+<!-- Stats / Social Proof (Preline Style) -->
+<section class="border-y bg-muted/30 py-12">
+	<div class="container px-4 md:px-6">
+		<div class="grid grid-cols-2 gap-8 text-center md:grid-cols-4">
+			<div class="space-y-2">
+				<h3 class="text-3xl font-bold text-foreground">10k+</h3>
+				<p class="text-sm text-muted-foreground">Active Users</p>
+			</div>
+			<div class="space-y-2">
+				<h3 class="text-3xl font-bold text-foreground">$5M+</h3>
+				<p class="text-sm text-muted-foreground">Expenses Tracked</p>
+			</div>
+			<div class="space-y-2">
+				<h3 class="text-3xl font-bold text-foreground">99.9%</h3>
+				<p class="text-sm text-muted-foreground">Uptime</p>
+			</div>
+			<div class="space-y-2">
+				<h3 class="text-3xl font-bold text-foreground">24/7</h3>
+				<p class="text-sm text-muted-foreground">Support</p>
+			</div>
+		</div>
 	</div>
 </section>
 
 <!-- Features Section -->
-<section class="px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
-	<div class="mx-auto max-w-5xl">
-		<div class="mb-16 text-center">
-			<h2 class="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl dark:text-white">
-				Why Choose Buddy Wallet?
+<section class="py-20 lg:py-32">
+	<div class="container px-4 md:px-6">
+		<div class="mx-auto mb-16 max-w-2xl text-center">
+			<h2 class="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+				Everything you need to manage shared costs
 			</h2>
+			<p class="mt-4 text-lg text-muted-foreground">
+				Simple, powerful tools designed to make money matters less awkward and more organized.
+			</p>
 		</div>
 
-		<div class="grid gap-8 md:grid-cols-3">
+		<div class="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
 			<!-- Feature 1 -->
 			<div
-				class="rounded-lg border border-gray-200 bg-white p-8 transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-slate-800"
+				class="group rounded-2xl border bg-card p-8 shadow-sm transition-all hover:border-primary/20 hover:shadow-md"
 			>
-				<div class="mb-4 text-3xl">👥</div>
-				<h3 class="mb-3 text-xl font-semibold text-gray-900 dark:text-white">Easy Sharing</h3>
-				<p class="text-gray-600 dark:text-gray-300">
-					Add debts, track who owes what, and split expenses effortlessly among friends, roommates,
-					and groups.
+				<div
+					class="mb-4 inline-flex items-center justify-center rounded-lg bg-primary/10 p-3 text-primary"
+				>
+					<Users class="h-6 w-6" />
+				</div>
+				<h3 class="mb-2 text-xl font-semibold text-foreground">Group Management</h3>
+				<p class="text-muted-foreground">
+					Create groups for trips, households, or events. Add members and start splitting in
+					seconds.
 				</p>
 			</div>
 
 			<!-- Feature 2 -->
 			<div
-				class="rounded-lg border border-gray-200 bg-white p-8 transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-slate-800"
+				class="group rounded-2xl border bg-card p-8 shadow-sm transition-all hover:border-primary/20 hover:shadow-md"
 			>
-				<div class="mb-4 text-3xl">📊</div>
-				<h3 class="mb-3 text-xl font-semibold text-gray-900 dark:text-white">Full Transparency</h3>
-				<p class="text-gray-600 dark:text-gray-300">
-					See all balances, history, and who owes whom at a glance. No hidden charges or confusion.
+				<div
+					class="mb-4 inline-flex items-center justify-center rounded-lg bg-primary/10 p-3 text-primary"
+				>
+					<BarChart3 class="h-6 w-6" />
+				</div>
+				<h3 class="mb-2 text-xl font-semibold text-foreground">Smart Analytics</h3>
+				<p class="text-muted-foreground">
+					Visualize spending trends. See who spends the most and categorize expenses automatically.
 				</p>
 			</div>
 
 			<!-- Feature 3 -->
 			<div
-				class="rounded-lg border border-gray-200 bg-white p-8 transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-slate-800"
+				class="group rounded-2xl border bg-card p-8 shadow-sm transition-all hover:border-primary/20 hover:shadow-md"
 			>
-				<div class="mb-4 text-3xl">🔒</div>
-				<h3 class="mb-3 text-xl font-semibold text-gray-900 dark:text-white">Secure & Private</h3>
-				<p class="text-gray-600 dark:text-gray-300">
-					Your financial data is encrypted and protected. We never share your information with third
-					parties.
+				<div
+					class="mb-4 inline-flex items-center justify-center rounded-lg bg-primary/10 p-3 text-primary"
+				>
+					<Globe class="h-6 w-6" />
+				</div>
+				<h3 class="mb-2 text-xl font-semibold text-foreground">Multi-currency</h3>
+				<p class="text-muted-foreground">
+					Traveling abroad? We handle exchange rates automatically for seamless international
+					splitting.
 				</p>
 			</div>
 
 			<!-- Feature 4 -->
 			<div
-				class="rounded-lg border border-gray-200 bg-white p-8 transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-slate-800"
+				class="group rounded-2xl border bg-card p-8 shadow-sm transition-all hover:border-primary/20 hover:shadow-md"
 			>
-				<div class="mb-4 text-3xl">⚡</div>
-				<h3 class="mb-3 text-xl font-semibold text-gray-900 dark:text-white">Lightning Fast</h3>
-				<p class="text-gray-600 dark:text-gray-300">
-					Instant updates and real-time synchronization across all your devices. Always in sync.
+				<div
+					class="mb-4 inline-flex items-center justify-center rounded-lg bg-primary/10 p-3 text-primary"
+				>
+					<Zap class="h-6 w-6" />
+				</div>
+				<h3 class="mb-2 text-xl font-semibold text-foreground">Instant Settlement</h3>
+				<p class="text-muted-foreground">
+					Record payments instantly. Integrate with payment apps to settle debts with a single
+					click.
 				</p>
 			</div>
 
 			<!-- Feature 5 -->
 			<div
-				class="rounded-lg border border-gray-200 bg-white p-8 transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-slate-800"
+				class="group rounded-2xl border bg-card p-8 shadow-sm transition-all hover:border-primary/20 hover:shadow-md"
 			>
-				<div class="mb-4 text-3xl">📱</div>
-				<h3 class="mb-3 text-xl font-semibold text-gray-900 dark:text-white">Works Everywhere</h3>
-				<p class="text-gray-600 dark:text-gray-300">
-					Web, mobile, desktop. Access Buddy Wallet from any device, anytime, anywhere.
+				<div
+					class="mb-4 inline-flex items-center justify-center rounded-lg bg-primary/10 p-3 text-primary"
+				>
+					<Shield class="h-6 w-6" />
+				</div>
+				<h3 class="mb-2 text-xl font-semibold text-foreground">Secure & Private</h3>
+				<p class="text-muted-foreground">
+					Bank-grade encryption keeps your financial data safe. We prioritize your privacy above
+					all.
 				</p>
 			</div>
 
 			<!-- Feature 6 -->
 			<div
-				class="rounded-lg border border-gray-200 bg-white p-8 transition-shadow hover:shadow-lg dark:border-gray-700 dark:bg-slate-800"
+				class="group rounded-2xl border bg-card p-8 shadow-sm transition-all hover:border-primary/20 hover:shadow-md"
 			>
-				<div class="mb-4 text-3xl">🎯</div>
-				<h3 class="mb-3 text-xl font-semibold text-gray-900 dark:text-white">Smart Management</h3>
-				<p class="text-gray-600 dark:text-gray-300">
-					Automatic balance calculations, settlement suggestions, and expense analytics at your
-					fingertips.
+				<div
+					class="mb-4 inline-flex items-center justify-center rounded-lg bg-primary/10 p-3 text-primary"
+				>
+					<CheckCircle2 class="h-6 w-6" />
+				</div>
+				<h3 class="mb-2 text-xl font-semibold text-foreground">Offline Support</h3>
+				<p class="text-muted-foreground">
+					No internet? No problem. Add expenses offline and we'll sync everything when you're back
+					online.
 				</p>
 			</div>
 		</div>
@@ -135,46 +181,25 @@
 </section>
 
 <!-- CTA Section -->
-<section
-	class="bg-linear-to-r from-blue-600 to-indigo-600 px-4 py-20 sm:px-6 sm:py-32 lg:px-8 dark:from-blue-700 dark:to-indigo-700"
->
-	<div class="mx-auto max-w-3xl text-center">
-		<h2 class="mb-6 text-3xl font-bold text-white sm:text-4xl">Ready to Split Smart?</h2>
-		<p class="mb-8 text-lg text-blue-100">
-			Join thousands of friends, roommates, and groups who trust Buddy Wallet to manage shared
-			expenses.
-		</p>
-		<button
-			onclick={() => goto('/login')}
-			class="rounded-lg bg-white px-8 py-4 text-lg font-semibold text-blue-600 shadow-lg transition-colors hover:bg-blue-50"
-		>
-			Start for Free
-		</button>
-	</div>
-</section>
-
-<!-- Links Section -->
-<section class="border-t border-gray-200 px-4 py-12 sm:px-6 sm:py-16 lg:px-8 dark:border-gray-700">
-	<div class="mx-auto max-w-5xl">
-		<div class="grid gap-6 text-center sm:grid-cols-3">
-			<a
-				href="/about"
-				class="font-medium text-gray-600 transition-colors hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
+<section class="border-t bg-muted/50 py-20 lg:py-32">
+	<div class="container px-4 md:px-6">
+		<div class="mx-auto max-w-3xl text-center">
+			<h2 class="mb-6 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+				Ready to simplify your shared expenses?
+			</h2>
+			<p class="mb-10 text-xl text-muted-foreground">
+				Join thousands of users who are already enjoying stress-free bill splitting.
+			</p>
+			<Button
+				size="lg"
+				onclick={() => goto('/signup')}
+				class="h-14 gap-2 px-10 text-lg shadow-xl shadow-primary/20"
 			>
-				About Us
-			</a>
-			<a
-				href="/faq"
-				class="font-medium text-gray-600 transition-colors hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-			>
-				FAQ
-			</a>
-			<a
-				href="/terms"
-				class="font-medium text-gray-600 transition-colors hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400"
-			>
-				Terms & Conditions
-			</a>
+				Create Free Account
+			</Button>
+			<p class="mt-4 text-sm text-muted-foreground">
+				No credit card required. Free forever for small groups.
+			</p>
 		</div>
 	</div>
 </section>
