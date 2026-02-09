@@ -6,6 +6,16 @@
 
 	const lang = useLanguage();
 
+	// Performance-optimized flag emoji mapping
+	const FLAG_MAP: Record<string, string> = {
+		en: '🇬🇧',
+		vi: '🇻🇳'
+	};
+
+	function getFlag(locale: string): string {
+		return FLAG_MAP[locale] || '🌐';
+	}
+
 	let detailsRef: HTMLDetailsElement | null = $state(null);
 
 	async function handleSwitch(newLang: string) {
@@ -30,7 +40,7 @@
 	<summary
 		class="inline-flex cursor-pointer list-none items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 [&::-webkit-details-marker]:hidden"
 	>
-		<Languages class="size-4" />
+		<span class="text-base leading-none">{getFlag(lang.current)}</span>
 		<span class="capitalize">{lang.current}</span>
 		<ChevronDown
 			class="size-4 transition-transform duration-150 ease-in-out group-open:rotate-180"
@@ -49,12 +59,10 @@
 				)}
 				onclick={() => handleSwitch(item)}
 			>
-				<!-- {labels[item] || item}
-				{#if item === lang.current}
-					<Check class="size-4" />
-				{/if} -->
-
-				<span class="capitalize">{lang.getLabel(item)}</span>
+				<span class="flex items-center gap-2">
+					<span class="text-base leading-none">{getFlag(item)}</span>
+					<span class="capitalize">{lang.getLabel(item)}</span>
+				</span>
 
 				{#if item === lang.current}
 					<Check class="size-4" />

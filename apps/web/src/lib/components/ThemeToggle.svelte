@@ -11,7 +11,11 @@
 <Button
 	variant="ghost"
 	size="icon-sm"
-	class="group inline-flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+	class={cn(
+		"group rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200",
+		"dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700",
+		className
+	)}
 	onclick={theme.toggle}
 	title="Toggle theme"
 >
