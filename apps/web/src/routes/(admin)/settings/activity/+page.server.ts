@@ -33,12 +33,12 @@ export const load: PageServerLoad = async ({ fetch, locals, url }) => {
 		});
 
 		if (!response.ok) {
-			return { 
-				logs: [] as ActivityLog[], 
+			return {
+				logs: [] as ActivityLog[],
 				pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } as Pagination,
 				page,
 				pageSize,
-				error: 'Failed to fetch activity logs' 
+				error: 'Failed to fetch activity logs'
 			};
 		}
 
@@ -51,12 +51,12 @@ export const load: PageServerLoad = async ({ fetch, locals, url }) => {
 		};
 	} catch (err) {
 		console.error('[Activity] Failed to fetch logs:', err);
-		return { 
-			logs: [] as ActivityLog[], 
+		return {
+			logs: [] as ActivityLog[],
 			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } as Pagination,
 			page,
 			pageSize,
-			error: 'Unable to connect to server' 
+			error: 'Unable to connect to server'
 		};
 	}
 };

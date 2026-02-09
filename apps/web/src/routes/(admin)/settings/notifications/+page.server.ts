@@ -49,8 +49,8 @@ export const actions: Actions = {
 			if (res.ok) {
 				return { success: true };
 			} else {
-				return fail(400, { 
-					message: data?.error || 'Failed to update notification preferences' 
+				return fail(400, {
+					message: data?.error || 'Failed to update notification preferences'
 				});
 			}
 		} catch (_e) {

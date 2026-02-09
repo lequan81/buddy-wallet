@@ -447,7 +447,7 @@
 					
 					<div class="flex items-start justify-between">
 						<span class="text-sm text-muted-foreground">Description</span>
-						<span class="font-medium text-right max-w-[200px]">{description}</span>
+						<span class="font-medium text-right max-w-50">{description}</span>
 					</div>
 					
 					<div class="flex items-center justify-between">

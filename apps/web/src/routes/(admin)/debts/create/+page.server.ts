@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 	// Check if user has any bank accounts (required for LEND debts)
 	let hasBankAccount = false;
 	let recentContacts: string[] = [];
-	
+
 	try {
 		const api = createTreatyClient(fetch);
 		const [bankRes, contactsRes] = await Promise.all([
@@ -88,13 +88,13 @@ export const actions: Actions = {
 
 			if (error) {
 				const errorObj = error.value as any;
-				
+
 				// Handle duplicate warning
 				if (status === 409 && errorObj?.code === 'DUPLICATE_WARNING') {
-					return fail(409, { 
+					return fail(409, {
 						message: 'Potential duplicate found',
 						code: 'DUPLICATE_WARNING',
-						duplicates: errorObj.duplicates 
+						duplicates: errorObj.duplicates
 					});
 				}
 

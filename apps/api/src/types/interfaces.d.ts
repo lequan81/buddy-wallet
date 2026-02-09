@@ -132,8 +132,8 @@ export interface IDebtService {
    * Get debts for a user (filtered by permissions) with pagination
    */
   getDebtsForUser(
-    userId: string, 
-    hasViewAllPermission: boolean, 
+    userId: string,
+    hasViewAllPermission: boolean,
     options?: PaginationOptions
   ): Promise<PaginatedResult<Debt>>;
 

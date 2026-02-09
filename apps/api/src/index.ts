@@ -30,15 +30,15 @@ export const app = new Elysia()
   // Global error handler - ensures all errors return proper JSON
   .onError(({ code, error, set }) => {
     logger.app('Global error caught', { code, error: String(error) });
-    
+
     // Default to 500 for unknown errors
     const statusCode = typeof set.status === 'number' ? set.status : 500;
     if (!set.status || statusCode < 400) {
-      set.status = code === 'NOT_FOUND' ? 404 : 
-                   code === 'VALIDATION' ? 400 : 
-                   code === 'PARSE' ? 400 : 500;
+      set.status = code === 'NOT_FOUND' ? 404 :
+        code === 'VALIDATION' ? 400 :
+          code === 'PARSE' ? 400 : 500;
     }
-    
+
     return {
       success: false,
       error: code,
