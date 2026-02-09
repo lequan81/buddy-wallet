@@ -19,6 +19,7 @@ import { PushService } from './push.service';
 import { ActivityService } from './activity.service';
 import { BankAccountService } from './bank-account.service';
 import { EmailVerificationService } from './email-verification.service';
+import { PasswordResetService } from './password-reset.service';
 export { cleanupService } from './cleanup.service';
 
 // Re-export service classes
@@ -34,7 +35,8 @@ export {
   PushService,
   ActivityService,
   BankAccountService,
-  EmailVerificationService
+  EmailVerificationService,
+  PasswordResetService
 };
 
 // Re-export types
@@ -60,8 +62,12 @@ export const pushService = new PushService(db);
 export const activityService = new ActivityService(db);
 export const bankAccountService = new BankAccountService(db);
 export const emailVerificationService = new EmailVerificationService(db);
+export const passwordResetService = new PasswordResetService(db);
 export { emailService };
 export * from './vietqr.service';
+
+// Connect push service to debt service for notifications
+debtService.setPushService(pushService);
 
 /**
  * Factory functions for creating services with custom dependencies
@@ -97,4 +103,8 @@ export function createActivityService(customDb: typeof db) {
 
 export function createEmailVerificationService(customDb: typeof db) {
   return new EmailVerificationService(customDb);
+}
+
+export function createPasswordResetService(customDb: typeof db) {
+  return new PasswordResetService(customDb);
 }

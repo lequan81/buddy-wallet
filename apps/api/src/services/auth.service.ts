@@ -181,7 +181,22 @@ export class AuthService implements IAuthService {
       return { success: false, error: 'Invalid credentials' };
     }
 
-    const validPassword = await Bun.password.verify(password, user.password);
+    let validPassword = await Bun.password.verify(password, user.password);
+    let usedTempPassword = false;
+
+    // If regular password fails, try temporary password
+    if (!validPassword && user.temporaryPassword && user.temporaryPasswordExpires) {
+      const tempExpiry = new Date(user.temporaryPasswordExpires);
+      if (tempExpiry > new Date() && !user.temporaryPasswordUsed) {
+        const validTempPassword = await Bun.password.verify(password, user.temporaryPassword);
+        if (validTempPassword) {
+          validPassword = true;
+          usedTempPassword = true;
+          logger.auth(`Login with temporary password`, { userId: user.id });
+        }
+      }
+    }
+
     if (!validPassword) {
       logger.auth(`Invalid password`, { userId: user.id });
 
@@ -203,6 +218,18 @@ export class AuthService implements IAuthService {
       }
 
       return { success: false, error: 'Invalid credentials' };
+    }
+
+    // If temp password was used, mark it and require password change
+    if (usedTempPassword) {
+      await this.db
+        .update(users)
+        .set({
+          temporaryPasswordUsed: true,
+          mustChangePassword: true,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, user.id));
     }
 
     logger.auth(`Login successful`, { userId: user.id });
@@ -264,7 +291,8 @@ export class AuthService implements IAuthService {
       accessToken,
       refreshToken,
       sessionId,
-      expiresIn: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
+      expiresIn: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000,
+      mustChangePassword: usedTempPassword || user.mustChangePassword
     };
   }
 

@@ -13,29 +13,50 @@ interface ActivityLog {
 	createdAt: string;
 }
 
+interface Pagination {
+	total: number;
+	limit: number;
+	offset: number;
+	hasMore: boolean;
+}
+
 export const load: PageServerLoad = async ({ fetch, locals, url }) => {
-	const limit = parseInt(url.searchParams.get('limit') || '50');
-	const offset = parseInt(url.searchParams.get('offset') || '0');
+	const page = parseInt(url.searchParams.get('page') || '1');
+	const pageSize = parseInt(url.searchParams.get('pageSize') || '20');
+	const offset = (page - 1) * pageSize;
 
 	const headers = getAuthHeaders(locals.accessToken);
 
 	try {
-		const response = await fetch(`${API_URL}/v1/activity?limit=${limit}&offset=${offset}`, {
+		const response = await fetch(`${API_URL}/v1/activity?limit=${pageSize}&offset=${offset}`, {
 			headers
 		});
 
 		if (!response.ok) {
-			return { logs: [] as ActivityLog[], error: 'Failed to fetch activity logs' };
+			return { 
+				logs: [] as ActivityLog[], 
+				pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } as Pagination,
+				page,
+				pageSize,
+				error: 'Failed to fetch activity logs' 
+			};
 		}
 
 		const data = await response.json();
 		return {
 			logs: (data.data?.logs || []) as ActivityLog[],
-			limit,
-			offset
+			pagination: (data.data?.pagination || { total: 0, limit: pageSize, offset: 0, hasMore: false }) as Pagination,
+			page,
+			pageSize
 		};
 	} catch (err) {
 		console.error('[Activity] Failed to fetch logs:', err);
-		return { logs: [] as ActivityLog[], error: 'Unable to connect to server' };
+		return { 
+			logs: [] as ActivityLog[], 
+			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } as Pagination,
+			page,
+			pageSize,
+			error: 'Unable to connect to server' 
+		};
 	}
 };

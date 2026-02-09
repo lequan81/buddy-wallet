@@ -21,8 +21,19 @@ interface User {
 	email: string | null;
 }
 
+interface Pagination {
+	total: number;
+	limit: number;
+	offset: number;
+	hasMore: boolean;
+}
+
 export const load: PageServerLoad = async ({ fetch, locals, parent, url }) => {
 	const statusFilter = url.searchParams.get('status') || 'all';
+	const page = parseInt(url.searchParams.get('page') || '1');
+	const pageSize = parseInt(url.searchParams.get('pageSize') || '10');
+	const offset = (page - 1) * pageSize;
+	
 	// Get server-computed permissions from layout
 	const { permissions } = await parent();
 	const headers = getAuthHeaders(locals.accessToken);
@@ -33,8 +44,16 @@ export const load: PageServerLoad = async ({ fetch, locals, parent, url }) => {
 			? fetch(`${API_URL}/v1/users`, { headers })
 			: Promise.resolve(new Response(JSON.stringify({ success: true, data: { users: [] } })));
 
-		// Everyone gets their debts (controller handles scoping)
-		const debtsPromise = fetch(`${API_URL}/v1/debts`, { headers });
+		// Build debts URL with pagination params
+		const debtsParams = new URLSearchParams({
+			limit: pageSize.toString(),
+			offset: offset.toString()
+		});
+		if (statusFilter !== 'all') {
+			debtsParams.set('status', statusFilter);
+		}
+		
+		const debtsPromise = fetch(`${API_URL}/v1/debts?${debtsParams.toString()}`, { headers });
 
 		// Run in parallel
 		const [usersRes, debtsRes] = await Promise.all([usersPromise, debtsPromise]);
@@ -52,17 +71,32 @@ export const load: PageServerLoad = async ({ fetch, locals, parent, url }) => {
 		};
 
 		const usersData = await safeJson<{ users: User[] }>(usersRes, { users: [] });
-		const debtsData = await safeJson<{ debts: Debt[] }>(debtsRes, { debts: [] });
+		const debtsData = await safeJson<{ debts: Debt[]; pagination: Pagination }>(debtsRes, { 
+			debts: [], 
+			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } 
+		});
 
 		return {
 			users: usersData.users || [],
 			debts: debtsData.debts || [],
+			pagination: debtsData.pagination,
 			statusFilter,
+			page,
+			pageSize,
 			currentUser: locals.user
 		};
 	} catch (err) {
 		console.error('[Dashboard] Failed to fetch data:', err);
-		return { users: [] as User[], debts: [] as Debt[], error: 'Unable to connect to server', statusFilter, currentUser: locals.user };
+		return { 
+			users: [] as User[], 
+			debts: [] as Debt[], 
+			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false },
+			error: 'Unable to connect to server', 
+			statusFilter, 
+			page,
+			pageSize,
+			currentUser: locals.user 
+		};
 	}
 };
 

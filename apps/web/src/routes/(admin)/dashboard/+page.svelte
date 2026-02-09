@@ -15,7 +15,16 @@
 		Filter,
 		CheckSquare,
 		Square,
-		Eye
+		Eye,
+		Search,
+		X,
+		ChevronLeft,
+		ChevronRight,
+		ChevronsLeft,
+		ChevronsRight,
+		ArrowUpDown,
+		ArrowUp,
+		ArrowDown
 	} from '@lucide/svelte';
 	import { Badge } from '@repo/ui/components/ui/badge';
 	import * as Table from '@repo/ui/components/ui/table';
@@ -56,19 +65,139 @@
 	let selectedIds = $state<Set<string>>(new Set());
 	let isSubmitting = $state(false);
 
+	// Search state
+	let searchQuery = $state('');
+	let debouncedSearch = $state('');
+
+	// Pagination from server (URL params) - use type assertions for extended props
+	type ExtendedPageData = typeof data & { 
+		page?: number; 
+		pageSize?: number; 
+		pagination?: { total: number; limit: number; offset: number; hasMore: boolean } 
+	};
+	let extData = $derived(data as ExtendedPageData);
+	let currentPage = $derived(extData.page || 1);
+	let pageSize = $derived(extData.pageSize || 10);
+	let pagination = $derived(extData.pagination || { total: 0, limit: 10, offset: 0, hasMore: false });
+	let totalPages = $derived(Math.ceil(pagination.total / pageSize) || 1);
+
+	// Helper to navigate with pagination params
+	const navigateWithParams = (params: { page?: number; pageSize?: number; status?: string }) => {
+		const url = new URL($page.url);
+		if (params.page !== undefined) url.searchParams.set('page', params.page.toString());
+		if (params.pageSize !== undefined) url.searchParams.set('pageSize', params.pageSize.toString());
+		if (params.status !== undefined) {
+			if (params.status === 'all') {
+				url.searchParams.delete('status');
+			} else {
+				url.searchParams.set('status', params.status);
+			}
+		}
+		goto(url.toString(), { invalidateAll: true });
+	};
+
+	// Sorting state
+	type SortField = 'description' | 'status' | 'amount' | 'date';
+	type SortDirection = 'asc' | 'desc';
+	let sortField = $state<SortField>('date');
+	let sortDirection = $state<SortDirection>('desc');
+	
+	const toggleSort = (field: SortField) => {
+		if (sortField === field) {
+			sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+		} else {
+			sortField = field;
+			sortDirection = 'desc';
+		}
+	};
+
+	// Debounce search
+	$effect(() => {
+		const timeout = setTimeout(() => {
+			debouncedSearch = searchQuery;
+		}, 300);
+		return () => clearTimeout(timeout);
+	});
+
 	// Filter state (derived from URL)
 	let statusFilter = $derived(data.statusFilter || 'all');
 
-	// Filtered debts based on status
+	// Debts from server (already filtered by status and paginated)
+	// Client-side: only apply search and sorting to current page
 	let filteredDebts = $derived.by(() => {
 		if (!Array.isArray(debts)) return [];
-		if (statusFilter === 'all') return debts;
-		return debts.filter((d: { status: string }) => d.status === statusFilter);
+		
+		let filtered = debts;
+		
+		// Apply client-side search (within current page)
+		if (debouncedSearch) {
+			const query = debouncedSearch.toLowerCase();
+			filtered = filtered.filter((d: { 
+				description?: string; 
+				debtorPhone?: string; 
+				creditorPhone?: string; 
+				amount?: number 
+			}) =>
+				d.description?.toLowerCase().includes(query) ||
+				d.debtorPhone?.includes(query) ||
+				d.creditorPhone?.includes(query) ||
+				d.amount?.toString().includes(query)
+			);
+		}
+		
+		// Apply client-side sorting
+		filtered = [...filtered].sort((a: { description?: string; status: string; amount: number; createdAt: string }, b: { description?: string; status: string; amount: number; createdAt: string }) => {
+			let comparison = 0;
+			switch (sortField) {
+				case 'description':
+					comparison = (a.description || '').localeCompare(b.description || '');
+					break;
+				case 'status':
+					comparison = a.status.localeCompare(b.status);
+					break;
+				case 'amount':
+					comparison = a.amount - b.amount;
+					break;
+				case 'date':
+					comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+					break;
+			}
+			return sortDirection === 'asc' ? comparison : -comparison;
+		});
+		
+		return filtered;
 	});
+
+	// For display: use filteredDebts directly (already paginated by server)
+	let paginatedDebts = $derived(filteredDebts);
 
 	let pendingDebts = $derived.by(() => {
 		if (!Array.isArray(debts)) return [];
 		return debts.filter((d: { status: string }) => d.status === 'pending');
+	});
+
+	// Debts awaiting my confirmation (I'm counterparty, not creator)
+	let debtsNeedingMyConfirmation = $derived.by(() => {
+		if (!Array.isArray(debts) || !currentUser) return [];
+		return debts.filter((d: { 
+			needsConfirmation?: boolean; 
+			uploadedById?: string;
+			creditorId?: string;
+			debtorId?: string;
+			confirmedByCreditor?: boolean;
+			confirmedByDebtor?: boolean;
+		}) => {
+			// Must need confirmation
+			if (!d.needsConfirmation) return false;
+			// I must not be the creator
+			if (d.uploadedById === currentUser.id) return false;
+			// Check if I'm the counterparty who hasn't confirmed yet
+			const isCreditor = d.creditorId === currentUser.id;
+			const isDebtor = d.debtorId === currentUser.id;
+			if (isCreditor && !d.confirmedByCreditor) return true;
+			if (isDebtor && !d.confirmedByDebtor) return true;
+			return false;
+		});
 	});
 
 	// Financial calculations for summary
@@ -111,9 +240,9 @@
 		return isUploader && !isPaid;
 	};
 
-	// Debts that can be deleted
-	let deletableDebts = $derived.by(() => {
-		return filteredDebts.filter(canDeleteDebt);
+	// Debts that can be deleted (on current page)
+	let deletableDebtsOnPage = $derived.by(() => {
+		return paginatedDebts.filter(canDeleteDebt);
 	});
 
 	// Selection helpers
@@ -128,10 +257,20 @@
 	};
 
 	const toggleSelectAll = () => {
-		if (selectedIds.size === deletableDebts.length && deletableDebts.length > 0) {
-			selectedIds = new Set();
+		if (allSelectedOnPage) {
+			// Deselect all on current page
+			const newSet = new Set(selectedIds);
+			for (const d of deletableDebtsOnPage) {
+				newSet.delete(d.id);
+			}
+			selectedIds = newSet;
 		} else {
-			selectedIds = new Set(deletableDebts.map((d: { id: string }) => d.id));
+			// Select all on current page
+			const newSet = new Set(selectedIds);
+			for (const d of deletableDebtsOnPage) {
+				newSet.add(d.id);
+			}
+			selectedIds = newSet;
 		}
 	};
 
@@ -139,16 +278,16 @@
 		selectedIds = new Set();
 	};
 
-	// Check if all deletable items are selected
-	let allSelected = $derived(
-		deletableDebts.length > 0 && selectedIds.size === deletableDebts.length
-	);
+	// Check if all deletable items on current page are selected
+	let allSelectedOnPage = $derived.by(() => {
+		if (deletableDebtsOnPage.length === 0) return false;
+		return deletableDebtsOnPage.every((d: { id: string }) => selectedIds.has(d.id));
+	});
 
-	// Handle filter change
+	// Handle filter change - reset to page 1 and navigate
 	const handleFilterChange = (newStatus: string) => {
-		statusFilter = newStatus;
 		clearSelection();
-		goto(`/dashboard${newStatus !== 'all' ? `?status=${newStatus}` : ''}`, { replaceState: true });
+		navigateWithParams({ status: newStatus, page: 1 });
 	};
 
 	// Format currency
@@ -205,6 +344,56 @@
 		<!-- Financial Summary -->
 		<FinancialSummary totalOwedToYou={totalOwedToYou} totalYouOwe={totalYouOwe} />
 
+		<!-- Pending Confirmation Alert -->
+		{#if debtsNeedingMyConfirmation.length > 0}
+			<Card.Root class="border-yellow-500 bg-yellow-50 dark:border-yellow-600 dark:bg-yellow-950/20">
+				<Card.Header>
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<Clock class="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+							<Card.Title class="text-lg text-yellow-900 dark:text-yellow-100">Action Required</Card.Title>
+						</div>
+						<Badge variant="outline" class="border-yellow-600 text-yellow-700 dark:border-yellow-400 dark:text-yellow-300">
+							{debtsNeedingMyConfirmation.length} pending
+						</Badge>
+					</div>
+					<Card.Description class="text-yellow-800 dark:text-yellow-200">
+						These debts are waiting for your confirmation
+					</Card.Description>
+				</Card.Header>
+				<Card.Content>
+					<div class="space-y-2">
+						{#each debtsNeedingMyConfirmation.slice(0, 3) as debt}
+							<a
+								href="/debts/{debt.id}"
+								class="flex items-center justify-between rounded-lg border border-yellow-200 bg-white p-3 transition-colors hover:bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/30 dark:hover:bg-yellow-900/30"
+							>
+								<div class="flex-1">
+									<p class="font-medium text-yellow-900 dark:text-yellow-100">{debt.description || 'No description'}</p>
+									<p class="text-sm text-yellow-700 dark:text-yellow-300">
+										{debt.creditorId === currentUser?.id
+											? `${debt.debtorPhone} says they owe you`
+											: `You owe ${debt.creditorPhone}`}
+									</p>
+								</div>
+								<div class="text-right">
+									<p class="font-tabular font-semibold text-yellow-900 dark:text-yellow-100">{formatCurrency(debt.amount)}</p>
+									<p class="text-xs text-yellow-600 dark:text-yellow-400">
+										{new Date(debt.createdAt).toLocaleDateString()}
+									</p>
+								</div>
+							</a>
+						{/each}
+						{#if debtsNeedingMyConfirmation.length > 3}
+							<Button variant="ghost" size="sm" class="w-full text-yellow-700 hover:bg-yellow-100 hover:text-yellow-900 dark:text-yellow-300 dark:hover:bg-yellow-900/50">
+								View all {debtsNeedingMyConfirmation.length} pending debts →
+							</Button>
+						{/if}
+					</div>
+				</Card.Content>
+			</Card.Root>
+		{/if}
+
 		<!-- Stats Grid -->
 		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 			{#if permissions.canManageUsers}
@@ -258,6 +447,25 @@
 
 					<!-- Filter & Bulk Actions -->
 					<div class="flex flex-wrap items-center gap-2">
+						<!-- Search Input -->
+						<div class="relative">
+							<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+							<input
+								type="text"
+								placeholder="Search debts..."
+								bind:value={searchQuery}
+								class="h-9 w-48 rounded-md border bg-background pl-9 pr-8 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+							/>
+							{#if searchQuery}
+								<button
+									onclick={() => searchQuery = ''}
+									class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+								>
+									<X class="h-4 w-4" />
+								</button>
+							{/if}
+						</div>
+
 						<!-- Status Filter -->
 						<div class="flex items-center gap-1 rounded-lg border p-1">
 							<Filter class="ml-1 h-4 w-4 text-muted-foreground" />
@@ -353,13 +561,13 @@
 						<Table.Header>
 							<Table.Row>
 								<Table.Head class="w-12 pl-6">
-									{#if deletableDebts.length > 0}
+									{#if deletableDebtsOnPage.length > 0}
 										<button
 											class="flex items-center justify-center"
 											onclick={toggleSelectAll}
-											title={allSelected ? 'Deselect all' : 'Select all deletable'}
+											title={allSelectedOnPage ? 'Deselect all' : 'Select all deletable'}
 										>
-											{#if allSelected}
+											{#if allSelectedOnPage}
 												<CheckSquare class="h-4 w-4 text-foreground" />
 											{:else}
 												<Square class="h-4 w-4 text-muted-foreground" />
@@ -367,15 +575,79 @@
 										</button>
 									{/if}
 								</Table.Head>
-								<Table.Head>Description</Table.Head>
-								<Table.Head>Status</Table.Head>
-								<Table.Head class="text-right">Amount</Table.Head>
-								<Table.Head>Date</Table.Head>
+								<Table.Head>
+									<button
+										class="flex items-center gap-1 hover:text-foreground"
+										onclick={() => toggleSort('description')}
+									>
+										Description
+										{#if sortField === 'description'}
+											{#if sortDirection === 'asc'}
+												<ArrowUp class="h-3 w-3" />
+											{:else}
+												<ArrowDown class="h-3 w-3" />
+											{/if}
+										{:else}
+											<ArrowUpDown class="h-3 w-3 opacity-50" />
+										{/if}
+									</button>
+								</Table.Head>
+								<Table.Head>
+									<button
+										class="flex items-center gap-1 hover:text-foreground"
+										onclick={() => toggleSort('status')}
+									>
+										Status
+										{#if sortField === 'status'}
+											{#if sortDirection === 'asc'}
+												<ArrowUp class="h-3 w-3" />
+											{:else}
+												<ArrowDown class="h-3 w-3" />
+											{/if}
+										{:else}
+											<ArrowUpDown class="h-3 w-3 opacity-50" />
+										{/if}
+									</button>
+								</Table.Head>
+								<Table.Head class="text-right">
+									<button
+										class="ml-auto flex items-center gap-1 hover:text-foreground"
+										onclick={() => toggleSort('amount')}
+									>
+										Amount
+										{#if sortField === 'amount'}
+											{#if sortDirection === 'asc'}
+												<ArrowUp class="h-3 w-3" />
+											{:else}
+												<ArrowDown class="h-3 w-3" />
+											{/if}
+										{:else}
+											<ArrowUpDown class="h-3 w-3 opacity-50" />
+										{/if}
+									</button>
+								</Table.Head>
+								<Table.Head>
+									<button
+										class="flex items-center gap-1 hover:text-foreground"
+										onclick={() => toggleSort('date')}
+									>
+										Date
+										{#if sortField === 'date'}
+											{#if sortDirection === 'asc'}
+												<ArrowUp class="h-3 w-3" />
+											{:else}
+												<ArrowDown class="h-3 w-3" />
+											{/if}
+										{:else}
+											<ArrowUpDown class="h-3 w-3 opacity-50" />
+										{/if}
+									</button>
+								</Table.Head>
 								<Table.Head class="pr-6 text-right">Actions</Table.Head>
 							</Table.Row>
 						</Table.Header>
 						<Table.Body>
-							{#each filteredDebts as debt (debt.id)}
+							{#each paginatedDebts as debt (debt.id)}
 								{@const canDelete = canDeleteDebt(debt)}
 								<Table.Row class={cn(selectedIds.has(debt.id) && 'bg-muted/50')}>
 									<Table.Cell class="pl-6">
@@ -417,6 +689,68 @@
 							{/each}
 						</Table.Body>
 					</Table.Root>
+
+					<!-- Pagination Controls -->
+					{#if pagination.total > 0}
+						<div class="flex items-center justify-between border-t px-6 py-4">
+							<div class="flex items-center gap-2 text-sm text-muted-foreground">
+								<span>
+									Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, pagination.total)} of {pagination.total} debts
+								</span>
+								<select
+									class="ml-2 rounded border bg-background px-2 py-1 text-sm"
+									value={pageSize}
+									onchange={(e) => navigateWithParams({ pageSize: parseInt(e.currentTarget.value), page: 1 })}
+								>
+									<option value={5}>5 per page</option>
+									<option value={10}>10 per page</option>
+									<option value={25}>25 per page</option>
+									<option value={50}>50 per page</option>
+								</select>
+							</div>
+							<div class="flex items-center gap-1">
+								<Button
+									variant="outline"
+									size="icon"
+									class="h-8 w-8"
+									disabled={currentPage <= 1}
+									onclick={() => navigateWithParams({ page: 1 })}
+								>
+									<ChevronsLeft class="h-4 w-4" />
+								</Button>
+								<Button
+									variant="outline"
+									size="icon"
+									class="h-8 w-8"
+									disabled={currentPage <= 1}
+									onclick={() => navigateWithParams({ page: currentPage - 1 })}
+								>
+									<ChevronLeft class="h-4 w-4" />
+								</Button>
+								<span class="px-3 text-sm">
+									Page {currentPage} of {totalPages}
+								</span>
+								<Button
+									variant="outline"
+									size="icon"
+									class="h-8 w-8"
+									disabled={currentPage >= totalPages}
+									onclick={() => navigateWithParams({ page: currentPage + 1 })}
+								>
+									<ChevronRight class="h-4 w-4" />
+								</Button>
+								<Button
+									variant="outline"
+									size="icon"
+									class="h-8 w-8"
+									disabled={currentPage >= totalPages}
+									onclick={() => navigateWithParams({ page: totalPages })}
+								>
+									<ChevronsRight class="h-4 w-4" />
+								</Button>
+							</div>
+						</div>
+					{/if}
 				{/if}
 			</Card.Content>
 		</Card.Root>

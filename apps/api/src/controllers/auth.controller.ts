@@ -15,7 +15,9 @@ import {
   sessionService,
   activityService,
   emailVerificationService,
-  emailService
+  emailService,
+  passwordResetService,
+  userService
 } from '@/services';
 import { getClientIP, hashToken } from '@utils';
 
@@ -108,7 +110,8 @@ export const authController = new Elysia({ prefix: '/auth' })
       set.status = 200;
       return successResponse({
         user: result.user,
-        expiresIn: result.expiresIn
+        expiresIn: result.expiresIn,
+        mustChangePassword: result.mustChangePassword
       });
     },
     {
@@ -388,4 +391,57 @@ export const authController = new Elysia({ prefix: '/auth' })
       emailVerified: status.emailVerified,
       pendingVerification: status.pendingVerification
     });
-  });
+  })
+
+  // ==================== FORGOT PASSWORD ====================
+  .post(
+    '/forgot-password',
+    async ({ body, set }) => {
+      const result = await passwordResetService.requestReset(body.email, body.phoneNumber);
+
+      // Always return success to prevent user enumeration
+      // The actual result is sent via email
+      set.status = 200;
+      return successResponse({
+        message: 'If the email and phone number match our records, you will receive reset instructions.'
+      });
+    },
+    {
+      body: t.Object({
+        email: t.String({ format: 'email' }),
+        phoneNumber: t.String({ minLength: 10 })
+      })
+    }
+  )
+
+  // ==================== FORCE CHANGE PASSWORD ====================
+  .post(
+    '/force-change-password',
+    async ({ user, body, set }) => {
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
+
+      // Only allow if user has mustChangePassword flag
+      const result = await userService.getUserById(user.id);
+      if (!result.success || !result.user?.mustChangePassword) {
+        set.status = 403;
+        return errorResponse(GEN_ERRORS.FORBIDDEN, 'Password change not required');
+      }
+
+      const resetResult = await passwordResetService.completeReset(user.id, body.newPassword);
+
+      if (!resetResult.success) {
+        set.status = 400;
+        return errorResponse(GEN_ERRORS.INVALID_INPUT, resetResult.error);
+      }
+
+      return successResponse({ message: 'Password changed successfully' });
+    },
+    {
+      body: t.Object({
+        newPassword: t.String({ minLength: configs.AUTH.MIN_PASSWORD_LENGTH })
+      })
+    }
+  );

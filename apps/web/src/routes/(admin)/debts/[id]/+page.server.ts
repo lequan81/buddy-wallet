@@ -160,5 +160,26 @@ export const actions: Actions = {
 		}
 
 		throw redirect(303, '/dashboard?deleted=true');
+	},
+
+	confirmDebt: async ({ locals, fetch, params }) => {
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
+		const headers = getAuthHeaders(locals.accessToken);
+
+		const response = await fetch(`${API_URL}/v1/debts/${params.id}/confirm`, {
+			method: 'POST',
+			headers
+		});
+
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			const errorMsg = data.error?.message || data.error?.details || 'Failed to confirm debt';
+			return fail(response.status, { error: errorMsg });
+		}
+
+		return { success: true, message: 'Debt confirmed successfully' };
 	}
 };

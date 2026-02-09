@@ -12,6 +12,7 @@ export interface DebtResult {
   success: boolean;
   error?: string;
   code?: string;
+  message?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   debt?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

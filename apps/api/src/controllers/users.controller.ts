@@ -37,7 +37,9 @@ export const usersController = new Elysia({ prefix: '/users' })
       const result = await userService.updateProfile(user.id, {
         name: body.name,
         email: body.email,
-        phoneNumber: body.phoneNumber
+        phoneNumber: body.phoneNumber,
+        emailNotificationsEnabled: body.emailNotificationsEnabled,
+        pushNotificationsEnabled: body.pushNotificationsEnabled
       });
 
       if (!result.success) {
@@ -51,20 +53,38 @@ export const usersController = new Elysia({ prefix: '/users' })
       body: t.Object({
         name: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
         email: t.Optional(t.String({ format: 'email' })),
-        phoneNumber: t.Optional(t.String({ pattern: '^\\+?[1-9]\\d{1,14}$' }))
+        phoneNumber: t.Optional(t.String({ pattern: '^\\+?[1-9]\\d{1,14}$' })),
+        emailNotificationsEnabled: t.Optional(t.Boolean()),
+        pushNotificationsEnabled: t.Optional(t.Boolean())
       }),
       checkPermission: PERMISSIONS.USER_UPDATE_PROFILE
     }
   )
 
-  // List all users (admin)
+  // List all users (admin) with pagination
   .get(
     '/',
-    async () => {
-      const users = await userService.getAllUsers();
-      return successResponse({ users });
+    async ({ query }) => {
+      const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
+      const offset = query.offset ? parseInt(query.offset) : 0;
+      const result = await userService.getAllUsers({ limit, offset });
+      return successResponse({ 
+        users: result.users,
+        pagination: {
+          total: result.total,
+          limit,
+          offset,
+          hasMore: result.hasMore
+        }
+      });
     },
-    { checkPermission: PERMISSIONS.ADMIN_MANAGE_USERS }
+    { 
+      checkPermission: PERMISSIONS.ADMIN_MANAGE_USERS,
+      query: t.Object({
+        limit: t.Optional(t.String()),
+        offset: t.Optional(t.String())
+      })
+    }
   )
 
   // Get user by ID

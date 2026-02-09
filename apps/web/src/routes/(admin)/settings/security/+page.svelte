@@ -283,7 +283,7 @@
 							<div class="space-y-1">
 								<div class="flex items-center gap-2">
 									<span class="font-medium">
-										{#if session.deviceName}
+										{#if session.deviceName && session.deviceName !== 'Unknown' && !session.deviceName.includes('Unknown on Unknown')}
 											{session.deviceName}
 										{:else if session.deviceType}
 											{session.deviceType.charAt(0).toUpperCase() + session.deviceType.slice(1)} Device

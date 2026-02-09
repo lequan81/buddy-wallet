@@ -99,6 +99,13 @@
 					required
 				/>
 
+				<!-- Forgot Password Link -->
+				<div class="text-right">
+					<a href="/forgot-password" class="text-sm text-primary hover:underline">
+						Forgot password?
+					</a>
+				</div>
+
 				<!-- Submit Button - Fixed height -->
 				<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>
 					<span class="inline-flex items-center justify-center">

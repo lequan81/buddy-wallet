@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import {
 		Activity,
 		LogIn,
@@ -13,7 +14,9 @@
 		User,
 		Shield,
 		ChevronLeft,
-		ChevronRight
+		ChevronRight,
+		ChevronsLeft,
+		ChevronsRight
 	} from '@lucide/svelte';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Button } from '@repo/ui/components/ui/button';
@@ -102,14 +105,20 @@
 		return actionLabels[action] || `${action} ${resource}`;
 	};
 
-	// Pagination
-	let limit = $derived(data.limit || 50);
-	let offset = $derived(data.offset || 0);
-	let hasMore = $derived(data.logs.length === limit);
-	let hasPrev = $derived(offset > 0);
+	// Pagination from server
+	type ExtendedData = typeof data & { page?: number; pageSize?: number; pagination?: { total: number; limit: number; offset: number; hasMore: boolean } };
+	let extData = $derived(data as ExtendedData);
+	let currentPage = $derived(extData.page || 1);
+	let pageSize = $derived(extData.pageSize || 20);
+	let pagination = $derived(extData.pagination || { total: 0, limit: 20, offset: 0, hasMore: false });
+	let totalPages = $derived(Math.ceil(pagination.total / pageSize) || 1);
 
-	const goToPage = (newOffset: number) => {
-		goto(`/settings/activity?limit=${limit}&offset=${newOffset}`, { replaceState: true });
+	// Navigate with pagination params
+	const navigateWithParams = (params: { page?: number; pageSize?: number }) => {
+		const url = new URL($page.url);
+		if (params.page !== undefined) url.searchParams.set('page', params.page.toString());
+		if (params.pageSize !== undefined) url.searchParams.set('pageSize', params.pageSize.toString());
+		goto(url.toString(), { invalidateAll: true });
 	};
 </script>
 
@@ -207,31 +216,65 @@
 				</div>
 
 				<!-- Pagination -->
-				<div class="mt-6 flex items-center justify-between border-t pt-4">
-					<p class="text-sm text-muted-foreground">
-						Showing {offset + 1} - {offset + data.logs.length} entries
-					</p>
-					<div class="flex gap-2">
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={!hasPrev}
-							onclick={() => goToPage(Math.max(0, offset - limit))}
-						>
-							<ChevronLeft class="mr-1 h-4 w-4" />
-							Previous
-						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={!hasMore}
-							onclick={() => goToPage(offset + limit)}
-						>
-							Next
-							<ChevronRight class="ml-1 h-4 w-4" />
-						</Button>
+				{#if pagination.total > 0}
+					<div class="mt-6 flex items-center justify-between border-t pt-4">
+						<div class="flex items-center gap-2 text-sm text-muted-foreground">
+							<span>
+								Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, pagination.total)} of {pagination.total} entries
+							</span>
+							<select
+								class="ml-2 rounded border bg-background px-2 py-1 text-sm"
+								value={pageSize}
+								onchange={(e) => navigateWithParams({ pageSize: parseInt(e.currentTarget.value), page: 1 })}
+							>
+								<option value={10}>10 per page</option>
+								<option value={20}>20 per page</option>
+								<option value={50}>50 per page</option>
+							</select>
+						</div>
+						<div class="flex items-center gap-1">
+							<Button
+								variant="outline"
+								size="icon"
+								class="h-8 w-8"
+								disabled={currentPage <= 1}
+								onclick={() => navigateWithParams({ page: 1 })}
+							>
+								<ChevronsLeft class="h-4 w-4" />
+							</Button>
+							<Button
+								variant="outline"
+								size="icon"
+								class="h-8 w-8"
+								disabled={currentPage <= 1}
+								onclick={() => navigateWithParams({ page: currentPage - 1 })}
+							>
+								<ChevronLeft class="h-4 w-4" />
+							</Button>
+							<span class="px-3 text-sm">
+								Page {currentPage} of {totalPages}
+							</span>
+							<Button
+								variant="outline"
+								size="icon"
+								class="h-8 w-8"
+								disabled={currentPage >= totalPages}
+								onclick={() => navigateWithParams({ page: currentPage + 1 })}
+							>
+								<ChevronRight class="h-4 w-4" />
+							</Button>
+							<Button
+								variant="outline"
+								size="icon"
+								class="h-8 w-8"
+								disabled={currentPage >= totalPages}
+								onclick={() => navigateWithParams({ page: totalPages })}
+							>
+								<ChevronsRight class="h-4 w-4" />
+							</Button>
+						</div>
 					</div>
-				</div>
+				{/if}
 			{/if}
 		</Card.Content>
 	</Card.Root>

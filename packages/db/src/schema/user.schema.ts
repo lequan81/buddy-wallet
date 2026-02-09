@@ -26,6 +26,16 @@ export const users = sqliteTable('users', {
   sessionVersion: integer('session_version').notNull().default(1),
   lastPasswordChangeAt: integer('last_password_change_at', { mode: 'timestamp' }),
 
+  // Notification preferences
+  emailNotificationsEnabled: integer('email_notifications_enabled', { mode: 'boolean' }).notNull().default(false),
+  pushNotificationsEnabled: integer('push_notifications_enabled', { mode: 'boolean' }).notNull().default(false),
+
+  // Password reset
+  temporaryPassword: text('temporary_password'),
+  temporaryPasswordExpires: integer('temporary_password_expires', { mode: 'timestamp' }),
+  mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(false),
+  temporaryPasswordUsed: integer('temporary_password_used', { mode: 'boolean' }).notNull().default(false),
+
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
 }, (table) => ({

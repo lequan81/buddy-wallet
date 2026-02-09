@@ -1,16 +1,36 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Users, UserCheck, UserX, Eye, Search } from '@lucide/svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { Users, UserCheck, UserX, Eye, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from '@lucide/svelte';
 	import { useDebounce } from '$lib/hooks/use-debounce.svelte';
+	import { Button } from '@repo/ui/components/ui/button';
 
 	let { data } = $props();
 
 	let searchQuery = $state('');
 	let filterStatus = $state<'all' | 'active' | 'inactive'>('all');
 
+	// Pagination from server
+	type ExtendedData = typeof data & { page?: number; pageSize?: number; pagination?: { total: number; limit: number; offset: number; hasMore: boolean } };
+	let extData = $derived(data as ExtendedData);
+	let currentPage = $derived(extData.page || 1);
+	let pageSize = $derived(extData.pageSize || 10);
+	let pagination = $derived(extData.pagination || { total: 0, limit: 10, offset: 0, hasMore: false });
+	let totalPages = $derived(Math.ceil(pagination.total / pageSize) || 1);
+
+	// Navigate with pagination params
+	const navigateWithParams = (params: { page?: number; pageSize?: number }) => {
+		const url = new URL($page.url);
+		if (params.page !== undefined) url.searchParams.set('page', params.page.toString());
+		if (params.pageSize !== undefined) url.searchParams.set('pageSize', params.pageSize.toString());
+		goto(url.toString(), { invalidateAll: true });
+	};
+
 	// Debounce search query to avoid filtering on every keystroke
 	const debouncedSearch = useDebounce(() => searchQuery, 300);
 
+	// Client-side filtering (on top of server-paginated data)
 	const filteredUsers = $derived(() => {
 		let users = data.users ?? [];
 
@@ -138,8 +158,69 @@
 		</div>
 	</div>
 
-	<!-- Summary -->
-	<div class="mt-6 text-sm text-muted-foreground">
-		Showing {filteredUsers().length} of {data.users?.length ?? 0} users
-	</div>
+	<!-- Pagination Controls -->
+	{#if pagination.total > 0}
+		<div class="mt-6 flex items-center justify-between">
+			<div class="flex items-center gap-2 text-sm text-muted-foreground">
+				<span>
+					Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, pagination.total)} of {pagination.total} users
+				</span>
+				<select
+					class="ml-2 rounded border bg-background px-2 py-1 text-sm"
+					value={pageSize}
+					onchange={(e) => navigateWithParams({ pageSize: parseInt(e.currentTarget.value), page: 1 })}
+				>
+					<option value={5}>5 per page</option>
+					<option value={10}>10 per page</option>
+					<option value={25}>25 per page</option>
+					<option value={50}>50 per page</option>
+				</select>
+			</div>
+			<div class="flex items-center gap-1">
+				<Button
+					variant="outline"
+					size="icon"
+					class="h-8 w-8"
+					disabled={currentPage <= 1}
+					onclick={() => navigateWithParams({ page: 1 })}
+				>
+					<ChevronsLeft class="h-4 w-4" />
+				</Button>
+				<Button
+					variant="outline"
+					size="icon"
+					class="h-8 w-8"
+					disabled={currentPage <= 1}
+					onclick={() => navigateWithParams({ page: currentPage - 1 })}
+				>
+					<ChevronLeft class="h-4 w-4" />
+				</Button>
+				<span class="px-3 text-sm">
+					Page {currentPage} of {totalPages}
+				</span>
+				<Button
+					variant="outline"
+					size="icon"
+					class="h-8 w-8"
+					disabled={currentPage >= totalPages}
+					onclick={() => navigateWithParams({ page: currentPage + 1 })}
+				>
+					<ChevronRight class="h-4 w-4" />
+				</Button>
+				<Button
+					variant="outline"
+					size="icon"
+					class="h-8 w-8"
+					disabled={currentPage >= totalPages}
+					onclick={() => navigateWithParams({ page: totalPages })}
+				>
+					<ChevronsRight class="h-4 w-4" />
+				</Button>
+			</div>
+		</div>
+	{:else}
+		<div class="mt-6 text-sm text-muted-foreground">
+			No users found
+		</div>
+	{/if}
 </div>

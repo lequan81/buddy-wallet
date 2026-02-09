@@ -74,6 +74,11 @@ export type ActivityAction =
   | 'logout_all'
   | 'delete_all'
   | 'login_failed'
+  // Debt confirmation and suggestions
+  | 'confirm'
+  | 'suggest_edit'
+  | 'accept_suggestion'
+  | 'reject_suggestion'
   // Debt statuses as actions
   | 'pending'
   | 'confirmed'

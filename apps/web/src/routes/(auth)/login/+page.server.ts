@@ -38,6 +38,12 @@ export const actions: Actions = {
 			}
 
 			if (data?.success) {
+				// Check if user must change password first
+				if (data.data?.mustChangePassword) {
+					// Store a flag in session/URL and redirect to change password page
+					throw redirect(303, '/change-password?required=true');
+				}
+
 				// Forward both cookies from API to browser
 				let setCookieHeaders = response.headers.getSetCookie?.() || [];
 

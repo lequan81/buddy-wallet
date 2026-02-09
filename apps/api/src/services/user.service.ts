@@ -19,12 +19,31 @@ export class UserService implements IUserService {
   constructor(private db: DbClient) { }
 
   /**
-   * Get all users (admin only)
+   * Get all users (admin only) with pagination
    */
-  async getAllUsers(): Promise<SafeUser[]> {
+  async getAllUsers(options: { limit?: number; offset?: number } = {}): Promise<{ users: SafeUser[]; total: number; hasMore: boolean }> {
+    const { limit = 50, offset = 0 } = options;
+    
+    // Get total count
     const allUsers = await this.db.select().from(users).all();
+    const total = allUsers.length;
+    
+    // Get paginated results
+    const paginatedUsers = await this.db
+      .select()
+      .from(users)
+      .limit(limit)
+      .offset(offset)
+      .all();
+      
     // Strip passwords
-    return allUsers.map(({ password, ...u }) => u as SafeUser);
+    const safeUsers = paginatedUsers.map(({ password, ...u }) => u as SafeUser);
+    
+    return {
+      users: safeUsers,
+      total,
+      hasMore: offset + safeUsers.length < total
+    };
   }
 
   /**
@@ -106,7 +125,7 @@ export class UserService implements IUserService {
   }
 
   /**
-   * Update user profile (name, email, phoneNumber)
+   * Update user profile (name, email, phoneNumber, notification preferences)
    * SECURITY: Whitelist approach - only allow specific fields to be updated
    */
   async updateProfile(
@@ -115,10 +134,14 @@ export class UserService implements IUserService {
       name?: string;
       email?: string;
       phoneNumber?: string;
+      emailNotificationsEnabled?: boolean;
+      pushNotificationsEnabled?: boolean;
     }
   ): Promise<UserResult> {
     // Validate at least one field is provided
-    if (!updates.name && !updates.email && !updates.phoneNumber) {
+    if (!updates.name && !updates.email && !updates.phoneNumber && 
+        updates.emailNotificationsEnabled === undefined && 
+        updates.pushNotificationsEnabled === undefined) {
       return { success: false, error: 'No fields to update' };
     }
 
@@ -127,6 +150,11 @@ export class UserService implements IUserService {
 
     if (!currentUser) {
       return { success: false, error: 'User not found' };
+    }
+
+    // Check if trying to enable push notifications without verified email
+    if (updates.pushNotificationsEnabled === true && !currentUser.emailVerified) {
+      return { success: false, error: 'Email verification required to enable push notifications' };
     }
 
     // Check for phone number uniqueness if being updated
@@ -156,13 +184,26 @@ export class UserService implements IUserService {
     }
 
     // Build update object (whitelist approach)
-    const updateData: { name?: string; email?: string; phoneNumber?: string; updatedAt: Date } = {
+    const updateData: { 
+      name?: string; 
+      email?: string; 
+      phoneNumber?: string;
+      emailNotificationsEnabled?: boolean;
+      pushNotificationsEnabled?: boolean;
+      updatedAt: Date;
+    } = {
       updatedAt: new Date()
     };
 
     if (updates.name) updateData.name = updates.name;
     if (updates.email) updateData.email = updates.email;
     if (updates.phoneNumber) updateData.phoneNumber = updates.phoneNumber;
+    if (updates.emailNotificationsEnabled !== undefined) {
+      updateData.emailNotificationsEnabled = updates.emailNotificationsEnabled;
+    }
+    if (updates.pushNotificationsEnabled !== undefined) {
+      updateData.pushNotificationsEnabled = updates.pushNotificationsEnabled;
+    }
 
     // Update user in database
     await this.db.update(users).set(updateData).where(eq(users.id, userId));

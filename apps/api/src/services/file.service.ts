@@ -116,6 +116,23 @@ export class FileService {
 
       try {
         this.db.insert(fileMetadata).values(metadata).run();
+
+        // Update debt proof tracking if this is a payment proof
+        if (type === 'payment_proof' && relatedDebtId) {
+          const debt = this.db.select().from(debts).where(eq(debts.id, relatedDebtId)).get();
+          if (debt) {
+            this.db.update(debts)
+              .set({
+                hasPendingProof: true,
+                proofCount: (debt.proofCount || 0) + 1,
+                lastProofUploadedAt: now,
+                updatedAt: now
+              })
+              .where(eq(debts.id, relatedDebtId))
+              .run();
+            log.debug('FILE', 'Updated debt proof tracking', { debtId: relatedDebtId });
+          }
+        }
       } catch (dbError) {
         await this.storage.delete(relativePath);
         throw dbError;
@@ -186,7 +203,7 @@ export class FileService {
   async approveProof(
     fileId: string,
     reviewerId: string
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<{ success: boolean; error?: string; allProofsApproved?: boolean; debtId?: string; uploaderId?: string }> {
     const file = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
 
     if (!file) return { success: false, error: 'File not found' };
@@ -211,15 +228,46 @@ export class FileService {
       .where(eq(fileMetadata.id, fileId))
       .run();
 
-    log.debug('FILE', 'Proof approved', { fileId, reviewerId });
-    return { success: true };
+    // Recalculate pending proofs for this debt
+    const remainingPending = this.db
+      .select()
+      .from(fileMetadata)
+      .where(
+        and(
+          eq(fileMetadata.relatedDebtId, file.relatedDebtId),
+          eq(fileMetadata.fileType, 'payment_proof'),
+          eq(fileMetadata.status, 'pending')
+        )
+      )
+      .all();
+
+    // Check if all proofs are now approved (no pending left)
+    const allProofsApproved = remainingPending.length === 0;
+
+    // Clear hasPendingProof if no more pending proofs
+    if (allProofsApproved) {
+      this.db
+        .update(debts)
+        .set({ hasPendingProof: false })
+        .where(eq(debts.id, file.relatedDebtId))
+        .run();
+      log.debug('FILE', 'Cleared hasPendingProof for debt', { debtId: file.relatedDebtId });
+    }
+
+    log.debug('FILE', 'Proof approved', { fileId, reviewerId, allProofsApproved });
+    return { 
+      success: true, 
+      allProofsApproved, 
+      debtId: file.relatedDebtId,
+      uploaderId: file.uploadedById 
+    };
   }
 
   async rejectProof(
     fileId: string,
     reviewerId: string,
     reason?: string
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<{ success: boolean; error?: string; debtId?: string; uploaderId?: string }> {
     const file = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
 
     if (!file) return { success: false, error: 'File not found' };
@@ -246,7 +294,11 @@ export class FileService {
       .run();
 
     log.debug('FILE', 'Proof rejected', { fileId, reviewerId, reason });
-    return { success: true };
+    return { 
+      success: true, 
+      debtId: file.relatedDebtId,
+      uploaderId: file.uploadedById 
+    };
   }
 
   async deleteFile(fileId: string, userId: string): Promise<{ success: boolean; error?: string }> {

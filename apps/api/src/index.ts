@@ -32,7 +32,8 @@ export const app = new Elysia()
     logger.app('Global error caught', { code, error: String(error) });
     
     // Default to 500 for unknown errors
-    if (!set.status || set.status < 400) {
+    const statusCode = typeof set.status === 'number' ? set.status : 500;
+    if (!set.status || statusCode < 400) {
       set.status = code === 'NOT_FOUND' ? 404 : 
                    code === 'VALIDATION' ? 400 : 
                    code === 'PARSE' ? 400 : 500;
@@ -41,7 +42,7 @@ export const app = new Elysia()
     return {
       success: false,
       error: code,
-      message: error?.message || 'Internal server error'
+      message: (error as Error)?.message || 'Internal server error'
     };
   })
   // OpenTelemetry (if enabled)

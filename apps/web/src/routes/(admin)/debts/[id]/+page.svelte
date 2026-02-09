@@ -18,7 +18,8 @@
 		Clock,
 		QrCode,
 		Upload,
-		Image as ImageIcon
+		Image as ImageIcon,
+		MessageSquare
 	} from '@lucide/svelte';
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
 	import { Button } from '@repo/ui/components/ui/button';
@@ -26,6 +27,7 @@
 	import { Badge } from '@repo/ui/components/ui/badge';
 	import { Label } from '@repo/ui/components/ui/label';
 	import { Input } from '@repo/ui/components/ui/input';
+	import { Textarea } from '@repo/ui/components/ui/textarea';
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
 	import { apiFetch } from '$lib/api';
 	import { cn } from '$lib/utils';
@@ -55,6 +57,28 @@
 	let isUploading = $state(false);
 	let uploadError = $state('');
 	let uploadSuccess = $state(false);
+
+	// Mark as Paid modal state
+	let showMarkAsPaidModal = $state(false);
+	let lastApprovedDebtId = $state('');
+
+	// Suggest Edit state
+	let showSuggestModal = $state(false);
+	let suggestAmount = $state('');
+	let suggestDescription = $state('');
+	let isSuggesting = $state(false);
+
+	// Check if current user can suggest edits (is counterparty, not creator)
+	let canSuggestEdit = $derived(() => {
+		if (!data.debt || data.isUploader) return false;
+		const status = data.debt.status?.toLowerCase();
+		return status !== 'paid' && status !== 'cancelled' && (data.isCreditor || data.isDebtor);
+	});
+
+	// Check if debt has pending suggestion and current user is creator
+	let hasPendingSuggestion = $derived(() => {
+		return data.debt?.suggestedById && data.isUploader;
+	});
 
 	$effect(() => {
 		editDescription = data.debt?.description || '';
@@ -190,6 +214,12 @@
 		const res = await apiFetch(`/upload/proof/${proofId}/approve`, { method: 'POST' });
 		if (!res.error) {
 			invalidateAll();
+			// Show "Mark as Paid" modal if all proofs are now approved
+			const responseData = res.data as { allProofsApproved?: boolean; debtId?: string } | null;
+			if (responseData?.allProofsApproved && responseData?.debtId) {
+				lastApprovedDebtId = responseData.debtId;
+				showMarkAsPaidModal = true;
+			}
 		}
 	}
 
@@ -202,6 +232,47 @@
 			body: JSON.stringify({ reason })
 		});
 		if (!res.error) {
+			invalidateAll();
+		}
+	}
+
+	async function submitSuggestion() {
+		if (!suggestAmount && !suggestDescription) {
+			toast.error('Please provide at least amount or description');
+			return;
+		}
+
+		isSuggesting = true;
+		const res = await apiFetch(`/debts/${data.debt.id}/suggest`, {
+			method: 'POST',
+			body: JSON.stringify({
+				amount: suggestAmount ? Number(suggestAmount) : undefined,
+				description: suggestDescription || undefined
+			})
+		});
+		isSuggesting = false;
+
+		if (res.error) {
+			toast.error(res.error);
+		} else {
+			toast.success('Edit suggestion sent');
+			showSuggestModal = false;
+			suggestAmount = '';
+			suggestDescription = '';
+			invalidateAll();
+		}
+	}
+
+	async function respondToSuggestion(accept: boolean) {
+		const res = await apiFetch(`/debts/${data.debt.id}/suggestion/respond`, {
+			method: 'POST',
+			body: JSON.stringify({ accept })
+		});
+
+		if (res.error) {
+			toast.error(res.error);
+		} else {
+			toast.success(accept ? 'Suggestion accepted' : 'Suggestion rejected');
 			invalidateAll();
 		}
 	}
@@ -248,6 +319,124 @@
 				</div>
 			{/if}
 
+			<!-- Confirmation Banner for Counterparty -->
+			{#if data.debt?.needsConfirmation && !data.isUploader}
+				{@const needsMyConfirmation = (data.isCreditor && !data.debt.confirmedByCreditor) || 
+					(data.isDebtor && !data.debt.confirmedByDebtor)}
+				{#if needsMyConfirmation}
+					<Card.Root class="border-blue-500 bg-blue-50 dark:bg-blue-950/20">
+						<Card.Content class="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+							<div class="flex items-center gap-3">
+								<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500">
+									<AlertTriangle class="h-5 w-5 text-white" />
+								</div>
+								<div>
+									<p class="font-semibold text-blue-900 dark:text-blue-100">
+										Please confirm this debt
+									</p>
+									<p class="text-sm text-blue-700 dark:text-blue-300">
+										{data.isCreditor
+											? `${data.debt.debtorPhone} says they owe you ${formatCurrency(data.debt.amount)}`
+											: `${data.debt.creditorPhone} says you owe them ${formatCurrency(data.debt.amount)}`}
+									</p>
+								</div>
+							</div>
+							<div class="flex gap-2">
+								<form
+									method="POST"
+									action="?/confirmDebt"
+									use:enhance={() => {
+										isSubmitting = true;
+										return async ({ update }) => {
+											await update();
+											isSubmitting = false;
+											invalidateAll();
+										};
+									}}
+								>
+									<Button type="submit" size="sm" variant="default" disabled={isSubmitting}>
+										<Check class="mr-2 h-4 w-4" />
+										Yes, Confirm
+									</Button>
+								</form>
+								<form
+									method="POST"
+									action="?/updateStatus"
+									use:enhance={() => {
+										isSubmitting = true;
+										return async ({ update }) => {
+											await update();
+											isSubmitting = false;
+											invalidateAll();
+										};
+									}}
+								>
+									<input type="hidden" name="status" value="disputed" />
+									<Button type="submit" size="sm" variant="destructive" disabled={isSubmitting}>
+										<X class="mr-2 h-4 w-4" />
+										Dispute
+									</Button>
+								</form>
+							</div>
+						</Card.Content>
+					</Card.Root>
+				{/if}
+			{/if}
+
+			<!-- Waiting for Confirmation Banner (for creator) -->
+			{#if data.isUploader && data.debt?.needsConfirmation}
+				<Card.Root class="border-muted bg-muted/50">
+					<Card.Content class="flex items-center gap-3 py-3">
+						<Clock class="h-5 w-5 text-muted-foreground" />
+						<p class="text-sm text-muted-foreground">
+							Waiting for {data.isCreditor ? data.debt.debtorPhone : data.debt.creditorPhone} to confirm this debt.
+						</p>
+					</Card.Content>
+				</Card.Root>
+			{/if}
+
+			<!-- Pending Edit Suggestion Banner (for creator) -->
+			{#if hasPendingSuggestion()}
+				<Card.Root class="border-warning bg-warning/10">
+					<Card.Content class="py-4">
+						<div class="flex items-start gap-3">
+							<MessageSquare class="h-5 w-5 text-warning mt-0.5" />
+							<div class="flex-1">
+								<p class="font-medium text-warning">Edit Suggestion Pending</p>
+								<p class="text-sm text-muted-foreground mt-1">
+									The other party has suggested changes to this debt:
+								</p>
+								<div class="mt-2 space-y-1 text-sm">
+									{#if data.debt.suggestedAmount}
+										<p>
+											<span class="text-muted-foreground">Amount:</span>
+											<span class="font-medium">{formatCurrency(data.debt.suggestedAmount)}</span>
+											<span class="text-muted-foreground">(was {formatCurrency(data.debt.amount)})</span>
+										</p>
+									{/if}
+									{#if data.debt.suggestedDescription}
+										<p>
+											<span class="text-muted-foreground">Description:</span>
+											<span class="font-medium">{data.debt.suggestedDescription}</span>
+										</p>
+									{/if}
+								</div>
+								<div class="flex gap-2 mt-3">
+									<Button size="sm" variant="default" onclick={() => respondToSuggestion(true)}>
+										<Check class="mr-2 h-4 w-4" />
+										Accept
+									</Button>
+									<Button size="sm" variant="outline" onclick={() => respondToSuggestion(false)}>
+										<X class="mr-2 h-4 w-4" />
+										Reject
+									</Button>
+								</div>
+							</div>
+						</div>
+					</Card.Content>
+				</Card.Root>
+			{/if}
+
 			<!-- Debt Header Card -->
 			<Card.Root>
 				<Card.Content class="pt-6">
@@ -278,9 +467,17 @@
 						</div>
 
 						<!-- Status Badge -->
-						<Badge variant={getStatusVariant(data.debt.status)} class="capitalize">
-							{data.debt.status}
-						</Badge>
+						<div class="flex flex-col items-end gap-2">
+							<Badge variant={getStatusVariant(data.debt.status)} class="capitalize">
+								{data.debt.status}
+							</Badge>
+							{#if data.debt.status === 'confirmed' && data.debt.hasPendingProof}
+								<Badge variant="outline" class="border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400">
+									<Clock class="mr-1 h-3 w-3" />
+									Proof Pending Review
+								</Badge>
+							{/if}
+						</div>
 					</div>
 
 					<!-- Metadata Grid -->
@@ -525,7 +722,7 @@
 			{/if}
 
 			<!-- Actions Card -->
-			{#if validTransitions.length > 0 || canEdit() || canDelete()}
+			{#if validTransitions.length > 0 || canEdit() || canDelete() || canSuggestEdit()}
 				<Card.Root>
 					<Card.Header>
 						<Card.Title class="text-lg">Actions</Card.Title>
@@ -622,6 +819,37 @@
 								{/if}
 							</div>
 						{/if}
+
+						<!-- Suggest Edit (for counterparty, not creator) -->
+						{#if canSuggestEdit() && !data.debt.suggestedById}
+							<div class={cn(canEdit() || canDelete() ? '' : '', 'border-t pt-4')}>
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={() => {
+										suggestAmount = data.debt.amount?.toString() || '';
+										suggestDescription = data.debt.description || '';
+										showSuggestModal = true;
+									}}
+								>
+									<MessageSquare class="mr-2 h-4 w-4" />
+									Suggest Edit
+								</Button>
+								<p class="text-xs text-muted-foreground mt-2">
+									Propose changes to the creator of this debt
+								</p>
+							</div>
+						{/if}
+
+						<!-- Waiting for suggestion response -->
+						{#if canSuggestEdit() && data.debt.suggestedById === data.currentUser?.id}
+							<div class="border-t pt-4">
+								<div class="flex items-center gap-2 text-muted-foreground">
+									<Clock class="h-4 w-4" />
+									<p class="text-sm">Your edit suggestion is pending review</p>
+								</div>
+							</div>
+						{/if}
 					</Card.Content>
 				</Card.Root>
 			{/if}
@@ -632,4 +860,91 @@
 			</p>
 		</div>
 	{/if}
+
+	<!-- Mark as Paid Modal -->
+	<AlertDialog.Root bind:open={showMarkAsPaidModal}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Mark Debt as Paid?</AlertDialog.Title>
+				<AlertDialog.Description>
+					All payment proofs have been approved. Would you like to mark this debt as fully paid?
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel onclick={() => (showMarkAsPaidModal = false)}>
+					Not Yet
+				</AlertDialog.Cancel>
+				<form
+					method="POST"
+					action="?/updateStatus"
+					use:enhance={() => {
+						return async ({ update }) => {
+							await update();
+							showMarkAsPaidModal = false;
+							invalidateAll();
+						};
+					}}
+				>
+					<input type="hidden" name="status" value="paid" />
+					<AlertDialog.Action type="submit" class="bg-success hover:bg-success/90">
+						<Check class="mr-2 h-4 w-4" />
+						Yes, Mark as Paid
+					</AlertDialog.Action>
+				</form>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
+
+	<!-- Suggest Edit Modal -->
+	<AlertDialog.Root bind:open={showSuggestModal}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Suggest Edit</AlertDialog.Title>
+				<AlertDialog.Description>
+					Propose changes to this debt. The creator will be notified and can accept or reject your suggestion.
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<div class="grid gap-4 py-4">
+				<div class="grid gap-2">
+					<Label for="suggest-amount">Suggested Amount (VND)</Label>
+					<Input
+						id="suggest-amount"
+						type="number"
+						placeholder={data.debt?.amount?.toString()}
+						bind:value={suggestAmount}
+					/>
+					<p class="text-xs text-muted-foreground">
+						Current: {formatCurrency(data.debt?.amount || 0)}
+					</p>
+				</div>
+				<div class="grid gap-2">
+					<Label for="suggest-description">Suggested Description</Label>
+					<Textarea
+						id="suggest-description"
+						placeholder={data.debt?.description || 'Enter description'}
+						bind:value={suggestDescription}
+						rows={3}
+					/>
+					{#if data.debt?.description}
+						<p class="text-xs text-muted-foreground">
+							Current: {data.debt.description}
+						</p>
+					{/if}
+				</div>
+			</div>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel onclick={() => (showSuggestModal = false)}>
+					Cancel
+				</AlertDialog.Cancel>
+				<Button onclick={submitSuggestion} disabled={isSuggesting}>
+					{#if isSuggesting}
+						Sending...
+					{:else}
+						<MessageSquare class="mr-2 h-4 w-4" />
+						Send Suggestion
+					{/if}
+				</Button>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 </PageContainer>

@@ -2,7 +2,7 @@ export type DeviceType = 'desktop' | 'mobile' | 'tablet';
 
 export function getDeviceInfo(): { deviceName: string; deviceType: DeviceType } {
 	if (typeof navigator === 'undefined') {
-		return { deviceName: 'Unknown', deviceType: 'desktop' };
+		return { deviceName: 'Web Browser', deviceType: 'desktop' };
 	}
 
 	const ua = navigator.userAgent;
@@ -21,18 +21,20 @@ export function getDeviceInfo(): { deviceName: string; deviceType: DeviceType } 
 		}
 	}
 
-	// Browser detection
+	// Browser detection - more specific patterns first
 	const browsers = [
-		{ regex: /Chrome/i, name: 'Chrome' },
+		{ regex: /Edg\//i, name: 'Edge' },
+		{ regex: /OPR\//i, name: 'Opera' },
 		{ regex: /Firefox/i, name: 'Firefox' },
+		{ regex: /CriOS/i, name: 'Chrome' }, // Chrome on iOS
+		{ regex: /Chrome/i, name: 'Chrome' },
 		{ regex: /Safari/i, name: 'Safari' },
-		{ regex: /Edge/i, name: 'Edge' }
 	];
 
-	let deviceName = 'Unknown Device';
+	let browser = '';
 	for (const { regex, name } of browsers) {
 		if (regex.test(ua)) {
-			deviceName = name;
+			browser = name;
 			break;
 		}
 	}
@@ -40,17 +42,30 @@ export function getDeviceInfo(): { deviceName: string; deviceType: DeviceType } 
 	// OS detection
 	const os = [
 		{ regex: /Windows/i, name: 'Windows' },
-		{ regex: /Mac/i, name: 'macOS' },
+		{ regex: /Macintosh|Mac OS X/i, name: 'macOS' },
 		{ regex: /Linux/i, name: 'Linux' },
 		{ regex: /Android/i, name: 'Android' },
 		{ regex: /iOS|iPhone|iPad/i, name: 'iOS' }
 	];
 
+	let osName = '';
 	for (const { regex, name } of os) {
 		if (regex.test(ua)) {
-			deviceName += ` on ${name}`;
+			osName = name;
 			break;
 		}
+	}
+
+	// Build device name with better fallback
+	let deviceName: string;
+	if (browser && osName) {
+		deviceName = `${browser} on ${osName}`;
+	} else if (browser) {
+		deviceName = browser;
+	} else if (osName) {
+		deviceName = `Browser on ${osName}`;
+	} else {
+		deviceName = 'Web Browser';
 	}
 
 	return { deviceName, deviceType };

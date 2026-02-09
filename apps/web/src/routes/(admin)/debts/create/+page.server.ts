@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { createTreatyClient } from '$lib/eden';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, fetch }) => {
 	if (!locals.user) throw redirect(303, '/login');
 
 	// User must have a phone number to create debts
@@ -10,7 +10,26 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(303, '/settings/profile?error=missing_phone');
 	}
 
-	return {};
+	// Check if user has any bank accounts (required for LEND debts)
+	let hasBankAccount = false;
+	let recentContacts: string[] = [];
+	
+	try {
+		const api = createTreatyClient(fetch);
+		const [bankRes, contactsRes] = await Promise.all([
+			api.v1.banks.me.get(),
+			api.v1.debts['recent-contacts'].get()
+		]);
+		hasBankAccount = bankRes.data?.accounts && bankRes.data.accounts.length > 0;
+		recentContacts = contactsRes.data?.contacts || [];
+	} catch (err) {
+		console.error('[Debt Create] Failed to load data:', err);
+	}
+
+	return {
+		hasBankAccount,
+		recentContacts
+	};
 };
 
 export const actions: Actions = {
@@ -20,6 +39,8 @@ export const actions: Actions = {
 		const description = formData.get('description') as string;
 		const counterpartyPhone = formData.get('counterpartyPhone') as string;
 		const direction = formData.get('direction') as 'LEND' | 'BORROW';
+		const expiryOption = (formData.get('expiryOption') as string) || 'never';
+		const confirmDuplicate = formData.get('confirmDuplicate') === 'true';
 
 		// User must have a phone number to create debts
 		// Note: locals.user might be stale if profile updated in same session without re-login logic,
@@ -34,21 +55,51 @@ export const actions: Actions = {
 			return fail(400, { message: 'All fields are required' });
 		}
 
+		// Block LEND debt creation if no bank account
+		if (direction === 'LEND') {
+			try {
+				const api = createTreatyClient(fetch);
+				const { data } = await api.v1.banks.accounts.get();
+				const hasBankAccount = data?.accounts && data.accounts.length > 0;
+
+				if (!hasBankAccount) {
+					return fail(400, {
+						message: 'You must add a bank account before creating a debt where someone owes you. Add one in Settings → Banks.'
+					});
+				}
+			} catch (err) {
+				console.error('[Debt Create] Failed to check bank accounts:', err);
+				return fail(500, { message: 'Failed to verify bank account status' });
+			}
+		}
+
 		try {
 			const api = createTreatyClient(fetch);
 			const { data, error, status } = await api.v1.debts.post({
 				amount,
 				description,
 				counterpartyPhone,
-				direction
+				direction,
+				expiryOption: expiryOption as 'never' | '7d' | '30d' | '90d',
+				confirmDuplicate
 			});
 
 			console.log('[Debt Create] Response:', { data, error: error?.value, status });
 
 			if (error) {
-				const errorObj = (error.value as any)?.error;
-				const errorMsg = errorObj?.details || errorObj?.message || 'Failed to create debt';
-				return fail(400, { message: errorMsg });
+				const errorObj = error.value as any;
+				
+				// Handle duplicate warning
+				if (status === 409 && errorObj?.code === 'DUPLICATE_WARNING') {
+					return fail(409, { 
+						message: 'Potential duplicate found',
+						code: 'DUPLICATE_WARNING',
+						duplicates: errorObj.duplicates 
+					});
+				}
+
+				const errMsg = errorObj?.error?.details || errorObj?.error?.message || errorObj?.error || 'Failed to create debt';
+				return fail(400, { message: errMsg });
 			}
 		} catch (err) {
 			console.error(err);

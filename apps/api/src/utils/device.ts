@@ -59,44 +59,56 @@ export function parseUserAgent(userAgent: string | null, clientHints?: ClientHin
   if (!userAgent) {
     return {
       deviceName: 'Web Browser',
-      deviceType: 'unknown',
-      browser: 'Browser',
+      deviceType: 'desktop',
+      browser: 'Unknown Browser',
       os: 'Unknown OS'
     };
   }
 
   const ua = userAgent.toLowerCase();
 
-  // Detect OS
+  // Detect OS first - more patterns for better coverage
   let os = 'Unknown OS';
   if (ua.includes('windows nt 10') || ua.includes('windows nt 11')) os = 'Windows';
   else if (ua.includes('windows')) os = 'Windows';
-  else if (ua.includes('mac os x')) os = 'macOS';
+  else if (ua.includes('macintosh') || ua.includes('mac os x')) os = 'macOS';
   else if (ua.includes('iphone')) os = 'iOS';
   else if (ua.includes('ipad')) os = 'iPadOS';
   else if (ua.includes('android')) os = 'Android';
-  else if (ua.includes('linux')) os = 'Linux';
+  else if (ua.includes('linux') && !ua.includes('android')) os = 'Linux';
   else if (ua.includes('cros')) os = 'Chrome OS';
+  else if (ua.includes('x11')) os = 'Unix';
 
-  // Detect Browser
-  let browser = 'Browser';
-  if (ua.includes('edg/')) browser = 'Edge';
-  else if (ua.includes('chrome') && !ua.includes('chromium')) browser = 'Chrome';
-  else if (ua.includes('firefox')) browser = 'Firefox';
-  else if (ua.includes('safari') && !ua.includes('chrome')) browser = 'Safari';
-  else if (ua.includes('opera') || ua.includes('opr/')) browser = 'Opera';
+  // Detect Browser - more patterns and prioritize specific over generic
+  let browser = 'Unknown Browser';
+  if (ua.includes('edg/') || ua.includes('edge/')) browser = 'Edge';
+  else if (ua.includes('opr/') || ua.includes('opera')) browser = 'Opera';
+  else if (ua.includes('firefox') || ua.includes('fxios')) browser = 'Firefox';
+  else if (ua.includes('crios')) browser = 'Chrome'; // Chrome on iOS
+  else if (ua.includes('chrome') && !ua.includes('chromium') && !ua.includes('edg')) browser = 'Chrome';
+  else if (ua.includes('safari') && !ua.includes('chrome') && !ua.includes('android')) browser = 'Safari';
   else if (ua.includes('msie') || ua.includes('trident')) browser = 'Internet Explorer';
+  else if (ua.includes('chromium')) browser = 'Chromium';
 
   // Detect Device Type
   let deviceType: DeviceInfo['deviceType'] = 'desktop';
-  if (ua.includes('mobile') || ua.includes('iphone') || ua.includes('android')) {
+  if (ua.includes('mobile') || ua.includes('iphone') || (ua.includes('android') && !ua.includes('tablet'))) {
     deviceType = 'mobile';
-  } else if (ua.includes('ipad') || ua.includes('tablet')) {
+  } else if (ua.includes('ipad') || ua.includes('tablet') || (ua.includes('android') && ua.includes('tablet'))) {
     deviceType = 'tablet';
   }
 
-  // Build device name
-  const deviceName = `${browser} on ${os}`;
+  // Build device name with better fallback
+  let deviceName: string;
+  if (browser !== 'Unknown Browser' && os !== 'Unknown OS') {
+    deviceName = `${browser} on ${os}`;
+  } else if (browser !== 'Unknown Browser') {
+    deviceName = browser;
+  } else if (os !== 'Unknown OS') {
+    deviceName = `Browser on ${os}`;
+  } else {
+    deviceName = 'Web Browser';
+  }
 
   return {
     deviceName,

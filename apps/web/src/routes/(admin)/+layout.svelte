@@ -16,7 +16,8 @@
 		Shield,
 		Menu,
 		X,
-		Activity
+		Activity,
+		Bell
 	} from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 
@@ -44,6 +45,7 @@
 	const settingsItems = [
 		{ href: '/settings/profile', label: 'Profile', icon: User },
 		{ href: '/settings/security', label: 'Security', icon: Shield },
+		{ href: '/settings/notifications', label: 'Notifications', icon: Bell },
 		{ href: '/settings/activity', label: 'Activity', icon: Activity },
 		{ href: '/settings/banks', label: 'Banks', icon: Wallet }
 	];

@@ -27,6 +27,27 @@ export const debts = sqliteTable('debts', {
   description: text('description'),
   status: text('status').notNull().default('pending'), // pending, confirmed, paid, disputed
 
+  // Confirmation tracking (for two-party verification)
+  confirmedByCreditor: integer('confirmed_by_creditor', { mode: 'boolean' }).notNull().default(false),
+  confirmedByDebtor: integer('confirmed_by_debtor', { mode: 'boolean' }).notNull().default(false),
+  needsConfirmation: integer('needs_confirmation', { mode: 'boolean' }).notNull().default(true),
+  creditorConfirmedAt: integer('creditor_confirmed_at', { mode: 'timestamp' }),
+  debtorConfirmedAt: integer('debtor_confirmed_at', { mode: 'timestamp' }),
+
+  // Payment proof tracking
+  hasPendingProof: integer('has_pending_proof', { mode: 'boolean' }).notNull().default(false),
+  proofCount: integer('proof_count').notNull().default(0),
+  lastProofUploadedAt: integer('last_proof_uploaded_at', { mode: 'timestamp' }),
+
+  // Expiry for unconfirmed debts (null = never expires)
+  expiresAt: integer('expires_at', { mode: 'timestamp' }),
+
+  // Suggested edit from counterparty (pending edit request)
+  suggestedAmount: integer('suggested_amount'),
+  suggestedDescription: text('suggested_description'),
+  suggestedById: text('suggested_by_id', { length: 24 }).references(() => users.id),
+  suggestedAt: integer('suggested_at', { mode: 'timestamp' }),
+
   // Timestamps
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),

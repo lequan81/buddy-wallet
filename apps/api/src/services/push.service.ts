@@ -307,4 +307,68 @@ export class PushService {
 
     return 0; // SQLite doesn't return affected rows count easily
   }
+
+  /**
+   * Send notification when a new debt is created
+   */
+  async sendDebtCreatedNotification(params: {
+    userId: string;
+    creatorName: string;
+    amount: number;
+    description: string;
+    debtId: string;
+    isCreditor: boolean;
+  }): Promise<SendResult> {
+    const { userId, creatorName, amount, description, debtId, isCreditor } = params;
+
+    const formattedAmount = new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      maximumFractionDigits: 0
+    }).format(amount);
+
+    const message = isCreditor
+      ? `${creatorName} says you owe ${formattedAmount} for "${description}"`
+      : `${creatorName} says they owe you ${formattedAmount} for "${description}"`;
+
+    return this.sendToUser(userId, {
+      title: 'New Debt Recorded',
+      body: message,
+      icon: '/icon-192x192.png',
+      badge: '/badge-72x72.png',
+      tag: `debt-${debtId}`,
+      url: `/debts/${debtId}`,
+      data: { debtId, type: 'debt_created' },
+      requireInteraction: true
+    });
+  }
+
+  /**
+   * Send notification when a debt is confirmed by counterparty
+   */
+  async sendDebtConfirmedNotification(params: {
+    userId: string;
+    confirmerName: string;
+    amount: number;
+    description: string;
+    debtId: string;
+  }): Promise<SendResult> {
+    const { userId, confirmerName, amount, description, debtId } = params;
+
+    const formattedAmount = new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      maximumFractionDigits: 0
+    }).format(amount);
+
+    return this.sendToUser(userId, {
+      title: 'Debt Confirmed',
+      body: `${confirmerName} has confirmed the debt of ${formattedAmount} for "${description}"`,
+      icon: '/icon-192x192.png',
+      badge: '/badge-72x72.png',
+      tag: `debt-confirmed-${debtId}`,
+      url: `/debts/${debtId}`,
+      data: { debtId, type: 'debt_confirmed' }
+    });
+  }
 }

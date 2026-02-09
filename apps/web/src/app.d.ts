@@ -23,6 +23,10 @@ declare global {
 				role: string;
 				permissions: string[];
 				phoneNumber?: string | null;
+				emailVerified?: boolean;
+				emailNotificationsEnabled?: boolean;
+				pushNotificationsEnabled?: boolean;
+				mustChangePassword?: boolean;
 			} | null;
 			/** Current access token (valid after refresh if needed) */
 			accessToken: string | undefined;

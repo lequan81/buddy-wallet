@@ -7,7 +7,19 @@ import { Elysia, t } from 'elysia';
 import { permissionPlugin } from '@plugins/guards';
 import { standardRateLimiter, uploadRateLimiter, deleteRateLimiter } from '@plugins/middleware';
 import { PERMISSIONS } from '@repo/permissions';
-import { fileService, debtService } from '@/services';
+import { fileService, debtService, pushService, userService } from '@/services';
+
+// Helper to format currency
+const formatVND = (amount: number) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(amount);
+
+// Helper to check if user can receive push notifications
+async function canReceivePush(userId: string): Promise<boolean> {
+  const result = await userService.getUserById(userId);
+  if (!result.user) return false;
+  // Must have verified email AND push enabled
+  return result.user.emailVerified === true && result.user.pushNotificationsEnabled === true;
+}
 
 export const uploadController = new Elysia({ prefix: '/upload' })
   .use(permissionPlugin)
@@ -77,6 +89,19 @@ export const uploadController = new Elysia({ prefix: '/upload' })
       if (!result.success) {
         set.status = 400;
         return result;
+      }
+
+      // Send notification to creditor that proof was uploaded
+      if (debt.creditorId && debt.creditorId !== user!.id) {
+        const canNotify = await canReceivePush(debt.creditorId);
+        if (canNotify) {
+          pushService.sendToUser(debt.creditorId, {
+            title: 'Payment Proof Uploaded',
+            body: `Someone uploaded payment proof for ${formatVND(debt.amount)}`,
+            url: `/debts/${debtId}`,
+            tag: `proof-upload-${debtId}`
+          }).catch(() => {}); // Don't fail request if notification fails
+        }
       }
 
       return {
@@ -216,7 +241,25 @@ export const uploadController = new Elysia({ prefix: '/upload' })
         return result;
       }
 
-      return { success: true, message: 'Proof approved' };
+      // Send notification to proof uploader that their proof was approved
+      if (result.uploaderId && result.uploaderId !== user!.id) {
+        const canNotify = await canReceivePush(result.uploaderId);
+        if (canNotify) {
+          pushService.sendToUser(result.uploaderId, {
+            title: 'Proof Approved',
+            body: 'Your payment proof has been approved by the creditor',
+            url: `/debts/${result.debtId}`,
+            tag: `proof-approved-${result.debtId}`
+          }).catch(() => {});
+        }
+      }
+
+      return { 
+        success: true, 
+        message: 'Proof approved',
+        allProofsApproved: result.allProofsApproved,
+        debtId: result.debtId
+      };
     },
     {
       params: t.Object({ id: t.String() }),
@@ -233,6 +276,20 @@ export const uploadController = new Elysia({ prefix: '/upload' })
       if (!result.success) {
         set.status = 400;
         return result;
+      }
+
+      // Send notification to proof uploader that their proof was rejected
+      if (result.uploaderId && result.uploaderId !== user!.id) {
+        const canNotify = await canReceivePush(result.uploaderId);
+        if (canNotify) {
+          const reasonText = body.reason ? `: ${body.reason}` : '';
+          pushService.sendToUser(result.uploaderId, {
+            title: 'Proof Rejected',
+            body: `Your payment proof was rejected${reasonText}`,
+            url: `/debts/${result.debtId}`,
+            tag: `proof-rejected-${result.debtId}`
+          }).catch(() => {});
+        }
       }
 
       return { success: true, message: 'Proof rejected' };

@@ -8,6 +8,7 @@ import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { accessControlPlugin } from '@plugins';
 import { permissionPlugin } from '@plugins/guards';
+import { standardRateLimiter } from '@plugins/middleware';
 import { getUserWithFreshData } from '@plugins/auth';
 import { PERMISSIONS, hasPermission } from '@repo/permissions';
 import { debtService, activityService } from '@/services';
@@ -16,29 +17,87 @@ import { getClientIP } from '@utils';
 export const debtsController = new Elysia({ prefix: '/debts' })
   .use(permissionPlugin)
   .use(accessControlPlugin)
+  // Apply standard rate limit (100 req/min) for all debt endpoints
+  .use(standardRateLimiter)
 
-  // List debts (own or all for admin)
+  // List debts (own or all for admin) with pagination
   .get(
     '/',
-    async ({ user, permissions }) => {
+    async ({ user, permissions, query }) => {
       const hasViewAll = hasPermission(permissions, PERMISSIONS.DEBT_VIEW_ALL);
-      const debts = await debtService.getDebtsForUser(user!.id, hasViewAll);
-      return successResponse({ debts });
+      const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
+      const offset = query.offset ? parseInt(query.offset) : 0;
+      const status = query.status || undefined;
+      
+      const result = await debtService.getDebtsForUser(user!.id, hasViewAll, {
+        limit,
+        offset,
+        status
+      });
+      
+      return successResponse({
+        debts: result.data,
+        pagination: {
+          total: result.total,
+          limit: result.limit,
+          offset: result.offset,
+          hasMore: result.offset + result.data.length < result.total
+        }
+      });
     },
-    { checkPermission: PERMISSIONS.DEBT_VIEW_OWN }
+    { 
+      checkPermission: PERMISSIONS.DEBT_VIEW_OWN,
+      query: t.Object({
+        limit: t.Optional(t.String()),
+        offset: t.Optional(t.String()),
+        status: t.Optional(t.String())
+      })
+    }
   )
 
-  // Admin: Get specific user's debts
+  // Admin: Get specific user's debts with pagination
   .get(
     '/user/:userId',
-    async ({ params: { userId } }) => {
-      const debts = await debtService.getDebtsByUserId(userId);
-      return successResponse({ debts });
+    async ({ params: { userId }, query }) => {
+      const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
+      const offset = query.offset ? parseInt(query.offset) : 0;
+      const status = query.status || undefined;
+      
+      const result = await debtService.getDebtsByUserId(userId, {
+        limit,
+        offset,
+        status
+      });
+      
+      return successResponse({
+        debts: result.data,
+        pagination: {
+          total: result.total,
+          limit: result.limit,
+          offset: result.offset,
+          hasMore: result.offset + result.data.length < result.total
+        }
+      });
     },
     {
       params: t.Object({ userId: t.String() }),
+      query: t.Object({
+        limit: t.Optional(t.String()),
+        offset: t.Optional(t.String()),
+        status: t.Optional(t.String())
+      }),
       checkPermission: PERMISSIONS.DEBT_VIEW_ALL
     }
+  )
+
+  // Get recent contacts (phone numbers user has interacted with)
+  .get(
+    '/recent-contacts',
+    async ({ user }) => {
+      const contacts = await debtService.getRecentContacts(user!.id, 10);
+      return successResponse({ contacts });
+    },
+    { checkPermission: PERMISSIONS.DEBT_VIEW_OWN }
   )
 
   // Create new debt
@@ -53,13 +112,35 @@ export const debtsController = new Elysia({ prefix: '/debts' })
         return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
-      const result = await debtService.createDebt(body, {
-        id: freshUser.id,
-        phoneNumber: freshUser.phoneNumber,
-        permissions: freshUser.permissions as string[]
-      });
+      const result = await debtService.createDebt(
+        {
+          amount: body.amount,
+          description: body.description,
+          counterpartyPhone: body.counterpartyPhone,
+          direction: body.direction
+        },
+        {
+          id: freshUser.id,
+          phoneNumber: freshUser.phoneNumber,
+          permissions: freshUser.permissions as string[]
+        },
+        {
+          expiryOption: body.expiryOption as 'never' | '7d' | '30d' | '90d' | undefined,
+          confirmDuplicate: body.confirmDuplicate
+        }
+      );
 
       if (!result.success) {
+        // Return duplicate warning with duplicates info
+        if (result.code === 'DUPLICATE_WARNING') {
+          set.status = 409; // Conflict
+          return {
+            success: false,
+            error: result.error,
+            code: result.code,
+            duplicates: (result as any).duplicates
+          };
+        }
         set.status = 400;
         return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
@@ -82,7 +163,14 @@ export const debtsController = new Elysia({ prefix: '/debts' })
         amount: t.Number({ minimum: 1 }),
         description: t.String({ maxLength: 500 }),
         counterpartyPhone: t.String({ minLength: 9, maxLength: 20 }),
-        direction: t.Union([t.Literal('LEND'), t.Literal('BORROW')])
+        direction: t.Union([t.Literal('LEND'), t.Literal('BORROW')]),
+        expiryOption: t.Optional(t.Union([
+          t.Literal('never'),
+          t.Literal('7d'),
+          t.Literal('30d'),
+          t.Literal('90d')
+        ])),
+        confirmDuplicate: t.Optional(t.Boolean())
       }),
       checkPermission: PERMISSIONS.DEBT_CREATE
     }
@@ -313,6 +401,167 @@ export const debtsController = new Elysia({ prefix: '/debts' })
     {
       params: t.Object({ id: t.String() }),
       checkPermission: PERMISSIONS.DEBT_DELETE_OWN,
+      ensureRelatedDebt: 'id'
+    }
+  )
+
+  // Confirm debt by counterparty
+  .post(
+    '/:id/confirm',
+    async ({ user, params: { id }, set, request }) => {
+      const freshUser = await getUserWithFreshData(user!.id);
+      if (!freshUser) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
+      }
+
+      const result = await debtService.confirmDebt(id, {
+        id: freshUser.id,
+        phoneNumber: freshUser.phoneNumber,
+        permissions: freshUser.permissions as string[]
+      });
+
+      if (!result.success) {
+        if (result.code === 'NOT_FOUND') {
+          set.status = 404;
+          return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+        }
+        if (result.code === 'FORBIDDEN') {
+          set.status = 403;
+          return errorResponse(GEN_ERRORS.FORBIDDEN, result.error);
+        }
+        if (result.code === 'ALREADY_CONFIRMED') {
+          return successResponse({ message: result.error });
+        }
+        set.status = 400;
+        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+      }
+
+      // Log the confirm activity
+      await activityService.log({
+        userId: freshUser.id,
+        action: 'confirm',
+        resource: 'debt',
+        resourceId: id,
+        ipAddress: getClientIP(request) || undefined,
+        userAgent: request.headers.get('user-agent') || undefined
+      });
+
+      return successResponse({ debt: result.debt, message: result.message });
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      ensureRelatedDebt: 'id'
+    }
+  )
+
+  // Suggest edit to a debt (counterparty only)
+  .post(
+    '/:id/suggest',
+    async ({ user, params: { id }, body, set, request }) => {
+      const freshUser = await getUserWithFreshData(user!.id);
+      if (!freshUser) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
+      }
+
+      const result = await debtService.suggestEdit(
+        id,
+        {
+          id: freshUser.id,
+          phoneNumber: freshUser.phoneNumber,
+          permissions: freshUser.permissions as string[]
+        },
+        {
+          amount: body.amount,
+          description: body.description
+        }
+      );
+
+      if (!result.success) {
+        if (result.code === 'NOT_FOUND') {
+          set.status = 404;
+          return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+        }
+        if (result.code === 'FORBIDDEN') {
+          set.status = 403;
+          return errorResponse(GEN_ERRORS.FORBIDDEN, result.error);
+        }
+        set.status = 400;
+        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+      }
+
+      await activityService.log({
+        userId: freshUser.id,
+        action: 'suggest_edit',
+        resource: 'debt',
+        resourceId: id,
+        changes: { after: body },
+        ipAddress: getClientIP(request) || undefined,
+        userAgent: request.headers.get('user-agent') || undefined
+      });
+
+      return successResponse({ debt: result.debt, message: result.message });
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        amount: t.Optional(t.Number({ minimum: 1 })),
+        description: t.Optional(t.String({ maxLength: 500 }))
+      }),
+      ensureRelatedDebt: 'id'
+    }
+  )
+
+  // Respond to suggested edit (creator only)
+  .post(
+    '/:id/suggestion/respond',
+    async ({ user, params: { id }, body, set, request }) => {
+      const freshUser = await getUserWithFreshData(user!.id);
+      if (!freshUser) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
+      }
+
+      const result = await debtService.respondToSuggestion(
+        id,
+        {
+          id: freshUser.id,
+          phoneNumber: freshUser.phoneNumber,
+          permissions: freshUser.permissions as string[]
+        },
+        body.accept
+      );
+
+      if (!result.success) {
+        if (result.code === 'NOT_FOUND') {
+          set.status = 404;
+          return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+        }
+        if (result.code === 'FORBIDDEN') {
+          set.status = 403;
+          return errorResponse(GEN_ERRORS.FORBIDDEN, result.error);
+        }
+        set.status = 400;
+        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+      }
+
+      await activityService.log({
+        userId: freshUser.id,
+        action: body.accept ? 'accept_suggestion' : 'reject_suggestion',
+        resource: 'debt',
+        resourceId: id,
+        ipAddress: getClientIP(request) || undefined,
+        userAgent: request.headers.get('user-agent') || undefined
+      });
+
+      return successResponse({ debt: result.debt, message: result.message });
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        accept: t.Boolean()
+      }),
       ensureRelatedDebt: 'id'
     }
   );

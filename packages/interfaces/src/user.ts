@@ -6,6 +6,10 @@ export interface SafeUser {
   role: string;
   permissions: string[];
   isActive: boolean;
+  emailVerified?: boolean;
+  emailNotificationsEnabled?: boolean;
+  pushNotificationsEnabled?: boolean;
+  mustChangePassword?: boolean;
   createdAt: Date | string | null;
   updatedAt: Date | string | null;
 }

@@ -114,16 +114,33 @@ export interface ISessionService {
 // DEBT SERVICE INTERFACE
 // ============================================
 
+interface PaginationOptions {
+  limit?: number;
+  offset?: number;
+  status?: string;
+}
+
+interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface IDebtService {
   /**
-   * Get debts for a user (filtered by permissions)
+   * Get debts for a user (filtered by permissions) with pagination
    */
-  getDebtsForUser(userId: string, hasViewAllPermission: boolean): Promise<Debt[]>;
+  getDebtsForUser(
+    userId: string, 
+    hasViewAllPermission: boolean, 
+    options?: PaginationOptions
+  ): Promise<PaginatedResult<Debt>>;
 
   /**
-   * Get debts for a specific user (admin only)
+   * Get debts for a specific user (admin only) with pagination
    */
-  getDebtsByUserId(userId: string): Promise<Debt[]>;
+  getDebtsByUserId(userId: string, options?: PaginationOptions): Promise<PaginatedResult<Debt>>;
 
   /**
    * Count active debts for a phone number (public lookup)
@@ -156,9 +173,9 @@ export interface IDebtService {
 
 export interface IUserService {
   /**
-   * Get all users (admin only)
+   * Get all users (admin only) with pagination
    */
-  getAllUsers(): Promise<SafeUser[]>;
+  getAllUsers(options?: { limit?: number; offset?: number }): Promise<{ users: SafeUser[]; total: number; hasMore: boolean }>;
 
   /**
    * Get a single user by ID with caching

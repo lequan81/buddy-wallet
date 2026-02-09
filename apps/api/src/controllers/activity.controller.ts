@@ -15,11 +15,19 @@ export const activityController = new Elysia({ prefix: '/activity' })
   .get(
     '/',
     async ({ user, query }) => {
-      const limit = query.limit ? parseInt(query.limit) : 50;
+      const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
       const offset = query.offset ? parseInt(query.offset) : 0;
 
-      const logs = await activityService.getLogsForUser(user!.id, { limit, offset });
-      return successResponse({ logs });
+      const result = await activityService.getLogsForUser(user!.id, { limit, offset });
+      return successResponse({ 
+        logs: result.logs,
+        pagination: {
+          total: result.total,
+          limit,
+          offset,
+          hasMore: result.hasMore
+        }
+      });
     },
     {
       query: t.Object({
