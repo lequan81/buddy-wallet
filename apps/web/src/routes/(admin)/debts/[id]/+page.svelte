@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 	import {
 		ArrowLeft,
-		DollarSign,
+		ArrowUp,
+		ArrowDown,
 		Calendar,
 		FileText,
 		Phone,
 		User,
-		TrendingUp,
-		TrendingDown,
 		Edit,
 		Trash2,
 		Check,
@@ -18,16 +18,17 @@
 		Clock,
 		QrCode,
 		Upload,
-		Image as ImageIcon,
-		Landmark
+		Image as ImageIcon
 	} from '@lucide/svelte';
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
-	import { Separator } from '@repo/ui/components/ui/separator';
+	import { Badge } from '@repo/ui/components/ui/badge';
 	import { Label } from '@repo/ui/components/ui/label';
 	import { Input } from '@repo/ui/components/ui/input';
+	import PageContainer from '$lib/components/layout/PageContainer.svelte';
 	import { apiFetch } from '$lib/api';
+	import { cn } from '$lib/utils';
 
 	let { data, form } = $props<{ data: any; form: any }>();
 
@@ -65,6 +66,16 @@
 		}
 	});
 
+	// Toast on form results
+	$effect(() => {
+		if (form?.error) {
+			toast.error(form.error);
+		}
+		if (form?.success && form?.message) {
+			toast.success(form.message);
+		}
+	});
+
 	const formatDate = (date: string | null) => {
 		if (!date) return '—';
 		return new Date(date).toLocaleDateString('en-US', {
@@ -77,24 +88,30 @@
 	};
 
 	const formatCurrency = (amount: number) => {
-		return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+		return new Intl.NumberFormat('vi-VN', {
+			style: 'currency',
+			currency: 'VND',
+			maximumFractionDigits: 0
+		}).format(amount);
 	};
 
-	// Status badge styling
-	const getStatusStyle = (status: string) => {
+	// Status badge variant
+	const getStatusVariant = (
+		status: string
+	): 'default' | 'secondary' | 'destructive' | 'outline' => {
 		switch (status?.toLowerCase()) {
 			case 'pending':
-				return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
+				return 'outline';
 			case 'confirmed':
-				return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+				return 'secondary';
 			case 'paid':
-				return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+				return 'default';
 			case 'disputed':
-				return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+				return 'destructive';
 			case 'cancelled':
-				return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300';
+				return 'outline';
 			default:
-				return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300';
+				return 'outline';
 		}
 	};
 
@@ -194,11 +211,11 @@
 	<title>{data.debt ? `Debt - ${formatCurrency(data.debt.amount)}` : 'Debt Not Found'}</title>
 </svelte:head>
 
-<div class="container mx-auto max-w-4xl px-4 py-8">
+<PageContainer maxWidth="max-w-4xl">
 	<!-- Back Link -->
 	<a
 		href="/dashboard"
-		class="mb-6 inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+		class="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
 	>
 		<ArrowLeft class="h-4 w-4" />
 		Back to Dashboard
@@ -206,168 +223,180 @@
 
 	{#if data.error || !data.debt}
 		<!-- Error State -->
-		<div class="rounded-xl border bg-card p-8 text-center shadow-sm">
-			<div
-				class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30"
-			>
-				<AlertTriangle class="h-8 w-8 text-red-600" />
-			</div>
-			<h1 class="mb-2 text-xl font-semibold">{data.error || 'Debt not found'}</h1>
-			<p class="text-muted-foreground">
-				The debt you're looking for doesn't exist or you don't have access to it.
-			</p>
-		</div>
+		<Card.Root>
+			<Card.Content class="py-12 text-center">
+				<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+					<AlertTriangle class="h-8 w-8 text-destructive" />
+				</div>
+				<h1 class="mb-2 text-xl font-semibold">{data.error || 'Debt not found'}</h1>
+				<p class="text-sm text-muted-foreground">
+					The debt you're looking for doesn't exist or you don't have access to it.
+				</p>
+			</Card.Content>
+		</Card.Root>
 	{:else}
-		<!-- Success/Error Messages -->
-		{#if form?.error}
-			<div class="mb-4 rounded-lg bg-red-100 p-3 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-				{form.error}
-			</div>
-		{/if}
-		{#if form?.success && form?.message}
-			<div
-				class="mb-4 rounded-lg bg-green-100 p-3 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-			>
-				{form.message}
-			</div>
-		{/if}
-
-		<!-- Debt Header Card -->
-		<div class="mb-6 rounded-xl border bg-card p-6 shadow-sm">
-			<div class="mb-4 flex flex-wrap items-start justify-between gap-4">
-				<div class="flex items-center gap-4">
-					<div
-						class="flex h-16 w-16 items-center justify-center rounded-full {data.isCreditor
-							? 'bg-green-100 dark:bg-green-900/30'
-							: 'bg-red-100 dark:bg-red-900/30'}"
-					>
-						{#if data.isCreditor}
-							<TrendingUp class="h-8 w-8 text-green-600" />
-						{:else}
-							<TrendingDown class="h-8 w-8 text-red-600" />
-						{/if}
-					</div>
-					<div>
-						<p class="mb-1 text-sm text-muted-foreground">
-							{data.isCreditor ? 'You are owed' : 'You owe'}
-						</p>
-						<h1 class="text-3xl font-bold {data.isCreditor ? 'text-green-600' : 'text-red-600'}">
-							{formatCurrency(data.debt.amount)}
-						</h1>
-					</div>
+		<div class="space-y-6">
+			<!-- Success/Error Messages -->
+			{#if form?.error}
+				<div class="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+					{form.error}
 				</div>
-
-				<span
-					class="rounded-full px-3 py-1.5 text-sm font-medium {getStatusStyle(data.debt.status)}"
-				>
-					{data.debt.status?.toUpperCase()}
-				</span>
-			</div>
-
-			<!-- Debt Details -->
-			<div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-				<div class="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-					<FileText class="h-5 w-5 text-muted-foreground" />
-					<div>
-						<p class="text-xs text-muted-foreground">Description</p>
-						<p class="font-medium">{data.debt.description || '—'}</p>
-					</div>
+			{/if}
+			{#if form?.success && form?.message}
+				<div class="rounded-lg border border-success/20 bg-success/10 p-3 text-sm text-success">
+					{form.message}
 				</div>
+			{/if}
 
-				<div class="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-					<Phone class="h-5 w-5 text-muted-foreground" />
-					<div>
-						<p class="text-xs text-muted-foreground">
-							{data.isCreditor ? 'Debtor' : 'Creditor'}
-						</p>
-						<p class="font-medium">
-							{data.isCreditor ? data.debt.debtorPhone : data.debt.creditorPhone}
-						</p>
-					</div>
-				</div>
-
-				<div class="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-					<Calendar class="h-5 w-5 text-muted-foreground" />
-					<div>
-						<p class="text-xs text-muted-foreground">Created</p>
-						<p class="font-medium">{formatDate(data.debt.createdAt)}</p>
-					</div>
-				</div>
-
-				<div class="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-					<Clock class="h-5 w-5 text-muted-foreground" />
-					<div>
-						<p class="text-xs text-muted-foreground">Last Updated</p>
-						<p class="font-medium">{formatDate(data.debt.updatedAt)}</p>
-					</div>
-				</div>
-			</div>
-		</div>
-
-		<!-- Payment Section (For Debtor) -->
-		{#if data.isDebtor && data.debt.status !== 'paid' && data.debt.status !== 'cancelled'}
-			<div class="mb-6 rounded-xl border bg-card p-6 shadow-sm">
-				<h2 class="mb-6 flex items-center gap-2 text-xl font-semibold">
-					<QrCode class="h-5 w-5 text-primary" />
-					Payment
-				</h2>
-
-				<div class="grid gap-8 md:grid-cols-2">
-					<!-- QR Code -->
-					<div>
-						<h3 class="mb-4 text-sm font-medium tracking-wider text-muted-foreground uppercase">
-							Step 1: Scan to Pay
-						</h3>
-						{#if creditorBanks.length === 0}
-							<div class="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
-								<p>Creditor has not added any bank accounts yet.</p>
-								<p class="mt-1 text-sm">Please contact them to ask for payment details.</p>
-							</div>
-						{:else}
-							<div class="space-y-4">
-								{#if creditorBanks.length > 1}
-									<div class="grid gap-2">
-										<Label>Select Bank</Label>
-										<select
-											class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-											bind:value={selectedBankId}
-										>
-											{#each creditorBanks as bank}
-												<option value={bank.id}>{bank.shortName} - {bank.accountNumber}</option>
-											{/each}
-										</select>
-									</div>
-								{/if}
-
-								{#if selectedBank}
-									<div
-										class="flex flex-col items-center rounded-lg border bg-white p-4 dark:bg-white/10"
-									>
-										<img src={qrUrl()} alt="Payment QR Code" class="w-full max-w-64 rounded-lg" />
-										<div class="mt-4 text-center text-sm">
-											<p class="font-bold">{selectedBank.bankName}</p>
-											<p class="font-mono">{selectedBank.accountNumber}</p>
-											<p>{selectedBank.accountName}</p>
-										</div>
-									</div>
+			<!-- Debt Header Card -->
+			<Card.Root>
+				<Card.Content class="pt-6">
+					<div class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+						<!-- Amount and Direction -->
+						<div class="flex items-start gap-4">
+							<div class={cn(
+								'flex h-12 w-12 items-center justify-center rounded-full',
+								data.isCreditor ? 'bg-success/10' : 'bg-destructive/10'
+							)}>
+								{#if data.isCreditor}
+									<ArrowUp class="h-6 w-6 text-success" />
+								{:else}
+									<ArrowDown class="h-6 w-6 text-destructive" />
 								{/if}
 							</div>
-						{/if}
+							<div>
+								<p class="mb-1 text-sm text-muted-foreground">
+									{data.isCreditor ? 'Owed to you' : 'You owe'}
+								</p>
+								<h1 class={cn(
+									'font-tabular text-4xl font-bold',
+									data.isCreditor ? 'text-success' : 'text-destructive'
+								)}>
+									{formatCurrency(data.debt.amount)}
+								</h1>
+							</div>
+						</div>
+
+						<!-- Status Badge -->
+						<Badge variant={getStatusVariant(data.debt.status)} class="capitalize">
+							{data.debt.status}
+						</Badge>
 					</div>
 
-					<!-- Upload Proof -->
-					<div>
-						<h3 class="mb-4 text-sm font-medium tracking-wider text-muted-foreground uppercase">
-							Step 2: Upload Proof
-						</h3>
-						<Card.Root>
-							<div class="p-6">
-								<div class="grid gap-4">
-									<div class="grid gap-2">
-										<Label for="proof">Transaction Screenshot</Label>
+					<!-- Metadata Grid -->
+					<div class="mt-8 grid gap-4 sm:grid-cols-2">
+						<div class="flex items-start gap-3">
+							<FileText class="mt-0.5 h-4 w-4 text-muted-foreground" />
+							<div class="min-w-0 flex-1">
+								<p class="text-xs text-muted-foreground">Description</p>
+								<p class="mt-0.5 font-medium">{data.debt.description || '—'}</p>
+							</div>
+						</div>
+
+						<div class="flex items-start gap-3">
+							<Phone class="mt-0.5 h-4 w-4 text-muted-foreground" />
+							<div class="min-w-0 flex-1">
+								<p class="text-xs text-muted-foreground">
+									{data.isCreditor ? 'Debtor' : 'Creditor'}
+								</p>
+								<p class="mt-0.5 font-medium">
+									{data.isCreditor ? data.debt.debtorPhone : data.debt.creditorPhone}
+								</p>
+							</div>
+						</div>
+
+						<div class="flex items-start gap-3">
+							<Calendar class="mt-0.5 h-4 w-4 text-muted-foreground" />
+							<div class="min-w-0 flex-1">
+								<p class="text-xs text-muted-foreground">Created</p>
+								<p class="mt-0.5 text-sm">{formatDate(data.debt.createdAt)}</p>
+							</div>
+						</div>
+
+						<div class="flex items-start gap-3">
+							<Clock class="mt-0.5 h-4 w-4 text-muted-foreground" />
+							<div class="min-w-0 flex-1">
+								<p class="text-xs text-muted-foreground">Last Updated</p>
+								<p class="mt-0.5 text-sm">{formatDate(data.debt.updatedAt)}</p>
+							</div>
+						</div>
+					</div>
+				</Card.Content>
+			</Card.Root>
+
+			<!-- Payment Section (For Debtor) -->
+			{#if data.isDebtor && data.debt.status !== 'paid' && data.debt.status !== 'cancelled'}
+				<Card.Root>
+					<Card.Header>
+						<Card.Title class="flex items-center gap-2 text-lg">
+							<QrCode class="h-5 w-5 text-muted-foreground" />
+							Payment
+						</Card.Title>
+						<Card.Description>Scan QR code to pay, then upload proof</Card.Description>
+					</Card.Header>
+					<Card.Content>
+						<div class="grid gap-6 md:grid-cols-2">
+							<!-- QR Code -->
+							<div>
+								<p class="mb-3 text-sm font-medium text-muted-foreground">Step 1: Scan to Pay</p>
+								{#if creditorBanks.length === 0}
+									<div class="rounded-lg border border-dashed p-6 text-center">
+										<p class="text-sm text-muted-foreground">
+											Creditor has not added any bank accounts yet.
+										</p>
+										<p class="mt-1 text-xs text-muted-foreground">
+											Please contact them for payment details.
+										</p>
+									</div>
+								{:else}
+									<div class="space-y-4">
+										{#if creditorBanks.length > 1}
+											<div class="space-y-2">
+												<Label for="bankSelect" class="text-xs">Select Bank</Label>
+												<select
+													id="bankSelect"
+													class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+													bind:value={selectedBankId}
+												>
+													{#each creditorBanks as bank}
+														<option value={bank.id}>{bank.shortName} - {bank.accountNumber}</option>
+													{/each}
+												</select>
+											</div>
+										{/if}
+
+										{#if selectedBank}
+											<div class="rounded-lg border bg-white p-3 dark:bg-white/5">
+												<img
+													src={qrUrl()}
+													alt="Payment QR Code"
+													class="mx-auto w-full max-w-64 rounded"
+												/>
+												<div class="mt-3 space-y-1 text-center text-sm">
+													<p class="font-semibold">{selectedBank.bankName}</p>
+													<p class="font-mono text-xs">{selectedBank.accountNumber}</p>
+													<p class="text-xs text-muted-foreground">{selectedBank.accountName}</p>
+												</div>
+											</div>
+										{/if}
+									</div>
+								{/if}
+							</div>
+
+							<!-- Upload Proof -->
+							<div>
+								<p class="mb-3 text-sm font-medium text-muted-foreground">Step 2: Upload Proof</p>
+								<div class="space-y-4">
+									<div class="space-y-2">
+										<Label for="proof" class="text-xs">Transaction Screenshot</Label>
 										<Input id="proof" type="file" accept="image/*" bind:files={uploadFile} />
 									</div>
-									<Button onclick={handleUpload} disabled={!uploadFile || isUploading}>
+									<Button
+										onclick={handleUpload}
+										disabled={!uploadFile || isUploading}
+										class="w-full"
+										size="sm"
+									>
 										{#if isUploading}
 											Uploading...
 										{:else}
@@ -377,225 +406,230 @@
 									</Button>
 
 									{#if uploadError}
-										<p class="text-sm text-red-500">{uploadError}</p>
+										<p class="text-sm text-destructive">{uploadError}</p>
 									{/if}
 									{#if uploadSuccess}
-										<div
-											class="rounded-md bg-green-50 p-2 text-sm text-green-600 dark:bg-green-900/10"
-										>
-											Proof uploaded successfully! The creditor will review it.
+										<div class="rounded-md border border-success/20 bg-success/10 p-2 text-sm text-success">
+											Proof uploaded! The creditor will review it.
 										</div>
 									{/if}
 								</div>
 							</div>
-						</Card.Root>
-					</div>
-				</div>
-			</div>
-		{/if}
+						</div>
+					</Card.Content>
+				</Card.Root>
+			{/if}
 
-		<!-- Pending Proofs Section (For Creditor) -->
-		{#if data.isCreditor && pendingProofs.length > 0}
-			<div
-				class="mb-6 rounded-xl border border-blue-200 bg-card p-6 shadow-sm dark:border-blue-900"
-			>
-				<h2
-					class="mb-4 flex items-center gap-2 text-xl font-semibold text-blue-700 dark:text-blue-400"
-				>
-					<ImageIcon class="h-5 w-5" />
-					Pending Payment Proofs
-				</h2>
-
-				<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-					{#each pendingProofs as proof}
-						<Card.Root>
-							<div class="aspect-video w-full overflow-hidden rounded-t-lg bg-muted">
-								<!-- svelte-ignore a11y_img_redundant_alt -->
-								<img
-									src={`${import.meta.env.VITE_API_URL || ''}${proof.url}`}
-									alt="Proof Image"
-									class="h-full w-full object-cover"
-								/>
-							</div>
-							<div class="p-4">
-								<div class="mb-4 flex items-center justify-between">
-									<span class="text-xs text-muted-foreground">{formatDate(proof.createdAt)}</span>
+			<!-- Pending Proofs Section (For Creditor) -->
+			{#if data.isCreditor && pendingProofs.length > 0}
+				<Card.Root class="border-blue-200 dark:border-blue-900">
+					<Card.Header>
+						<Card.Title class="flex items-center gap-2 text-lg text-blue-700 dark:text-blue-400">
+							<ImageIcon class="h-5 w-5" />
+							Pending Payment Proofs
+						</Card.Title>
+						<Card.Description>Review and approve payment proofs</Card.Description>
+					</Card.Header>
+					<Card.Content>
+						<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+							{#each pendingProofs as proof}
+								<div class="overflow-hidden rounded-lg border">
+									<div class="aspect-video w-full overflow-hidden bg-muted">
+										<!-- svelte-ignore a11y_img_redundant_alt -->
+										<img
+											src={`${import.meta.env.VITE_API_URL || ''}${proof.url}`}
+											alt="Proof Image"
+											class="h-full w-full object-cover"
+										/>
+									</div>
+									<div class="p-3">
+										<p class="mb-3 text-xs text-muted-foreground">{formatDate(proof.createdAt)}</p>
+										<div class="flex gap-2">
+											<Button
+												size="sm"
+												class="flex-1 bg-success hover:bg-success/90"
+												onclick={() => approveProof(proof.id)}
+											>
+												<Check class="mr-1 h-4 w-4" /> Approve
+											</Button>
+											<Button
+												size="sm"
+												variant="destructive"
+												class="flex-1"
+												onclick={() => rejectProof(proof.id)}
+											>
+												<X class="mr-1 h-4 w-4" /> Reject
+											</Button>
+										</div>
+									</div>
 								</div>
-								<div class="flex gap-2">
-									<Button
-										size="sm"
-										class="w-full bg-green-600 hover:bg-green-700"
-										onclick={() => approveProof(proof.id)}
-									>
-										<Check class="mr-2 h-4 w-4" /> Approve
-									</Button>
-									<Button
-										size="sm"
-										variant="destructive"
-										class="w-full"
-										onclick={() => rejectProof(proof.id)}
-									>
-										<X class="mr-2 h-4 w-4" /> Reject
-									</Button>
-								</div>
-							</div>
-						</Card.Root>
-					{/each}
-				</div>
-			</div>
-		{/if}
-
-		<!-- Edit Form (shown when editing) -->
-		{#if isEditing && canEdit()}
-			<div class="mb-6 rounded-xl border bg-card p-6 shadow-sm">
-				<h2 class="mb-4 text-lg font-semibold">Edit Debt</h2>
-				<form
-					method="POST"
-					action="?/update"
-					use:enhance={() => {
-						isSubmitting = true;
-						return async ({ update }) => {
-							await update();
-							isSubmitting = false;
-							isEditing = false;
-							invalidateAll();
-						};
-					}}
-					class="space-y-4"
-				>
-					<div>
-						<label for="description" class="mb-1 block text-sm font-medium">Description</label>
-						<input
-							type="text"
-							id="description"
-							name="description"
-							bind:value={editDescription}
-							class="w-full rounded-lg border bg-background px-3 py-2"
-							placeholder="What is this debt for?"
-						/>
-					</div>
-					<div>
-						<label for="amount" class="mb-1 block text-sm font-medium">Amount</label>
-						<input
-							type="number"
-							id="amount"
-							name="amount"
-							bind:value={editAmount}
-							class="w-full rounded-lg border bg-background px-3 py-2"
-							min="1"
-							placeholder="Amount in VND"
-						/>
-					</div>
-					<div class="flex gap-2">
-						<Button type="submit" disabled={isSubmitting}>
-							{isSubmitting ? 'Saving...' : 'Save Changes'}
-						</Button>
-						<Button type="button" variant="outline" onclick={() => (isEditing = false)}>
-							Cancel
-						</Button>
-					</div>
-				</form>
-			</div>
-		{/if}
-
-		<!-- Actions Card -->
-		{#if validTransitions.length > 0 || canEdit() || canDelete()}
-			<div class="mb-6 rounded-xl border bg-card p-6 shadow-sm">
-				<h2 class="mb-4 text-lg font-semibold">Actions</h2>
-
-				<!-- Status Transitions -->
-				{#if validTransitions.length > 0}
-					<div class="mb-4">
-						<p class="mb-3 text-sm text-muted-foreground">Change Status</p>
-						<div class="flex flex-wrap gap-2">
-							{#each validTransitions as transition}
-								<form
-									method="POST"
-									action="?/updateStatus"
-									use:enhance={() => {
-										isSubmitting = true;
-										return async ({ update }) => {
-											await update();
-											isSubmitting = false;
-											invalidateAll();
-										};
-									}}
-								>
-									<input type="hidden" name="status" value={transition.status} />
-									<Button
-										type="submit"
-										disabled={isSubmitting}
-										variant={transition.status === 'cancelled' || transition.status === 'disputed'
-											? 'destructive'
-											: 'default'}
-									>
-										{@const Icon = transition.icon}
-										<Icon class="mr-2 h-4 w-4" />
-										{transition.label}
-									</Button>
-								</form>
 							{/each}
 						</div>
-					</div>
-				{/if}
+					</Card.Content>
+				</Card.Root>
+			{/if}
 
-				<!-- Edit & Delete -->
-				<div class="flex flex-wrap gap-2 border-t pt-4">
-					{#if canEdit() && !isEditing}
-						<Button variant="outline" onclick={() => (isEditing = true)}>
-							<Edit class="mr-2 h-4 w-4" />
-							Edit
-						</Button>
-					{/if}
+			<!-- Edit Form (shown when editing) -->
+			{#if isEditing && canEdit()}
+				<Card.Root>
+					<Card.Header>
+						<Card.Title class="text-lg">Edit Debt</Card.Title>
+					</Card.Header>
+					<Card.Content>
+						<form
+							method="POST"
+							action="?/update"
+							use:enhance={() => {
+								isSubmitting = true;
+								return async ({ update }) => {
+									await update();
+									isSubmitting = false;
+									isEditing = false;
+									invalidateAll();
+								};
+							}}
+							class="space-y-4"
+						>
+							<div class="space-y-2">
+								<Label for="description" class="text-xs">Description</Label>
+								<Input
+									type="text"
+									id="description"
+									name="description"
+									bind:value={editDescription}
+									placeholder="What is this debt for?"
+								/>
+							</div>
+							<div class="space-y-2">
+								<Label for="amount" class="text-xs">Amount</Label>
+								<Input
+									type="number"
+									id="amount"
+									name="amount"
+									bind:value={editAmount}
+									min="1"
+									placeholder="Amount in VND"
+								/>
+							</div>
+							<div class="flex gap-2">
+								<Button type="submit" disabled={isSubmitting} size="sm">
+									{isSubmitting ? 'Saving...' : 'Save Changes'}
+								</Button>
+								<Button type="button" variant="outline" size="sm" onclick={() => (isEditing = false)}>
+									Cancel
+								</Button>
+							</div>
+						</form>
+					</Card.Content>
+				</Card.Root>
+			{/if}
 
-					{#if canDelete()}
-						<AlertDialog.Root>
-							<AlertDialog.Trigger>
-								{#snippet child({ props }: { props: Record<string, any> })}
-									<Button variant="destructive" {...props}>
-										<Trash2 class="mr-2 h-4 w-4" />
-										Delete
-									</Button>
-								{/snippet}
-							</AlertDialog.Trigger>
-							<AlertDialog.Content>
-								<AlertDialog.Header>
-									<AlertDialog.Title>Delete Debt</AlertDialog.Title>
-									<AlertDialog.Description>
-										Are you sure you want to delete this debt record? This action cannot be undone.
-									</AlertDialog.Description>
-								</AlertDialog.Header>
-								<AlertDialog.Footer>
-									<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-									<form
-										method="POST"
-										action="?/delete"
-										use:enhance={() => {
-											isSubmitting = true;
-											return async ({ update }) => {
-												await update();
-												isSubmitting = false;
-											};
-										}}
-									>
-										<AlertDialog.Action
-											type="submit"
-											class="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+			<!-- Actions Card -->
+			{#if validTransitions.length > 0 || canEdit() || canDelete()}
+				<Card.Root>
+					<Card.Header>
+						<Card.Title class="text-lg">Actions</Card.Title>
+					</Card.Header>
+					<Card.Content class="space-y-4">
+						<!-- Status Transitions -->
+						{#if validTransitions.length > 0}
+							<div>
+								<p class="mb-3 text-xs text-muted-foreground">Change Status</p>
+								<div class="flex flex-wrap gap-2">
+									{#each validTransitions as transition}
+										<form
+											method="POST"
+											action="?/updateStatus"
+											use:enhance={() => {
+												isSubmitting = true;
+												return async ({ update }) => {
+													await update();
+													isSubmitting = false;
+													invalidateAll();
+												};
+											}}
 										>
-											{isSubmitting ? 'Deleting...' : 'Delete'}
-										</AlertDialog.Action>
-									</form>
-								</AlertDialog.Footer>
-							</AlertDialog.Content>
-						</AlertDialog.Root>
-					{/if}
-				</div>
-			</div>
-		{/if}
+											<input type="hidden" name="status" value={transition.status} />
+											<Button
+												type="submit"
+												disabled={isSubmitting}
+												size="sm"
+												variant={transition.status === 'cancelled' || transition.status === 'disputed'
+													? 'destructive'
+													: 'default'}
+											>
+												{@const Icon = transition.icon}
+												<Icon class="mr-2 h-4 w-4" />
+												{transition.label}
+											</Button>
+										</form>
+									{/each}
+								</div>
+							</div>
+						{/if}
 
-		<!-- Debt ID (for reference) -->
-		<p class="text-center text-xs text-muted-foreground">
-			Debt ID: {data.debt.id}
-		</p>
+						<!-- Edit & Delete -->
+						{#if canEdit() || canDelete()}
+							<div class="flex flex-wrap gap-2 border-t pt-4">
+								{#if canEdit() && !isEditing}
+									<Button variant="outline" size="sm" onclick={() => (isEditing = true)}>
+										<Edit class="mr-2 h-4 w-4" />
+										Edit
+									</Button>
+								{/if}
+
+								{#if canDelete()}
+									<AlertDialog.Root>
+										<AlertDialog.Trigger>
+											{#snippet child({ props }: { props: Record<string, any> })}
+												<Button variant="destructive" size="sm" {...props}>
+													<Trash2 class="mr-2 h-4 w-4" />
+													Delete
+												</Button>
+											{/snippet}
+										</AlertDialog.Trigger>
+										<AlertDialog.Content>
+											<AlertDialog.Header>
+												<AlertDialog.Title>Delete Debt</AlertDialog.Title>
+												<AlertDialog.Description>
+													Are you sure you want to delete this debt record? This action cannot be
+													undone.
+												</AlertDialog.Description>
+											</AlertDialog.Header>
+											<AlertDialog.Footer>
+												<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+												<form
+													method="POST"
+													action="?/delete"
+													use:enhance={() => {
+														isSubmitting = true;
+														return async ({ update }) => {
+															await update();
+															isSubmitting = false;
+														};
+													}}
+												>
+													<AlertDialog.Action
+														type="submit"
+														class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+													>
+														{isSubmitting ? 'Deleting...' : 'Delete'}
+													</AlertDialog.Action>
+												</form>
+											</AlertDialog.Footer>
+										</AlertDialog.Content>
+									</AlertDialog.Root>
+								{/if}
+							</div>
+						{/if}
+					</Card.Content>
+				</Card.Root>
+			{/if}
+
+			<!-- Debt ID Reference -->
+			<p class="text-center text-xs text-muted-foreground">
+				Debt ID: <span class="font-mono">{data.debt.id}</span>
+			</p>
+		</div>
 	{/if}
-</div>
+</PageContainer>

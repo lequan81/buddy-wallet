@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import { superForm } from 'sveltekit-superforms';
-	import { Eye, EyeOff, Check, Circle, Loader2 } from '@lucide/svelte';
+	import { Check, Circle, Loader2 } from '@lucide/svelte';
 	import { Button } from '@repo/ui/components/ui/button';
-	import { Input } from '@repo/ui/components/ui/input';
-	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
+	import FormInput from '$lib/components/forms/FormInput.svelte';
 
 	import type { Infer } from 'sveltekit-superforms';
 	import type { PageData } from './$types';
@@ -25,15 +24,38 @@
 		}
 	});
 
-	let showPassword = $state(false);
-
 	// Password validation rules (Visual feedback only, schema handles actual validation)
 	const passwordRules = $derived([
 		{ label: 'At least 8 characters', valid: ($form.password?.length ?? 0) >= 8 },
 		{ label: 'One uppercase letter', valid: /[A-Z]/.test($form.password ?? '') },
 		{ label: 'One lowercase letter', valid: /[a-z]/.test($form.password ?? '') },
-		{ label: 'One number', valid: /\d/.test($form.password ?? '') }
+		{ label: 'One number', valid: /\d/.test($form.password ?? '') },
+		{ label: 'One special character', valid: /[!@#$%^&*(),.?":{}|<>]/.test($form.password ?? '') }
 	]);
+
+	// Repeat password state
+	let confirmPassword = $state('');
+	let confirmPasswordState = $derived.by(() => {
+		if (confirmPassword === '') return 'default' as const;
+		if (confirmPassword !== ($form.password ?? '')) return 'error' as const;
+		return 'success' as const;
+	});
+	let confirmPasswordMessage = $derived.by(() => {
+		if (confirmPassword === '') return '';
+		if (confirmPassword !== ($form.password ?? '')) return 'Passwords do not match';
+		return 'Passwords match';
+	});
+
+	// Determine validation states
+	const nameState = $derived($errors.name ? 'error' : $form.name ? 'success' : 'default');
+	const phoneState = $derived($errors.phoneNumber ? 'error' : $form.phoneNumber && $form.phoneNumber.length >= 10 ? 'success' : 'default');
+	const emailState = $derived($errors.email ? 'error' : $form.email && $form.email.includes('@') ? 'success' : 'default');
+	const passwordState = $derived($errors.password ? 'error' : passwordRules.every(r => r.valid) ? 'success' : 'default');
+	const canSubmit = $derived(
+		passwordRules.every(r => r.valid) &&
+		(confirmPassword === '' || confirmPassword === ($form.password ?? '')) &&
+		!$delayed
+	);
 
 	// Show toast on form error message if server returns specific message
 	$effect(() => {
@@ -47,104 +69,80 @@
 	<Card.Root class="w-full max-w-md">
 		<Card.Header class="space-y-1 text-center">
 			<Card.Title class="text-2xl font-bold">Create an account</Card.Title>
-			<Card.Description>Enter your email and password to get started</Card.Description>
+			<Card.Description>Enter your information to get started</Card.Description>
 		</Card.Header>
 
 		<Card.Content>
 			<form method="POST" use:enhance class="space-y-4">
 				<!-- Name Field -->
-				<div class="space-y-2">
-					<Label for="name">Full Name</Label>
-					<Input
-						id="name"
-						name="name"
-						type="text"
-						placeholder="Nguyễn Văn A"
-						autocomplete="name"
-						aria-invalid={$errors.name ? 'true' : undefined}
-						bind:value={$form.name}
-						{...$constraints.name}
-					/>
-					{#if $errors.name}
-						<span class="text-xs text-destructive">{$errors.name}</span>
-					{/if}
-				</div>
+				<FormInput
+					label="Full Name"
+					name="name"
+					type="text"
+					placeholder="Nguyễn Văn A"
+					bind:value={$form.name}
+					validationState={nameState}
+					error={$errors.name?.[0]}
+					success={nameState === 'success' ? 'Name looks good' : undefined}
+					required
+					{...$constraints.name}
+				/>
 
 				<!-- Phone Number Field (Required) -->
 				<div class="space-y-2">
-					<Label for="phoneNumber">Phone Number</Label>
-					<Input
-						id="phoneNumber"
+					<FormInput
+						label="Phone Number"
 						name="phoneNumber"
 						type="tel"
 						placeholder="0901234567"
-						autocomplete="tel"
-						aria-invalid={$errors.phoneNumber ? 'true' : undefined}
 						bind:value={$form.phoneNumber}
+						validationState={phoneState}
+						error={$errors.phoneNumber?.[0]}
+						success={phoneState === 'success' ? 'Phone number is valid' : undefined}
+						required
 						{...$constraints.phoneNumber}
 					/>
-					{#if $errors.phoneNumber}
-						<span class="text-xs text-destructive">{$errors.phoneNumber}</span>
+					{#if !$errors.phoneNumber}
+						<p class="text-xs text-muted-foreground">Used to link debts to your account</p>
 					{/if}
-					<p class="text-xs text-muted-foreground">Used to link debts to your account</p>
 				</div>
 
 				<!-- Email Field (Optional) -->
-				<div class="space-y-2">
-					<Label for="email">Email (Optional)</Label>
-					<Input
-						id="email"
-						name="email"
-						type="email"
-						placeholder="name@example.com"
-						autocomplete="email"
-						aria-invalid={$errors.email ? 'true' : undefined}
-						bind:value={$form.email}
-						{...$constraints.email}
-					/>
-					{#if $errors.email}
-						<span class="text-xs text-destructive">{$errors.email}</span>
-					{/if}
-				</div>
+				<FormInput
+					label="Email (Optional)"
+					name="email"
+					type="email"
+					placeholder="name@example.com"
+					bind:value={$form.email}
+					validationState={emailState}
+					error={$errors.email?.[0]}
+					success={emailState === 'success' ? 'Email looks good' : undefined}
+					{...$constraints.email}
+				/>
 
 				<!-- Password Field -->
 				<div class="space-y-2">
-					<Label for="password">Password</Label>
-					<div class="relative">
-						<Input
-							id="password"
-							name="password"
-							type={showPassword ? 'text' : 'password'}
-							placeholder="Create a strong password"
-							autocomplete="new-password"
-							bind:value={$form.password}
-							{...$constraints.password}
-							class="pr-10 {$errors.password ? 'border-destructive' : ''}"
-						/>
-						<button
-							type="button"
-							onclick={() => (showPassword = !showPassword)}
-							class="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-							aria-label={showPassword ? 'Hide password' : 'Show password'}
-						>
-							{#if showPassword}
-								<EyeOff class="h-4 w-4" />
-							{:else}
-								<Eye class="h-4 w-4" />
-							{/if}
-						</button>
-					</div>
-					{#if $errors.password}
-						<span class="text-xs text-destructive">{$errors.password}</span>
-					{/if}
+					<FormInput
+						label="Password"
+						name="password"
+						type="password"
+						placeholder="Create a strong password"
+						bind:value={$form.password}
+						validationState={passwordState}
+						error={$errors.password?.[0]}
+						success={passwordState === 'success' ? 'Strong password' : undefined}
+						showPasswordToggle={true}
+						required
+						{...$constraints.password}
+					/>
 
 					<!-- Password Requirements - Always visible, no layout shift -->
-					<div class="grid grid-cols-2 gap-x-4 gap-y-1 pt-2">
+					<div class="grid grid-cols-2 gap-x-4 gap-y-1 pt-1">
 						{#each passwordRules as rule}
 							<div class="flex items-center gap-1.5 text-xs">
 								{#if rule.valid}
-									<Check class="h-3 w-3 shrink-0 text-green-500" />
-									<span class="text-green-600 dark:text-green-400">{rule.label}</span>
+									<Check class="h-3 w-3 shrink-0 text-success" />
+									<span class="text-success">{rule.label}</span>
 								{:else}
 									<Circle class="h-3 w-3 shrink-0 text-muted-foreground/50" />
 									<span class="text-muted-foreground">{rule.label}</span>
@@ -154,8 +152,22 @@
 					</div>
 				</div>
 
+				<!-- Confirm Password Field -->
+				<FormInput
+					label="Confirm Password"
+					name="confirmPassword"
+					type="password"
+					placeholder="Re-enter your password"
+					bind:value={confirmPassword}
+					validationState={confirmPasswordState}
+					error={confirmPasswordState === 'error' ? confirmPasswordMessage : undefined}
+					success={confirmPasswordState === 'success' ? confirmPasswordMessage : undefined}
+					showPasswordToggle={true}
+					required
+				/>
+
 				<!-- Submit Button - Fixed height -->
-				<Button type="submit" class="h-10 w-full" disabled={$delayed}>
+				<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>
 					<span class="inline-flex items-center justify-center">
 						{#if $delayed}
 							<Loader2 class="mr-2 h-4 w-4 animate-spin" />

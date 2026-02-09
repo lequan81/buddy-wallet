@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
-	import { buttonVariants } from '@repo/ui/components/ui/button';
+	import { Button, buttonVariants } from '@repo/ui/components/ui/button';
 	import * as DropdownMenu from '@repo/ui/components/ui/dropdown-menu';
 	import * as Avatar from '@repo/ui/components/ui/avatar';
 	import PushPermissionBanner from '$lib/components/shared/PushPermissionBanner.svelte';
@@ -16,9 +16,9 @@
 		Shield,
 		Menu,
 		X,
-		ChevronDown,
 		Activity
 	} from '@lucide/svelte';
+	import { cn } from '$lib/utils';
 
 	let { children, data } = $props();
 	let user = $derived(data.user);
@@ -50,25 +50,27 @@
 </script>
 
 <div class="flex min-h-dvh bg-muted/30">
-	<!-- Sidebar -->
-	<aside class="hidden border-r bg-background lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+	<!-- Desktop Sidebar -->
+	<aside class="hidden border-r bg-background lg:fixed lg:inset-y-0 lg:flex lg:w-56 lg:flex-col">
 		<!-- Logo -->
 		<div class="flex h-14 items-center border-b px-4">
 			<a href="/" class="flex items-center space-x-2">
-				<Wallet class="h-6 w-6 text-primary" />
-				<span class="font-bold">Buddy Wallet</span>
+				<Wallet class="h-5 w-5 text-muted-foreground" />
+				<span class="font-semibold">Buddy Wallet</span>
 			</a>
 		</div>
 
 		<!-- Navigation -->
-		<nav class="flex-1 space-y-1 px-2 py-4">
+		<nav class="flex-1 space-y-1 px-3 py-4">
 			{#each navItems() as item}
 				<a
 					href={item.href}
-					class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {page
-						.url.pathname === item.href || page.url.pathname.startsWith(item.href + '/')
-						? 'bg-primary text-primary-foreground'
-						: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+					class={cn(
+						'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+						page.url.pathname === item.href || page.url.pathname.startsWith(item.href + '/')
+							? 'bg-muted text-foreground'
+							: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+					)}
 				>
 					<item.icon class="h-4 w-4" />
 					{item.label}
@@ -76,16 +78,18 @@
 			{/each}
 
 			<div class="pt-4">
-				<p class="px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+				<p class="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
 					Settings
 				</p>
 				{#each settingsItems as item}
 					<a
 						href={item.href}
-						class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {page
-							.url.pathname === item.href
-							? 'bg-primary text-primary-foreground'
-							: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+						class={cn(
+							'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+							page.url.pathname === item.href
+								? 'bg-muted text-foreground'
+								: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+						)}
 					>
 						<item.icon class="h-4 w-4" />
 						{item.label}
@@ -98,11 +102,13 @@
 		<div class="border-t p-4">
 			<div class="flex items-center gap-3">
 				<Avatar.Root class="h-9 w-9">
-					<Avatar.Fallback>{user?.email?.[0]?.toUpperCase() || 'U'}</Avatar.Fallback>
+					<Avatar.Fallback class="text-xs"
+						>{user?.email?.[0]?.toUpperCase() || 'U'}</Avatar.Fallback
+					>
 				</Avatar.Root>
 				<div class="flex-1 truncate">
 					<p class="truncate text-sm font-medium">{user?.email}</p>
-					<p class="text-xs text-muted-foreground capitalize">{user?.role}</p>
+					<p class="text-xs capitalize text-muted-foreground">{user?.role}</p>
 				</div>
 			</div>
 		</div>
@@ -121,38 +127,61 @@
 			<aside class="fixed inset-y-0 left-0 w-64 border-r bg-background">
 				<div class="flex h-14 items-center justify-between border-b px-4">
 					<a href="/" class="flex items-center space-x-2">
-						<Wallet class="h-6 w-6 text-primary" />
-						<span class="font-bold">Buddy Wallet</span>
+						<Wallet class="h-5 w-5 text-muted-foreground" />
+						<span class="font-semibold">Buddy Wallet</span>
 					</a>
 					<button onclick={() => (sidebarOpen = false)} class="rounded p-1 hover:bg-muted">
 						<X class="h-5 w-5" />
 					</button>
 				</div>
-				<nav class="flex-1 space-y-1 px-2 py-4">
+				<nav class="flex-1 space-y-1 px-3 py-4">
 					{#each navItems() as item}
 						<a
 							href={item.href}
 							onclick={() => (sidebarOpen = false)}
-							class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {page
-								.url.pathname === item.href
-								? 'bg-primary text-primary-foreground'
-								: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+							class={cn(
+								'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+								page.url.pathname === item.href
+									? 'bg-muted text-foreground'
+									: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+							)}
 						>
 							<item.icon class="h-4 w-4" />
 							{item.label}
 						</a>
 					{/each}
+
+					<div class="pt-4">
+						<p
+							class="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+						>
+							Settings
+						</p>
+						{#each settingsItems as item}
+							<a
+								href={item.href}
+								onclick={() => (sidebarOpen = false)}
+								class={cn(
+									'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+									page.url.pathname === item.href
+										? 'bg-muted text-foreground'
+										: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+								)}
+							>
+								<item.icon class="h-4 w-4" />
+								{item.label}
+							</a>
+						{/each}
+					</div>
 				</nav>
 			</aside>
 		</div>
 	{/if}
 
 	<!-- Main content -->
-	<div class="flex flex-1 flex-col lg:pl-64">
+	<div class="flex flex-1 flex-col lg:pl-56">
 		<!-- Top header -->
-		<header
-			class="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6"
-		>
+		<header class="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4">
 			<button onclick={() => (sidebarOpen = true)} class="rounded p-2 hover:bg-muted lg:hidden">
 				<Menu class="h-5 w-5" />
 			</button>
@@ -162,26 +191,27 @@
 			<!-- User dropdown -->
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger
-					class="flex items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-muted"
+					class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-muted"
 				>
-					<Avatar.Root class="h-8 w-8">
-						<Avatar.Fallback>{user?.email?.[0]?.toUpperCase() || 'U'}</Avatar.Fallback>
+					<Avatar.Root class="h-7 w-7">
+						<Avatar.Fallback class="text-xs"
+							>{user?.email?.[0]?.toUpperCase() || 'U'}</Avatar.Fallback
+						>
 					</Avatar.Root>
-					<span class="hidden text-sm font-medium sm:block">{user?.email}</span>
-					<ChevronDown class="h-4 w-4 text-muted-foreground" />
+					<span class="hidden font-medium sm:block">{user?.email}</span>
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end" class="w-56">
 					<DropdownMenu.Label>
 						<div class="flex flex-col">
 							<span class="font-medium">{user?.email}</span>
-							<span class="text-xs text-muted-foreground capitalize">{user?.role}</span>
+							<span class="text-xs capitalize text-muted-foreground">{user?.role}</span>
 						</div>
 					</DropdownMenu.Label>
 					<DropdownMenu.Separator />
 					<DropdownMenu.Item>
 						{#snippet child({ props }: { props: Record<string, any> })}
 							<a href="/settings/profile" {...props} class="flex w-full items-center">
-								<User class="mr-2 h-4 w-4" />
+								<User class="mr-2 h-4 w-4 text-muted-foreground" />
 								Profile
 							</a>
 						{/snippet}
@@ -189,7 +219,7 @@
 					<DropdownMenu.Item>
 						{#snippet child({ props }: { props: Record<string, any> })}
 							<a href="/settings/security" {...props} class="flex w-full items-center">
-								<Shield class="mr-2 h-4 w-4" />
+								<Shield class="mr-2 h-4 w-4 text-muted-foreground" />
 								Security
 							</a>
 						{/snippet}
@@ -197,7 +227,7 @@
 					<DropdownMenu.Item>
 						{#snippet child({ props }: { props: Record<string, any> })}
 							<a href="/settings/activity" {...props} class="flex w-full items-center">
-								<Activity class="mr-2 h-4 w-4" />
+								<Activity class="mr-2 h-4 w-4 text-muted-foreground" />
 								Activity
 							</a>
 						{/snippet}

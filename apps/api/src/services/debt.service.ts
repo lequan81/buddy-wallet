@@ -23,7 +23,7 @@ import type { IDebtService, CurrentUser } from '@/types/interfaces';
  * Uses State Machine for status transitions (OCP compliance)
  */
 export class DebtService implements IDebtService {
-  constructor(private db: DbClient) {}
+  constructor(private db: DbClient) { }
 
   /**
    * Get debts for a user (or all debts if admin)
@@ -127,7 +127,7 @@ export class DebtService implements IDebtService {
       id: crypto.randomUUID(),
       amount,
       description,
-      status: 'pending' as const,
+      status: 'confirmed' as const, // Auto-confirm debts when created
       uploadedById: currentUser.id,
       createdAt: new Date(),
       updatedAt: new Date(),

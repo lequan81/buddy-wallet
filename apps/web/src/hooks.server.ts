@@ -41,7 +41,10 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		if (currentToken) {
 			const rawRes = await fetch(`${API_URL}/v1/auth/me`, {
 				method: 'GET',
-				headers: getAuthHeaders(currentToken)
+				headers: {
+					...getAuthHeaders(currentToken),
+					'User-Agent': event.request.headers.get('user-agent') || ''
+				}
 			});
 			const rawData = await rawRes.json();
 
@@ -56,7 +59,8 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 				method: 'POST',
 				headers: {
 					...getDefaultHeaders(),
-					Cookie: `refresh_token=${refreshToken}`
+					Cookie: `refresh_token=${refreshToken}`,
+					'User-Agent': event.request.headers.get('user-agent') || ''
 				}
 			});
 

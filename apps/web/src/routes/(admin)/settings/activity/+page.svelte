@@ -119,8 +119,8 @@
 
 <div class="space-y-6">
 	<div>
-		<h2 class="text-2xl font-bold tracking-tight">Activity Log</h2>
-		<p class="text-muted-foreground">View your recent account activity and actions.</p>
+		<h3 class="text-lg font-medium">Activity Log</h3>
+		<p class="text-sm text-muted-foreground">View your recent account activity and actions.</p>
 	</div>
 
 	<Separator />

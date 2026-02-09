@@ -9,6 +9,10 @@
       "path": "apps/api"
     },
     {
+      "name": "ui",
+      "path": "packages/ui"
+    },
+    {
       "name": "database",
       "path": "packages/db"
     },

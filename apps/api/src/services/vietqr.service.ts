@@ -28,14 +28,10 @@ export class VietQRService {
   async getBanks(): Promise<VietQRBank[]> {
     const cacheKey = 'vietqr:banks';
 
-    // 1. Check Redis cache
-    const cached = await cache.get<string>(cacheKey);
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch (e) {
-        log.error('VIETQR', 'Failed to parse cached banks', { error: String(e) });
-      }
+    // 1. Check Redis cache (cache.get already parses JSON)
+    const cached = await cache.get<VietQRBank[]>(cacheKey);
+    if (cached && Array.isArray(cached)) {
+      return cached;
     }
 
     // 2. Try VietQR API with timeout
@@ -50,8 +46,8 @@ export class VietQRService {
         const result = (await response.json()) as VietQRResponse;
 
         if (result.code === '00' && result.data.length > 0) {
-          // Cache fresh data
-          await cache.set(cacheKey, JSON.stringify(result.data), CACHE_TTL);
+          // Cache fresh data (cache.set handles JSON.stringify internally)
+          await cache.set(cacheKey, result.data, CACHE_TTL);
           return result.data;
         }
       }

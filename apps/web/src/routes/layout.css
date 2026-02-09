@@ -23,6 +23,11 @@
 	--accent: oklch(0.967 0.003 264.542);
 	--accent-foreground: oklch(0.21 0.034 264.665);
 	--destructive: oklch(0.577 0.245 27.325);
+	--destructive-foreground: oklch(0.985 0.002 247.839);
+	--success: oklch(0.648 0.152 160.385);
+	--success-foreground: oklch(0.985 0.002 247.839);
+	--warning: oklch(0.765 0.165 78.352);
+	--warning-foreground: oklch(0.13 0.028 261.692);
 	--border: oklch(0.928 0.006 264.531);
 	--input: oklch(0.928 0.006 264.531);
 	--ring: oklch(0.707 0.022 261.325);
@@ -57,6 +62,11 @@
 	--accent: oklch(0.278 0.033 256.848);
 	--accent-foreground: oklch(0.985 0.002 247.839);
 	--destructive: oklch(0.704 0.191 22.216);
+	--destructive-foreground: oklch(0.985 0.002 247.839);
+	--success: oklch(0.587 0.152 160.385);
+	--success-foreground: oklch(0.985 0.002 247.839);
+	--warning: oklch(0.685 0.165 78.352);
+	--warning-foreground: oklch(0.13 0.028 261.692);
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
 	--ring: oklch(0.551 0.027 264.364);
@@ -95,6 +105,11 @@
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-success: var(--success);
+	--color-success-foreground: var(--success-foreground);
+	--color-warning: var(--warning);
+	--color-warning-foreground: var(--warning-foreground);
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
@@ -121,5 +136,36 @@
 	}
 	body {
 		@apply bg-background text-foreground;
+	}
+}
+
+/* Typography Utilities for Financial Data */
+@layer utilities {
+	.font-tabular {
+		font-feature-settings: 'tnum' 1;
+		font-variant-numeric: tabular-nums;
+	}
+	
+	.text-balance {
+		text-wrap: balance;
+	}
+	
+	/* Financial amount display */
+	.amount-positive {
+		@apply text-success;
+		font-feature-settings: 'tnum' 1;
+		font-variant-numeric: tabular-nums;
+	}
+	
+	.amount-negative {
+		@apply text-destructive;
+		font-feature-settings: 'tnum' 1;
+		font-variant-numeric: tabular-nums;
+	}
+	
+	.amount-neutral {
+		@apply text-foreground;
+		font-feature-settings: 'tnum' 1;
+		font-variant-numeric: tabular-nums;
 	}
 }

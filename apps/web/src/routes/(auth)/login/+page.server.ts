@@ -25,7 +25,11 @@ export const actions: Actions = {
 
 		try {
 			const api = createTreatyClient(fetch);
-			const { data, error, response } = await api.v1.auth.login.post({ email, password });
+			const { data, error, response } = await api.v1.auth.login.post({ email, password }, {
+				headers: {
+					'User-Agent': request.headers.get('user-agent') || ''
+				}
+			});
 
 			if (error) {
 				const errorData = error.value as { error?: { message: string } };

@@ -2,23 +2,33 @@
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { Eye, EyeOff, Loader2 } from '@lucide/svelte';
+	import { Loader2 } from '@lucide/svelte';
 	import { Button } from '@repo/ui/components/ui/button';
-	import { Input } from '@repo/ui/components/ui/input';
-	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
+	import FormInput from '$lib/components/forms/FormInput.svelte';
 
 	let { form, data } = $props();
 
 	let email = $state('');
 	let password = $state('');
-	let showPassword = $state(false);
 	let isSubmitting = $state(false);
+	
+	// Validation states
+	let emailError = $state('');
+	let passwordError = $state('');
 
 	/* Validation now accepts either email format or a phone number of sufficient length */
 	const isValidIdentifier = $derived(email.length >= 3);
-
 	const canSubmit = $derived(isValidIdentifier && password.length > 0 && !isSubmitting);
+
+	// Validate email/phone  as user types
+	$effect(() => {
+		if (email.length > 0 && email.length < 3) {
+			emailError = 'Must be at least 3 characters';
+		} else {
+			emailError = '';
+		}
+	});
 
 	// Show success toast after registration
 	$effect(() => {
@@ -65,55 +75,29 @@
 				class="space-y-4"
 			>
 				<!-- Email/Phone Field -->
-				<div class="space-y-2">
-					<Label for="email">Email or Phone Number</Label>
-					<Input
-						id="email"
-						name="email"
-						type="text"
-						placeholder="Email or 0901234567"
-						autocomplete="username"
-						required
-						bind:value={email}
-					/>
-				</div>
+				<FormInput
+					label="Email or Phone Number"
+					name="email"
+					type="text"
+					placeholder="Email or 0901234567"
+					bind:value={email}
+					validationState={emailError ? 'error' : 'default'}
+					error={emailError}
+					required
+				/>
 
 				<!-- Password Field -->
-				<div class="space-y-2">
-					<div class="flex items-center justify-between">
-						<Label for="password">Password</Label>
-						<a
-							href="/forgot-password"
-							class="text-xs text-muted-foreground transition-colors hover:text-primary"
-						>
-							Forgot password?
-						</a>
-					</div>
-					<div class="relative">
-						<Input
-							id="password"
-							name="password"
-							type={showPassword ? 'text' : 'password'}
-							placeholder="Enter your password"
-							autocomplete="current-password"
-							required
-							bind:value={password}
-							class="pr-10"
-						/>
-						<button
-							type="button"
-							onclick={() => (showPassword = !showPassword)}
-							class="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-							aria-label={showPassword ? 'Hide password' : 'Show password'}
-						>
-							{#if showPassword}
-								<EyeOff class="h-4 w-4" />
-							{:else}
-								<Eye class="h-4 w-4" />
-							{/if}
-						</button>
-					</div>
-				</div>
+				<FormInput
+					label="Password"
+					name="password"
+					type="password"
+					placeholder="Enter your password"
+					bind:value={password}
+					validationState={passwordError ? 'error' : 'default'}
+					error={passwordError}
+					showPasswordToggle={true}
+					required
+				/>
 
 				<!-- Submit Button - Fixed height -->
 				<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>

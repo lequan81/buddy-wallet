@@ -38,7 +38,16 @@ export const cache = {
       const value = await client.get(namespacedKey);
 
       circuitBreaker.trackCommand(true);
-      return value ? JSON.parse(value) : null;
+      
+      if (!value) return null;
+      
+      // Guard against non-JSON responses (e.g., Bun Redis "no such tab" error)
+      if (typeof value === 'string' && !value.startsWith('{') && !value.startsWith('[') && !value.startsWith('"')) {
+        log.warn('REDIS', 'Invalid cache value format', { key, value: value.slice(0, 50) });
+        return null;
+      }
+      
+      return JSON.parse(value) as T;
     } catch (err) {
       log.debug('REDIS', 'Cache get failed', { key, error: String(err) });
       circuitBreaker.trackCommand(false);

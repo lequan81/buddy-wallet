@@ -44,6 +44,29 @@ export const defaultFetchOptions: RequestInit = {
 	headers: getDefaultHeaders()
 };
 
+/**
+ * Safely parse JSON from a Response, returning null on parse errors
+ * Handles cases where the server returns non-JSON (e.g., error strings)
+ */
+export async function safeJsonParse<T>(response: Response): Promise<T | null> {
+	try {
+		const text = await response.text();
+		if (!text) return null;
+		
+		// Check if it looks like JSON before parsing
+		const trimmed = text.trim();
+		if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+			console.error('[API] Received non-JSON response:', trimmed.slice(0, 100));
+			return null;
+		}
+		
+		return JSON.parse(text) as T;
+	} catch (error) {
+		console.error('[API] JSON parse failed:', error);
+		return null;
+	}
+}
+
 // Track ongoing refresh to prevent multiple simultaneous refreshes
 let refreshPromise: Promise<boolean> | null = null;
 
@@ -212,3 +235,44 @@ export async function serverFetch<T>(
 		};
 	}
 }
+
+/**
+ * Check if a phone number has pending debts (public endpoint)
+ * No authentication required
+ */
+export async function checkDebtByPhone(phoneNumber: string): Promise<{
+	data: {
+		success: boolean;
+		phone: string;
+		found: boolean;
+		count: number;
+	} | null;
+	error: string | null;
+}> {
+	try {
+		const params = new URLSearchParams({ phoneNumber });
+		const url = `${API_URL}/v1/public/check-debt?${params}`;
+
+		const response = await fetch(url, {
+			method: 'GET',
+			headers: getDefaultHeaders()
+		});
+
+		const data = await response.json().catch(() => null);
+
+		if (!response.ok) {
+			return {
+				data: null,
+				error: data?.message || data?.error || 'Failed to check debt status'
+			};
+		}
+
+		return { data, error: null };
+	} catch (err) {
+		return {
+			data: null,
+			error: err instanceof Error ? err.message : 'Network error'
+		};
+	}
+}
+

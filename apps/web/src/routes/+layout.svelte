@@ -3,6 +3,7 @@
 	import { AlertTriangle, X } from '@lucide/svelte';
 	import { Toaster } from 'svelte-sonner';
 	import { useRegisterSW } from 'virtual:pwa-register/svelte';
+	import PageLoadingBar from '$lib/components/shared/PageLoadingBar.svelte';
 	import favicon from '$lib/assets/favicon.svg';
 	import './layout.css';
 
@@ -48,6 +49,9 @@
 	<title>Buddy Wallet</title>
 	<meta name="description" content="Buddy Wallet - Manage group expenses and settle debts easily" />
 </svelte:head>
+
+<!-- Page Loading Bar -->
+<PageLoadingBar />
 
 <!-- Toast Notifications (client-only to prevent hydration mismatch) -->
 {#if mounted}

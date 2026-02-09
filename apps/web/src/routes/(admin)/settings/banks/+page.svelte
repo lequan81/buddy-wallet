@@ -1,14 +1,25 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { toast } from 'svelte-sonner';
 	import { Button } from '@repo/ui/components/ui/button';
-	import { Input } from '@repo/ui/components/ui/input';
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Separator } from '@repo/ui/components/ui/separator';
 	import { Plus, Trash2, Landmark } from '@lucide/svelte';
 	import * as Dialog from '@repo/ui/components/ui/dialog';
+	import FormInput from '$lib/components/forms/FormInput.svelte';
 
 	let { data, form } = $props();
+
+	// Toast on form results
+	$effect(() => {
+		if (form?.message) {
+			toast.error(form.message);
+		}
+		if (form?.success) {
+			toast.success('Bank account updated successfully');
+		}
+	});
 
 	// Provide fallback array to avoid undefined errors if data is somehow missing
 	let accounts = $derived(data.accounts || []);
@@ -29,6 +40,84 @@
 				b.name.toLowerCase().includes(searchQuery.toLowerCase())
 		)
 	);
+
+	// Form state
+	let accountNumber = $state('');
+	let accountName = $state('');
+
+	// Validation state
+	type ValidationState = 'default' | 'success' | 'error' | 'warning';
+	let accountNumberValidation = $state<ValidationState>('default');
+	let accountNumberMessage = $state('');
+	let accountNameValidation = $state<ValidationState>('default');
+	let accountNameMessage = $state('');
+
+	// Real-time account number validation
+	$effect(() => {
+		if (accountNumber === '') {
+			accountNumberValidation = 'default';
+			accountNumberMessage = '';
+			return;
+		}
+
+		if (accountNumber.length < 6) {
+			accountNumberValidation = 'error';
+			accountNumberMessage = 'Account number must be at least 6 digits';
+			return;
+		}
+
+		if (!/^\d+$/.test(accountNumber)) {
+			accountNumberValidation = 'error';
+			accountNumberMessage = 'Account number must contain only digits';
+			return;
+		}
+
+		accountNumberValidation = 'success';
+		accountNumberMessage = 'Account number looks good';
+	});
+
+	// Real-time account name validation
+	$effect(() => {
+		if (accountName === '') {
+			accountNameValidation = 'default';
+			accountNameMessage = '';
+			return;
+		}
+
+		if (accountName.length < 3) {
+			accountNameValidation = 'error';
+			accountNameMessage = 'Account name must be at least 3 characters';
+			return;
+		}
+
+		if (accountName !== accountName.toUpperCase()) {
+			accountNameValidation = 'warning';
+			accountNameMessage = 'Uppercase recommended for compatibility';
+			return;
+		}
+
+		if (/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(accountName)) {
+			accountNameValidation = 'warning';
+			accountNameMessage = 'Remove Vietnamese accents for better compatibility';
+			return;
+		}
+
+		accountNameValidation = 'success';
+		accountNameMessage = 'Account name looks good';
+	});
+
+	// Reset form when dialog closes
+	$effect(() => {
+		if (!isAdding) {
+			accountNumber = '';
+			accountName = '';
+			selectedBankCode = '';
+			accountNumberValidation = 'default';
+			accountNumberMessage = '';
+			accountNameValidation = 'default';
+			accountNameMessage = '';
+		}
+	});
 </script>
 
 <div class="space-y-6">
@@ -92,19 +181,38 @@
 					</div>
 
 					<div class="grid gap-2">
-						<Label for="accountNumber">Account Number</Label>
-						<Input id="accountNumber" name="accountNumber" required placeholder="e.g. 1903..." />
-					</div>
+					<FormInput
+						id="accountNumber"
+						name="accountNumber"
+						label="Account Number"
+						type="text"
+						bind:value={accountNumber}
+						placeholder="e.g. 1903..."
+						validationState={accountNumberValidation}
+						error={accountNumberValidation === 'error' ? accountNumberMessage : undefined}
+						success={accountNumberValidation === 'success' ? accountNumberMessage : undefined}
+						required
+					/>
+				</div>
 
-					<div class="grid gap-2">
-						<Label for="accountName">Account Name</Label>
-						<Input id="accountName" name="accountName" required placeholder="e.g. NGUYEN VAN A" />
-						<p class="text-[0.8rem] text-muted-foreground">
-							Name registered with the bank (uppercase, no accents recommended).
-						</p>
-					</div>
+				<div class="grid gap-2">
+					<FormInput
+						id="accountName"
+						name="accountName"
+						label="Account Name"
+						type="text"
+						bind:value={accountName}
+						placeholder="e.g. NGUYEN VAN A"
+						validationState={accountNameValidation}
+						error={accountNameValidation === 'error' ? accountNameMessage : undefined}
+						success={accountNameValidation === 'success' ? accountNameMessage : undefined}
+						warning={accountNameValidation === 'warning' ? accountNameMessage : undefined}
+						helpText="Name registered with the bank (uppercase, no accents recommended)."
+						required
+					/>
+				</div>
 
-					<div class="flex items-center space-x-2">
+				<div class="flex items-center space-x-2">
 						<input
 							type="checkbox"
 							id="isDefault"
@@ -115,7 +223,15 @@
 					</div>
 
 					<Dialog.Footer>
-						<Button type="submit" disabled={isSubmitting || !selectedBankCode}>
+					<Button
+						type="submit"
+						disabled={isSubmitting ||
+							!selectedBankCode ||
+							accountNumberValidation === 'error' ||
+							accountNameValidation === 'error' ||
+							accountNumber === '' ||
+							accountName === ''}
+					>
 							{isSubmitting ? 'Adding...' : 'Add Account'}
 						</Button>
 					</Dialog.Footer>

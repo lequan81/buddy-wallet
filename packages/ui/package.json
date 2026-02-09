@@ -19,6 +19,7 @@
     "./components/ui/separator": "./src/lib/components/ui/separator/index.ts",
     "./components/ui/sheet": "./src/lib/components/ui/sheet/index.ts",
     "./components/ui/table": "./src/lib/components/ui/table/index.ts",
+    "./components/ui/textarea": "./src/lib/components/ui/textarea/index.ts",
     "./lib/utils.js": "./src/lib/utils.ts"
   },
   "scripts": {

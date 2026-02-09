@@ -1,0 +1,145 @@
+<script lang="ts">
+	import { Input } from '@repo/ui/components/ui/input';
+	import { Label } from '@repo/ui/components/ui/label';
+	import { CheckCircle2, AlertCircle, AlertTriangle, Eye, EyeOff } from '@lucide/svelte';
+	import { cn } from '$lib/utils';
+	import type { Component } from 'svelte';
+
+	let {
+		label,
+		name,
+		type = 'text',
+		placeholder,
+		required = false,
+		disabled = false,
+		value = $bindable(''),
+		error,
+		success,
+		warning,
+		validationState = 'default',
+		showPasswordToggle = false,
+		icon,
+		helpText,
+		class: className,
+		...restProps
+	}: {
+		label?: string;
+		name: string;
+		type?: string;
+		placeholder?: string;
+		required?: boolean;
+		disabled?: boolean;
+		value?: string;
+		error?: string;
+		success?: string;
+		warning?: string;
+		validationState?: 'default' | 'success' | 'error' | 'warning';
+		showPasswordToggle?: boolean;
+		icon?: Component<any>;
+		helpText?: string;
+		class?: string;
+		[key: string]: any;
+	} = $props();
+
+	let showPassword = $state(false);
+	let inputType = $derived(showPasswordToggle && showPassword ? 'text' : type);
+
+	const stateConfig = $derived.by(() => {
+		const configs = {
+			error: {
+				icon: AlertCircle,
+				ringClass: 'ring-2 ring-destructive focus-visible:ring-destructive',
+				textClass: 'text-destructive',
+				iconClass: 'text-destructive',
+				message: error
+			},
+			success: {
+				icon: CheckCircle2,
+				ringClass: 'ring-2 ring-success focus-visible:ring-success',
+				textClass: 'text-success',
+				iconClass: 'text-success',
+				message: success
+			},
+			warning: {
+				icon: AlertTriangle,
+				ringClass: 'ring-2 ring-warning focus-visible:ring-warning',
+				textClass: 'text-warning',
+				iconClass: 'text-warning',
+				message: warning
+			},
+			default: {
+				icon: null,
+				ringClass: '',
+				textClass: '',
+				iconClass: '',
+				message: null
+			}
+		};
+		return configs[validationState];
+	});
+
+	const StateIcon = $derived(stateConfig.icon);
+</script>
+
+<div class="space-y-2">
+	{#if label}
+		<Label for={name} class="text-sm font-medium">
+			{label}{required ? ' *' : ''}
+		</Label>
+	{/if}
+
+	<div class="relative">
+		{#if icon}
+			{@const IconComponent = icon}
+			<div class="absolute top-2.5 left-3 pointer-events-none">
+				<IconComponent class="h-4 w-4 text-muted-foreground" />
+			</div>
+		{/if}
+
+		<Input
+			id={name}
+			{name}
+			type={inputType}
+			{placeholder}
+			{required}
+			{disabled}
+			bind:value
+			class={cn(
+				stateConfig.ringClass,
+				icon ? 'pl-10' : '',
+				(StateIcon || showPasswordToggle) ? 'pr-10' : '',
+				className
+			)}
+			{...restProps}
+		/>
+
+		{#if showPasswordToggle}
+			<button
+				type="button"
+				onclick={() => (showPassword = !showPassword)}
+				class="absolute top-2.5 right-3 text-muted-foreground transition-colors hover:text-foreground"
+				aria-label={showPassword ? 'Hide password' : 'Show password'}
+				tabindex="-1"
+			>
+				{#if showPassword}
+					<EyeOff class="h-4 w-4" />
+				{:else}
+					<Eye class="h-4 w-4" />
+				{/if}
+			</button>
+		{:else if StateIcon}
+			<div class="absolute top-2.5 right-3 pointer-events-none">
+				<StateIcon class="h-4 w-4 {stateConfig.iconClass}" />
+			</div>
+		{/if}
+	</div>
+
+	{#if stateConfig.message}
+		<p class="text-sm {stateConfig.textClass} flex items-start gap-1.5">
+			{#if StateIcon}
+				<StateIcon class="h-4 w-4 mt-0.5 shrink-0" />
+			{/if}
+			<span>{stateConfig.message}</span>
+		</p>
+	{/if}
+</div>

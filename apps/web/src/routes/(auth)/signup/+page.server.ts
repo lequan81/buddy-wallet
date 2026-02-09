@@ -37,7 +37,13 @@ export const actions: Actions = {
 			if (error) {
 				console.log('[Signup] API Error:', error.value);
 				const errorData = error.value as { error?: { message: string } };
-				const errorMessage = errorData?.error?.message || 'Registration failed';
+				let errorMessage = errorData?.error?.message || 'Registration failed';
+
+				// Provide user-friendly messages for common errors
+				if (errorMessage.toLowerCase().includes('already exists') || errorMessage.toLowerCase().includes('duplicate')) {
+					errorMessage = 'An account with this phone number or email already exists. Please log in instead.';
+				}
+
 				return message(form, errorMessage, { status: 400 });
 			}
 		} catch (err) {

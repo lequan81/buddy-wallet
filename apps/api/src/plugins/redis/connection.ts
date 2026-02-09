@@ -10,6 +10,7 @@ import { circuitBreaker } from './circuit-breaker';
 
 // Connection state
 let redisClient: RedisClient | null = null;
+let connectionHealthy = false;
 
 /**
  * Parse boolean env var with explicit default
@@ -65,8 +66,12 @@ export async function initRedis(): Promise<boolean> {
       enableOfflineQueue: true
     });
 
-    client.onconnect = () => log.debug('REDIS', 'Connected via TCP');
+    client.onconnect = () => {
+      log.debug('REDIS', 'Connected via TCP');
+      connectionHealthy = true;
+    };
     client.onclose = (error) => {
+      connectionHealthy = false;
       if (error) log.error('REDIS', 'Connection closed with error', { error: String(error) });
     };
 
@@ -75,6 +80,7 @@ export async function initRedis(): Promise<boolean> {
     await client.del('_health');
 
     redisClient = client;
+    connectionHealthy = true; // Mark as healthy after successful connection
     log.debug('REDIS', 'Connection successful', {
       host: REDIS_HOST,
       port: REDIS_PORT,
@@ -94,6 +100,7 @@ export function closeRedis(): void {
   if (redisClient) {
     redisClient.close();
     redisClient = null;
+    connectionHealthy = false;
     log.debug('REDIS', 'Connection closed');
   }
 }
@@ -103,7 +110,9 @@ export function closeRedis(): void {
  */
 export function isRedisAvailable(): boolean {
   if (!circuitBreaker.isAvailable()) return false;
-  return redisClient !== null;
+  if (!redisClient) return false;
+  if (!connectionHealthy) return false;
+  return true;
 }
 
 /**

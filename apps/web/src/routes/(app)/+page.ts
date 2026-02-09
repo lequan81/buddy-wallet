@@ -1,2 +1,3 @@
 export const ssr = true;
-export const prerender = true;
+// Disable prerender to prevent hydration mismatches with user state
+export const prerender = false;

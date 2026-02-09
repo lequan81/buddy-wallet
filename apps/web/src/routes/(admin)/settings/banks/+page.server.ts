@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { API_URL, getAuthHeaders } from '$lib/api';
+import { API_URL, getAuthHeaders, safeJsonParse } from '$lib/api';
 import type { BankResponse, AccountsResponse } from '@repo/interfaces';
 
 export const load: PageServerLoad = async ({
@@ -20,10 +20,12 @@ export const load: PageServerLoad = async ({
 		fetch(`${API_URL}/v1/banks/me`, { headers })
 	]);
 
-	const banks = await banksRes.json().then((r: unknown) => (r as BankResponse).banks || []);
-	const accounts = await myAccountsRes
-		.json()
-		.then((r: unknown) => (r as AccountsResponse).accounts || []);
+	// Safe JSON parsing to handle server errors gracefully
+	const banksData = await safeJsonParse<BankResponse>(banksRes);
+	const accountsData = await safeJsonParse<AccountsResponse>(myAccountsRes);
+
+	const banks = banksData?.banks || [];
+	const accounts = accountsData?.accounts || [];
 
 	return {
 		banks,
@@ -68,10 +70,10 @@ export const actions: Actions = {
 			headers
 		});
 
-		const data = await res.json();
+		const data = await safeJsonParse<{ message?: string }>(res);
 
 		if (!res.ok) {
-			return fail(res.status, { message: data.message || 'Failed to add account' });
+			return fail(res.status, { message: data?.message || 'Failed to add account' });
 		}
 
 		return { success: true };

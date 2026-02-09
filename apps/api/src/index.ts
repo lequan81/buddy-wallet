@@ -27,6 +27,23 @@ import { logger } from './utils/logger';
 // Cleanup jobs now run externally via scripts/prune-worker
 
 export const app = new Elysia()
+  // Global error handler - ensures all errors return proper JSON
+  .onError(({ code, error, set }) => {
+    logger.app('Global error caught', { code, error: String(error) });
+    
+    // Default to 500 for unknown errors
+    if (!set.status || set.status < 400) {
+      set.status = code === 'NOT_FOUND' ? 404 : 
+                   code === 'VALIDATION' ? 400 : 
+                   code === 'PARSE' ? 400 : 500;
+    }
+    
+    return {
+      success: false,
+      error: code,
+      message: error?.message || 'Internal server error'
+    };
+  })
   // OpenTelemetry (if enabled)
   .use(telemetry ?? new Elysia())
   // Redis (if enabled)

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
 	import { Button } from '@repo/ui/components/ui/button';
-	import { Input } from '@repo/ui/components/ui/input';
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Separator } from '@repo/ui/components/ui/separator';
@@ -29,8 +29,18 @@
 		sendTestNotification,
 		isPushSupported
 	} from '$lib/push.svelte';
+	import FormInput from '$lib/components/forms/FormInput.svelte';
 
 	let { data, form } = $props();
+
+	// Toast on form results
+	$effect(() => {
+		if (form?.success) {
+			toast.success(form.message || 'Action completed successfully');
+		} else if (form?.message && !form?.success) {
+			toast.error(form.message);
+		}
+	});
 
 	let isRevoking = $state<string | null>(null);
 	let isLoggingOutAll = $state(false);
@@ -39,6 +49,80 @@
 	let isTogglingPush = $state(false);
 	let isSendingTest = $state(false);
 	let pushSupported = $state(false);
+
+	// Password form state
+	let currentPassword = $state('');
+	let newPassword = $state('');
+	let confirmPassword = $state('');
+
+	// Validation state
+	type ValidationState = 'default' | 'success' | 'error' | 'warning';
+	let newPasswordValidation = $state<ValidationState>('default');
+	let newPasswordMessage = $state('');
+	let confirmPasswordValidation = $state<ValidationState>('default');
+	let confirmPasswordMessage = $state('');
+
+	// Password strength checker
+	$effect(() => {
+		if (newPassword === '') {
+			newPasswordValidation = 'default';
+			newPasswordMessage = '';
+			return;
+		}
+
+		const hasMinLength = newPassword.length >= 8;
+		const hasUpperCase = /[A-Z]/.test(newPassword);
+		const hasLowerCase = /[a-z]/.test(newPassword);
+		const hasNumber = /\d/.test(newPassword);
+		const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(newPassword);
+
+		const requirementsMet = [
+			hasMinLength,
+			hasUpperCase,
+			hasLowerCase,
+			hasNumber,
+			hasSpecialChar
+		].filter(Boolean).length;
+
+		if (!hasMinLength) {
+			newPasswordValidation = 'error';
+			newPasswordMessage = 'Password must be at least 8 characters';
+			return;
+		}
+
+		if (requirementsMet < 3) {
+			newPasswordValidation = 'error';
+			newPasswordMessage = 'Include uppercase, lowercase, numbers, and special characters';
+			return;
+		}
+
+		if (requirementsMet === 3) {
+			newPasswordValidation = 'warning';
+			newPasswordMessage = 'Password strength: Medium';
+			return;
+		}
+
+		newPasswordValidation = 'success';
+		newPasswordMessage = 'Password strength: Strong';
+	});
+
+	// Confirm password validation
+	$effect(() => {
+		if (confirmPassword === '') {
+			confirmPasswordValidation = 'default';
+			confirmPasswordMessage = '';
+			return;
+		}
+
+		if (confirmPassword !== newPassword) {
+			confirmPasswordValidation = 'error';
+			confirmPasswordMessage = 'Passwords do not match';
+			return;
+		}
+
+		confirmPasswordValidation = 'success';
+		confirmPasswordMessage = 'Passwords match';
+	});
 
 	onMount(async () => {
 		pushSupported = isPushSupported();
@@ -199,13 +283,19 @@
 							<div class="space-y-1">
 								<div class="flex items-center gap-2">
 									<span class="font-medium">
-										{session.deviceName || 'Unknown Device'}
+										{#if session.deviceName}
+											{session.deviceName}
+										{:else if session.deviceType}
+											{session.deviceType.charAt(0).toUpperCase() + session.deviceType.slice(1)} Device
+										{:else}
+											Web Browser
+										{/if}
 									</span>
 									{#if isCurrent}
 										<Badge variant="default" class="text-xs">Current</Badge>
 									{/if}
 								</div>
-								{#if session.location}
+								{#if session.location && session.location !== 'Unknown'}
 									<div class="flex items-center gap-1 text-sm text-muted-foreground">
 										<MapPin class="h-3 w-3" />
 										{session.location}
@@ -375,40 +465,56 @@
 					};
 				}}
 			>
-				<div class="grid gap-2">
-					<Label for="currentPassword">Current Password</Label>
-					<Input
-						id="currentPassword"
-						name="currentPassword"
-						type="password"
-						required
-						autocomplete="current-password"
-					/>
-				</div>
-				<div class="grid gap-2">
-					<Label for="newPassword">New Password</Label>
-					<Input
-						id="newPassword"
-						name="newPassword"
-						type="password"
-						required
-						minlength={8}
-						autocomplete="new-password"
-					/>
-					<p class="text-xs text-muted-foreground">Minimum 8 characters</p>
-				</div>
-				<div class="grid gap-2">
-					<Label for="confirmPassword">Confirm New Password</Label>
-					<Input
-						id="confirmPassword"
-						name="confirmPassword"
-						type="password"
-						required
-						minlength={8}
-						autocomplete="new-password"
-					/>
-				</div>
-				<Button type="submit" disabled={isChangingPassword}>
+				<FormInput
+					id="currentPassword"
+					name="currentPassword"
+					label="Current Password"
+					type="password"
+					bind:value={currentPassword}
+					showPasswordToggle
+					autocomplete="current-password"
+					required
+				/>
+
+				<FormInput
+					id="newPassword"
+					name="newPassword"
+					label="New Password"
+					type="password"
+					bind:value={newPassword}
+					showPasswordToggle
+					autocomplete="new-password"
+					validationState={newPasswordValidation}
+					error={newPasswordValidation === 'error' ? newPasswordMessage : undefined}
+					success={newPasswordValidation === 'success' ? newPasswordMessage : undefined}
+					warning={newPasswordValidation === 'warning' ? newPasswordMessage : undefined}
+					helpText="Minimum 8 characters with uppercase, lowercase, numbers, and special characters"
+					required
+				/>
+
+				<FormInput
+					id="confirmPassword"
+					name="confirmPassword"
+					label="Confirm New Password"
+					type="password"
+					bind:value={confirmPassword}
+					showPasswordToggle
+					autocomplete="new-password"
+					validationState={confirmPasswordValidation}
+					error={confirmPasswordValidation === 'error' ? confirmPasswordMessage : undefined}
+					success={confirmPasswordValidation === 'success' ? confirmPasswordMessage : undefined}
+					required
+				/>
+
+				<Button
+					type="submit"
+					disabled={isChangingPassword ||
+						currentPassword === '' ||
+						newPasswordValidation === 'error' ||
+						confirmPasswordValidation === 'error' ||
+						newPassword === '' ||
+						confirmPassword === ''}
+				>
 					{#if isChangingPassword}
 						Changing...
 					{:else}

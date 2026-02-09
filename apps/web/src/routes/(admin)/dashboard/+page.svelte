@@ -2,12 +2,12 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { toast } from 'svelte-sonner';
 	import * as Card from '@repo/ui/components/ui/card';
 	import {
 		Users,
 		FileText,
 		Clock,
-		ArrowUpRight,
 		Plus,
 		Download,
 		FileSpreadsheet,
@@ -15,15 +15,36 @@
 		Filter,
 		CheckSquare,
 		Square,
-		ExternalLink
+		Eye
 	} from '@lucide/svelte';
-	import { Separator } from '@repo/ui/components/ui/separator';
 	import { Badge } from '@repo/ui/components/ui/badge';
 	import * as Table from '@repo/ui/components/ui/table';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
+	import PageContainer from '$lib/components/layout/PageContainer.svelte';
+	import PageHeader from '$lib/components/layout/PageHeader.svelte';
+	import FinancialSummary from '$lib/components/dashboard/FinancialSummary.svelte';
+	import { cn } from '$lib/utils';
 
 	let { data, form } = $props();
+
+	// Toast on form results
+	$effect(() => {
+		if (form?.error) {
+			toast.error(form.error);
+		}
+		if (form?.success) {
+			toast.success(`${form.deleted} debt(s) deleted successfully`);
+		}
+	});
+
+	// Toast for deletion redirect
+	$effect(() => {
+		if ($page.url.searchParams.get('deleted')) {
+			toast.success('Debt deleted successfully');
+			goto('/dashboard', { replaceState: true });
+		}
+	});
 
 	// Use server-computed values
 	let users = $derived(data.users || []);
@@ -35,12 +56,8 @@
 	let selectedIds = $state<Set<string>>(new Set());
 	let isSubmitting = $state(false);
 
-	// Filter state
-	let statusFilter = $state(data.statusFilter || 'all');
-
-	$effect(() => {
-		statusFilter = data.statusFilter || 'all';
-	});
+	// Filter state (derived from URL)
+	let statusFilter = $derived(data.statusFilter || 'all');
 
 	// Filtered debts based on status
 	let filteredDebts = $derived.by(() => {
@@ -52,6 +69,27 @@
 	let pendingDebts = $derived.by(() => {
 		if (!Array.isArray(debts)) return [];
 		return debts.filter((d: { status: string }) => d.status === 'pending');
+	});
+
+	// Financial calculations for summary
+	let totalOwedToYou = $derived.by(() => {
+		if (!Array.isArray(debts) || !currentUser) return 0;
+		return debts
+			.filter(
+				(d: { creditorId?: string; status: string }) =>
+					d.creditorId === currentUser.id && d.status !== 'paid' && d.status !== 'cancelled'
+			)
+			.reduce((acc: number, d: { amount: number }) => acc + d.amount, 0);
+	});
+
+	let totalYouOwe = $derived.by(() => {
+		if (!Array.isArray(debts) || !currentUser) return 0;
+		return debts
+			.filter(
+				(d: { debtorId?: string; status: string }) =>
+					d.debtorId === currentUser.id && d.status !== 'paid' && d.status !== 'cancelled'
+			)
+			.reduce((acc: number, d: { amount: number }) => acc + d.amount, 0);
 	});
 
 	let totalAmount = $derived.by(() => {
@@ -115,7 +153,11 @@
 
 	// Format currency
 	const formatCurrency = (amount: number) => {
-		return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+		return new Intl.NumberFormat('vi-VN', {
+			style: 'currency',
+			currency: 'VND',
+			maximumFractionDigits: 0
+		}).format(amount);
 	};
 
 	// Status badge variant
@@ -137,116 +179,80 @@
 	};
 </script>
 
-<div class="space-y-6">
-	<div class="flex items-center justify-between">
-		<div>
-			<h2 class="text-3xl font-bold tracking-tight">Dashboard</h2>
-			<p class="text-muted-foreground">Overview of your debts and activity.</p>
-		</div>
-		<div class="flex gap-2">
-			<Button href="/debts/create">
-				<Plus class="mr-2 h-4 w-4" /> New Debt
-			</Button>
-			{#if permissions.canImportData}
-				<Button variant="outline" href="/dashboard/import">
-					<Download class="mr-2 h-4 w-4" /> Import
+<PageContainer>
+	<!-- Page Header -->
+	<PageHeader title="Dashboard" description="Overview of your debts and activity">
+		{#snippet actions()}
+			<div class="flex flex-wrap gap-2">
+				<Button href="/debts/create" size="sm">
+					<Plus class="mr-2 h-4 w-4" /> New Debt
 				</Button>
+				{#if permissions.canImportData}
+					<Button variant="outline" href="/dashboard/import" size="sm">
+						<Download class="mr-2 h-4 w-4" /> Import
+					</Button>
+				{/if}
+				{#if permissions.canExportData}
+					<Button variant="outline" href="/api/v1/export/debts" size="sm">
+						<FileSpreadsheet class="mr-2 h-4 w-4" /> Export
+					</Button>
+				{/if}
+			</div>
+		{/snippet}
+	</PageHeader>
+
+	<div class="space-y-6">
+		<!-- Financial Summary -->
+		<FinancialSummary totalOwedToYou={totalOwedToYou} totalYouOwe={totalYouOwe} />
+
+		<!-- Stats Grid -->
+		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+			{#if permissions.canManageUsers}
+				<Card.Root>
+					<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
+						<Card.Title class="text-sm font-medium text-muted-foreground">Total Users</Card.Title>
+						<Users class="h-4 w-4 text-muted-foreground" />
+					</Card.Header>
+					<Card.Content>
+						<div class="font-tabular text-4xl font-bold">{users.length}</div>
+						<p class="mt-1 text-xs text-muted-foreground">
+							<a href="/dashboard/users" class="hover:underline">Manage users →</a>
+						</p>
+					</Card.Content>
+				</Card.Root>
 			{/if}
-			{#if permissions.canExportData}
-				<a
-					href="/api/v1/export/debts"
-					download
-					class="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium whitespace-nowrap ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-				>
-					<FileSpreadsheet class="mr-2 h-4 w-4" /> Export
-				</a>
-			{/if}
-		</div>
-	</div>
 
-	<Separator />
-
-	<!-- Flash messages -->
-	{#if form?.error}
-		<div class="rounded-lg bg-red-100 p-3 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-			{form.error}
-		</div>
-	{/if}
-	{#if form?.success}
-		<div
-			class="rounded-lg bg-green-100 p-3 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-		>
-			{form.deleted} debt(s) deleted successfully.
-		</div>
-	{/if}
-	{#if $page.url.searchParams.get('deleted')}
-		<div
-			class="rounded-lg bg-green-100 p-3 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-		>
-			Debt deleted successfully.
-		</div>
-	{/if}
-
-	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-		{#if permissions.canManageUsers}
-			<Card.Root
-				class="cursor-pointer transition-colors hover:bg-muted/50"
-				onclick={() => (window.location.href = '/dashboard/users')}
-			>
+			<Card.Root>
 				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-					<Card.Title class="text-sm font-medium">Total Users</Card.Title>
-					<Users class="h-4 w-4 text-muted-foreground" />
+					<Card.Title class="text-sm font-medium text-muted-foreground">Total Debts</Card.Title>
+					<FileText class="h-4 w-4 text-muted-foreground" />
 				</Card.Header>
 				<Card.Content>
-					<div class="text-2xl font-bold">{users.length}</div>
-					<p class="text-xs text-muted-foreground">Click to manage users</p>
+					<div class="font-tabular text-4xl font-bold">{debts.length}</div>
+					<p class="mt-1 text-xs text-muted-foreground">All records</p>
 				</Card.Content>
 			</Card.Root>
-		{/if}
 
+			<Card.Root>
+				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
+					<Card.Title class="text-sm font-medium text-muted-foreground">Pending</Card.Title>
+					<Clock class="h-4 w-4 text-muted-foreground" />
+				</Card.Header>
+				<Card.Content>
+					<div class="font-tabular text-4xl font-bold">{pendingDebts.length}</div>
+					<p class="mt-1 text-xs text-muted-foreground">Awaiting confirmation</p>
+				</Card.Content>
+			</Card.Root>
+		</div>
+
+		<!-- Debts Table -->
 		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Total Debts</Card.Title>
-				<FileText class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">{debts.length}</div>
-				<p class="text-xs text-muted-foreground">All time records</p>
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Pending</Card.Title>
-				<Clock class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">{pendingDebts.length}</div>
-				<p class="text-xs text-muted-foreground">Active items</p>
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-				<Card.Title class="text-sm font-medium">Volume</Card.Title>
-				<ArrowUpRight class="h-4 w-4 text-muted-foreground" />
-			</Card.Header>
-			<Card.Content>
-				<div class="text-2xl font-bold">{formatCurrency(totalAmount)}</div>
-				<p class="text-xs text-muted-foreground">Total value</p>
-			</Card.Content>
-		</Card.Root>
-	</div>
-
-	<!-- Debts Table -->
-	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-		<Card.Root class="col-span-1 md:col-span-7">
 			<Card.Header>
-				<div class="flex flex-wrap items-center justify-between gap-4">
+				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div>
-						<Card.Title>Debts</Card.Title>
+						<Card.Title class="text-lg">Transactions</Card.Title>
 						<Card.Description>
-							{permissions.isAdmin ? 'All transactions in system.' : 'Your transactions.'}
+							{permissions.isAdmin ? 'All system debts' : 'Your debt records'}
 						</Card.Description>
 					</div>
 
@@ -254,13 +260,15 @@
 					<div class="flex flex-wrap items-center gap-2">
 						<!-- Status Filter -->
 						<div class="flex items-center gap-1 rounded-lg border p-1">
-							<Filter class="ml-2 h-4 w-4 text-muted-foreground" />
+							<Filter class="ml-1 h-4 w-4 text-muted-foreground" />
 							{#each ['all', 'pending', 'confirmed', 'paid', 'disputed', 'cancelled'] as status}
 								<button
-									class="rounded-md px-2 py-1 text-xs font-medium transition-colors {statusFilter ===
-									status
-										? 'bg-primary text-primary-foreground'
-										: 'hover:bg-muted'}"
+									class={cn(
+										'rounded px-2 py-1 text-xs font-medium transition-colors',
+										statusFilter === status
+											? 'bg-muted text-foreground'
+											: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+									)}
 									onclick={() => handleFilterChange(status)}
 								>
 									{status.charAt(0).toUpperCase() + status.slice(1)}
@@ -305,7 +313,7 @@
 											<input type="hidden" name="ids" value={Array.from(selectedIds).join(',')} />
 											<AlertDialog.Action
 												type="submit"
-												class="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+												class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 											>
 												{isSubmitting ? 'Deleting...' : 'Delete'}
 											</AlertDialog.Action>
@@ -317,53 +325,67 @@
 					</div>
 				</div>
 			</Card.Header>
-			<Card.Content>
-				<Table.Root>
-					<Table.Header>
-						<Table.Row>
-							<Table.Head class="w-12">
-								{#if deletableDebts.length > 0}
-									<button
-										class="flex items-center justify-center"
-										onclick={toggleSelectAll}
-										title={allSelected ? 'Deselect all' : 'Select all deletable'}
-									>
-										{#if allSelected}
-											<CheckSquare class="h-4 w-4 text-primary" />
-										{:else}
-											<Square class="h-4 w-4 text-muted-foreground" />
-										{/if}
-									</button>
-								{/if}
-							</Table.Head>
-							<Table.Head>Description</Table.Head>
-							<Table.Head>Status</Table.Head>
-							<Table.Head>Amount</Table.Head>
-							<Table.Head>Date</Table.Head>
-							<Table.Head class="text-right">Actions</Table.Head>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#if filteredDebts.length === 0}
+			<Card.Content class="px-0">
+				{#if filteredDebts.length === 0}
+					<div class="flex flex-col items-center justify-center py-12 text-center">
+						<div
+							class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted"
+						>
+							<FileText class="h-8 w-8 text-muted-foreground" />
+						</div>
+
+						<h3 class="mb-2 text-lg font-semibold">No debts found</h3>
+
+						<p class="mb-6 max-w-sm text-sm text-muted-foreground">
+							{statusFilter === 'all'
+								? 'Create a debt to get started'
+								: `No ${statusFilter} debts found`}
+						</p>
+
+						{#if statusFilter === 'all'}
+							<Button href="/debts/create" variant="outline" size="sm">
+								<Plus class="mr-2 h-4 w-4" /> New Debt
+							</Button>
+						{/if}
+					</div>
+				{:else}
+					<Table.Root>
+						<Table.Header>
 							<Table.Row>
-								<Table.Cell colspan={6} class="h-24 text-center text-muted-foreground">
-									{statusFilter === 'all'
-										? 'No debts found. Create one to get started!'
-										: `No ${statusFilter} debts found.`}
-								</Table.Cell>
+								<Table.Head class="w-12 pl-6">
+									{#if deletableDebts.length > 0}
+										<button
+											class="flex items-center justify-center"
+											onclick={toggleSelectAll}
+											title={allSelected ? 'Deselect all' : 'Select all deletable'}
+										>
+											{#if allSelected}
+												<CheckSquare class="h-4 w-4 text-foreground" />
+											{:else}
+												<Square class="h-4 w-4 text-muted-foreground" />
+											{/if}
+										</button>
+									{/if}
+								</Table.Head>
+								<Table.Head>Description</Table.Head>
+								<Table.Head>Status</Table.Head>
+								<Table.Head class="text-right">Amount</Table.Head>
+								<Table.Head>Date</Table.Head>
+								<Table.Head class="pr-6 text-right">Actions</Table.Head>
 							</Table.Row>
-						{:else}
+						</Table.Header>
+						<Table.Body>
 							{#each filteredDebts as debt (debt.id)}
 								{@const canDelete = canDeleteDebt(debt)}
-								<Table.Row class={selectedIds.has(debt.id) ? 'bg-muted/50' : ''}>
-									<Table.Cell>
+								<Table.Row class={cn(selectedIds.has(debt.id) && 'bg-muted/50')}>
+									<Table.Cell class="pl-6">
 										{#if canDelete}
 											<button
 												class="flex items-center justify-center"
 												onclick={() => toggleSelect(debt.id)}
 											>
 												{#if selectedIds.has(debt.id)}
-													<CheckSquare class="h-4 w-4 text-primary" />
+													<CheckSquare class="h-4 w-4 text-foreground" />
 												{:else}
 													<Square class="h-4 w-4 text-muted-foreground" />
 												{/if}
@@ -380,21 +402,23 @@
 											{debt.status}
 										</Badge>
 									</Table.Cell>
-									<Table.Cell>{formatCurrency(debt.amount)}</Table.Cell>
-									<Table.Cell class="text-muted-foreground">
+									<Table.Cell class="font-tabular text-right">
+										{formatCurrency(debt.amount)}
+									</Table.Cell>
+									<Table.Cell class="tabular-nums text-muted-foreground">
 										{new Date(debt.createdAt).toLocaleDateString()}
 									</Table.Cell>
-									<Table.Cell class="text-right">
+									<Table.Cell class="pr-6 text-right">
 										<Button variant="ghost" size="sm" href="/debts/{debt.id}">
-											<ExternalLink class="h-4 w-4" />
+										<Eye class="h-4 w-4" />
 										</Button>
 									</Table.Cell>
 								</Table.Row>
 							{/each}
-						{/if}
-					</Table.Body>
-				</Table.Root>
+						</Table.Body>
+					</Table.Root>
+				{/if}
 			</Card.Content>
 		</Card.Root>
 	</div>
-</div>
+</PageContainer>
