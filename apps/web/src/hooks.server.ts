@@ -6,6 +6,19 @@ import { paraglideMiddleware } from '$lib/paraglide/server';
 import { createTreatyClient } from '$lib/eden';
 import { API_URL, getDefaultHeaders, getAuthHeaders } from '$lib/api';
 
+const AUTH_ME_TIMEOUT_MS = 600;
+const AUTH_REFRESH_TIMEOUT_MS = 900;
+
+function isAbortError(err: unknown): boolean {
+	return (
+		typeof err === 'object' &&
+		err !== null &&
+		'name' in err &&
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		((err as any).name === 'AbortError' || (err as any).name === 'TimeoutError')
+	);
+}
+
 const handleParaglide: Handle = async ({ event, resolve }) =>
 	paraglideMiddleware(event.request, ({ request, locale }) => {
 		event.request = request;
@@ -32,21 +45,50 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	const refreshToken = event.cookies.get('refresh_token');
 	const pathname = event.url.pathname;
 
+	// Public routes - no auth required
+	// NOTE: we compute this BEFORE any API calls so public navigations stay fast.
+	const isPublic =
+		pathname === '/' ||
+		/^\/[a-z]{2}\/?$/.test(pathname) ||
+		pathname.includes('/login') ||
+		pathname.includes('/signup') ||
+		pathname.includes('/check-debt') ||
+		pathname.includes('/public') ||
+		pathname.includes('/about') ||
+		pathname.includes('/faq') ||
+		pathname.includes('/privacy') ||
+		pathname.includes('/terms');
+
 	// Try to get user from API
 	let user = null;
 	let apiOffline = false;
 
 	try {
-		// Only try /me if we have a session token
-		if (currentToken) {
-			const rawRes = await fetch(`${API_URL}/v1/auth/me`, {
+		// IMPORTANT PERFORMANCE RULE:
+		// - On PUBLIC routes, do not do refresh flows.
+		// - Optionally do a very fast /me (timeout) if we already have a session token.
+		// This prevents slow landing->login navigations when refresh_token is stale or API is slow.
+
+		const shouldAttemptMe = Boolean(currentToken) && (!isPublic || pathname === '/');
+		const shouldAttemptRefresh = Boolean(refreshToken) && !isPublic;
+
+		// Only try /me if we have a session token (and this route benefits from it)
+		if (shouldAttemptMe && currentToken) {
+			const controller = new AbortController();
+			const timeout = setTimeout(() => controller.abort(), AUTH_ME_TIMEOUT_MS);
+
+			const rawRes = await event.fetch(`${API_URL}/v1/auth/me`, {
 				method: 'GET',
+				signal: controller.signal,
 				headers: {
 					...getAuthHeaders(currentToken),
 					'User-Agent': event.request.headers.get('user-agent') || ''
 				}
 			});
-			const rawData = await rawRes.json();
+
+			clearTimeout(timeout);
+
+			const rawData = await rawRes.json().catch(() => null);
 
 			if (rawRes.ok && rawData?.data?.user) {
 				user = rawData.data.user;
@@ -54,9 +96,13 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		}
 
 		// If user is not found and we have a refresh token, try to refresh
-		if (!user && refreshToken) {
+		if (!user && shouldAttemptRefresh && refreshToken) {
+			const controller = new AbortController();
+			const timeout = setTimeout(() => controller.abort(), AUTH_REFRESH_TIMEOUT_MS);
+
 			const refreshRes = await event.fetch(`${API_URL}/v1/auth/refresh`, {
 				method: 'POST',
+				signal: controller.signal,
 				headers: {
 					...getDefaultHeaders(),
 					Cookie: `refresh_token=${refreshToken}`,
@@ -64,8 +110,10 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 				}
 			});
 
+			clearTimeout(timeout);
+
 			if (refreshRes.ok) {
-				const refreshData = await refreshRes.json();
+				const refreshData = await refreshRes.json().catch(() => null);
 				if (refreshData.success && refreshData.data?.user) {
 					user = refreshData.data.user;
 
@@ -106,9 +154,14 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 			}
 		}
 	} catch (_err: unknown) {
-		// Backend unavailable - running in offline mode
-		console.warn('[WARN] Backend API unavailable');
-		apiOffline = true;
+		// Backend unavailable or auth endpoints slow/unreachable
+		// - For timeouts, do not mark API offline (keeps public nav snappy).
+		// - For real network failures, mark offline for protected routes.
+		if (!isAbortError(_err)) {
+			console.warn('[WARN] Backend API unavailable');
+			// only surface offline banner when it actually matters (non-public routes)
+			apiOffline = !isPublic;
+		}
 	}
 
 	// Store user, token, and pre-configured API in locals
@@ -118,20 +171,9 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	event.locals.api = createTreatyClient(event.fetch, currentToken);
 
 	// DEBUG: Log final auth state
-	console.log('[HOOKS] Final state:', user ? `user=${user.id}` : 'no user');
-
-	// Public routes - no auth required
-	const isPublic =
-		pathname === '/' ||
-		/^\/[a-z]{2}\/?$/.test(pathname) ||
-		pathname.includes('/login') ||
-		pathname.includes('/signup') ||
-		pathname.includes('/check-debt') ||
-		pathname.includes('/public') ||
-		pathname.includes('/about') ||
-		pathname.includes('/faq') ||
-		pathname.includes('/privacy') ||
-		pathname.includes('/terms');
+	if (dev) {
+		console.log('[HOOKS] Final state:', user ? `user=${user.id}` : 'no user');
+	}
 
 	// Redirect to login if accessing protected route without auth
 	if (!isPublic && !event.locals.user) {

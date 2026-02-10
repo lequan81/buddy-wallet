@@ -111,10 +111,10 @@
 								<p class="mb-2 text-center font-medium text-warning">
 									You have {result.count} pending debt{result.count !== 1 ? 's' : ''}
 								</p>
-								<Button href="/login" variant="default" class="w-full">View Details</Button>
+								<Button href="/login" data-sveltekit-preload-data="hover" variant="default" class="w-full">View Details</Button>
 							{:else}
 								<p class="mb-2 text-center font-medium text-success">No pending debts found</p>
-								<Button href="/signup" variant="outline" class="w-full">Create Account</Button>
+								<Button href="/signup" data-sveltekit-preload-data="hover" variant="outline" class="w-full">Create Account</Button>
 							{/if}
 						</div>
 					{/if}

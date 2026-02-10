@@ -15,7 +15,7 @@ async function refreshForEden(): Promise<boolean> {
 
 	edenRefreshPromise = (async () => {
 		try {
-			const response = await fetch(`${API_URL}/auth/refresh`, {
+			const response = await fetch(`${API_URL}/v1/auth/refresh`, {
 				method: 'POST',
 				credentials: 'include',
 				headers: getDefaultHeaders()

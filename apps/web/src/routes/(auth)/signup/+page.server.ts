@@ -3,10 +3,10 @@ import type { Actions, PageServerLoad } from './$types';
 import { createTreatyClient } from '$lib/eden';
 import { superValidate, message } from 'sveltekit-superforms';
 import { valibot } from 'sveltekit-superforms/adapters';
-import { insertUserSchema } from '@repo/db/schema';
+import { signupSchema } from '@repo/validation';
 
 export const load: PageServerLoad = async () => {
-	const form = await superValidate(valibot(insertUserSchema));
+	const form = await superValidate(valibot(signupSchema));
 	return {
 		form,
 		layout: 'guest'
@@ -15,7 +15,7 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
 	default: async ({ request, fetch }) => {
-		const form = await superValidate(request, valibot(insertUserSchema));
+		const form = await superValidate(request, valibot(signupSchema));
 
 		console.log('[Signup] Form valid:', form.valid);
 		console.log('[Signup] Form errors:', form.errors);

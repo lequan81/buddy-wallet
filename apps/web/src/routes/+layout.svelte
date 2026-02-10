@@ -22,20 +22,12 @@
 			}
 		});
 
-		// Clear potentially corrupted Service Worker caches (fixes {} download bug)
-		// This runs once per page load to ensure stale responses are purged
-		if ('caches' in window) {
-			caches.keys().then((names) => {
-				names.forEach((name) => {
-					// Only clear the pages cache which may have cached {} responses
-					if (name === 'pages-cache') {
-						caches.delete(name).then(() => {
-							console.log('[SW] Cleared pages-cache to fix potential caching issues');
-						});
-					}
-				});
-			});
-		}
+		// NOTE: Removed pages-cache clearing on every page load.
+		// The service worker now uses proper caching strategies:
+		// - NetworkOnly for API requests (always fresh)
+		// - StaleWhileRevalidate for navigations (fast + background update)
+		// - CacheFirst for static assets
+		// Clearing the cache on every load defeated the purpose of navigation caching.
 	});
 
 	

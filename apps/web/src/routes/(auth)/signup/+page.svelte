@@ -8,14 +8,14 @@
 
 	import type { Infer } from 'sveltekit-superforms';
 	import type { PageData } from './$types';
-	import { insertUserSchema } from '@repo/db/schema';
+	import { signupSchema } from '@repo/validation/client';
 
 	const { data }: { data: PageData } = $props();
 
 	// superForm expects the form data directly, not a getter
 	// svelte-ignore state_referenced_locally
 	const { form, errors, constraints, message, enhance, delayed } = superForm<
-		Infer<typeof insertUserSchema>
+		Infer<typeof signupSchema>
 	>(data.form, {
 		onResult: ({ result }) => {
 			if (result.type === 'failure') {
@@ -189,7 +189,7 @@
 					<span class="bg-card px-2 text-muted-foreground"> Already have an account? </span>
 				</div>
 			</div>
-			<Button variant="outline" class="h-10 w-full" href="/login">Sign in</Button>
+			<Button variant="outline" class="h-10 w-full" href="/login" data-sveltekit-preload-data="hover">Sign in</Button>
 		</Card.Footer>
 	</Card.Root>
 </div>

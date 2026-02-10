@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll, preloadData } from '$app/navigation';
 	import { Loader2 } from '@lucide/svelte';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
@@ -43,6 +43,16 @@
 	$effect(() => {
 		if (form?.message) {
 			toast.error(form.message);
+		}
+	});
+
+	// Preload dashboard when user starts typing (likely to login)
+	let hasPreloadedDashboard = false;
+	$effect(() => {
+		if (email.length > 0 && password.length > 0 && !hasPreloadedDashboard) {
+			hasPreloadedDashboard = true;
+			// Preload dashboard in background as user is likely to login
+			preloadData('/dashboard').catch(() => {});
 		}
 	});
 </script>
@@ -101,7 +111,7 @@
 
 				<!-- Forgot Password Link -->
 				<div class="text-right">
-					<a href="/forgot-password" class="text-sm text-primary hover:underline">
+					<a href="/forgot-password" data-sveltekit-preload-data="hover" class="text-sm text-primary hover:underline">
 						Forgot password?
 					</a>
 				</div>
@@ -129,7 +139,7 @@
 					<span class="bg-card px-2 text-muted-foreground"> New to Buddy Wallet? </span>
 				</div>
 			</div>
-			<Button variant="outline" class="h-10 w-full" href="/signup">Create an account</Button>
+			<Button variant="outline" class="h-10 w-full" href="/signup" data-sveltekit-preload-data="hover">Create an account</Button>
 		</Card.Footer>
 	</Card.Root>
 </div>

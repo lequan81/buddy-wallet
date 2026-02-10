@@ -19,17 +19,9 @@ const config = {
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		adapter: adapter(),
 		alias: {
-			// 	'@repo/api': '../api/src/index.ts',
-			// 	'@repo/db': '../../packages/db/index.ts'
 			$contents: 'src/contents',
-			// API Aliases for type resolution
-			'@': '../api/src',
-			'@plugins': '../api/src/plugins',
-			'@controllers': '../api/src/controllers',
-			'@services': '../api/src/services',
-			'@utils': '../api/src/utils',
-			'@types': '../api/src/types',
-			'@configs': '../api/src/configs'
+			// Keep web aliases client-safe. Avoid aliasing into `apps/api/src/*`
+			// to prevent accidental server-code imports into the SvelteKit bundle.
 		},
 		serviceWorker: {
 			register: false // Service worker registration handled by @vite-pwa/sveltekit

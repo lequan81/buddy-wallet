@@ -8,26 +8,12 @@
 		TrendingDown
 	} from '@lucide/svelte';
 	import { Button } from '@repo/ui/components/ui/button';
-	import confetti from 'canvas-confetti';
-	import { onMount } from 'svelte';
 
 	let { data } = $props();
 
 	const formatCurrency = (amount: number) => {
 		return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
 	};
-
-	// Trigger confetti animation on mount for paid status
-	onMount(() => {
-		if (data.status === 'paid' && data.debt) {
-			// Fire confetti
-			confetti({
-				particleCount: 100,
-				spread: 70,
-				origin: { y: 0.6 }
-			});
-		}
-	});
 
 	const getStatusMessage = () => {
 		if (data.status === 'paid') {

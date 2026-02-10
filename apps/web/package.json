@@ -15,6 +15,7 @@
 		"generate-pwa-assets": "pwa-assets-generator"
 	},
 	"devDependencies": {
+		"@repo/api": "workspace:*",
 		"@repo/eslint-config": "workspace:*",
 		"@repo/interfaces": "workspace:*",
 		"@repo/typescript-config": "workspace:*",
@@ -26,7 +27,6 @@
 		"@tailwindcss/forms": "^0.5.10",
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.1.17",
-		"@types/canvas-confetti": "^1.9.0",
 		"@types/node": "^24",
 		"@vite-pwa/assets-generator": "^1.0.2",
 		"@vite-pwa/sveltekit": "^1.1.0",
@@ -59,13 +59,11 @@
 		"workbox-window": "^7.4.0"
 	},
 	"dependencies": {
-		"@repo/api": "workspace:*",
 		"@repo/config": "workspace:*",
-		"@repo/db": "workspace:*",
 		"@repo/errors": "workspace:*",
+		"@repo/validation": "workspace:*",
 		"@elysiajs/eden": "^1.4.6",
 		"@lucide/svelte": "^0.561.0",
-		"canvas-confetti": "^1.9.4",
 		"svelte-sonner": "^1.0.7",
 		"valibot": "^1.2.0"
 	}

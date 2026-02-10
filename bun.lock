@@ -51,17 +51,16 @@
       "dependencies": {
         "@elysiajs/eden": "^1.4.6",
         "@lucide/svelte": "^0.561.0",
-        "@repo/api": "workspace:*",
         "@repo/config": "workspace:*",
-        "@repo/db": "workspace:*",
         "@repo/errors": "workspace:*",
-        "canvas-confetti": "^1.9.4",
+        "@repo/validation": "workspace:*",
         "svelte-sonner": "^1.0.7",
         "valibot": "^1.2.0",
       },
       "devDependencies": {
         "@inlang/paraglide-js": "^2.6.0",
         "@internationalized/date": "^3.10.0",
+        "@repo/api": "workspace:*",
         "@repo/eslint-config": "workspace:*",
         "@repo/interfaces": "workspace:*",
         "@repo/typescript-config": "workspace:*",
@@ -71,7 +70,6 @@
         "@tailwindcss/forms": "^0.5.10",
         "@tailwindcss/typography": "^0.5.19",
         "@tailwindcss/vite": "^4.1.17",
-        "@types/canvas-confetti": "^1.9.0",
         "@types/node": "^24",
         "@vite-pwa/assets-generator": "^1.0.2",
         "@vite-pwa/sveltekit": "^1.1.0",
@@ -906,8 +904,6 @@
 
     "@types/bun": ["@types/bun@1.3.6", "", { "dependencies": { "bun-types": "1.3.6" } }, "sha512-uWCv6FO/8LcpREhenN1d1b6fcspAB+cefwD7uti8C8VffIv0Um08TKMn98FynpTiU38+y2dUO55T11NgDt8VAA=="],
 
-    "@types/canvas-confetti": ["@types/canvas-confetti@1.9.0", "", {}, "sha512-aBGj/dULrimR1XDZLtG9JwxX1b4HPRF6CX9Yfwh3NvstZEm1ZL7RBnel4keCPSqs1ANRu1u2Aoz9R+VmtjYuTg=="],
-
     "@types/cookie": ["@types/cookie@0.5.4", "", {}, "sha512-7z/eR6O859gyWIAjuvBWFzNURmf2oPBmJlfVWkwehU5nzIyjwBsTh7WMmEEV4JFnHuQ3ex4oyTvfKzcyJVDBNA=="],
 
     "@types/cookie-signature": ["@types/cookie-signature@1.1.2", "", { "dependencies": { "@types/node": "*" } }, "sha512-2OhrZV2LVnUAXklUFwuYUTokalh/dUb8rqt70OW6ByMSxYpauPZ+kfNLknX3aJyjY5iu8i3cUyoLZP9Fn37tTg=="],
@@ -1093,8 +1089,6 @@
     "camelcase": ["camelcase@8.0.0", "", {}, "sha512-8WB3Jcas3swSvjIeA2yvCJ+Miyz5l1ZmB6HFb9R1317dt9LCQoswg/BGrmAmkWVEszSrrg4RwmO46qIm2OEnSA=="],
 
     "caniuse-lite": ["caniuse-lite@1.0.30001767", "", {}, "sha512-34+zUAMhSH+r+9eKmYG+k2Rpt8XttfE4yXAjoZvkAPs15xcYQhyBYdalJ65BzivAvGRMViEjy6oKr/S91loekQ=="],
-
-    "canvas-confetti": ["canvas-confetti@1.9.4", "", {}, "sha512-yxQbJkAVrFXWNbTUjPqjF7G+g6pDotOUHGbkZq2NELZUMDpiJ85rIEazVb8GTaAptNW2miJAXbs1BtioA251Pw=="],
 
     "ccount": ["ccount@2.0.1", "", {}, "sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg=="],
 

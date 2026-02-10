@@ -82,7 +82,7 @@ async function refreshAccessToken(): Promise<boolean> {
 
 	refreshPromise = (async () => {
 		try {
-			const response = await fetch(`${API_URL}/auth/refresh`, {
+			const response = await fetch(`${API_URL}/v1/auth/refresh`, {
 				method: 'POST',
 				credentials: 'include', // Send refresh_token cookie
 				headers: getDefaultHeaders()

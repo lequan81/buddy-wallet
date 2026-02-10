@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
+	import { preloadData } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { Button, buttonVariants } from '@repo/ui/components/ui/button';
 	import * as DropdownMenu from '@repo/ui/components/ui/dropdown-menu';
 	import * as Avatar from '@repo/ui/components/ui/avatar';
@@ -26,6 +28,33 @@
 	let permissions = $derived(data.permissions);
 	let sidebarOpen = $state(false);
 	let isLoggingOut = $state(false);
+
+	// Preload frequently accessed pages after dashboard loads
+	onMount(() => {
+		const preloadPages = () => {
+			// Preload settings and import pages in parallel
+			const pagesToPreload = [
+				'/settings/profile',
+				'/settings/security'
+			];
+
+			// Add import page if user has permission
+			if (permissions.canImportData) {
+				pagesToPreload.push('/dashboard/import');
+			}
+
+			Promise.all(
+				pagesToPreload.map(path => preloadData(path).catch(() => {}))
+			);
+		};
+
+		// Use requestIdleCallback if available for better performance
+		if ('requestIdleCallback' in window) {
+			requestIdleCallback(preloadPages, { timeout: 3000 });
+		} else {
+			setTimeout(preloadPages, 500);
+		}
+	});
 
 	// Build nav items based on server-computed permissions
 	const navItems = $derived(() => {
@@ -67,6 +96,7 @@
 			{#each navItems() as item}
 				<a
 					href={item.href}
+					data-sveltekit-preload-data="hover"
 					class={cn(
 						'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
 						page.url.pathname === item.href || page.url.pathname.startsWith(item.href + '/')
@@ -86,6 +116,7 @@
 				{#each settingsItems as item}
 					<a
 						href={item.href}
+						data-sveltekit-preload-data="hover"
 						class={cn(
 							'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
 							page.url.pathname === item.href
