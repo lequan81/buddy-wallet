@@ -4,9 +4,9 @@
  * Handles bank account management and VietQR integration.
  */
 import { Elysia, t } from 'elysia';
-import { permissionPlugin } from '@plugins/guards';
+import { permissionPlugin } from '../plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
-import { bankAccountService, vietqrService, debtService } from '@/services';
+import { bankAccountService, vietqrService, debtService } from '../services';
 import { insertBankAccountSchema } from '@repo/db';
 
 export const bankController = new Elysia({ prefix: '/banks' })

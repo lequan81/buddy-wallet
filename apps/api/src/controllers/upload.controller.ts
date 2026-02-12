@@ -4,10 +4,10 @@
  * Handles file uploads for QR codes and payment proofs.
  */
 import { Elysia, t } from 'elysia';
-import { permissionPlugin } from '@plugins/guards';
-import { standardRateLimiter, uploadRateLimiter, deleteRateLimiter } from '@plugins/middleware';
+import { permissionPlugin } from '../plugins/guards';
+import { standardRateLimiter, uploadRateLimiter, deleteRateLimiter } from '../plugins/middleware';
 import { PERMISSIONS } from '@repo/permissions';
-import { fileService, debtService, pushService, userService } from '@/services';
+import { fileService, debtService, pushService, userService } from '../services';
 
 // Helper to format currency
 const formatVND = (amount: number) =>

@@ -1,6 +1,6 @@
 import { Elysia } from 'elysia';
-import { configs } from '@/configs';
-import { logger } from '@utils/logger';
+import { configs } from '../../configs';
+import { logger } from '../../utils/logger';
 
 // Support comma-separated origins for dev/staging/prod
 const allowedOrigins = configs.APP.WEB_URL.split(',').map((o) => o.trim());

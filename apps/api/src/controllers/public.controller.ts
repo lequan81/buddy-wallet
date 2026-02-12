@@ -5,9 +5,9 @@
  * Delegates to DebtService for business logic.
  */
 import { Elysia, t } from 'elysia';
-import { strictRateLimiter } from '@plugins/middleware';
-import { normalizePhoneNumber, maskPhone } from '@/utils/phone';
-import { debtService } from '@/services';
+import { strictRateLimiter } from '../plugins/middleware';
+import { normalizePhoneNumber, maskPhone } from '../utils/phone';
+import { debtService } from '../services';
 
 export const publicController = new Elysia({ prefix: '/public' })
   .use(strictRateLimiter)

@@ -12,7 +12,7 @@
 		placeholder,
 		required = false,
 		disabled = false,
-		value = $bindable(''),
+		value = $bindable(),
 		error,
 		success,
 		warning,
@@ -29,7 +29,7 @@
 		placeholder?: string;
 		required?: boolean;
 		disabled?: boolean;
-		value?: string;
+		value?: string | undefined;
 		error?: string;
 		success?: string;
 		warning?: string;
@@ -41,6 +41,9 @@
 		[key: string]: any;
 	} = $props();
 
+	// Ensure we always have a string value for the input
+	let inputValue = $derived(value ?? '');
+	
 	let showPassword = $state(false);
 	let inputType = $derived(showPasswordToggle && showPassword ? 'text' : type);
 

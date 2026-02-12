@@ -4,7 +4,7 @@
  * Prevents cascading failures by temporarily disabling Redis
  * after repeated failures.
  */
-import { log } from '@utils/logger';
+import { log } from '../../utils/logger';
 
 const MAX_FAILURES = parseInt(Bun.env.REDIS_MAX_FAILURES || '3');
 const CIRCUIT_RESET_MS = parseInt(Bun.env.REDIS_CIRCUIT_RESET_MS || '60000');

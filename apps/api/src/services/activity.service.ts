@@ -8,7 +8,7 @@
  */
 import { randomUUIDv7 } from 'bun';
 import { activityLogs, eq, desc, and, gte, lte, type ActivityLog, type ActivityAction, type ActivityResource } from '@repo/db';
-import type { DbClient } from '@/types';
+import type { DbClient } from '../types';
 
 export interface LogActivityInput {
   userId: string;

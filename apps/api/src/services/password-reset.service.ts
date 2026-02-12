@@ -8,10 +8,10 @@
  * 4. Force password change on login
  */
 import { users, eq, and } from '@repo/db';
-import { configs } from '@/configs';
-import { log } from '@utils/logger';
-import { normalizePhoneNumber } from '@utils';
-import type { DbClient } from '@/types';
+import { configs } from '../configs';
+import { log } from '../utils/logger';
+import { normalizePhoneNumber } from '../utils';
+import type { DbClient } from '../types';
 import { emailService } from './email.service';
 
 const TEMP_PASSWORD_LENGTH = 16;

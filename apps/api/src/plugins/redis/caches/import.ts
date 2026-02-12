@@ -1,7 +1,7 @@
 /**
  * Import Progress Cache Module
  */
-import { cache } from '@plugins/redis/cache';
+import { cache } from '../../../plugins/redis/cache';
 
 const IMPORT_PROGRESS_TTL = parseInt(Bun.env.REDIS_IMPORT_TTL || '3600');
 

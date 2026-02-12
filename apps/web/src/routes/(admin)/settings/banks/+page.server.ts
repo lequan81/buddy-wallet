@@ -1,7 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { API_URL, getAuthHeaders, safeJsonParse } from '$lib/api';
-import type { BankResponse, AccountsResponse } from '@repo/interfaces';
+import type { BankResponse, AccountsResponse } from '@repo/types';
 
 export const load: PageServerLoad = async ({
 	fetch,

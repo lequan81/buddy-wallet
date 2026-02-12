@@ -5,7 +5,7 @@
 
 import { randomUUIDv7 } from 'bun';
 import { Elysia } from 'elysia';
-import { logger, type LogContext } from '@utils/logger';
+import { logger, type LogContext } from '../../utils/logger';
 
 export const requestLoggerPlugin = new Elysia({ name: 'Request_Logger' })
   .derive(() => {

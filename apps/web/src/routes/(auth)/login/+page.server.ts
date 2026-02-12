@@ -25,11 +25,14 @@ export const actions: Actions = {
 
 		try {
 			const api = createTreatyClient(fetch);
-			const { data, error, response } = await api.v1.auth.login.post({ email, password }, {
-				headers: {
-					'User-Agent': request.headers.get('user-agent') || ''
+			const { data, error, response } = await api.v1.auth.login.post(
+				{ email, password },
+				{
+					headers: {
+						'User-Agent': request.headers.get('user-agent') || ''
+					}
 				}
-			});
+			);
 
 			if (error) {
 				const errorData = error.value as { error?: { message: string } };
@@ -39,7 +42,8 @@ export const actions: Actions = {
 
 			if (data?.success) {
 				// Check if user must change password first
-				if (data.data?.mustChangePassword) {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				if ((data.data as any)?.mustChangePassword) {
 					// Store a flag in session/URL and redirect to change password page
 					throw redirect(303, '/change-password?required=true');
 				}

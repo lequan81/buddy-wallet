@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { configs } from '@/configs'; // Ensure env is loaded first
+import { configs } from './configs'; // Ensure env is loaded first
 import {
   corsPlugin,
   csrfPlugin,
@@ -8,7 +8,7 @@ import {
   requestLoggerPlugin,
   redisPlugin,
   securityHeadersPlugin
-} from '@plugins';
+} from './plugins';
 import {
   activityController,
   authController,
@@ -21,7 +21,7 @@ import {
   pushController,
   bankController,
   uploadController
-} from '@controllers';
+} from './controllers';
 import { telemetry } from './instrumentation';
 import { logger } from './utils/logger';
 // Cleanup jobs now run externally via scripts/prune-worker
@@ -34,9 +34,8 @@ export const app = new Elysia()
     // Default to 500 for unknown errors
     const statusCode = typeof set.status === 'number' ? set.status : 500;
     if (!set.status || statusCode < 400) {
-      set.status = code === 'NOT_FOUND' ? 404 :
-        code === 'VALIDATION' ? 400 :
-          code === 'PARSE' ? 400 : 500;
+      set.status =
+        code === 'NOT_FOUND' ? 404 : code === 'VALIDATION' ? 400 : code === 'PARSE' ? 400 : 500;
     }
 
     return {

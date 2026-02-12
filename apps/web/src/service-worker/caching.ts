@@ -20,7 +20,11 @@ const sw = self as unknown as ServiceWorkerGlobalScope;
 
 // Precache and route assets injected by Workbox at build time
 // self.__WB_MANIFEST is replaced with the actual precache manifest
-precacheAndRoute(sw.__WB_MANIFEST);
+// In development, it may be undefined, so we provide a fallback empty array
+const manifest = sw.__WB_MANIFEST;
+if (Array.isArray(manifest) && manifest.length > 0) {
+	precacheAndRoute(manifest);
+}
 
 // Clean up outdated caches from previous service worker versions
 cleanupOutdatedCaches();

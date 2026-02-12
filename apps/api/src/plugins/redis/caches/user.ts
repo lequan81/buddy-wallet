@@ -1,7 +1,7 @@
 /**
  * User Cache Module
  */
-import { cache } from '@plugins/redis/cache';
+import { cache } from '../../../plugins/redis/cache';
 
 const USER_CACHE_TTL = parseInt(Bun.env.REDIS_USER_TTL || '300');
 

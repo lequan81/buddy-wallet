@@ -8,7 +8,7 @@
  * - LOG_LEVEL: Set log level ('debug', 'info', 'warn', 'error') - default: 'info'
  */
 
-import type { LogLevel, LogContext as LogContextType } from '@/types';
+import type { LogLevel, LogContext as LogContextType } from '../types';
 
 // Re-export for consumers
 export type LogContext = LogContextType;
@@ -17,7 +17,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   debug: 0,
   info: 1,
   warn: 2,
-  error: 3,
+  error: 3
 };
 
 const currentLevel = (Bun.env.LOG_LEVEL?.toLocaleLowerCase() as LogLevel) || 'info';
@@ -27,16 +27,21 @@ function shouldLog(level: LogLevel): boolean {
   return LOG_LEVELS[level] >= LOG_LEVELS[currentLevel];
 }
 
-function formatLog(level: LogLevel, category: string, message: string, context?: LogContext): string {
+function formatLog(
+  level: LogLevel,
+  category: string,
+  message: string,
+  context?: LogContext
+): string {
   const timestamp = new Date().toISOString();
 
   if (isDev) {
     // Pretty print for development
     const levelColors: Record<LogLevel, string> = {
       debug: '\x1b[36m', // cyan
-      info: '\x1b[32m',  // green
-      warn: '\x1b[33m',  // yellow
-      error: '\x1b[31m', // red
+      info: '\x1b[32m', // green
+      warn: '\x1b[33m', // yellow
+      error: '\x1b[31m' // red
     };
     const reset = '\x1b[0m';
     const color = levelColors[level];
@@ -50,7 +55,7 @@ function formatLog(level: LogLevel, category: string, message: string, context?:
     level,
     category,
     message,
-    ...context,
+    ...context
   });
 }
 
@@ -66,7 +71,7 @@ export const log = {
   },
   error: (category: string, message: string, context?: LogContext) => {
     if (shouldLog('error')) console.error(formatLog('error', category, message, context));
-  },
+  }
 };
 
 // Convenience aliases for categories
@@ -98,5 +103,5 @@ export const logger = {
   // Generic log level methods (for flexibility)
   warn: (msg: string, ctx?: LogContext) => log.warn('WARN', msg, ctx),
   info: (msg: string, ctx?: LogContext) => log.info('INFO', msg, ctx),
-  debug: (msg: string, ctx?: LogContext) => log.debug('DEBUG', msg, ctx),
+  debug: (msg: string, ctx?: LogContext) => log.debug('DEBUG', msg, ctx)
 };

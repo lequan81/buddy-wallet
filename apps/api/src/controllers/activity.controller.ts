@@ -5,8 +5,8 @@
  */
 import { Elysia, t } from 'elysia';
 import { successResponse } from '@repo/errors';
-import { permissionPlugin } from '@plugins/guards';
-import { activityService } from '@/services';
+import { permissionPlugin } from '../plugins/guards';
+import { activityService } from '../services';
 
 export const activityController = new Elysia({ prefix: '/activity' })
   .use(permissionPlugin)

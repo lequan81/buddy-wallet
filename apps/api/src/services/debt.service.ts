@@ -8,15 +8,15 @@
  */
 import { debts, users, eq, or, and, ne, gte, desc, count, type Debt } from '@repo/db';
 import { hasPermission, PERMISSIONS } from '@repo/permissions';
-import { normalizePhoneNumber } from '@/utils/phone';
-// import { configs } from '@/configs'; // Deprecated local config usage for limits
+import { normalizePhoneNumber } from '../utils/phone';
+// import { configs } from '../configs'; // Deprecated local config usage for limits
 import { DEBT_MIN_AMOUNT, DEBT_MAX_AMOUNT } from '@repo/config';
 import { CreateDebtInputSchema, safeParse } from '@repo/validation';
-import { debtStateMachine } from '@/states';
-import { logger } from '@utils';
-import type { DbClient } from '@/types';
-import type { DebtStatus, CreateDebtInput, DebtResult, StatusUpdateResult } from '@/types';
-import type { IDebtService, CurrentUser } from '@/types/interfaces';
+import { debtStateMachine } from '../states';
+import { logger } from '../utils';
+import type { DbClient } from '../types';
+import type { DebtStatus, CreateDebtInput, DebtResult, StatusUpdateResult } from '../types';
+import type { IDebtService, CurrentUser } from '../types';
 import type { PushService } from './push.service';
 
 // Expiry option type
@@ -40,11 +40,16 @@ interface PaginatedResult<T> {
 function calculateExpiryDate(option: ExpiryOption): Date | null {
   const now = Date.now();
   switch (option) {
-    case '7d': return new Date(now + 7 * 24 * 60 * 60 * 1000);
-    case '30d': return new Date(now + 30 * 24 * 60 * 60 * 1000);
-    case '90d': return new Date(now + 90 * 24 * 60 * 60 * 1000);
-    case 'never': return null;
-    default: return null;
+    case '7d':
+      return new Date(now + 7 * 24 * 60 * 60 * 1000);
+    case '30d':
+      return new Date(now + 30 * 24 * 60 * 60 * 1000);
+    case '90d':
+      return new Date(now + 90 * 24 * 60 * 60 * 1000);
+    case 'never':
+      return null;
+    default:
+      return null;
   }
 }
 
@@ -63,7 +68,7 @@ export class DebtService implements IDebtService {
   setPushService(pushService: PushService) {
     this.pushService = pushService;
   }
-  constructor(private db: DbClient) { }
+  constructor(private db: DbClient) {}
 
   /**
    * Find potential duplicate debts
@@ -98,50 +103,44 @@ export class DebtService implements IDebtService {
       .all();
 
     // Filter for amount within range (can't do <= in simple query)
-    return duplicates.filter(d => d.amount <= amount + amountRange);
+    return duplicates.filter((d) => d.amount <= amount + amountRange);
   }
 
   /**
    * Get debts for a user (or all debts if admin) with pagination
    */
   async getDebtsForUser(
-    userId: string, 
+    userId: string,
     hasViewAllPermission: boolean,
     options: PaginationOptions = {}
   ): Promise<PaginatedResult<any>> {
     const { limit = 50, offset = 0, status } = options;
-    
+
     // Build where condition
-    let whereCondition = hasViewAllPermission 
-      ? undefined 
+    let whereCondition = hasViewAllPermission
+      ? undefined
       : or(eq(debts.debtorId, userId), eq(debts.creditorId, userId));
-    
+
     // Add status filter if provided
     if (status && status !== 'all') {
       const statusCondition = eq(debts.status, status);
-      whereCondition = whereCondition 
-        ? and(whereCondition, statusCondition)
-        : statusCondition;
+      whereCondition = whereCondition ? and(whereCondition, statusCondition) : statusCondition;
     }
-    
+
     // Get total count
     const countResult = whereCondition
       ? this.db.select({ count: count() }).from(debts).where(whereCondition).get()
       : this.db.select({ count: count() }).from(debts).get();
-    
+
     const total = countResult?.count ?? 0;
-    
+
     // Get paginated data
     let query = this.db.select().from(debts);
     if (whereCondition) {
       query = query.where(whereCondition) as typeof query;
     }
-    const data = query
-      .orderBy(desc(debts.createdAt))
-      .limit(limit)
-      .offset(offset)
-      .all();
-    
+    const data = query.orderBy(desc(debts.createdAt)).limit(limit).offset(offset).all();
+
     return { data, total, limit, offset };
   }
 
@@ -153,23 +152,25 @@ export class DebtService implements IDebtService {
     options: PaginationOptions = {}
   ): Promise<PaginatedResult<any>> {
     const { limit = 50, offset = 0, status } = options;
-    
+
     let whereCondition = or(eq(debts.debtorId, userId), eq(debts.creditorId, userId));
-    
+
     if (status && status !== 'all') {
       whereCondition = and(whereCondition, eq(debts.status, status)) as typeof whereCondition;
     }
-    
+
     const countResult = this.db.select({ count: count() }).from(debts).where(whereCondition!).get();
     const total = countResult?.count ?? 0;
-    
-    const data = this.db.select().from(debts)
+
+    const data = this.db
+      .select()
+      .from(debts)
       .where(whereCondition!)
       .orderBy(desc(debts.createdAt))
       .limit(limit)
       .offset(offset)
       .all();
-    
+
     return { data, total, limit, offset };
   }
 
@@ -233,7 +234,7 @@ export class DebtService implements IDebtService {
     for (let i = userDebts.length - 1; i >= 0 && contacts.length < limit; i--) {
       const d = userDebts[i];
       const counterpartyPhone = d.debtorPhone !== myPhone ? d.debtorPhone : d.creditorPhone;
-      
+
       if (counterpartyPhone && !seenPhones.has(counterpartyPhone)) {
         seenPhones.add(counterpartyPhone);
         contacts.push(counterpartyPhone);
@@ -250,7 +251,7 @@ export class DebtService implements IDebtService {
    * @param options - Additional options (expiryOption, confirmDuplicate)
    */
   async createDebt(
-    input: CreateDebtInput, 
+    input: CreateDebtInput,
     currentUser: CurrentUser,
     options?: { expiryOption?: ExpiryOption; confirmDuplicate?: boolean }
   ): Promise<DebtResult> {
@@ -296,10 +297,11 @@ export class DebtService implements IDebtService {
     // Check for potential duplicates (unless confirmDuplicate is set)
     if (!options?.confirmDuplicate) {
       const debtorPhone = direction === 'LEND' ? normalizedCounterpartyPhone : normalizedUserPhone!;
-      const creditorPhone = direction === 'LEND' ? normalizedUserPhone! : normalizedCounterpartyPhone;
-      
+      const creditorPhone =
+        direction === 'LEND' ? normalizedUserPhone! : normalizedCounterpartyPhone;
+
       const duplicates = await this.findPotentialDuplicates(debtorPhone, creditorPhone, amount);
-      
+
       if (duplicates.length > 0) {
         return {
           success: false,
@@ -398,10 +400,11 @@ export class DebtService implements IDebtService {
     // Check if user is the creator (creators cannot confirm their own debts)
     const isCreator = debt.uploadedById === currentUser.id;
     if (isCreator) {
-      return { 
-        success: false, 
-        error: 'You created this debt and have already confirmed it. Waiting for counterparty confirmation.', 
-        code: 'ALREADY_CONFIRMED' 
+      return {
+        success: false,
+        error:
+          'You created this debt and have already confirmed it. Waiting for counterparty confirmation.',
+        code: 'ALREADY_CONFIRMED'
       };
     }
 
@@ -425,17 +428,15 @@ export class DebtService implements IDebtService {
     }
 
     // If both parties confirmed, mark as fully confirmed
-    const willBeFullyConfirmed = 
+    const willBeFullyConfirmed =
       (updates.confirmedByCreditor || debt.confirmedByCreditor) &&
       (updates.confirmedByDebtor || debt.confirmedByDebtor);
-    
+
     if (willBeFullyConfirmed) {
       updates.needsConfirmation = false;
     }
 
-    await this.db.update(debts)
-      .set(updates)
-      .where(eq(debts.id, debtId));
+    await this.db.update(debts).set(updates).where(eq(debts.id, debtId));
 
     // Fetch updated debt
     const updatedDebt = await this.db.query.debts.findFirst({
@@ -699,23 +700,39 @@ export class DebtService implements IDebtService {
     }
 
     if (isCreator) {
-      return { success: false, error: 'Creators cannot suggest edits to their own debts', code: 'FORBIDDEN' };
+      return {
+        success: false,
+        error: 'Creators cannot suggest edits to their own debts',
+        code: 'FORBIDDEN'
+      };
     }
 
     // Cannot suggest if already confirmed or paid
     if (debt.status === 'paid' || debt.status === 'cancelled') {
-      return { success: false, error: 'Cannot suggest edits to completed debts', code: 'INVALID_STATE' };
+      return {
+        success: false,
+        error: 'Cannot suggest edits to completed debts',
+        code: 'INVALID_STATE'
+      };
     }
 
     // Must provide at least one change
     if (!suggestion.amount && !suggestion.description) {
-      return { success: false, error: 'Must provide at least amount or description to suggest', code: 'VALIDATION_ERROR' };
+      return {
+        success: false,
+        error: 'Must provide at least amount or description to suggest',
+        code: 'VALIDATION_ERROR'
+      };
     }
 
     // Validate amount if provided
     if (suggestion.amount !== undefined) {
       if (suggestion.amount < DEBT_MIN_AMOUNT || suggestion.amount > DEBT_MAX_AMOUNT) {
-        return { success: false, error: `Amount must be between ${DEBT_MIN_AMOUNT} and ${DEBT_MAX_AMOUNT}`, code: 'VALIDATION_ERROR' };
+        return {
+          success: false,
+          error: `Amount must be between ${DEBT_MIN_AMOUNT} and ${DEBT_MAX_AMOUNT}`,
+          code: 'VALIDATION_ERROR'
+        };
       }
     }
 
@@ -769,7 +786,11 @@ export class DebtService implements IDebtService {
 
     // Only the creator can respond to suggestions
     if (debt.uploadedById !== currentUser.id) {
-      return { success: false, error: 'Only the creator can respond to edit suggestions', code: 'FORBIDDEN' };
+      return {
+        success: false,
+        error: 'Only the creator can respond to edit suggestions',
+        code: 'FORBIDDEN'
+      };
     }
 
     // Check if there's a pending suggestion
@@ -811,9 +832,7 @@ export class DebtService implements IDebtService {
       try {
         await this.pushService.sendToUser(debt.suggestedById, {
           title: accept ? 'Edit Accepted' : 'Edit Rejected',
-          body: accept 
-            ? 'Your suggested edit was accepted'
-            : 'Your suggested edit was rejected',
+          body: accept ? 'Your suggested edit was accepted' : 'Your suggested edit was rejected',
           url: `/debts/${debtId}`
         });
       } catch (e) {
@@ -825,10 +844,10 @@ export class DebtService implements IDebtService {
       where: eq(debts.id, debtId)
     });
 
-    return { 
-      success: true, 
-      debt: updatedDebt, 
-      message: accept ? 'Suggestion accepted' : 'Suggestion rejected' 
+    return {
+      success: true,
+      debt: updatedDebt,
+      message: accept ? 'Suggestion accepted' : 'Suggestion rejected'
     };
   }
 

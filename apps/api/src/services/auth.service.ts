@@ -8,7 +8,7 @@
 import { randomUUIDv7 } from 'bun';
 import { users, sessions, debts, eq, and, or, isNull, ne, gte } from '@repo/db';
 import { DEFAULT_USER_PERMISSIONS } from '@repo/permissions';
-import { configs } from '@/configs';
+import { configs } from '../configs';
 import {
   hashToken,
   normalizePhoneNumber,
@@ -16,11 +16,12 @@ import {
   getLocationFromIP,
   logger,
   validatePasswordComplexity,
-  isCommonPassword
-} from '@utils';
-import type { DbClient, JwtService } from '@/types';
-import type { RegisterInput, LoginInput, AuthResult } from '@/types';
-import type { IAuthService } from '@/types/interfaces';
+  isCommonPassword,
+  toSafeUser
+} from '../utils';
+import type { DbClient, JwtService } from '../types';
+import type { RegisterInput, LoginInput, AuthResult } from '../types';
+import type { IAuthService } from '../types';
 import { emailService } from './email.service';
 import { emailVerificationService } from './email-verification.service';
 
@@ -135,12 +136,7 @@ export class AuthService implements IAuthService {
 
     return {
       success: true,
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        phoneNumber: newUser.phoneNumber,
-        role: newUser.role
-      }
+      user: toSafeUser(newUser)
     };
   }
 
@@ -171,24 +167,24 @@ export class AuthService implements IAuthService {
 
     if (!user) {
       logger.auth(`User not found`, { identifier });
-      if (DUMMY_HASH) await Bun.password.verify(password, DUMMY_HASH);
+      if (DUMMY_HASH) await Bun.password.verify(password || '', DUMMY_HASH);
       return { success: false, error: 'Invalid credentials' };
     }
 
     if (!user.isActive) {
       logger.auth(`Login blocked - account deactivated`, { userId: user.id });
-      if (DUMMY_HASH) await Bun.password.verify(password, DUMMY_HASH);
+      if (DUMMY_HASH) await Bun.password.verify(password || '', DUMMY_HASH);
       return { success: false, error: 'Invalid credentials' };
     }
 
-    let validPassword = await Bun.password.verify(password, user.password);
+    let validPassword = await Bun.password.verify(password || '', user.password);
     let usedTempPassword = false;
 
     // If regular password fails, try temporary password
     if (!validPassword && user.temporaryPassword && user.temporaryPasswordExpires) {
       const tempExpiry = new Date(user.temporaryPasswordExpires);
       if (tempExpiry > new Date() && !user.temporaryPasswordUsed) {
-        const validTempPassword = await Bun.password.verify(password, user.temporaryPassword);
+        const validTempPassword = await Bun.password.verify(password || '', user.temporaryPassword);
         if (validTempPassword) {
           validPassword = true;
           usedTempPassword = true;
@@ -247,8 +243,8 @@ export class AuthService implements IAuthService {
     }
 
     // Parse device info (use client hints if provided for more accuracy)
-    const deviceInfo = parseUserAgent(userAgent, input.clientHints);
-    const location = await getLocationFromIP(clientIP, input.clientLocation);
+    const deviceInfo = parseUserAgent(userAgent || null, input.clientHints);
+    const location = await getLocationFromIP(clientIP || null, input.clientLocation);
 
     // Generate tokens
     const now = Date.now();
@@ -287,7 +283,7 @@ export class AuthService implements IAuthService {
 
     return {
       success: true,
-      user: { id: user.id, email: user.email, phoneNumber: user.phoneNumber, role: user.role },
+      user: toSafeUser(user),
       accessToken,
       refreshToken,
       sessionId,

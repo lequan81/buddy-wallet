@@ -1,8 +1,8 @@
 import { Elysia, type Context } from 'elysia';
-import { logger } from '@utils/logger';
+import { logger } from '../../utils/logger';
 import { cache, isRedisAvailable } from '../redis';
-import { configs } from '@/configs';
-import type { RateLimitEntry, RateLimitConfig } from '@/types';
+import { configs } from '../../configs';
+import type { RateLimitEntry, RateLimitConfig } from '../../types';
 import type { User } from '@repo/db';
 
 // In-memory fallback store (used when Redis is not available)

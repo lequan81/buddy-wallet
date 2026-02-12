@@ -20,8 +20,9 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 			api.v1.banks.me.get(),
 			api.v1.debts['recent-contacts'].get()
 		]);
-		hasBankAccount = bankRes.data?.accounts && bankRes.data.accounts.length > 0;
-		recentContacts = contactsRes.data?.contacts || [];
+		hasBankAccount = !!(bankRes.data?.accounts && bankRes.data.accounts.length > 0);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		recentContacts = (contactsRes.data as any)?.contacts || [];
 	} catch (err) {
 		console.error('[Debt Create] Failed to load data:', err);
 	}
@@ -59,12 +60,13 @@ export const actions: Actions = {
 		if (direction === 'LEND') {
 			try {
 				const api = createTreatyClient(fetch);
-				const { data } = await api.v1.banks.accounts.get();
+				const { data } = await api.v1.banks.me.get();
 				const hasBankAccount = data?.accounts && data.accounts.length > 0;
 
 				if (!hasBankAccount) {
 					return fail(400, {
-						message: 'You must add a bank account before creating a debt where someone owes you. Add one in Settings → Banks.'
+						message:
+							'You must add a bank account before creating a debt where someone owes you. Add one in Settings → Banks.'
 					});
 				}
 			} catch (err) {
@@ -98,7 +100,11 @@ export const actions: Actions = {
 					});
 				}
 
-				const errMsg = errorObj?.error?.details || errorObj?.error?.message || errorObj?.error || 'Failed to create debt';
+				const errMsg =
+					errorObj?.error?.details ||
+					errorObj?.error?.message ||
+					errorObj?.error ||
+					'Failed to create debt';
 				return fail(400, { message: errMsg });
 			}
 		} catch (err) {

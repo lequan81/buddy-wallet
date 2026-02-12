@@ -37,5 +37,8 @@
   "devDependencies": {
     "@internationalized/date": "^3.10.0",
     "@lucide/svelte": "^0.561.0"
+  },
+  "peerDependencies": {
+    "svelte": "^5.45.6"
   }
 }

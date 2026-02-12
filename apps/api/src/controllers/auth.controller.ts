@@ -6,10 +6,10 @@
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { sessionAuthPlugin } from '@plugins/auth';
-import { authRateLimiter } from '@plugins/middleware';
-import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
-import { configs } from '@/configs';
+import { sessionAuthPlugin } from '../plugins/auth';
+import { authRateLimiter } from '../plugins/middleware';
+import { sessionCache, jwtBlacklist, isRedisAvailable } from '../plugins/redis';
+import { configs } from '../configs';
 import {
   authService,
   sessionService,
@@ -18,8 +18,8 @@ import {
   emailService,
   passwordResetService,
   userService
-} from '@/services';
-import { getClientIP, hashToken } from '@utils';
+} from '../services';
+import { getClientIP, hashToken } from '../utils';
 
 export const authController = new Elysia({ prefix: '/auth' })
   .use(sessionAuthPlugin)

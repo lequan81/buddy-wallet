@@ -6,13 +6,13 @@
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { accessControlPlugin } from '@plugins';
-import { permissionPlugin } from '@plugins/guards';
-import { standardRateLimiter } from '@plugins/middleware';
-import { getUserWithFreshData } from '@plugins/auth';
+import { accessControlPlugin } from '../plugins';
+import { permissionPlugin } from '../plugins/guards';
+import { standardRateLimiter } from '../plugins/middleware';
+import { getUserWithFreshData } from '../plugins/auth';
 import { PERMISSIONS, hasPermission } from '@repo/permissions';
-import { debtService, activityService } from '@/services';
-import { getClientIP } from '@utils';
+import { debtService, activityService } from '../services';
+import { getClientIP } from '../utils';
 
 export const debtsController = new Elysia({ prefix: '/debts' })
   .use(permissionPlugin)
@@ -28,13 +28,13 @@ export const debtsController = new Elysia({ prefix: '/debts' })
       const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
       const offset = query.offset ? parseInt(query.offset) : 0;
       const status = query.status || undefined;
-      
+
       const result = await debtService.getDebtsForUser(user!.id, hasViewAll, {
         limit,
         offset,
         status
       });
-      
+
       return successResponse({
         debts: result.data,
         pagination: {
@@ -45,7 +45,7 @@ export const debtsController = new Elysia({ prefix: '/debts' })
         }
       });
     },
-    { 
+    {
       checkPermission: PERMISSIONS.DEBT_VIEW_OWN,
       query: t.Object({
         limit: t.Optional(t.String()),
@@ -62,13 +62,13 @@ export const debtsController = new Elysia({ prefix: '/debts' })
       const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
       const offset = query.offset ? parseInt(query.offset) : 0;
       const status = query.status || undefined;
-      
+
       const result = await debtService.getDebtsByUserId(userId, {
         limit,
         offset,
         status
       });
-      
+
       return successResponse({
         debts: result.data,
         pagination: {
@@ -122,7 +122,9 @@ export const debtsController = new Elysia({ prefix: '/debts' })
         {
           id: freshUser.id,
           phoneNumber: freshUser.phoneNumber,
-          permissions: freshUser.permissions as string[]
+          permissions: freshUser.permissions as string[],
+          role: freshUser.role,
+          email: freshUser.email
         },
         {
           expiryOption: body.expiryOption as 'never' | '7d' | '30d' | '90d' | undefined,
@@ -164,12 +166,9 @@ export const debtsController = new Elysia({ prefix: '/debts' })
         description: t.String({ maxLength: 500 }),
         counterpartyPhone: t.String({ minLength: 9, maxLength: 20 }),
         direction: t.Union([t.Literal('LEND'), t.Literal('BORROW')]),
-        expiryOption: t.Optional(t.Union([
-          t.Literal('never'),
-          t.Literal('7d'),
-          t.Literal('30d'),
-          t.Literal('90d')
-        ])),
+        expiryOption: t.Optional(
+          t.Union([t.Literal('never'), t.Literal('7d'), t.Literal('30d'), t.Literal('90d')])
+        ),
         confirmDuplicate: t.Optional(t.Boolean())
       }),
       checkPermission: PERMISSIONS.DEBT_CREATE
@@ -190,7 +189,9 @@ export const debtsController = new Elysia({ prefix: '/debts' })
       const result = await debtService.updateDebtStatus(id, body.status, {
         id: freshUser.id,
         phoneNumber: freshUser.phoneNumber,
-        permissions: freshUser.permissions as string[]
+        permissions: freshUser.permissions as string[],
+        role: freshUser.role,
+        email: freshUser.email
       });
 
       if (!result.success) {
@@ -243,7 +244,9 @@ export const debtsController = new Elysia({ prefix: '/debts' })
       const result = await debtService.updateDebt(id, body, {
         id: freshUser.id,
         phoneNumber: freshUser.phoneNumber,
-        permissions: freshUser.permissions as string[]
+        permissions: freshUser.permissions as string[],
+        role: freshUser.role,
+        email: freshUser.email
       });
 
       if (!result.success) {
@@ -297,7 +300,9 @@ export const debtsController = new Elysia({ prefix: '/debts' })
       const result = await debtService.deleteDebts(body.ids, {
         id: freshUser.id,
         phoneNumber: freshUser.phoneNumber,
-        permissions: freshUser.permissions as string[]
+        permissions: freshUser.permissions as string[],
+        role: freshUser.role,
+        email: freshUser.email
       });
 
       // Log the batch delete activity
@@ -374,7 +379,9 @@ export const debtsController = new Elysia({ prefix: '/debts' })
       const result = await debtService.deleteDebt(id, {
         id: freshUser.id,
         phoneNumber: freshUser.phoneNumber,
-        permissions: freshUser.permissions as string[]
+        permissions: freshUser.permissions as string[],
+        role: freshUser.role,
+        email: freshUser.email
       });
 
       if (!result.success) {
@@ -418,7 +425,9 @@ export const debtsController = new Elysia({ prefix: '/debts' })
       const result = await debtService.confirmDebt(id, {
         id: freshUser.id,
         phoneNumber: freshUser.phoneNumber,
-        permissions: freshUser.permissions as string[]
+        permissions: freshUser.permissions as string[],
+        role: freshUser.role,
+        email: freshUser.email
       });
 
       if (!result.success) {
@@ -470,7 +479,9 @@ export const debtsController = new Elysia({ prefix: '/debts' })
         {
           id: freshUser.id,
           phoneNumber: freshUser.phoneNumber,
-          permissions: freshUser.permissions as string[]
+          permissions: freshUser.permissions as string[],
+          role: freshUser.role,
+          email: freshUser.email
         },
         {
           amount: body.amount,
@@ -528,7 +539,9 @@ export const debtsController = new Elysia({ prefix: '/debts' })
         {
           id: freshUser.id,
           phoneNumber: freshUser.phoneNumber,
-          permissions: freshUser.permissions as string[]
+          permissions: freshUser.permissions as string[],
+          role: freshUser.role,
+          email: freshUser.email
         },
         body.accept
       );

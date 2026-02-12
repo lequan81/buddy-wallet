@@ -2,7 +2,7 @@ import { Elysia, type Context } from 'elysia';
 import { sessionAuthPlugin } from '../auth/session-auth.plugin';
 import { permissionCache, isRedisAvailable } from '../redis';
 import type { Permission } from '@repo/permissions';
-import { logger } from '@utils/logger';
+import { logger } from '../../utils/logger';
 
 export const permissionPlugin = new Elysia()
   .use(sessionAuthPlugin)

@@ -4,8 +4,8 @@
  * Handles CRUD operations for user bank accounts.
  */
 import { bankAccounts, eq, and, desc } from '@repo/db';
-import { log } from '@utils/logger';
-import type { DbClient } from '@/types';
+import { log } from '../utils/logger';
+import type { DbClient } from '../types';
 import type { BankAccount, NewBankAccount } from '@repo/db';
 
 export class BankAccountService {

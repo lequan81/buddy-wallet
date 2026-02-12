@@ -5,40 +5,41 @@
  * Uses constructor injection for testability.
  * Implements IUserService interface for LSP compliance.
  */
-import { users, sessions, eq, and, ne } from '@repo/db';
-import { userCache, isRedisAvailable } from '@plugins/redis';
-import type { DbClient } from '@/types';
-import type { SafeUser, UserResult } from '@/types';
-import type { IUserService } from '@/types/interfaces';
+import { users, sessions, eq, and, ne, count } from '@repo/db';
+import { userCache, isRedisAvailable } from '../plugins/redis';
+import { toSafeUser } from '../utils';
+import type { DbClient } from '../types';
+import type { SafeUser, UserResult } from '../types';
+import type { IUserService } from '../types';
 
 /**
  * UserService class with dependency injection
  * Implements IUserService for LSP compliance
  */
 export class UserService implements IUserService {
-  constructor(private db: DbClient) { }
+  constructor(private db: DbClient) {}
 
   /**
    * Get all users (admin only) with pagination
    */
-  async getAllUsers(options: { limit?: number; offset?: number } = {}): Promise<{ users: SafeUser[]; total: number; hasMore: boolean }> {
+  /**
+   * Get all users (admin only) with pagination
+   */
+  async getAllUsers(
+    options: { limit?: number; offset?: number } = {}
+  ): Promise<{ users: SafeUser[]; total: number; hasMore: boolean }> {
     const { limit = 50, offset = 0 } = options;
-    
+
     // Get total count
-    const allUsers = await this.db.select().from(users).all();
-    const total = allUsers.length;
-    
+    const countResult = await this.db.select({ count: count() }).from(users).get();
+    const total = countResult?.count ?? 0;
+
     // Get paginated results
-    const paginatedUsers = await this.db
-      .select()
-      .from(users)
-      .limit(limit)
-      .offset(offset)
-      .all();
-      
-    // Strip passwords
-    const safeUsers = paginatedUsers.map(({ password, ...u }) => u as SafeUser);
-    
+    const paginatedUsers = await this.db.select().from(users).limit(limit).offset(offset).all();
+
+    // Strip passwords and sensitive data
+    const safeUsers = paginatedUsers.map(toSafeUser);
+
     return {
       users: safeUsers,
       total,
@@ -64,12 +65,12 @@ export class UserService implements IUserService {
       return { success: false, error: 'User not found' };
     }
 
-    // Strip password
-    const { password, ...safeUser } = user;
+    // Strip password and sensitive data
+    const safeUser = toSafeUser(user);
 
     // Cache the user profile
     if (isRedisAvailable()) {
-      await userCache.set(userId, safeUser);
+      await userCache.set(userId, safeUser as any);
     }
 
     return { success: true, user: safeUser as SafeUser };
@@ -110,11 +111,9 @@ export class UserService implements IUserService {
     }
 
     // Fetch the updated user to return
-    const { password, ...safeUser } = (await this.db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .get())!;
+    const safeUser = toSafeUser(
+      (await this.db.select().from(users).where(eq(users.id, userId)).get())!
+    );
 
     return {
       success: true,
@@ -139,9 +138,13 @@ export class UserService implements IUserService {
     }
   ): Promise<UserResult> {
     // Validate at least one field is provided
-    if (!updates.name && !updates.email && !updates.phoneNumber && 
-        updates.emailNotificationsEnabled === undefined && 
-        updates.pushNotificationsEnabled === undefined) {
+    if (
+      !updates.name &&
+      !updates.email &&
+      !updates.phoneNumber &&
+      updates.emailNotificationsEnabled === undefined &&
+      updates.pushNotificationsEnabled === undefined
+    ) {
       return { success: false, error: 'No fields to update' };
     }
 
@@ -184,9 +187,9 @@ export class UserService implements IUserService {
     }
 
     // Build update object (whitelist approach)
-    const updateData: { 
-      name?: string; 
-      email?: string; 
+    const updateData: {
+      name?: string;
+      email?: string;
       phoneNumber?: string;
       emailNotificationsEnabled?: boolean;
       pushNotificationsEnabled?: boolean;
@@ -220,7 +223,7 @@ export class UserService implements IUserService {
       return { success: false, error: 'Failed to fetch updated user' };
     }
 
-    const { password, ...safeUser } = updatedUser;
+    const safeUser = toSafeUser(updatedUser);
 
     return {
       success: true,

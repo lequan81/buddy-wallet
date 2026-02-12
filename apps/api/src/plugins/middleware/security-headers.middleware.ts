@@ -8,7 +8,7 @@
  * - Permissions-Policy: Control browser features
  */
 import { Elysia } from 'elysia';
-import { configs } from '@/configs';
+import { configs } from '../../configs';
 
 // Environment-aware allowed domains for connect-src
 const getAllowedConnectSrc = (): string => {

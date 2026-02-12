@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance, applyAction } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import { goto, invalidateAll, preloadData } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { Loader2 } from '@lucide/svelte';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
@@ -46,15 +46,9 @@
 		}
 	});
 
-	// Preload dashboard when user starts typing (likely to login)
-	let hasPreloadedDashboard = false;
-	$effect(() => {
-		if (email.length > 0 && password.length > 0 && !hasPreloadedDashboard) {
-			hasPreloadedDashboard = true;
-			// Preload dashboard in background as user is likely to login
-			preloadData('/dashboard').catch(() => {});
-		}
-	});
+	// NOTE: Do NOT preload /dashboard before login completes!
+	// Preloading protected routes without auth caches "no user" state,
+	// which causes issues after successful login.
 </script>
 
 <div class="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
@@ -69,16 +63,16 @@
 				method="POST"
 				use:enhance={() => {
 					isSubmitting = true;
-					return async ({ result, update }) => {
+					return async ({ result }) => {
 						isSubmitting = false;
 
-						// If login successful (redirect), invalidate all data to reload user state
 						if (result.type === 'redirect') {
-							await invalidateAll();
 							await goto(result.location, { invalidateAll: true });
-						} else {
-							// For errors, just update the form
-							await update();
+						} else if (result.type === 'success') {
+                           // If success but no redirect (unlikely for login), just update
+                           await applyAction(result);
+                        } else {
+							await applyAction(result);
 						}
 					};
 				}}

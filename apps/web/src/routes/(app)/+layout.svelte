@@ -1,35 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { preloadData } from '$app/navigation';
-	import { onMount } from 'svelte';
 	import { Wallet } from '@lucide/svelte';
 	import { buttonVariants } from '@repo/ui/components/ui/button';
 
 	let { children } = $props();
 	let user = $derived(page.data.user);
-
-	// Preload auth pages in background after landing page loads
-	// This makes navigation to login/signup feel instant
-	onMount(() => {
-		if (!user) {
-			// Use requestIdleCallback if available, otherwise setTimeout
-			const preloadAuthPages = () => {
-				// Preload login and signup pages in parallel
-				Promise.all([
-					preloadData('/login'),
-					preloadData('/signup')
-				]).catch(() => {
-					// Silently ignore preload failures
-				});
-			};
-
-			if ('requestIdleCallback' in window) {
-				requestIdleCallback(preloadAuthPages, { timeout: 2000 });
-			} else {
-				setTimeout(preloadAuthPages, 100);
-			}
-		}
-	});
 </script>
 
 <!-- Marketing Header -->

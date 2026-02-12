@@ -1,4 +1,4 @@
-import type { VietQRBank } from '@repo/interfaces';
+import type { VietQRBank } from '@repo/types';
 import { VIETQR_API_URL, VIETQR_TIMEOUT } from '@repo/config';
 
 /**

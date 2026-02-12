@@ -7,7 +7,7 @@
  * - Compliance and audit trails
  * - Pattern analysis for threat intelligence
  */
-import { logger } from '@utils/logger';
+import { logger } from '../utils/logger';
 
 /**
  * Security event types

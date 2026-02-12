@@ -1,7 +1,7 @@
 /**
  * Permission Cache Module
  */
-import { cache } from '@plugins/redis/cache';
+import { cache } from '../../../plugins/redis/cache';
 
 const PERMISSION_CACHE_TTL = parseInt(Bun.env.REDIS_PERMISSION_TTL || '600');
 

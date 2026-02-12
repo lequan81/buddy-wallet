@@ -6,10 +6,10 @@
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { accessControlPlugin } from '@plugins';
-import { permissionPlugin } from '@plugins/guards';
+import { accessControlPlugin } from '../plugins';
+import { permissionPlugin } from '../plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
-import { userService } from '@/services';
+import { userService } from '../services';
 
 export const usersController = new Elysia({ prefix: '/users' })
   .use(accessControlPlugin)

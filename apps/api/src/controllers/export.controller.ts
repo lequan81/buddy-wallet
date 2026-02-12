@@ -6,10 +6,10 @@
  */
 import { Elysia } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse } from '@repo/errors';
-import { sessionAuthPlugin } from '@plugins/auth';
-import { accessControlPlugin } from '@plugins';
-import { exportService } from '@/services';
-import type { ExportFormat } from '@/types';
+import { sessionAuthPlugin } from '../plugins/auth';
+import { accessControlPlugin } from '../plugins';
+import { exportService } from '../services';
+import type { ExportFormat } from '../types';
 
 export const exportController = new Elysia({ prefix: '/export' })
   .use(sessionAuthPlugin)

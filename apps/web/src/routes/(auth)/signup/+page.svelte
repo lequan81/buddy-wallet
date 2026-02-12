@@ -8,7 +8,7 @@
 
 	import type { Infer } from 'sveltekit-superforms';
 	import type { PageData } from './$types';
-	import { signupSchema } from '@repo/validation/client';
+	import { signupSchema } from '$lib/schemas/auth';
 
 	const { data }: { data: PageData } = $props();
 
@@ -133,7 +133,8 @@
 						success={passwordState === 'success' ? 'Strong password' : undefined}
 						showPasswordToggle={true}
 						required
-						{...$constraints.password}
+						minlength={$constraints.password?.minlength}
+						maxlength={$constraints.password?.maxlength}
 					/>
 
 					<!-- Password Requirements - Always visible, no layout shift -->

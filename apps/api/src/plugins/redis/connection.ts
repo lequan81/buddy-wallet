@@ -5,7 +5,7 @@
  * Uses component-based config (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_TLS).
  */
 import { RedisClient } from 'bun';
-import { log } from '@utils/logger';
+import { log } from '../../utils/logger';
 import { circuitBreaker } from './circuit-breaker';
 
 // Connection state

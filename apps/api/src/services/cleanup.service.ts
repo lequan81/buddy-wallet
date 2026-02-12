@@ -5,7 +5,7 @@
  * Can be used by the API scheduler or standalone worker script.
  */
 import { db, importLogs, sessions, debts, users, eq, and, lte, ne, not, isNull } from '@repo/db';
-import { log } from '@utils/logger';
+import { log } from '../utils/logger';
 import { pushService } from './index';
 
 // Helper to format currency

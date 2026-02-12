@@ -38,66 +38,46 @@ export const load: PageServerLoad = async ({ fetch, locals, parent, url }) => {
 	const { permissions } = await parent();
 	const headers = getAuthHeaders(locals.accessToken);
 
-	try {
-		// Only fetch users if server says user can manage them
-		const usersPromise = permissions.canManageUsers
-			? fetch(`${API_URL}/v1/users`, { headers })
-			: Promise.resolve(new Response(JSON.stringify({ success: true, data: { users: [] } })));
+	// Only fetch users if server says user can manage them
+	// We do NOT await here - we return the promise to stream it
+	const usersPromise = permissions.canManageUsers
+		? fetch(`${API_URL}/v1/users`, { headers }).then(r => r.json()).then(r => r.data?.users || r.users || [])
+		: Promise.resolve([]);
 
-		// Build debts URL with pagination params
-		const debtsParams = new URLSearchParams({
-			limit: pageSize.toString(),
-			offset: offset.toString()
-		});
-		if (statusFilter !== 'all') {
-			debtsParams.set('status', statusFilter);
-		}
-		
-		const debtsPromise = fetch(`${API_URL}/v1/debts?${debtsParams.toString()}`, { headers });
-
-		// Run in parallel
-		const [usersRes, debtsRes] = await Promise.all([usersPromise, debtsPromise]);
-
-		// Helper to safely parse JSON and extract data from { success, data } response
-		const safeJson = async <T>(res: Response, defaultVal: T): Promise<T> => {
-			if (!res.ok) return defaultVal;
-			try {
-				const json = await res.json();
-				// API returns { success: true, data: { ... } }
-				return json.data ?? json ?? defaultVal;
-			} catch {
-				return defaultVal;
-			}
-		};
-
-		const usersData = await safeJson<{ users: User[] }>(usersRes, { users: [] });
-		const debtsData = await safeJson<{ debts: Debt[]; pagination: Pagination }>(debtsRes, { 
+	// Build debts URL with pagination params
+	const debtsParams = new URLSearchParams({
+		limit: pageSize.toString(),
+		offset: offset.toString()
+	});
+	if (statusFilter !== 'all') {
+		debtsParams.set('status', statusFilter);
+	}
+	
+	// We do NOT await here either
+	const debtsPromise = fetch(`${API_URL}/v1/debts?${debtsParams.toString()}`, { headers })
+		.then(r => r.json())
+		.then(r => {
+			const data = r.data || r;
+			return {
+				debts: data.debts || [],
+				pagination: data.pagination || { total: 0, limit: pageSize, offset: 0, hasMore: false }
+			};
+		})
+		.catch(() => ({ 
 			debts: [], 
 			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } 
-		});
+		}));
 
-		return {
-			users: usersData.users || [],
-			debts: debtsData.debts || [],
-			pagination: debtsData.pagination,
-			statusFilter,
-			page,
-			pageSize,
-			currentUser: locals.user
-		};
-	} catch (err) {
-		console.error('[Dashboard] Failed to fetch data:', err);
-		return { 
-			users: [] as User[], 
-			debts: [] as Debt[], 
-			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false },
-			error: 'Unable to connect to server', 
-			statusFilter, 
-			page,
-			pageSize,
-			currentUser: locals.user 
-		};
-	}
+	return {
+		streamed: {
+			users: usersPromise,
+			debtsData: debtsPromise
+		},
+		statusFilter,
+		page,
+		pageSize,
+		currentUser: locals.user
+	};
 };
 
 export const actions: Actions = {

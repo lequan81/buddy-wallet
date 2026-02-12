@@ -6,8 +6,8 @@
  */
 import { debts, users, eq, or } from '@repo/db';
 import * as XLSX from 'xlsx';
-import type { DbClient } from '@/types';
-import type { ExportFormat, ExportResult } from '@/types';
+import type { DbClient } from '../types';
+import type { ExportFormat, ExportResult } from '../types';
 
 /**
  * SECURITY: Mask phone number to protect PII in exports

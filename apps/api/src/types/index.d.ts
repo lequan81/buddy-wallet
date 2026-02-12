@@ -8,18 +8,12 @@
 export * from './logger';
 export * from './rate-limit';
 export * from './trace';
-export * from './import';
+export * from '@repo/types';
+
 // Service Types
 export * from './services/common';
-/// <reference path="./web-push.d.ts" />
-export * from './services/auth';
-export * from './services/debt';
-export * from './services/export';
-export * from './services/session';
-export * from './services/user';
-export * from './services/import';
-// Service Interfaces (LSP) - Dedicated location
-export * from './interfaces';
+// Services are now in @repo/types
+
 // Debt State Types (OCP) - Dedicated location
 export * from './debt-state';
 

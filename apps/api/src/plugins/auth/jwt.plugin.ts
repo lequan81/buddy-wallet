@@ -1,8 +1,8 @@
 import { Elysia, t, type Static } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { bearer } from '@elysiajs/bearer';
-import { configs } from '@/configs';
-import { logger } from '@utils/logger';
+import { configs } from '../../configs';
+import { logger } from '../../utils/logger';
 
 /**
  * JWT Payload Schema

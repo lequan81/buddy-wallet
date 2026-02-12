@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { createTreatyClient } from '$lib/eden';
 import { superValidate, message } from 'sveltekit-superforms';
 import { valibot } from 'sveltekit-superforms/adapters';
-import { signupSchema } from '@repo/validation';
+import { signupSchema } from '$lib/schemas/auth';
 
 export const load: PageServerLoad = async () => {
 	const form = await superValidate(valibot(signupSchema));

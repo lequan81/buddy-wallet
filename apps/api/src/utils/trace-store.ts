@@ -3,7 +3,7 @@
  * Stores recent traces for viewing at /traces
  */
 
-import type { TraceSpan, TraceStore } from '@/types';
+import type { TraceSpan, TraceStore } from '../types';
 
 const MAX_TRACES = parseInt(Bun.env.TRACE_MAX_ENTRIES || '100');
 const traces: TraceSpan[] = [];

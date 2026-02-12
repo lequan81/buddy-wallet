@@ -40,15 +40,15 @@ export {
 };
 
 // Re-export types
-export type { DbClient, JwtService, CacheService } from '@/types';
+export type { DbClient, JwtService, CacheService } from '../types';
 
 // Re-export input/result types
-export type { RegisterInput, LoginInput, AuthResult } from '@/types';
-export type { SessionInfo } from '@/types';
-export type { CreateDebtInput, DebtResult, StatusUpdateResult } from '@/types';
-export type { SafeUser, UserResult } from '@/types';
-export type { ExportFormat, ExportResult } from '@/types';
-export type { PreviewResult, ImportResult, ProgressResult } from '@/types';
+export type { RegisterInput, LoginInput, AuthResult } from '../types';
+export type { SessionInfo } from '../types';
+export type { CreateDebtInput, DebtResult, StatusUpdateResult } from '../types';
+export type { SafeUser, UserResult } from '../types';
+export type { ExportFormat, ExportResult } from '../types';
+export type { PreviewResult, ImportResult, ProgressResult } from '../types';
 
 // Singleton instances for the main app
 export const authService = new AuthService(db);

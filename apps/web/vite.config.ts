@@ -81,5 +81,22 @@ export default defineConfig({
 				navigateFallback: '/'
 			}
 		})
-	]
+	],
+	optimizeDeps: {
+		include: [
+			'@repo/ui',
+			'@lucide/svelte',
+			'clsx',
+			'tailwind-merge',
+			'bits-ui',
+			'formsnap',
+			'svelte-sonner'
+		]
+	},
+	ssr: {
+		noExternal: ['@repo/ui']
+	},
+	resolve: {
+		dedupe: ['svelte']
+	}
 });
