@@ -100,6 +100,23 @@ export const debtsController = new Elysia({ prefix: '/debts' })
     { checkPermission: PERMISSIONS.DEBT_VIEW_OWN }
   )
 
+  // Get single debt by ID
+  .get(
+    '/:id',
+    async ({ params: { id }, set }) => {
+      const debt = await debtService.getDebtById(id);
+      if (!debt) {
+        set.status = 404;
+        return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+      }
+      return successResponse({ debt });
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      ensureRelatedDebt: 'id'
+    }
+  )
+
   // Create new debt
   .post(
     '/',
@@ -147,17 +164,6 @@ export const debtsController = new Elysia({ prefix: '/debts' })
         return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
 
-      // Log the create activity
-      await activityService.log({
-        userId: freshUser.id,
-        action: 'create',
-        resource: 'debt',
-        resourceId: result.debt?.id,
-        changes: { after: { amount: body.amount, description: body.description } },
-        ipAddress: getClientIP(request) || undefined,
-        userAgent: request.headers.get('user-agent') || undefined
-      });
-
       return successResponse({ debt: result.debt });
     },
     {
@@ -203,17 +209,6 @@ export const debtsController = new Elysia({ prefix: '/debts' })
         return errorResponse(BE_ERRORS.DEBT_INVALID_STATUS, result.error);
       }
 
-      // Log the status change activity
-      await activityService.log({
-        userId: freshUser.id,
-        action: body.status,
-        resource: 'debt',
-        resourceId: id,
-        changes: { before: { status: result.previousStatus }, after: { status: body.status } },
-        ipAddress: getClientIP(request) || undefined,
-        userAgent: request.headers.get('user-agent') || undefined
-      });
-
       return successResponse({ debt: result.debt });
     },
     {
@@ -257,17 +252,6 @@ export const debtsController = new Elysia({ prefix: '/debts' })
         set.status = 400;
         return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
-
-      // Log the update activity
-      await activityService.log({
-        userId: freshUser.id,
-        action: 'update',
-        resource: 'debt',
-        resourceId: id,
-        changes: { after: body },
-        ipAddress: getClientIP(request) || undefined,
-        userAgent: request.headers.get('user-agent') || undefined
-      });
 
       return successResponse({ debt: result.debt });
     },
@@ -393,16 +377,6 @@ export const debtsController = new Elysia({ prefix: '/debts' })
         return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
 
-      // Log the delete activity
-      await activityService.log({
-        userId: freshUser.id,
-        action: 'delete',
-        resource: 'debt',
-        resourceId: id,
-        ipAddress: getClientIP(request) || undefined,
-        userAgent: request.headers.get('user-agent') || undefined
-      });
-
       return successResponse({ message: 'Debt deleted successfully' });
     },
     {
@@ -445,16 +419,6 @@ export const debtsController = new Elysia({ prefix: '/debts' })
         set.status = 400;
         return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
-
-      // Log the confirm activity
-      await activityService.log({
-        userId: freshUser.id,
-        action: 'confirm',
-        resource: 'debt',
-        resourceId: id,
-        ipAddress: getClientIP(request) || undefined,
-        userAgent: request.headers.get('user-agent') || undefined
-      });
 
       return successResponse({ debt: result.debt, message: result.message });
     },

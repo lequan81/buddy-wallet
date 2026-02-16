@@ -4,7 +4,7 @@ import { createTreatyClient } from '$lib/eden';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const required = url.searchParams.get('required') === 'true';
-	
+
 	// If not required change and not logged in, redirect to login
 	if (!required && !locals.user) {
 		throw redirect(303, '/login');
@@ -50,7 +50,7 @@ export const actions: Actions = {
 				// Clear session cookies after password change
 				cookies.delete('session', { path: '/' });
 				cookies.delete('refresh_token', { path: '/' });
-				
+
 				return { success: true };
 			}
 

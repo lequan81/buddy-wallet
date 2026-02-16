@@ -34,6 +34,7 @@
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import FinancialSummary from '$lib/components/dashboard/FinancialSummary.svelte';
 	import { cn } from '$lib/utils';
+	import type { Debt } from '@repo/types';
 
 	let { data, form } = $props();
 
@@ -232,20 +233,20 @@
 			<FinancialSummary
 				totalOwedToYou={debts
 					.filter(
-						(d: any) =>
+						(d: Debt) =>
 							d.creditorId === currentUser?.id && d.status !== 'paid' && d.status !== 'cancelled'
 					)
-					.reduce((acc: number, d: any) => acc + d.amount, 0)}
+					.reduce((acc: number, d: Debt) => acc + d.amount, 0)}
 				totalYouOwe={debts
 					.filter(
-						(d: any) =>
+						(d: Debt) =>
 							d.debtorId === currentUser?.id && d.status !== 'paid' && d.status !== 'cancelled'
 					)
-					.reduce((acc: number, d: any) => acc + d.amount, 0)}
+					.reduce((acc: number, d: Debt) => acc + d.amount, 0)}
 			/>
 
 			<!-- Pending Confirmation Alert -->
-			{@const debtsNeedingMyConfirmation = debts.filter((d: any) => {
+			{@const debtsNeedingMyConfirmation = debts.filter((d: Debt) => {
 				if (!d.needsConfirmation) return false;
 				if (d.uploadedById === currentUser?.id) return false;
 				const isCreditor = d.creditorId === currentUser?.id;
@@ -334,7 +335,7 @@
 								<div class="font-tabular text-4xl font-bold">{users.length}</div>
 							{/await}
 							<p class="mt-1 text-xs text-muted-foreground">
-								<a href="/dashboard/users" class="hover:underline">Manage users →</a>
+								<a href="/admin/users" class="hover:underline">Manage users →</a>
 							</p>
 						</Card.Content>
 					</Card.Root>
@@ -358,7 +359,7 @@
 					</Card.Header>
 					<Card.Content>
 						<div class="font-tabular text-4xl font-bold">
-							{debts.filter((d: any) => d.status === 'pending').length}
+							{debts.filter((d: Debt) => d.status === 'pending').length}
 						</div>
 						<p class="mt-1 text-xs text-muted-foreground">Awaiting confirmation</p>
 					</Card.Content>

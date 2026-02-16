@@ -7,6 +7,6 @@
 	<title>{data.metadata?.title || 'Terms'} | Buddy Wallet</title>
 </svelte:head>
 
-<article class="prose prose-slate dark:prose-invert mx-auto max-w-3xl py-12 px-4">
+<article class="mx-auto prose max-w-3xl px-4 py-12 prose-slate dark:prose-invert">
 	<data.component />
 </article>

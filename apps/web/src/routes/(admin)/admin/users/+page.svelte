@@ -2,7 +2,17 @@
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { Users, UserCheck, UserX, Eye, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from '@lucide/svelte';
+	import {
+		Users,
+		UserCheck,
+		UserX,
+		Eye,
+		Search,
+		ChevronLeft,
+		ChevronRight,
+		ChevronsLeft,
+		ChevronsRight
+	} from '@lucide/svelte';
 	import { useDebounce } from '$lib/hooks/use-debounce.svelte';
 	import { Button } from '@repo/ui/components/ui/button';
 
@@ -12,11 +22,17 @@
 	let filterStatus = $state<'all' | 'active' | 'inactive'>('all');
 
 	// Pagination from server
-	type ExtendedData = typeof data & { page?: number; pageSize?: number; pagination?: { total: number; limit: number; offset: number; hasMore: boolean } };
+	type ExtendedData = typeof data & {
+		page?: number;
+		pageSize?: number;
+		pagination?: { total: number; limit: number; offset: number; hasMore: boolean };
+	};
 	let extData = $derived(data as ExtendedData);
 	let currentPage = $derived(extData.page || 1);
 	let pageSize = $derived(extData.pageSize || 10);
-	let pagination = $derived(extData.pagination || { total: 0, limit: 10, offset: 0, hasMore: false });
+	let pagination = $derived(
+		extData.pagination || { total: 0, limit: 10, offset: 0, hasMore: false }
+	);
 	let totalPages = $derived(Math.ceil(pagination.total / pageSize) || 1);
 
 	// Navigate with pagination params
@@ -24,7 +40,7 @@
 		const url = new URL($page.url);
 		if (params.page !== undefined) url.searchParams.set('page', params.page.toString());
 		if (params.pageSize !== undefined) url.searchParams.set('pageSize', params.pageSize.toString());
-		goto(url.toString(), { invalidateAll: true });
+		goto(url.toString());
 	};
 
 	// Debounce search query to avoid filtering on every keystroke
@@ -138,7 +154,7 @@
 							</td>
 							<td class="px-6 py-4 text-right">
 								<a
-									href="/dashboard/users/{user.id}"
+									href="/admin/users/{user.id}"
 									class="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
 								>
 									<Eye class="h-4 w-4" />
@@ -163,12 +179,16 @@
 		<div class="mt-6 flex items-center justify-between">
 			<div class="flex items-center gap-2 text-sm text-muted-foreground">
 				<span>
-					Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, pagination.total)} of {pagination.total} users
+					Showing {(currentPage - 1) * pageSize + 1} to {Math.min(
+						currentPage * pageSize,
+						pagination.total
+					)} of {pagination.total} users
 				</span>
 				<select
 					class="ml-2 rounded border bg-background px-2 py-1 text-sm"
 					value={pageSize}
-					onchange={(e) => navigateWithParams({ pageSize: parseInt(e.currentTarget.value), page: 1 })}
+					onchange={(e) =>
+						navigateWithParams({ pageSize: parseInt(e.currentTarget.value), page: 1 })}
 				>
 					<option value={5}>5 per page</option>
 					<option value={10}>10 per page</option>
@@ -219,8 +239,6 @@
 			</div>
 		</div>
 	{:else}
-		<div class="mt-6 text-sm text-muted-foreground">
-			No users found
-		</div>
+		<div class="mt-6 text-sm text-muted-foreground">No users found</div>
 	{/if}
 </div>

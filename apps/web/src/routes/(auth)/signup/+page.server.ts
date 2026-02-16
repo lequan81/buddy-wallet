@@ -40,8 +40,12 @@ export const actions: Actions = {
 				let errorMessage = errorData?.error?.message || 'Registration failed';
 
 				// Provide user-friendly messages for common errors
-				if (errorMessage.toLowerCase().includes('already exists') || errorMessage.toLowerCase().includes('duplicate')) {
-					errorMessage = 'An account with this phone number or email already exists. Please log in instead.';
+				if (
+					errorMessage.toLowerCase().includes('already exists') ||
+					errorMessage.toLowerCase().includes('duplicate')
+				) {
+					errorMessage =
+						'An account with this phone number or email already exists. Please log in instead.';
 				}
 
 				return message(form, errorMessage, { status: 400 });

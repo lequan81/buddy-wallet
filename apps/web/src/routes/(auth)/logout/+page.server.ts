@@ -7,7 +7,10 @@ export const actions: Actions = {
 		// Call backend to invalidate session
 		if (locals.user) {
 			try {
-				const cookieHeader = cookies.getAll().map(c => `${c.name}=${c.value}`).join('; ');
+				const cookieHeader = cookies
+					.getAll()
+					.map((c) => `${c.name}=${c.value}`)
+					.join('; ');
 				await fetch(`${API_URL}/v1/auth/logout`, {
 					method: 'POST',
 					headers: { ...getDefaultHeaders(), Cookie: cookieHeader }

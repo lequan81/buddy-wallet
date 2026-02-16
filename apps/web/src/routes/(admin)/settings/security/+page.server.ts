@@ -7,6 +7,7 @@ interface Session {
 	deviceName: string | null;
 	deviceType: string | null;
 	location: string | null;
+	ipAddress: string | null;
 	lastActiveAt: string | null;
 	createdAt: string;
 	isCurrent: boolean;
@@ -64,7 +65,8 @@ export const actions: Actions = {
 		const data = await response.json().catch(() => ({}));
 
 		if (!response.ok) {
-			const errorMsg = data.error?.message || data.error?.details || data.message || 'Failed to revoke session';
+			const errorMsg =
+				data.error?.message || data.error?.details || data.message || 'Failed to revoke session';
 			return fail(response.status, { message: errorMsg });
 		}
 
@@ -88,13 +90,17 @@ export const actions: Actions = {
 		const data = await response.json().catch(() => ({}));
 
 		if (!response.ok) {
-			const errorMsg = data.error?.message || data.error?.details || data.message || 'Failed to logout all devices';
+			const errorMsg =
+				data.error?.message ||
+				data.error?.details ||
+				data.message ||
+				'Failed to logout all devices';
 			return fail(response.status, { message: errorMsg });
 		}
 
 		// Clear cookies and redirect to login
 		cookies.delete('session', { path: '/' });
-		cookies.delete('refresh', { path: '/' });
+		cookies.delete('refresh_token', { path: '/' });
 
 		throw redirect(302, '/login?reason=logout_all');
 	},
@@ -135,10 +141,14 @@ export const actions: Actions = {
 		const data = await response.json().catch(() => ({}));
 
 		if (!response.ok) {
-			const errorMsg = data.error?.message || data.error?.details || data.message || 'Failed to change password';
+			const errorMsg =
+				data.error?.message || data.error?.details || data.message || 'Failed to change password';
 			return fail(response.status, { message: errorMsg });
 		}
 
-		return { success: true, message: data.data?.message || data.message || 'Password changed successfully' };
+		return {
+			success: true,
+			message: data.data?.message || data.message || 'Password changed successfully'
+		};
 	}
 };

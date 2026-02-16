@@ -48,13 +48,23 @@
 
 	// Determine validation states
 	const nameState = $derived($errors.name ? 'error' : $form.name ? 'success' : 'default');
-	const phoneState = $derived($errors.phoneNumber ? 'error' : $form.phoneNumber && $form.phoneNumber.length >= 10 ? 'success' : 'default');
-	const emailState = $derived($errors.email ? 'error' : $form.email && $form.email.includes('@') ? 'success' : 'default');
-	const passwordState = $derived($errors.password ? 'error' : passwordRules.every(r => r.valid) ? 'success' : 'default');
+	const phoneState = $derived(
+		$errors.phoneNumber
+			? 'error'
+			: $form.phoneNumber && $form.phoneNumber.length >= 10
+				? 'success'
+				: 'default'
+	);
+	const emailState = $derived(
+		$errors.email ? 'error' : $form.email && $form.email.includes('@') ? 'success' : 'default'
+	);
+	const passwordState = $derived(
+		$errors.password ? 'error' : passwordRules.every((r) => r.valid) ? 'success' : 'default'
+	);
 	const canSubmit = $derived(
-		passwordRules.every(r => r.valid) &&
-		(confirmPassword === '' || confirmPassword === ($form.password ?? '')) &&
-		!$delayed
+		passwordRules.every((r) => r.valid) &&
+			(confirmPassword === '' || confirmPassword === ($form.password ?? '')) &&
+			!$delayed
 	);
 
 	// Show toast on form error message if server returns specific message
@@ -190,7 +200,12 @@
 					<span class="bg-card px-2 text-muted-foreground"> Already have an account? </span>
 				</div>
 			</div>
-			<Button variant="outline" class="h-10 w-full" href="/login" data-sveltekit-preload-data="hover">Sign in</Button>
+			<Button
+				variant="outline"
+				class="h-10 w-full"
+				href="/login"
+				data-sveltekit-preload-data="hover">Sign in</Button
+			>
 		</Card.Footer>
 	</Card.Root>
 </div>

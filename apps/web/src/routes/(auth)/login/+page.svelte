@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance, applyAction } from '$app/forms';
+	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { Loader2 } from '@lucide/svelte';
@@ -12,7 +12,7 @@
 	let email = $state('');
 	let password = $state('');
 	let isSubmitting = $state(false);
-	
+
 	// Validation states
 	let emailError = $state('');
 	let passwordError = $state('');
@@ -63,16 +63,16 @@
 				method="POST"
 				use:enhance={() => {
 					isSubmitting = true;
-					return async ({ result }) => {
+					return async ({ result, update }) => {
 						isSubmitting = false;
 
+						// If login successful (redirect), use full page reload to ensure cookies are set
+						// Client-side navigation can race with cookie processing
 						if (result.type === 'redirect') {
-							await goto(result.location, { invalidateAll: true });
-						} else if (result.type === 'success') {
-                           // If success but no redirect (unlikely for login), just update
-                           await applyAction(result);
-                        } else {
-							await applyAction(result);
+							window.location.href = result.location;
+						} else {
+							// For errors, just update the form
+							await update();
 						}
 					};
 				}}
@@ -105,7 +105,11 @@
 
 				<!-- Forgot Password Link -->
 				<div class="text-right">
-					<a href="/forgot-password" data-sveltekit-preload-data="hover" class="text-sm text-primary hover:underline">
+					<a
+						href="/forgot-password"
+						data-sveltekit-preload-data="hover"
+						class="text-sm text-primary hover:underline"
+					>
 						Forgot password?
 					</a>
 				</div>
@@ -133,7 +137,12 @@
 					<span class="bg-card px-2 text-muted-foreground"> New to Buddy Wallet? </span>
 				</div>
 			</div>
-			<Button variant="outline" class="h-10 w-full" href="/signup" data-sveltekit-preload-data="hover">Create an account</Button>
+			<Button
+				variant="outline"
+				class="h-10 w-full"
+				href="/signup"
+				data-sveltekit-preload-data="hover">Create an account</Button
+			>
 		</Card.Footer>
 	</Card.Root>
 </div>

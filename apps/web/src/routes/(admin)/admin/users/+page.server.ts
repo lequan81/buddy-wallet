@@ -27,25 +27,27 @@ export const load: PageServerLoad = async ({ locals, fetch, parent, url }) => {
 		limit: pageSize.toString(),
 		offset: offset.toString()
 	});
-	
+
 	const response = await fetch(`${API_URL}/v1/users?${params}`, { headers });
 
 	if (!response.ok) {
-		return { 
-			users: [], 
+		return {
+			users: [],
 			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } as Pagination,
 			page,
 			pageSize,
-			error: 'Failed to fetch users' 
+			error: 'Failed to fetch users'
 		};
 	}
 
 	const data = await response.json();
 
 	// API returns { success: true, data: { users: [...], pagination: {...} } }
-	return { 
+	return {
 		users: data.data?.users || [],
-		pagination: data.data?.pagination || { total: 0, limit: pageSize, offset: 0, hasMore: false } as Pagination,
+		pagination:
+			data.data?.pagination ||
+			({ total: 0, limit: pageSize, offset: 0, hasMore: false } as Pagination),
 		page,
 		pageSize
 	};

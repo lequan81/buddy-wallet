@@ -52,14 +52,14 @@ export async function safeJsonParse<T>(response: Response): Promise<T | null> {
 	try {
 		const text = await response.text();
 		if (!text) return null;
-		
+
 		// Check if it looks like JSON before parsing
 		const trimmed = text.trim();
 		if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
 			console.error('[API] Received non-JSON response:', trimmed.slice(0, 100));
 			return null;
 		}
-		
+
 		return JSON.parse(text) as T;
 	} catch (error) {
 		console.error('[API] JSON parse failed:', error);
@@ -195,9 +195,9 @@ export async function apiFetch<T>(
  */
 export async function serverFetch<T>(
 	endpoint: string,
-	options: RequestInit & { cookies?: string } = {}
+	options: RequestInit & { cookies?: string; token?: string } = {}
 ): Promise<{ data: T | null; error: string | null; response: Response }> {
-	const { cookies, ...fetchOptions } = options;
+	const { cookies, token, ...fetchOptions } = options;
 	const url = `${API_URL}${endpoint}`;
 
 	try {
@@ -205,6 +205,7 @@ export async function serverFetch<T>(
 			...fetchOptions,
 			headers: {
 				...getDefaultHeaders(),
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
 				...(cookies ? { Cookie: cookies } : {}),
 				...fetchOptions.headers
 			}
@@ -275,4 +276,3 @@ export async function checkDebtByPhone(phoneNumber: string): Promise<{
 		};
 	}
 }
-

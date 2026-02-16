@@ -96,7 +96,9 @@
 			return;
 		}
 
-		if (/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(accountName)) {
+		if (
+			/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(accountName)
+		) {
 			accountNameValidation = 'warning';
 			accountNameMessage = 'Remove Vietnamese accents for better compatibility';
 			return;
@@ -181,38 +183,38 @@
 					</div>
 
 					<div class="grid gap-2">
-					<FormInput
-						id="accountNumber"
-						name="accountNumber"
-						label="Account Number"
-						type="text"
-						bind:value={accountNumber}
-						placeholder="e.g. 1903..."
-						validationState={accountNumberValidation}
-						error={accountNumberValidation === 'error' ? accountNumberMessage : undefined}
-						success={accountNumberValidation === 'success' ? accountNumberMessage : undefined}
-						required
-					/>
-				</div>
+						<FormInput
+							id="accountNumber"
+							name="accountNumber"
+							label="Account Number"
+							type="text"
+							bind:value={accountNumber}
+							placeholder="e.g. 1903..."
+							validationState={accountNumberValidation}
+							error={accountNumberValidation === 'error' ? accountNumberMessage : undefined}
+							success={accountNumberValidation === 'success' ? accountNumberMessage : undefined}
+							required
+						/>
+					</div>
 
-				<div class="grid gap-2">
-					<FormInput
-						id="accountName"
-						name="accountName"
-						label="Account Name"
-						type="text"
-						bind:value={accountName}
-						placeholder="e.g. NGUYEN VAN A"
-						validationState={accountNameValidation}
-						error={accountNameValidation === 'error' ? accountNameMessage : undefined}
-						success={accountNameValidation === 'success' ? accountNameMessage : undefined}
-						warning={accountNameValidation === 'warning' ? accountNameMessage : undefined}
-						helpText="Name registered with the bank (uppercase, no accents recommended)."
-						required
-					/>
-				</div>
+					<div class="grid gap-2">
+						<FormInput
+							id="accountName"
+							name="accountName"
+							label="Account Name"
+							type="text"
+							bind:value={accountName}
+							placeholder="e.g. NGUYEN VAN A"
+							validationState={accountNameValidation}
+							error={accountNameValidation === 'error' ? accountNameMessage : undefined}
+							success={accountNameValidation === 'success' ? accountNameMessage : undefined}
+							warning={accountNameValidation === 'warning' ? accountNameMessage : undefined}
+							helpText="Name registered with the bank (uppercase, no accents recommended)."
+							required
+						/>
+					</div>
 
-				<div class="flex items-center space-x-2">
+					<div class="flex items-center space-x-2">
 						<input
 							type="checkbox"
 							id="isDefault"
@@ -223,15 +225,15 @@
 					</div>
 
 					<Dialog.Footer>
-					<Button
-						type="submit"
-						disabled={isSubmitting ||
-							!selectedBankCode ||
-							accountNumberValidation === 'error' ||
-							accountNameValidation === 'error' ||
-							accountNumber === '' ||
-							accountName === ''}
-					>
+						<Button
+							type="submit"
+							disabled={isSubmitting ||
+								!selectedBankCode ||
+								accountNumberValidation === 'error' ||
+								accountNameValidation === 'error' ||
+								accountNumber === '' ||
+								accountName === ''}
+						>
 							{isSubmitting ? 'Adding...' : 'Add Account'}
 						</Button>
 					</Dialog.Footer>

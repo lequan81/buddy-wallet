@@ -67,7 +67,7 @@ export const actions: Actions = {
 							path: '/',
 							httpOnly: true,
 							secure: process.env.NODE_ENV === 'production',
-							sameSite: 'strict',
+							sameSite: 'lax',
 							maxAge: 15 * 60 // 15 minutes
 						});
 					}
@@ -78,7 +78,7 @@ export const actions: Actions = {
 							path: '/',
 							httpOnly: true,
 							secure: process.env.NODE_ENV === 'production',
-							sameSite: 'strict',
+							sameSite: 'lax',
 							maxAge: 90 * 24 * 60 * 60 // 90 days
 						});
 					}

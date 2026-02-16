@@ -25,8 +25,8 @@
       "path": "packages/validation"
     },
     {
-      "name": "interfaces",
-      "path": "packages/interfaces"
+      "name": "types",
+      "path": "packages/types"
     },
     {
       "name": "errors",

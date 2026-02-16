@@ -2,98 +2,33 @@
 	/**
 	 * ErrorBoundary Component
 	 *
-	 * Wraps content and catches render errors, displaying a fallback UI.
+	 * Wraps content and catches render errors using Svelte 5's <svelte:boundary>.
 	 * Usage: <ErrorBoundary><YourComponent /></ErrorBoundary>
 	 */
-	import { onMount } from 'svelte';
+	import { RotateCcw, AlertTriangle } from '@lucide/svelte';
 
-	export let fallbackMessage = 'Something went wrong. Please try again.';
-
-	let hasError = false;
-	let errorMessage = '';
-
-	// In Svelte 5, onError is not yet supported. This is a workaround.
-	// The component will catch errors during initial render via try/catch in parent.
-	// For runtime errors, use window.onerror or Error Boundary pattern.
-
-	function reset() {
-		hasError = false;
-		errorMessage = '';
-	}
+	let { children, fallbackMessage = 'Something went wrong. Please try again.' } = $props();
 </script>
 
-{#if hasError}
-	<div class="error-boundary">
-		<div class="error-content">
-			<svg
-				xmlns="http://www.w3.org/2000/svg"
-				width="48"
-				height="48"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				stroke-linecap="round"
-				stroke-linejoin="round"
+<svelte:boundary>
+	{@render children?.()}
+
+	{#snippet failed(error, reset)}
+		<div class="flex min-h-50 flex-col items-center justify-center p-8 text-center text-red-500">
+			<AlertTriangle class="mb-4 h-12 w-12 opacity-80" />
+			<h3 class="mb-2 text-lg font-semibold">{fallbackMessage}</h3>
+			<p class="mb-4 text-sm opacity-70">
+				{error instanceof Error ? error.message : String(error)}
+			</p>
+			<button
+				onclick={reset}
+				class="rounded-md bg-blue-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-600 hover:opacity-90"
 			>
-				<circle cx="12" cy="12" r="10" />
-				<line x1="12" y1="8" x2="12" y2="12" />
-				<line x1="12" y1="16" x2="12.01" y2="16" />
-			</svg>
-			<h3>{fallbackMessage}</h3>
-			{#if errorMessage}
-				<p class="error-details">{errorMessage}</p>
-			{/if}
-			<button on:click={reset}>Try Again</button>
+				<span class="flex items-center gap-2">
+					<RotateCcw class="h-4 w-4" />
+					Try Again
+				</span>
+			</button>
 		</div>
-	</div>
-{:else}
-	<slot />
-{/if}
-
-<style>
-	.error-boundary {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-height: 200px;
-		padding: 2rem;
-	}
-
-	.error-content {
-		text-align: center;
-		color: var(--color-error, #ef4444);
-	}
-
-	.error-content svg {
-		margin-bottom: 1rem;
-		opacity: 0.8;
-	}
-
-	.error-content h3 {
-		margin: 0 0 0.5rem;
-		font-size: 1.125rem;
-		font-weight: 600;
-	}
-
-	.error-details {
-		margin: 0 0 1rem;
-		font-size: 0.875rem;
-		opacity: 0.7;
-	}
-
-	.error-content button {
-		padding: 0.5rem 1rem;
-		background: var(--color-primary, #3b82f6);
-		color: white;
-		border: none;
-		border-radius: 0.375rem;
-		cursor: pointer;
-		font-size: 0.875rem;
-		transition: opacity 0.2s;
-	}
-
-	.error-content button:hover {
-		opacity: 0.9;
-	}
-</style>
+	{/snippet}
+</svelte:boundary>

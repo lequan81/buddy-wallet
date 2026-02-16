@@ -3,6 +3,7 @@
 	import { Label } from '@repo/ui/components/ui/label';
 	import { CheckCircle2, AlertCircle, AlertTriangle, Eye, EyeOff } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
+	import type { HTMLInputAttributes } from 'svelte/elements';
 	import type { Component } from 'svelte';
 
 	let {
@@ -22,14 +23,8 @@
 		helpText,
 		class: className,
 		...restProps
-	}: {
+	}: HTMLInputAttributes & {
 		label?: string;
-		name: string;
-		type?: string;
-		placeholder?: string;
-		required?: boolean;
-		disabled?: boolean;
-		value?: string | undefined;
 		error?: string;
 		success?: string;
 		warning?: string;
@@ -37,15 +32,13 @@
 		showPasswordToggle?: boolean;
 		icon?: Component<any>;
 		helpText?: string;
-		class?: string;
-		[key: string]: any;
 	} = $props();
 
 	// Ensure we always have a string value for the input
 	let inputValue = $derived(value ?? '');
-	
+
 	let showPassword = $state(false);
-	let inputType = $derived(showPasswordToggle && showPassword ? 'text' : type);
+	let inputType = $derived(showPasswordToggle && showPassword ? 'text' : ((type ?? 'text') as any));
 
 	const stateConfig = $derived.by(() => {
 		const configs = {
@@ -94,7 +87,7 @@
 	<div class="relative">
 		{#if icon}
 			{@const IconComponent = icon}
-			<div class="absolute top-2.5 left-3 pointer-events-none">
+			<div class="pointer-events-none absolute top-2.5 left-3">
 				<IconComponent class="h-4 w-4 text-muted-foreground" />
 			</div>
 		{/if}
@@ -110,10 +103,10 @@
 			class={cn(
 				stateConfig.ringClass,
 				icon ? 'pl-10' : '',
-				(StateIcon || showPasswordToggle) ? 'pr-10' : '',
+				StateIcon || showPasswordToggle ? 'pr-10' : '',
 				className
 			)}
-			{...restProps}
+			{...restProps as any}
 		/>
 
 		{#if showPasswordToggle}
@@ -131,7 +124,7 @@
 				{/if}
 			</button>
 		{:else if StateIcon}
-			<div class="absolute top-2.5 right-3 pointer-events-none">
+			<div class="pointer-events-none absolute top-2.5 right-3">
 				<StateIcon class="h-4 w-4 {stateConfig.iconClass}" />
 			</div>
 		{/if}
@@ -140,7 +133,7 @@
 	{#if stateConfig.message}
 		<p class="text-sm {stateConfig.textClass} flex items-start gap-1.5">
 			{#if StateIcon}
-				<StateIcon class="h-4 w-4 mt-0.5 shrink-0" />
+				<StateIcon class="mt-0.5 h-4 w-4 shrink-0" />
 			{/if}
 			<span>{stateConfig.message}</span>
 		</p>

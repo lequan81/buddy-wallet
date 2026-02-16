@@ -3,6 +3,8 @@
 	import { CheckCircle2, AlertCircle, AlertTriangle } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 
+	import type { HTMLSelectAttributes } from 'svelte/elements';
+
 	let {
 		label,
 		name,
@@ -17,20 +19,13 @@
 		options = [],
 		class: className,
 		...restProps
-	}: {
+	}: HTMLSelectAttributes & {
 		label?: string;
-		name: string;
-		placeholder?: string;
-		required?: boolean;
-		disabled?: boolean;
-		value?: string;
 		error?: string;
 		success?: string;
 		warning?: string;
 		validationState?: 'default' | 'success' | 'error' | 'warning';
 		options: Array<{ value: string; label: string }>;
-		class?: string;
-		[key: string]: any;
 	} = $props();
 
 	const stateConfig = $derived.by(() => {
@@ -103,7 +98,7 @@
 		</select>
 
 		{#if StateIcon}
-			<div class="absolute top-2.5 right-3 pointer-events-none">
+			<div class="pointer-events-none absolute top-2.5 right-3">
 				<StateIcon class="h-4 w-4 {stateConfig.iconClass}" />
 			</div>
 		{/if}
@@ -112,7 +107,7 @@
 	{#if stateConfig.message}
 		<p class="text-sm {stateConfig.textClass} flex items-start gap-1.5">
 			{#if StateIcon}
-				<StateIcon class="h-4 w-4 mt-0.5 shrink-0" />
+				<StateIcon class="mt-0.5 h-4 w-4 shrink-0" />
 			{/if}
 			<span>{stateConfig.message}</span>
 		</p>

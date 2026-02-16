@@ -30,8 +30,6 @@
 		// Clearing the cache on every load defeated the purpose of navigation caching.
 	});
 
-	
-
 	let { children, data } = $props();
 	let showOfflineWarning = $state(true);
 </script>

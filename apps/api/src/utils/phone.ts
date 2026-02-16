@@ -21,7 +21,7 @@ export function normalizePhoneNumber(phone: string | null | undefined): string |
   let normalized = phone.trim();
 
   // Remove all spaces, dashes, dots, parentheses
-  normalized = normalized.replace(/[\s\-\.\(\)]/g, '');
+  normalized = normalized.replace(/[\s\-.()]/g, '');
 
   // Handle Vietnamese country code variations
   if (normalized.startsWith('+84')) {

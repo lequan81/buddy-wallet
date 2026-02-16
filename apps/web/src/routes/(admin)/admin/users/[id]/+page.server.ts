@@ -49,7 +49,8 @@ export const actions: Actions = {
 
 		if (!response.ok) {
 			const data = await response.json().catch(() => ({}));
-			const errorMsg = data.error?.message || data.error?.details || data.message || 'Failed to update status';
+			const errorMsg =
+				data.error?.message || data.error?.details || data.message || 'Failed to update status';
 			return fail(response.status, { error: errorMsg });
 		}
 

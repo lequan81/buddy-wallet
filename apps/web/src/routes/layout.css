@@ -145,24 +145,24 @@
 		font-feature-settings: 'tnum' 1;
 		font-variant-numeric: tabular-nums;
 	}
-	
+
 	.text-balance {
 		text-wrap: balance;
 	}
-	
+
 	/* Financial amount display */
 	.amount-positive {
 		@apply text-success;
 		font-feature-settings: 'tnum' 1;
 		font-variant-numeric: tabular-nums;
 	}
-	
+
 	.amount-negative {
 		@apply text-destructive;
 		font-feature-settings: 'tnum' 1;
 		font-variant-numeric: tabular-nums;
 	}
-	
+
 	.amount-neutral {
 		@apply text-foreground;
 		font-feature-settings: 'tnum' 1;

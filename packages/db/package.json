@@ -9,10 +9,12 @@
     "./schema": "./src/schema/index.ts"
   },
   "scripts": {
-    "generate": "bun drizzle-kit generate",
-    "migrate": "bun scripts/migrate.ts",
-    "push": "bun drizzle-kit push",
-    "studio": "bun drizzle-kit studio"
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "bunx tsc --noEmit",
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate",
+    "studio": "drizzle-kit studio",
+    "seed": "bun run src/seeds/index.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.1",

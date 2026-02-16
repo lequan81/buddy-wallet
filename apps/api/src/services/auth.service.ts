@@ -38,6 +38,13 @@ function generateRefreshToken(): string {
   return Buffer.from(bytes).toString('base64url');
 }
 
+interface JwtPayload {
+  id: string;
+  phoneNumber: string;
+  sessionVersion: number;
+  exp: number;
+}
+
 /**
  * AuthService class with dependency injection
  * Implements IAuthService for LSP compliance
@@ -145,8 +152,7 @@ export class AuthService implements IAuthService {
    */
   async login(
     input: LoginInput,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    jwt: { sign: (payload: any) => Promise<string> }
+    jwt: { sign: (payload: JwtPayload) => Promise<string> }
   ): Promise<AuthResult & { sessionId?: string }> {
     const { identifier, password, userAgent, clientIP } = input;
     logger.auth(`Login attempt`, { identifier });
@@ -244,7 +250,11 @@ export class AuthService implements IAuthService {
 
     // Parse device info (use client hints if provided for more accuracy)
     const deviceInfo = parseUserAgent(userAgent || null, input.clientHints);
-    const location = await getLocationFromIP(clientIP || null, input.clientLocation);
+    const location = await getLocationFromIP(
+      clientIP || null,
+      input.clientLocation,
+      input.coordinates
+    );
 
     // Generate tokens
     const now = Date.now();

@@ -295,12 +295,20 @@
 										<Badge variant="default" class="text-xs">Current</Badge>
 									{/if}
 								</div>
-								{#if session.location && session.location !== 'Unknown'}
-									<div class="flex items-center gap-1 text-sm text-muted-foreground">
-										<MapPin class="h-3 w-3" />
-										{session.location}
-									</div>
-								{/if}
+								<div>
+									<p class="font-medium text-gray-900 dark:text-white">
+										{#if session.location && !session.location.toLowerCase().startsWith('unknown')}
+											{session.location}
+										{:else}
+											Unknown Location
+										{/if}
+									</p>
+									<p class="text-xs text-muted-foreground">
+										{session.ipAddress || 'IP Hidden'} &bull; {session.lastActiveAt
+											? new Date(session.lastActiveAt).toLocaleDateString()
+											: 'Unknown'}
+									</p>
+								</div>
 								<div class="flex items-center gap-1 text-sm text-muted-foreground">
 									<Clock class="h-3 w-3" />
 									{#if isCurrent}

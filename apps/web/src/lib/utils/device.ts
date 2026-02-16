@@ -28,7 +28,7 @@ export function getDeviceInfo(): { deviceName: string; deviceType: DeviceType } 
 		{ regex: /Firefox/i, name: 'Firefox' },
 		{ regex: /CriOS/i, name: 'Chrome' }, // Chrome on iOS
 		{ regex: /Chrome/i, name: 'Chrome' },
-		{ regex: /Safari/i, name: 'Safari' },
+		{ regex: /Safari/i, name: 'Safari' }
 	];
 
 	let browser = '';

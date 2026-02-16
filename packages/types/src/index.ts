@@ -1,4 +1,5 @@
 export * from './api';
+export * from './activity';
 export * from './bank';
 export * from './bank-fallback';
 export * from './debt';

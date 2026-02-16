@@ -19,11 +19,27 @@ interface CurrentUser {
   phoneNumber: string | null;
 }
 
+interface ImportRow {
+  id: string;
+  debtorId: string | null;
+  creditorId: string;
+  debtorPhone: string;
+  creditorPhone: string;
+  amount: number;
+  description: string;
+  status: string;
+  uploadedById: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+type DetectedMapping = Record<string, string>;
+
 /**
  * ImportService class with dependency injection
  */
 export class ImportService {
-  constructor(private db: DbClient) { }
+  constructor(private db: DbClient) {}
 
   /**
    * Preview an import file
@@ -143,7 +159,7 @@ export class ImportService {
 
       const range = XLSX.utils.decode_range(sheet['!ref']);
       const errors: string[] = [];
-      const newDebts: any[] = [];
+      const newDebts: ImportRow[] = [];
       const userCache = new Map<string, { id: string; phone: string | null }>();
       const totalRowsToProcess = range.e.r + 1 - startRow;
 
@@ -198,8 +214,8 @@ export class ImportService {
           id: randomUUIDv7('base64url'),
           debtorId: debtorData?.id || null,
           creditorId: currentUser.id,
-          debtorPhone: phone || debtorData?.phone || name,
-          creditorPhone: currentUser.phoneNumber || null,
+          debtorPhone: phone || debtorData?.phone || name || '',
+          creditorPhone: currentUser.phoneNumber || '',
           amount,
           description: description || `Imported: ${name}`,
           status: 'pending',
@@ -343,8 +359,8 @@ export class ImportService {
     return null;
   }
 
-  private detectColumnMapping(headerRow: any[], columnHeaders: string[]): Record<string, string> {
-    const autoMapping: Record<string, string> = {
+  private detectColumnMapping(headerRow: unknown[], columnHeaders: string[]): DetectedMapping {
+    const autoMapping: DetectedMapping = {
       name: '',
       amount: '',
       phone: '',

@@ -20,8 +20,16 @@
 
 	<!-- Footer -->
 	<p class="mt-8 text-center text-sm text-muted-foreground">
-		<a href="/terms" data-sveltekit-preload-data="hover" class="transition-colors hover:text-foreground">Terms</a>
+		<a
+			href="/terms"
+			data-sveltekit-preload-data="hover"
+			class="transition-colors hover:text-foreground">Terms</a
+		>
 		<span class="mx-2">•</span>
-		<a href="/privacy" data-sveltekit-preload-data="hover" class="transition-colors hover:text-foreground">Privacy</a>
+		<a
+			href="/privacy"
+			data-sveltekit-preload-data="hover"
+			class="transition-colors hover:text-foreground">Privacy</a
+		>
 	</p>
 </div>

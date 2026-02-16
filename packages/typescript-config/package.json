@@ -9,6 +9,8 @@
   },
   "exports": {
     "./base.json": "./base.json",
+    "./app.json": "./app.json",
+    "./library.json": "./library.json",
     "./svelte.json": "./svelte.json"
   }
 }

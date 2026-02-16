@@ -86,22 +86,38 @@ export const app = new Elysia()
             .use(uploadController) // File uploads for QR codes and payment proofs
       )
   )
-  .get('/health', () => ({
-    status: 'ok',
-    uptime: process.uptime(),
+  .get('/', () => ({
+    name: 'Buddy Wallet API',
     version: '1.2.4',
-    memory: process.memoryUsage().heapUsed
+    status: 'running',
+    docs: '/health'
   }))
+  .get('/health', async ({ headers, set }) => {
+    // Basic health check
+    const base = {
+      status: 'ok',
+      version: '1.2.4',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString()
+    };
+    return base;
+  })
   // Trace viewer (dev only)
-  .use(tracesController);
+  .use(tracesController)
+  .onError(({ code, error, set }) => {
+    console.error(`Global error caught`, { code, error });
+    set.status = 500;
+    return {
+      success: false,
+      error: 'Internal Server Error',
+      message: error instanceof Error ? error.message : String(error)
+    };
+  });
 
+// Only listen if run directly (not imported)
 if (import.meta.main) {
-  app.listen(configs.APP.PORT);
-
-  logger.app(`Server started`, {
-    host: app.server?.hostname,
-    port: app.server?.port,
-    environment: Bun.env.NODE_ENV || 'development'
+  app.listen(configs.APP.PORT, () => {
+    console.log(`🦊 API is running at ${app.server?.hostname}:${app.server?.port}`);
   });
 }
 

@@ -19,16 +19,36 @@
 
 		<nav class="hidden items-center space-x-6 text-sm font-medium md:flex">
 			<a href="/" class="text-foreground/60 transition-colors hover:text-foreground">Home</a>
-			<a href="/about" data-sveltekit-preload-data="hover" class="text-foreground/60 transition-colors hover:text-foreground">About</a>
-			<a href="/faq" data-sveltekit-preload-data="hover" class="text-foreground/60 transition-colors hover:text-foreground">FAQ</a>
+			<a
+				href="/about"
+				data-sveltekit-preload-data="hover"
+				class="text-foreground/60 transition-colors hover:text-foreground">About</a
+			>
+			<a
+				href="/faq"
+				data-sveltekit-preload-data="hover"
+				class="text-foreground/60 transition-colors hover:text-foreground">FAQ</a
+			>
 		</nav>
 
 		<div class="flex items-center space-x-2">
 			{#if user}
-				<a href="/dashboard" data-sveltekit-preload-data="hover" class={buttonVariants({ variant: 'default' })}>Dashboard</a>
+				<a
+					href="/dashboard"
+					data-sveltekit-preload-data="hover"
+					class={buttonVariants({ variant: 'default' })}>Dashboard</a
+				>
 			{:else}
-				<a href="/login" data-sveltekit-preload-data="hover" class={buttonVariants({ variant: 'ghost' })}>Login</a>
-				<a href="/signup" data-sveltekit-preload-data="hover" class={buttonVariants({ variant: 'default' })}>Sign Up</a>
+				<a
+					href="/login"
+					data-sveltekit-preload-data="hover"
+					class={buttonVariants({ variant: 'ghost' })}>Login</a
+				>
+				<a
+					href="/signup"
+					data-sveltekit-preload-data="hover"
+					class={buttonVariants({ variant: 'default' })}>Sign Up</a
+				>
 			{/if}
 		</div>
 	</div>
@@ -59,8 +79,20 @@
 				<h4 class="font-semibold">Product</h4>
 				<ul class="space-y-2 text-sm text-muted-foreground">
 					<li><a href="/" class="transition-colors hover:text-foreground">Home</a></li>
-					<li><a href="/about" data-sveltekit-preload-data="hover" class="transition-colors hover:text-foreground">About</a></li>
-					<li><a href="/faq" data-sveltekit-preload-data="hover" class="transition-colors hover:text-foreground">FAQ</a></li>
+					<li>
+						<a
+							href="/about"
+							data-sveltekit-preload-data="hover"
+							class="transition-colors hover:text-foreground">About</a
+						>
+					</li>
+					<li>
+						<a
+							href="/faq"
+							data-sveltekit-preload-data="hover"
+							class="transition-colors hover:text-foreground">FAQ</a
+						>
+					</li>
 				</ul>
 			</div>
 
@@ -69,10 +101,18 @@
 				<h4 class="font-semibold">Legal</h4>
 				<ul class="space-y-2 text-sm text-muted-foreground">
 					<li>
-						<a href="/terms" data-sveltekit-preload-data="hover" class="transition-colors hover:text-foreground">Terms of Service</a>
+						<a
+							href="/terms"
+							data-sveltekit-preload-data="hover"
+							class="transition-colors hover:text-foreground">Terms of Service</a
+						>
 					</li>
 					<li>
-						<a href="/privacy" data-sveltekit-preload-data="hover" class="transition-colors hover:text-foreground">Privacy Policy</a>
+						<a
+							href="/privacy"
+							data-sveltekit-preload-data="hover"
+							class="transition-colors hover:text-foreground">Privacy Policy</a
+						>
 					</li>
 				</ul>
 			</div>
@@ -81,8 +121,20 @@
 			<div class="space-y-4">
 				<h4 class="font-semibold">Account</h4>
 				<ul class="space-y-2 text-sm text-muted-foreground">
-					<li><a href="/login" data-sveltekit-preload-data="hover" class="transition-colors hover:text-foreground">Login</a></li>
-					<li><a href="/signup" data-sveltekit-preload-data="hover" class="transition-colors hover:text-foreground">Sign Up</a></li>
+					<li>
+						<a
+							href="/login"
+							data-sveltekit-preload-data="hover"
+							class="transition-colors hover:text-foreground">Login</a
+						>
+					</li>
+					<li>
+						<a
+							href="/signup"
+							data-sveltekit-preload-data="hover"
+							class="transition-colors hover:text-foreground">Sign Up</a
+						>
+					</li>
 				</ul>
 			</div>
 		</div>

@@ -19,7 +19,8 @@
 		Menu,
 		X,
 		Activity,
-		Bell
+		Bell,
+		Server
 	} from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 
@@ -33,19 +34,14 @@
 	onMount(() => {
 		const preloadPages = () => {
 			// Preload settings and import pages in parallel
-			const pagesToPreload = [
-				'/settings/profile',
-				'/settings/security'
-			];
+			const pagesToPreload = ['/settings/profile', '/settings/security'];
 
 			// Add import page if user has permission
 			if (permissions.canImportData) {
 				pagesToPreload.push('/dashboard/import');
 			}
 
-			Promise.all(
-				pagesToPreload.map(path => preloadData(path).catch(() => {}))
-			);
+			Promise.all(pagesToPreload.map((path) => preloadData(path).catch(() => {})));
 		};
 
 		// Use requestIdleCallback if available for better performance
@@ -60,8 +56,10 @@
 	const navItems = $derived(() => {
 		const items = [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }];
 
-		if (permissions.canManageUsers) {
-			items.push({ href: '/dashboard/users', label: 'Users', icon: Users });
+		if (permissions.isAdmin) {
+			items.push({ href: '/admin/system', label: 'System', icon: Server });
+			items.push({ href: '/admin/traces', label: 'Traces', icon: Activity });
+			items.push({ href: '/admin/users', label: 'Users', icon: Users });
 		}
 
 		if (permissions.canImportData) {
@@ -110,7 +108,7 @@
 			{/each}
 
 			<div class="pt-4">
-				<p class="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+				<p class="mb-2 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
 					Settings
 				</p>
 				{#each settingsItems as item}
@@ -135,13 +133,12 @@
 		<div class="border-t p-4">
 			<div class="flex items-center gap-3">
 				<Avatar.Root class="h-9 w-9">
-					<Avatar.Fallback class="text-xs"
-						>{user?.email?.[0]?.toUpperCase() || 'U'}</Avatar.Fallback
+					<Avatar.Fallback class="text-xs">{user?.email?.[0]?.toUpperCase() || 'U'}</Avatar.Fallback
 					>
 				</Avatar.Root>
 				<div class="flex-1 truncate">
 					<p class="truncate text-sm font-medium">{user?.email}</p>
-					<p class="text-xs capitalize text-muted-foreground">{user?.role}</p>
+					<p class="text-xs text-muted-foreground capitalize">{user?.role}</p>
 				</div>
 			</div>
 		</div>
@@ -186,7 +183,7 @@
 
 					<div class="pt-4">
 						<p
-							class="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+							class="mb-2 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
 						>
 							Settings
 						</p>
@@ -237,7 +234,7 @@
 					<DropdownMenu.Label>
 						<div class="flex flex-col">
 							<span class="font-medium">{user?.email}</span>
-							<span class="text-xs capitalize text-muted-foreground">{user?.role}</span>
+							<span class="text-xs text-muted-foreground capitalize">{user?.role}</span>
 						</div>
 					</DropdownMenu.Label>
 					<DropdownMenu.Separator />

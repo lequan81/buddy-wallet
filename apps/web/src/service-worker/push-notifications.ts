@@ -69,7 +69,9 @@ sw.addEventListener('push', (event) => {
 		}
 	};
 
-	event.waitUntil(sw.registration.showNotification(payload.title || DEFAULT_NOTIFICATION.title, options));
+	event.waitUntil(
+		sw.registration.showNotification(payload.title || DEFAULT_NOTIFICATION.title, options)
+	);
 });
 
 // ============================================

@@ -69,7 +69,8 @@
 					<div class="text-center">
 						<h3 class="font-semibold">Check Your Email</h3>
 						<p class="mt-2 text-sm text-muted-foreground">
-							If the email and phone number match our records, you'll receive a temporary password shortly.
+							If the email and phone number match our records, you'll receive a temporary password
+							shortly.
 						</p>
 						<p class="mt-4 text-sm text-muted-foreground">
 							The temporary password expires in 24 hours and can only be used once.
@@ -90,7 +91,9 @@
 					class="space-y-4"
 				>
 					<!-- Info Banner -->
-					<div class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
+					<div
+						class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30"
+					>
 						<p class="text-sm text-blue-800 dark:text-blue-200">
 							For security, you must verify both your email and phone number to reset your password.
 						</p>
@@ -106,11 +109,8 @@
 						validationState={emailError ? 'error' : 'default'}
 						error={emailError}
 						required
-					>
-						{#snippet iconLeft()}
-							<Mail class="h-4 w-4 text-muted-foreground" />
-						{/snippet}
-					</FormInput>
+						icon={Mail}
+					/>
 
 					<!-- Phone Field -->
 					<FormInput
@@ -122,11 +122,8 @@
 						validationState={phoneError ? 'error' : 'default'}
 						error={phoneError}
 						required
-					>
-						{#snippet iconLeft()}
-							<Phone class="h-4 w-4 text-muted-foreground" />
-						{/snippet}
-					</FormInput>
+						icon={Phone}
+					/>
 
 					<!-- Submit Button -->
 					<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>

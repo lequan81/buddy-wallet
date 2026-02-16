@@ -18,6 +18,7 @@ export interface LoginInput {
   userAgent?: string | null;
   clientIP?: string | null;
   clientHints?: any;
+  coordinates?: { lat: number; lon: number } | null;
   clientLocation?: any;
 }
 

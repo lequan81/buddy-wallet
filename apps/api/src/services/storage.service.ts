@@ -1,4 +1,4 @@
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { unlink } from 'node:fs/promises';
 
 export interface IStorageService {
@@ -58,6 +58,14 @@ export class DiskStorageService implements IStorageService {
   }
 
   resolvePath(relativePath: string): string {
-    return join(this.uploadDir, relativePath);
+    const absoluteUploadDir = resolve(this.uploadDir);
+    const fullPath = resolve(absoluteUploadDir, relativePath);
+
+    // SECURITY: Prevent path traversal
+    if (!fullPath.startsWith(absoluteUploadDir)) {
+      throw new Error('Invalid path: Directory traversal attempt');
+    }
+
+    return fullPath;
   }
 }

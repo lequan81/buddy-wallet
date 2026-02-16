@@ -14,7 +14,7 @@
 	// Form state - use derived for initial values
 	let emailEnabled = $state(false);
 	let pushEnabled = $state(false);
-	
+
 	// Initialize from data on mount
 	$effect(() => {
 		emailEnabled = data.preferences?.emailNotificationsEnabled ?? false;
@@ -86,7 +86,9 @@
 				<!-- Email Notifications -->
 				<div class="flex items-center justify-between">
 					<div class="flex items-start gap-3">
-						<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+						<div
+							class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30"
+						>
 							<Mail class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 						</div>
 						<div class="space-y-1">
@@ -99,13 +101,15 @@
 						</div>
 					</div>
 					<label class="relative inline-flex cursor-pointer items-center">
-						<input 
+						<input
 							type="checkbox"
 							id="emailNotifications"
 							class="peer sr-only"
 							bind:checked={emailEnabled}
 						/>
-						<div class="h-6 w-11 rounded-full bg-input peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-background after:transition-all peer-checked:after:translate-x-5"></div>
+						<div
+							class="h-6 w-11 rounded-full bg-input peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-background after:transition-all peer-checked:after:translate-x-5"
+						></div>
 					</label>
 				</div>
 
@@ -114,7 +118,9 @@
 				<!-- Push Notifications -->
 				<div class="flex items-center justify-between">
 					<div class="flex items-start gap-3">
-						<div class="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
+						<div
+							class="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30"
+						>
 							<Bell class="h-5 w-5 text-purple-600 dark:text-purple-400" />
 						</div>
 						<div class="space-y-1">
@@ -132,7 +138,7 @@
 						</div>
 					</div>
 					<label class="relative inline-flex cursor-pointer items-center">
-						<input 
+						<input
 							type="checkbox"
 							id="pushNotifications"
 							class="peer sr-only"
@@ -140,13 +146,23 @@
 							onchange={handlePushToggle}
 							disabled={!canEnablePush}
 						/>
-						<div class="h-6 w-11 rounded-full bg-input peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-background after:transition-all peer-checked:after:translate-x-5"></div>
+						<div
+							class="h-6 w-11 rounded-full bg-input peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-background after:transition-all peer-checked:after:translate-x-5"
+						></div>
 					</label>
 				</div>
 
 				<!-- Hidden inputs for form submission -->
-				<input type="hidden" name="emailNotificationsEnabled" value={emailEnabled ? 'true' : 'false'} />
-				<input type="hidden" name="pushNotificationsEnabled" value={pushEnabled ? 'true' : 'false'} />
+				<input
+					type="hidden"
+					name="emailNotificationsEnabled"
+					value={emailEnabled ? 'true' : 'false'}
+				/>
+				<input
+					type="hidden"
+					name="pushNotificationsEnabled"
+					value={pushEnabled ? 'true' : 'false'}
+				/>
 			</Card.Content>
 
 			<Card.Footer class="border-t pt-6">

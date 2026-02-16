@@ -6,8 +6,7 @@ import { paraglideMiddleware } from '$lib/paraglide/server';
 import { createTreatyClient } from '$lib/eden';
 import { API_URL, getDefaultHeaders, getAuthHeaders } from '$lib/api';
 
-const AUTH_ME_TIMEOUT_MS = 600;
-const AUTH_REFRESH_TIMEOUT_MS = 900;
+const AUTH_TIMEOUT_MS = 3500;
 
 function isAbortError(err: unknown): boolean {
 	return (
@@ -69,13 +68,16 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		// - Optionally do a very fast /me (timeout) if we already have a session token.
 		// This prevents slow landing->login navigations when refresh_token is stale or API is slow.
 
+		// In hooks.server.ts, modify this logic:
+		// Allow /me + refresh on landing page for session persistence
+		// But skip on other public routes (login, signup, etc.) to keep them fast
 		const shouldAttemptMe = Boolean(currentToken) && (!isPublic || pathname === '/');
-		const shouldAttemptRefresh = Boolean(refreshToken) && !isPublic;
+		const shouldAttemptRefresh = Boolean(refreshToken) && (!isPublic || pathname === '/');
 
 		// Only try /me if we have a session token (and this route benefits from it)
 		if (shouldAttemptMe && currentToken) {
 			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), AUTH_ME_TIMEOUT_MS);
+			const timeout = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS);
 
 			const rawRes = await event.fetch(`${API_URL}/v1/auth/me`, {
 				method: 'GET',
@@ -98,7 +100,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		// If user is not found and we have a refresh token, try to refresh
 		if (!user && shouldAttemptRefresh && refreshToken) {
 			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), AUTH_REFRESH_TIMEOUT_MS);
+			const timeout = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS);
 
 			const refreshRes = await event.fetch(`${API_URL}/v1/auth/refresh`, {
 				method: 'POST',
@@ -133,7 +135,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 								path: '/',
 								httpOnly: true,
 								secure: !dev,
-								sameSite: 'strict',
+								sameSite: 'lax',
 								maxAge: 15 * 60 // 15 minutes
 							});
 						}
@@ -145,7 +147,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 								path: '/',
 								httpOnly: true,
 								secure: !dev,
-								sameSite: 'strict',
+								sameSite: 'lax',
 								maxAge: 90 * 24 * 60 * 60 // 90 days
 							});
 						}
@@ -171,7 +173,8 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	event.locals.api = createTreatyClient(event.fetch, currentToken);
 
 	// DEBUG: Log final auth state
-	if (dev) {
+	// Only log auth state for protected route document navigations (not assets)
+	if (dev && !isPublic && event.request.headers.get('sec-fetch-dest') === 'document') {
 		console.log('[HOOKS] Final state:', user ? `user=${user.id}` : 'no user');
 	}
 
@@ -182,7 +185,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	}
 
 	// Check permission for admin routes
-	if (pathname.startsWith('/admin')) {
+	if (pathname.startsWith('/admin/')) {
 		const hasAdminPermission = event.locals.user?.permissions?.includes('admin:view');
 		if (!hasAdminPermission) {
 			throw redirect(303, '/');

@@ -3,7 +3,7 @@
  */
 
 export interface ErrorInfo {
-  title: string;
-  description: string;
-  emoji: string;
+	title: string;
+	description: string;
+	emoji: string;
 }

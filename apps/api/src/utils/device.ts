@@ -84,17 +84,28 @@ export function parseUserAgent(userAgent: string | null, clientHints?: ClientHin
   if (ua.includes('edg/') || ua.includes('edge/')) browser = 'Edge';
   else if (ua.includes('opr/') || ua.includes('opera')) browser = 'Opera';
   else if (ua.includes('firefox') || ua.includes('fxios')) browser = 'Firefox';
-  else if (ua.includes('crios')) browser = 'Chrome'; // Chrome on iOS
-  else if (ua.includes('chrome') && !ua.includes('chromium') && !ua.includes('edg')) browser = 'Chrome';
-  else if (ua.includes('safari') && !ua.includes('chrome') && !ua.includes('android')) browser = 'Safari';
+  else if (ua.includes('crios'))
+    browser = 'Chrome'; // Chrome on iOS
+  else if (ua.includes('chrome') && !ua.includes('chromium') && !ua.includes('edg'))
+    browser = 'Chrome';
+  else if (ua.includes('safari') && !ua.includes('chrome') && !ua.includes('android'))
+    browser = 'Safari';
   else if (ua.includes('msie') || ua.includes('trident')) browser = 'Internet Explorer';
   else if (ua.includes('chromium')) browser = 'Chromium';
 
   // Detect Device Type
   let deviceType: DeviceInfo['deviceType'] = 'desktop';
-  if (ua.includes('mobile') || ua.includes('iphone') || (ua.includes('android') && !ua.includes('tablet'))) {
+  if (
+    ua.includes('mobile') ||
+    ua.includes('iphone') ||
+    (ua.includes('android') && !ua.includes('tablet'))
+  ) {
     deviceType = 'mobile';
-  } else if (ua.includes('ipad') || ua.includes('tablet') || (ua.includes('android') && ua.includes('tablet'))) {
+  } else if (
+    ua.includes('ipad') ||
+    ua.includes('tablet') ||
+    (ua.includes('android') && ua.includes('tablet'))
+  ) {
     deviceType = 'tablet';
   }
 
@@ -124,27 +135,53 @@ export function parseUserAgent(userAgent: string | null, clientHints?: ClientHin
  */
 export async function getLocationFromIP(
   ipAddress: string | null,
-  clientLocation?: string | null
+  clientLocation?: string | null,
+  coordinates?: { lat: number; lon: number } | null
 ): Promise<string> {
-  // 1. Use client-provided text location if valid (already privacy-safe)
+  // 1. Client-provided text
   if (clientLocation && clientLocation.length > 2 && clientLocation !== 'Location unavailable') {
     return clientLocation;
   }
 
-  // 2. Handle missing IP
-  if (!ipAddress) {
+  // 2. Reverse geocode from coordinates (OpenStreetMap Nominatim - free)
+  if (coordinates?.lat && coordinates?.lon) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${coordinates.lat}&lon=${coordinates.lon}&format=json&zoom=10`,
+        {
+          signal: controller.signal,
+          headers: { 'User-Agent': 'BuddyWallet/1.0' }
+        }
+      );
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        const city = data.address?.city || data.address?.town || data.address?.state;
+        const country = data.address?.country_code?.toUpperCase();
+        if (city && country) return `${city}, ${country}`;
+        if (city) return city;
+      }
+    } catch {
+      console.warn('[Device] Nominatim reverse geocode failed');
+    }
+  }
+
+  // Clean IP for further checks
+  const cleanIP = ipAddress ? ipAddress.replace('::ffff:', '') : null;
+
+  // Handle missing IP after client-provided and coordinates checks
+  if (!cleanIP) {
     return 'Unknown Location';
   }
 
-  // Remove IPv6 prefix if present
-  const cleanIP = ipAddress.replace('::ffff:', '');
-
-  // 3. Check for localhost
+  // Check for localhost
   if (isLocalhost(cleanIP)) {
     return 'Local Development';
   }
 
-  // 4. Check for private network (cleaner than long if-chain)
+  // Check for private network
   if (isPrivateIP(cleanIP)) {
     return 'Private Network';
   }

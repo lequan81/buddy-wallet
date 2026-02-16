@@ -1,22 +1,43 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
-  "globalDependencies": [".env"],
+  "globalDependencies": [".env", ".env.*"],
+  "globalPassThroughEnv": ["NODE_ENV", "LOG_LEVEL", "CI"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".svelte-kit/**", ".vercel/**"]
+      "outputs": [".svelte-kit/**", "dist/**", "build/**"],
+      "env": ["VITE_API_URL", "VITE_WEB_URL", "PORT"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "outputLogs": "new-only"
     },
     "lint": {
       "dependsOn": ["^lint"]
     },
+    "check": {
+      "dependsOn": ["^check"]
+    },
     "check-types": {
       "dependsOn": ["^check-types"]
     },
-    "dev": {
+    "test": {
+      "dependsOn": ["^build"],
+      "cache": true
+    },
+    "generate": {
+      "cache": false
+    },
+    "start": {
+      "dependsOn": ["build"],
       "cache": false,
       "persistent": true
+    },
+    "clean": {
+      "cache": false
     }
   }
 }

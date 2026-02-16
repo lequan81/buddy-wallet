@@ -111,10 +111,20 @@
 								<p class="mb-2 text-center font-medium text-warning">
 									You have {result.count} pending debt{result.count !== 1 ? 's' : ''}
 								</p>
-								<Button href="/login" data-sveltekit-preload-data="hover" variant="default" class="w-full">View Details</Button>
+								<Button
+									href="/login"
+									data-sveltekit-preload-data="hover"
+									variant="default"
+									class="w-full">View Details</Button
+								>
 							{:else}
 								<p class="mb-2 text-center font-medium text-success">No pending debts found</p>
-								<Button href="/signup" data-sveltekit-preload-data="hover" variant="outline" class="w-full">Create Account</Button>
+								<Button
+									href="/signup"
+									data-sveltekit-preload-data="hover"
+									variant="outline"
+									class="w-full">Create Account</Button
+								>
 							{/if}
 						</div>
 					{/if}
@@ -132,7 +142,9 @@
 				<p class="mb-6 text-lg text-muted-foreground">Welcome back! Ready to manage your debts?</p>
 				<div class="flex flex-col gap-4 sm:flex-row sm:justify-center">
 					<Button onclick={() => goto('/dashboard')} size="lg">Go to Dashboard</Button>
-					<Button onclick={() => goto('/debts/create')} variant="outline" size="lg">Create Debt</Button>
+					<Button onclick={() => goto('/debts/create')} variant="outline" size="lg"
+						>Create Debt</Button
+					>
 				</div>
 			</div>
 		{/if}

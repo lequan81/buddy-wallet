@@ -106,11 +106,17 @@
 	};
 
 	// Pagination from server
-	type ExtendedData = typeof data & { page?: number; pageSize?: number; pagination?: { total: number; limit: number; offset: number; hasMore: boolean } };
+	type ExtendedData = typeof data & {
+		page?: number;
+		pageSize?: number;
+		pagination?: { total: number; limit: number; offset: number; hasMore: boolean };
+	};
 	let extData = $derived(data as ExtendedData);
 	let currentPage = $derived(extData.page || 1);
 	let pageSize = $derived(extData.pageSize || 20);
-	let pagination = $derived(extData.pagination || { total: 0, limit: 20, offset: 0, hasMore: false });
+	let pagination = $derived(
+		extData.pagination || { total: 0, limit: 20, offset: 0, hasMore: false }
+	);
 	let totalPages = $derived(Math.ceil(pagination.total / pageSize) || 1);
 
 	// Navigate with pagination params
@@ -220,12 +226,16 @@
 					<div class="mt-6 flex items-center justify-between border-t pt-4">
 						<div class="flex items-center gap-2 text-sm text-muted-foreground">
 							<span>
-								Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, pagination.total)} of {pagination.total} entries
+								Showing {(currentPage - 1) * pageSize + 1} to {Math.min(
+									currentPage * pageSize,
+									pagination.total
+								)} of {pagination.total} entries
 							</span>
 							<select
 								class="ml-2 rounded border bg-background px-2 py-1 text-sm"
 								value={pageSize}
-								onchange={(e) => navigateWithParams({ pageSize: parseInt(e.currentTarget.value), page: 1 })}
+								onchange={(e) =>
+									navigateWithParams({ pageSize: parseInt(e.currentTarget.value), page: 1 })}
 							>
 								<option value={10}>10 per page</option>
 								<option value={20}>20 per page</option>

@@ -18,6 +18,7 @@ import type { DbClient } from '../types';
 import type { DebtStatus, CreateDebtInput, DebtResult, StatusUpdateResult } from '../types';
 import type { IDebtService, CurrentUser } from '../types';
 import type { PushService } from './push.service';
+import type { ActivityService } from './activity.service';
 
 // Expiry option type
 type ExpiryOption = '7d' | '30d' | '90d' | 'never';
@@ -67,6 +68,12 @@ export class DebtService implements IDebtService {
    */
   setPushService(pushService: PushService) {
     this.pushService = pushService;
+  }
+
+  private activityService: ActivityService | null = null;
+
+  setActivityService(activityService: ActivityService) {
+    this.activityService = activityService;
   }
   constructor(private db: DbClient) {}
 
@@ -355,6 +362,17 @@ export class DebtService implements IDebtService {
 
     await this.db.insert(debts).values(entry);
 
+    // Activity Log
+    if (this.activityService) {
+      await this.activityService.log({
+        userId: currentUser.id,
+        action: 'create',
+        resource: 'debt',
+        resourceId: entry.id,
+        changes: { after: { amount: entry.amount, description: entry.description } }
+      });
+    }
+
     // Send push notification to counterparty if they're a registered user
     if (counterparty && this.pushService) {
       try {
@@ -460,6 +478,16 @@ export class DebtService implements IDebtService {
       }
     }
 
+    // Activity Log
+    if (this.activityService) {
+      await this.activityService.log({
+        userId: currentUser.id,
+        action: 'confirm',
+        resource: 'debt',
+        resourceId: debtId
+      });
+    }
+
     return { success: true, debt: updatedDebt, message: 'Debt confirmed successfully' };
   }
 
@@ -515,6 +543,17 @@ export class DebtService implements IDebtService {
     const updatedDebt = await this.db.query.debts.findFirst({
       where: eq(debts.id, debtId)
     });
+
+    // Activity Log
+    if (this.activityService) {
+      await this.activityService.log({
+        userId: currentUser.id,
+        action: newStatus,
+        resource: 'debt',
+        resourceId: debtId,
+        changes: { before: { status: debt.status }, after: { status: newStatus } }
+      });
+    }
 
     return { success: true, debt: updatedDebt, previousStatus: debt.status, newStatus };
   }
@@ -587,6 +626,17 @@ export class DebtService implements IDebtService {
       where: eq(debts.id, debtId)
     });
 
+    // Activity Log
+    if (this.activityService) {
+      await this.activityService.log({
+        userId: currentUser.id,
+        action: 'update',
+        resource: 'debt',
+        resourceId: debtId,
+        changes: { after: data }
+      });
+    }
+
     return { success: true, debt: updatedDebt };
   }
 
@@ -619,6 +669,16 @@ export class DebtService implements IDebtService {
         updatedAt: new Date()
       })
       .where(eq(debts.id, debtId));
+
+    // Activity Log
+    if (this.activityService) {
+      await this.activityService.log({
+        userId: currentUser.id,
+        action: 'delete',
+        resource: 'debt',
+        resourceId: debtId
+      });
+    }
 
     return { success: true };
   }
@@ -665,6 +725,16 @@ export class DebtService implements IDebtService {
         .where(eq(debts.id, debtId));
 
       deletedCount++;
+    }
+
+    // Activity Log (Batch)
+    if (deletedCount > 0 && this.activityService) {
+      await this.activityService.log({
+        userId: currentUser.id,
+        action: 'delete',
+        resource: 'debt',
+        metadata: { deletedCount, ids: debtIds }
+      });
     }
 
     return {

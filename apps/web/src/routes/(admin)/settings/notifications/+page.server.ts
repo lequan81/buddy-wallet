@@ -14,7 +14,7 @@ interface UserWithNotifications {
 }
 
 export const load: PageServerLoad = async ({ parent }) => {
-	const { user } = await parent() as { user: UserWithNotifications | null };
+	const { user } = (await parent()) as { user: UserWithNotifications | null };
 	return {
 		preferences: {
 			emailNotificationsEnabled: user?.emailNotificationsEnabled ?? false,

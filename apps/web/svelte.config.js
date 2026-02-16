@@ -19,7 +19,7 @@ const config = {
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		adapter: adapter(),
 		alias: {
-			$contents: 'src/contents',
+			$contents: 'src/contents'
 			// Keep web aliases client-safe. Avoid aliasing into `apps/api/src/*`
 			// to prevent accidental server-code imports into the SvelteKit bundle.
 		},

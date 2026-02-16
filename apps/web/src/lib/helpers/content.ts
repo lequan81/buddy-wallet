@@ -3,10 +3,9 @@ import type { Component } from 'svelte';
 import type { Content, ContentMetadata, ContentType } from '../types/content';
 
 // Pre-import all markdown files with eager loading so mdsvex processes them
-const marketingModules = import.meta.glob('/src/contents/marketing/*.md', { eager: true }) as Record<
-	string,
-	{ default: Component; metadata: ContentMetadata }
->;
+const marketingModules = import.meta.glob('/src/contents/marketing/*.md', {
+	eager: true
+}) as Record<string, { default: Component; metadata: ContentMetadata }>;
 const pagesModules = import.meta.glob('/src/contents/pages/*.md', { eager: true }) as Record<
 	string,
 	{ default: Component; metadata: ContentMetadata }

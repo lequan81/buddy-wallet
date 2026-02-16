@@ -68,6 +68,7 @@ export * from './vietqr.service';
 
 // Connect push service to debt service for notifications
 debtService.setPushService(pushService);
+debtService.setActivityService(activityService);
 
 /**
  * Factory functions for creating services with custom dependencies

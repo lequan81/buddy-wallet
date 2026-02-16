@@ -4,6 +4,8 @@
 	import { CheckCircle2, AlertCircle, AlertTriangle } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 
+	import type { HTMLTextareaAttributes } from 'svelte/elements';
+
 	let {
 		label,
 		name,
@@ -18,20 +20,12 @@
 		rows = 4,
 		class: className,
 		...restProps
-	}: {
+	}: HTMLTextareaAttributes & {
 		label?: string;
-		name: string;
-		placeholder?: string;
-		required?: boolean;
-		disabled?: boolean;
-		value?: string;
 		error?: string;
 		success?: string;
 		warning?: string;
 		validationState?: 'default' | 'success' | 'error' | 'warning';
-		rows?: number;
-		class?: string;
-		[key: string]: any;
 	} = $props();
 
 	const stateConfig = $derived.by(() => {
@@ -95,7 +89,7 @@
 	{#if stateConfig.message}
 		<p class="text-sm {stateConfig.textClass} flex items-start gap-1.5">
 			{#if StateIcon}
-				<StateIcon class="h-4 w-4 mt-0.5 shrink-0" />
+				<StateIcon class="mt-0.5 h-4 w-4 shrink-0" />
 			{/if}
 			<span>{stateConfig.message}</span>
 		</p>

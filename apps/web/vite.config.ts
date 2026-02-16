@@ -1,5 +1,4 @@
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
-import devtoolsJson from 'vite-plugin-devtools-json';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -9,7 +8,6 @@ export default defineConfig({
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
-		devtoolsJson(),
 		paraglideVitePlugin({ project: './project.inlang', outdir: './src/lib/paraglide' }),
 		VitePWA({
 			strategies: 'injectManifest',
@@ -75,7 +73,7 @@ export default defineConfig({
 				maximumFileSizeToCacheInBytes: 3 * 1024 * 1024 // 3MB
 			},
 			devOptions: {
-				enabled: true,
+				enabled: false,
 				suppressWarnings: true,
 				type: 'module',
 				navigateFallback: '/'
@@ -85,18 +83,34 @@ export default defineConfig({
 	optimizeDeps: {
 		include: [
 			'@repo/ui',
-			'@lucide/svelte',
 			'clsx',
 			'tailwind-merge',
+			'tailwind-variants',
 			'bits-ui',
 			'formsnap',
-			'svelte-sonner'
-		]
+			'svelte-sonner',
+			'sveltekit-superforms',
+			'valibot',
+			'@elysiajs/eden'
+		],
+		exclude: ['@lucide/svelte', '@repo/config', '@repo/errors', '@repo/permissions']
 	},
 	ssr: {
 		noExternal: ['@repo/ui']
 	},
 	resolve: {
 		dedupe: ['svelte']
+	},
+	cacheDir: '.vite',
+	server: {
+		fs: { strict: false },
+		warmup: {
+			clientFiles: [
+				'src/routes/(app)/+page.svelte',
+				'src/routes/(auth)/login/+page.svelte',
+				'src/routes/(admin)/+layout.svelte',
+				'src/lib/components/**/*.svelte'
+			]
+		}
 	}
 });

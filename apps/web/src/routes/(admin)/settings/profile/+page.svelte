@@ -1,15 +1,33 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
+	import type { ActionData, PageData } from './$types';
+	import { toast } from 'svelte-sonner';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Separator } from '@repo/ui/components/ui/separator';
-	import { User, Phone } from '@lucide/svelte';
+	import {
+		User,
+		Mail,
+		Phone,
+		Camera,
+		Loader2,
+		Shield,
+		CheckCircle2,
+		AlertCircle
+	} from '@lucide/svelte';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
-	let { data, form } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let user = $derived(data.user);
+
+	let loading = $state(false);
+	let avatarPreview = $state<string | null>(null);
+	let fileInput = $state<HTMLInputElement>();
+
+	// Success state from URL query param
+	const showSuccess = page.url.searchParams.get('success') === 'true';
 
 	let isSubmitting = $state(false);
 
@@ -61,7 +79,7 @@
 	</div>
 	<Separator />
 
-	{#if $page.url.searchParams.get('error') === 'missing_phone'}
+	{#if page.url.searchParams.get('error') === 'missing_phone'}
 		<Card.Root class="border-warning bg-warning/5">
 			<Card.Content class="pt-6">
 				<p class="font-semibold text-warning">Phone Number Required</p>
@@ -114,7 +132,9 @@
 			<Card.Footer>
 				<Button
 					type="submit"
-					disabled={isSubmitting || phoneValidation === 'error' || phoneNumber === user?.phoneNumber}
+					disabled={isSubmitting ||
+						phoneValidation === 'error' ||
+						phoneNumber === user?.phoneNumber}
 				>
 					{#if isSubmitting}
 						Saving...

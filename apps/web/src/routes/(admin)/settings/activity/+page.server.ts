@@ -45,7 +45,12 @@ export const load: PageServerLoad = async ({ fetch, locals, url }) => {
 		const data = await response.json();
 		return {
 			logs: (data.data?.logs || []) as ActivityLog[],
-			pagination: (data.data?.pagination || { total: 0, limit: pageSize, offset: 0, hasMore: false }) as Pagination,
+			pagination: (data.data?.pagination || {
+				total: 0,
+				limit: pageSize,
+				offset: 0,
+				hasMore: false
+			}) as Pagination,
 			page,
 			pageSize
 		};

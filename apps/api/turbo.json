@@ -1,0 +1,10 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "outputs": ["dist/**"],
+      "env": ["PORT", "JWT_SECRET", "REDIS_HOST", "REDIS_PORT", "DATABASE_URL"]
+    }
+  }
+}

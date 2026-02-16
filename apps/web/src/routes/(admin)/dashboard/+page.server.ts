@@ -1,39 +1,14 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { API_URL, getAuthHeaders } from '$lib/api';
-
-interface Debt {
-	id: string;
-	description: string;
-	amount: number;
-	status: string;
-	createdAt: string;
-	creditorId?: string;
-	debtorId?: string;
-	creditorPhone?: string;
-	debtorPhone?: string;
-	uploadedById?: string;
-}
-
-interface User {
-	id: string;
-	name: string;
-	email: string | null;
-}
-
-interface Pagination {
-	total: number;
-	limit: number;
-	offset: number;
-	hasMore: boolean;
-}
+import type { Debt, User, Pagination } from '@repo/types';
 
 export const load: PageServerLoad = async ({ fetch, locals, parent, url }) => {
 	const statusFilter = url.searchParams.get('status') || 'all';
 	const page = parseInt(url.searchParams.get('page') || '1');
 	const pageSize = parseInt(url.searchParams.get('pageSize') || '10');
 	const offset = (page - 1) * pageSize;
-	
+
 	// Get server-computed permissions from layout
 	const { permissions } = await parent();
 	const headers = getAuthHeaders(locals.accessToken);
@@ -41,7 +16,9 @@ export const load: PageServerLoad = async ({ fetch, locals, parent, url }) => {
 	// Only fetch users if server says user can manage them
 	// We do NOT await here - we return the promise to stream it
 	const usersPromise = permissions.canManageUsers
-		? fetch(`${API_URL}/v1/users`, { headers }).then(r => r.json()).then(r => r.data?.users || r.users || [])
+		? fetch(`${API_URL}/v1/users`, { headers })
+				.then((r) => r.json())
+				.then((r) => r.data?.users || r.users || [])
 		: Promise.resolve([]);
 
 	// Build debts URL with pagination params
@@ -52,20 +29,20 @@ export const load: PageServerLoad = async ({ fetch, locals, parent, url }) => {
 	if (statusFilter !== 'all') {
 		debtsParams.set('status', statusFilter);
 	}
-	
+
 	// We do NOT await here either
 	const debtsPromise = fetch(`${API_URL}/v1/debts?${debtsParams.toString()}`, { headers })
-		.then(r => r.json())
-		.then(r => {
+		.then((r) => r.json())
+		.then((r) => {
 			const data = r.data || r;
 			return {
 				debts: data.debts || [],
 				pagination: data.pagination || { total: 0, limit: pageSize, offset: 0, hasMore: false }
 			};
 		})
-		.catch(() => ({ 
-			debts: [], 
-			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } 
+		.catch(() => ({
+			debts: [],
+			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false }
 		}));
 
 	return {

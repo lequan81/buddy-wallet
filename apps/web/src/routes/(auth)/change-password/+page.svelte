@@ -25,7 +25,7 @@
 	const hasNumber = $derived(/[0-9]/.test(newPassword));
 	const hasSpecial = $derived(/[!@#$%^&*(),.?":{}|<>]/.test(newPassword));
 	const passwordsMatch = $derived(newPassword === confirmPassword && confirmPassword.length > 0);
-	
+
 	const isValidPassword = $derived(hasMinLength && hasUppercase && hasLowercase && hasNumber);
 	const canSubmit = $derived(isValidPassword && passwordsMatch && !isSubmitting);
 
@@ -85,9 +85,13 @@
 
 		<Card.Content>
 			{#if data.required}
-				<Alert.Root class="mb-4 border-yellow-500 bg-yellow-50 dark:border-yellow-600 dark:bg-yellow-950/20">
+				<Alert.Root
+					class="mb-4 border-yellow-500 bg-yellow-50 dark:border-yellow-600 dark:bg-yellow-950/20"
+				>
 					<AlertTriangle class="h-4 w-4 text-yellow-600" />
-					<Alert.Title class="text-yellow-900 dark:text-yellow-100">Password Change Required</Alert.Title>
+					<Alert.Title class="text-yellow-900 dark:text-yellow-100"
+						>Password Change Required</Alert.Title
+					>
 					<Alert.Description class="text-yellow-800 dark:text-yellow-200">
 						For security reasons, you must set a new password before continuing.
 					</Alert.Description>
@@ -115,30 +119,46 @@
 					validationState={passwordError ? 'error' : 'default'}
 					error={passwordError}
 					showPasswordToggle={true}
-					required
-				>
-					{#snippet iconLeft()}
-						<Lock class="h-4 w-4 text-muted-foreground" />
-					{/snippet}
-				</FormInput>
+					icon={Lock}
+				/>
 
 				<!-- Password Requirements -->
 				<div class="rounded-lg border bg-muted/50 p-3">
 					<p class="mb-2 text-xs font-medium text-muted-foreground">Password requirements:</p>
 					<ul class="space-y-1 text-xs">
-						<li class:text-green-600={hasMinLength} class:dark:text-green-400={hasMinLength} class:text-muted-foreground={!hasMinLength}>
+						<li
+							class:text-green-600={hasMinLength}
+							class:dark:text-green-400={hasMinLength}
+							class:text-muted-foreground={!hasMinLength}
+						>
 							{hasMinLength ? '✓' : '○'} At least 8 characters
 						</li>
-						<li class:text-green-600={hasUppercase} class:dark:text-green-400={hasUppercase} class:text-muted-foreground={!hasUppercase}>
+						<li
+							class:text-green-600={hasUppercase}
+							class:dark:text-green-400={hasUppercase}
+							class:text-muted-foreground={!hasUppercase}
+						>
 							{hasUppercase ? '✓' : '○'} One uppercase letter
 						</li>
-						<li class:text-green-600={hasLowercase} class:dark:text-green-400={hasLowercase} class:text-muted-foreground={!hasLowercase}>
+						<li
+							class:text-green-600={hasLowercase}
+							class:dark:text-green-400={hasLowercase}
+							class:text-muted-foreground={!hasLowercase}
+						>
 							{hasLowercase ? '✓' : '○'} One lowercase letter
 						</li>
-						<li class:text-green-600={hasNumber} class:dark:text-green-400={hasNumber} class:text-muted-foreground={!hasNumber}>
+						<li
+							class:text-green-600={hasNumber}
+							class:dark:text-green-400={hasNumber}
+							class:text-muted-foreground={!hasNumber}
+						>
 							{hasNumber ? '✓' : '○'} One number
 						</li>
-						<li class:text-green-600={hasSpecial} class:dark:text-green-400={hasSpecial} class:text-muted-foreground={!hasSpecial}>
+						<li
+							class:text-green-600={hasSpecial}
+							class:dark:text-green-400={hasSpecial}
+							class:text-muted-foreground={!hasSpecial}
+						>
 							{hasSpecial ? '✓' : '○'} One special character (recommended)
 						</li>
 					</ul>
@@ -154,12 +174,8 @@
 					validationState={confirmError ? 'error' : passwordsMatch ? 'success' : 'default'}
 					error={confirmError}
 					showPasswordToggle={true}
-					required
-				>
-					{#snippet iconLeft()}
-						<Lock class="h-4 w-4 text-muted-foreground" />
-					{/snippet}
-				</FormInput>
+					icon={Lock}
+				/>
 
 				<!-- Submit Button -->
 				<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>

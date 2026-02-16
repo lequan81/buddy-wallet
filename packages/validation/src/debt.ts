@@ -1,10 +1,5 @@
 import * as v from 'valibot';
 import { DEBT_MIN_AMOUNT, DEBT_MAX_AMOUNT } from '@repo/config';
-import { debts } from '@repo/db';
-import { createInsertSchema } from 'drizzle-valibot';
-
-// Base schema directly from DB definition
-export const BaseDebtSchema = createInsertSchema(debts);
 
 /**
  * Input schema for creating a debt

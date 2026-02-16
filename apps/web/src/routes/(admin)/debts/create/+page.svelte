@@ -5,7 +5,16 @@
 	import * as Card from '@repo/ui/components/ui/card';
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
 	import { Badge } from '@repo/ui/components/ui/badge';
-	import { ArrowLeft, ArrowUp, ArrowDown, Landmark, Plus, Clock, AlertTriangle, User } from '@lucide/svelte';
+	import {
+		ArrowLeft,
+		ArrowUp,
+		ArrowDown,
+		Landmark,
+		Plus,
+		Clock,
+		AlertTriangle,
+		User
+	} from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
@@ -23,7 +32,7 @@
 	// Bank account check
 	let hasBankAccount = $derived(data.hasBankAccount ?? true);
 	let canLend = $derived(hasBankAccount);
-	
+
 	// Recent contacts
 	let recentContacts = $derived(data.recentContacts || []);
 
@@ -33,21 +42,23 @@
 	let description = $state('');
 	let expiryOption = $state('never');
 	let confirmDuplicate = $state(false);
-	
+
 	// Autocomplete state
 	let showAutocomplete = $state(false);
 	let autocompleteContacts = $derived.by(() => {
 		if (!phoneNumber || phoneNumber.length < 2) return recentContacts.slice(0, 5);
 		return recentContacts.filter((c: string) => c.includes(phoneNumber)).slice(0, 5);
 	});
-	
+
 	// Preview modal state
 	let showPreviewModal = $state(false);
 	let formElement: HTMLFormElement | undefined = $state(undefined);
-	
+
 	// Duplicate modal state
 	let showDuplicateModal = $state(false);
-	let duplicateDebts = $state<Array<{ id: string; amount: number; description: string | null; createdAt: string }>>([]);
+	let duplicateDebts = $state<
+		Array<{ id: string; amount: number; description: string | null; createdAt: string }>
+	>([]);
 
 	// Use $derived for direction to react to canLend changes
 	let _directionState = $state('LEND');
@@ -61,7 +72,11 @@
 
 	// Expiry options
 	const expiryOptions = [
-		{ value: 'never', label: 'No expiry (forever)', description: 'Debt stays until manually resolved' },
+		{
+			value: 'never',
+			label: 'No expiry (forever)',
+			description: 'Debt stays until manually resolved'
+		},
 		{ value: '7d', label: '7 days', description: 'Auto-cancel if not confirmed in 1 week' },
 		{ value: '30d', label: '30 days', description: 'Auto-cancel if not confirmed in 1 month' },
 		{ value: '90d', label: '90 days', description: 'Auto-cancel if not confirmed in 3 months' }
@@ -185,13 +200,15 @@
 	{#if !hasBankAccount}
 		<Card.Root class="mb-6 border-destructive bg-destructive/5">
 			<Card.Content class="py-6 text-center">
-				<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+				<div
+					class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10"
+				>
 					<Landmark class="h-8 w-8 text-destructive" />
 				</div>
 				<h3 class="mb-2 text-lg font-semibold text-destructive">Bank Account Required</h3>
 				<p class="mb-4 text-sm text-muted-foreground">
-					You need to add at least one bank account before creating debts where others owe you money.
-					Without a bank account, debtors cannot scan QR codes to pay you.
+					You need to add at least one bank account before creating debts where others owe you
+					money. Without a bank account, debtors cannot scan QR codes to pay you.
 				</p>
 				<Button href="/settings/banks" size="lg">
 					<Plus class="mr-2 h-4 w-4" />
@@ -219,9 +236,7 @@
 			>
 				<!-- Phone Number with Autocomplete -->
 				<div class="space-y-2">
-					<Label for="counterpartyPhone" class="text-sm font-medium">
-						Phone Number *
-					</Label>
+					<Label for="counterpartyPhone" class="text-sm font-medium">Phone Number *</Label>
 					<div class="relative">
 						<input
 							type="tel"
@@ -229,17 +244,18 @@
 							name="counterpartyPhone"
 							placeholder="0901234567"
 							bind:value={phoneNumber}
-							onfocus={() => showAutocomplete = true}
-							onblur={() => setTimeout(() => showAutocomplete = false, 200)}
+							onfocus={() => (showAutocomplete = true)}
+							onblur={() => setTimeout(() => (showAutocomplete = false), 200)}
 							required
 							class={cn(
-								'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-								phoneValidation === 'error' && 'ring-2 ring-destructive focus-visible:ring-destructive',
+								'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+								phoneValidation === 'error' &&
+									'ring-2 ring-destructive focus-visible:ring-destructive',
 								phoneValidation === 'success' && 'ring-2 ring-success focus-visible:ring-success',
 								phoneValidation === 'warning' && 'ring-2 ring-warning focus-visible:ring-warning'
 							)}
 						/>
-						
+
 						<!-- Recent contacts autocomplete -->
 						{#if showAutocomplete && autocompleteContacts.length > 0}
 							<div class="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md">
@@ -299,7 +315,9 @@
 										: 'border-muted hover:bg-muted/50'
 								)}
 							>
-								<ArrowUp class={cn('h-6 w-6', canLend ? 'text-success' : 'text-muted-foreground')} />
+								<ArrowUp
+									class={cn('h-6 w-6', canLend ? 'text-success' : 'text-muted-foreground')}
+								/>
 								<span class="text-sm font-semibold">I Lent</span>
 								<span class="text-xs text-muted-foreground">They owe me</span>
 								{#if !canLend}
@@ -367,7 +385,7 @@
 					<Label class="text-sm">Confirmation Deadline</Label>
 					<select
 						bind:value={expiryOption}
-						class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+						class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{#each expiryOptions as option}
 							<option value={option.value}>{option.label}</option>
@@ -390,8 +408,10 @@
 							phoneValidation === 'error' ||
 							amountValidation === 'error' ||
 							descriptionValidation === 'error' ||
-							!phoneNumber || !amount || !description}
-						onclick={() => showPreviewModal = true}
+							!phoneNumber ||
+							!amount ||
+							!description}
+						onclick={() => (showPreviewModal = true)}
 					>
 						Preview
 					</Button>
@@ -419,9 +439,9 @@
 					Please review the information before creating this debt record.
 				</AlertDialog.Description>
 			</AlertDialog.Header>
-			
+
 			<div class="my-4 space-y-4">
-				<div class="rounded-lg border bg-muted/50 p-4 space-y-3">
+				<div class="space-y-3 rounded-lg border bg-muted/50 p-4">
 					<div class="flex items-center justify-between">
 						<span class="text-sm text-muted-foreground">Direction</span>
 						<Badge variant={direction === 'LEND' ? 'default' : 'secondary'}>
@@ -434,38 +454,37 @@
 							{/if}
 						</Badge>
 					</div>
-					
+
 					<div class="flex items-center justify-between">
 						<span class="text-sm text-muted-foreground">Counterparty</span>
 						<span class="font-medium">{phoneNumber}</span>
 					</div>
-					
+
 					<div class="flex items-center justify-between">
 						<span class="text-sm text-muted-foreground">Amount</span>
-						<span class="font-bold text-lg">{formatCurrency(parseFloat(amount) || 0)}</span>
+						<span class="text-lg font-bold">{formatCurrency(parseFloat(amount) || 0)}</span>
 					</div>
-					
+
 					<div class="flex items-start justify-between">
 						<span class="text-sm text-muted-foreground">Description</span>
-						<span class="font-medium text-right max-w-50">{description}</span>
+						<span class="max-w-50 text-right font-medium">{description}</span>
 					</div>
-					
+
 					<div class="flex items-center justify-between">
 						<span class="text-sm text-muted-foreground">Expiry</span>
-						<span class="text-sm">{expiryOptions.find(o => o.value === expiryOption)?.label}</span>
+						<span class="text-sm">{expiryOptions.find((o) => o.value === expiryOption)?.label}</span
+						>
 					</div>
 				</div>
-				
-				<p class="text-xs text-muted-foreground text-center">
+
+				<p class="text-center text-xs text-muted-foreground">
 					The other party will need to confirm this debt before it becomes active.
 				</p>
 			</div>
 
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel onclick={() => (showPreviewModal = false)}>
-					Edit
-				</AlertDialog.Cancel>
-				<AlertDialog.Action 
+				<AlertDialog.Cancel onclick={() => (showPreviewModal = false)}>Edit</AlertDialog.Cancel>
+				<AlertDialog.Action
 					onclick={() => {
 						showPreviewModal = false;
 						// Submit the form
@@ -491,10 +510,11 @@
 					Potential Duplicate Found
 				</AlertDialog.Title>
 				<AlertDialog.Description>
-					We found similar debts with the same parties created recently. Are you sure this isn't a duplicate?
+					We found similar debts with the same parties created recently. Are you sure this isn't a
+					duplicate?
 				</AlertDialog.Description>
 			</AlertDialog.Header>
-			
+
 			<div class="my-4 space-y-2">
 				{#each duplicateDebts as debt}
 					<div class="rounded-lg border bg-muted/50 p-3 text-sm">
@@ -510,12 +530,8 @@
 			</div>
 
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel onclick={() => (showDuplicateModal = false)}>
-					Cancel
-				</AlertDialog.Cancel>
-				<AlertDialog.Action onclick={handleConfirmDuplicate}>
-					Create Anyway
-				</AlertDialog.Action>
+				<AlertDialog.Cancel onclick={() => (showDuplicateModal = false)}>Cancel</AlertDialog.Cancel>
+				<AlertDialog.Action onclick={handleConfirmDuplicate}>Create Anyway</AlertDialog.Action>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>
 	</AlertDialog.Root>

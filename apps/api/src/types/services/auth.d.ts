@@ -13,6 +13,7 @@ export interface LoginInput {
   password: string;
   userAgent: string | null;
   clientIP: string | null;
+  coordinates?: { lat: number; lon: number } | null;
   clientLocation?: string | null; // Text location from browser geolocation (e.g., "Ho Chi Minh City, Vietnam")
   clientHints?: {
     // From navigator.userAgentData

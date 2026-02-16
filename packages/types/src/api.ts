@@ -16,3 +16,32 @@ export interface ApiResponse<T = unknown> {
   error?: string;
   code?: string;
 }
+
+export interface Pagination {
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string | null;
+}
+
+export interface Debt {
+  id: string;
+  description: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+  creditorId?: string;
+  debtorId?: string;
+  creditorPhone?: string;
+  debtorPhone?: string;
+  uploadedById?: string;
+  needsConfirmation?: boolean;
+  confirmedByCreditor?: boolean;
+  confirmedByDebtor?: boolean;
+}

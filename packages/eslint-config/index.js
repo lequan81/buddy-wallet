@@ -1,21 +1,18 @@
 import { includeIgnoreFile } from '@eslint/compat';
 import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
-import svelte from 'eslint-plugin-svelte';
+import sveltePlugin from 'eslint-plugin-svelte';
 import globals from 'globals';
 import ts from 'typescript-eslint';
 
 /**
- * Base ESLint config for SvelteKit projects.
- * Apps should spread this config and add their own gitignore and svelte config.
+ * Base ESLint config for JS/TS projects (No Svelte rules).
  * @type {import('eslint').Linter.Config[]}
  */
 export const config = [
   js.configs.recommended,
   ...ts.configs.recommended,
-  ...svelte.configs['flat/recommended'],
   prettier,
-  ...svelte.configs['flat/prettier'],
   {
     languageOptions: {
       globals: {
@@ -24,10 +21,8 @@ export const config = [
       }
     },
     rules: {
-      // typescript-eslint strongly recommend that you do not use the no-undef lint rule on TypeScript projects.
-      // see: https://typescript-eslint.io/troubleshooting/faqs/eslint/#i-get-errors-from-the-no-undef-rule-about-global-variables-not-being-defined-even-though-there-are-no-typescript-errors
       'no-undef': 'off',
-      'no-unused-vars': 'off', // Turn off base rule for TS
+      'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {
@@ -39,6 +34,19 @@ export const config = [
     }
   },
   {
+    ignores: ['dist/**', 'node_modules/**', 'build/**']
+  }
+];
+
+/**
+ * Svelte-specific ESLint config extension.
+ * Consumers should spread `config` AND `svelteConfig`.
+ * @type {import('eslint').Linter.Config[]}
+ */
+export const svelteConfig = [
+  ...sveltePlugin.configs['flat/recommended'],
+  ...sveltePlugin.configs['flat/prettier'],
+  {
     files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
     languageOptions: {
       parserOptions: {
@@ -47,9 +55,9 @@ export const config = [
     }
   },
   {
-    ignores: ['.svelte-kit/**', 'build/**', 'dist/**', 'node_modules/**']
+    ignores: ['.svelte-kit/**']
   }
 ];
 
-// Re-export utilities for consumers
-export { ts, svelte, globals, prettier, includeIgnoreFile };
+// Re-export utilities
+export { ts, sveltePlugin as svelte, globals, prettier, includeIgnoreFile };

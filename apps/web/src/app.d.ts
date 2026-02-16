@@ -5,7 +5,6 @@ import 'vite-plugin-pwa/svelte';
 import 'vite-plugin-pwa/info';
 import 'vite-plugin-pwa/client';
 
-
 import type { createTreatyClient } from '$lib/eden';
 
 declare global {
@@ -19,10 +18,11 @@ declare global {
 			apiOffline: boolean;
 			user: {
 				id: string;
+				name: string;
 				email: string;
 				role: string;
 				permissions: string[];
-				phoneNumber?: string | null;
+				phoneNumber: string;
 				emailVerified?: boolean;
 				emailNotificationsEnabled?: boolean;
 				pushNotificationsEnabled?: boolean;
@@ -39,4 +39,4 @@ declare global {
 	}
 }
 
-export { };
+export {};

@@ -48,6 +48,7 @@ export function validatePasswordComplexity(password: string): PasswordValidation
   }
 
   // At least one special character
+  // eslint-disable-next-line no-useless-escape
   if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
     errors.push('Password must contain at least one special character');
   }

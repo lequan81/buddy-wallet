@@ -296,7 +296,9 @@
 		<!-- Error State -->
 		<Card.Root>
 			<Card.Content class="py-12 text-center">
-				<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+				<div
+					class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10"
+				>
 					<AlertTriangle class="h-8 w-8 text-destructive" />
 				</div>
 				<h1 class="mb-2 text-xl font-semibold">{data.error || 'Debt not found'}</h1>
@@ -309,7 +311,9 @@
 		<div class="space-y-6">
 			<!-- Success/Error Messages -->
 			{#if form?.error}
-				<div class="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+				<div
+					class="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
+				>
 					{form.error}
 				</div>
 			{/if}
@@ -321,13 +325,18 @@
 
 			<!-- Confirmation Banner for Counterparty -->
 			{#if data.debt?.needsConfirmation && !data.isUploader}
-				{@const needsMyConfirmation = (data.isCreditor && !data.debt.confirmedByCreditor) || 
+				{@const needsMyConfirmation =
+					(data.isCreditor && !data.debt.confirmedByCreditor) ||
 					(data.isDebtor && !data.debt.confirmedByDebtor)}
 				{#if needsMyConfirmation}
 					<Card.Root class="border-blue-500 bg-blue-50 dark:bg-blue-950/20">
-						<Card.Content class="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+						<Card.Content
+							class="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+						>
 							<div class="flex items-center gap-3">
-								<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500">
+								<div
+									class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500"
+								>
 									<AlertTriangle class="h-5 w-5 text-white" />
 								</div>
 								<div>
@@ -389,7 +398,8 @@
 					<Card.Content class="flex items-center gap-3 py-3">
 						<Clock class="h-5 w-5 text-muted-foreground" />
 						<p class="text-sm text-muted-foreground">
-							Waiting for {data.isCreditor ? data.debt.debtorPhone : data.debt.creditorPhone} to confirm this debt.
+							Waiting for {data.isCreditor ? data.debt.debtorPhone : data.debt.creditorPhone} to confirm
+							this debt.
 						</p>
 					</Card.Content>
 				</Card.Root>
@@ -400,10 +410,10 @@
 				<Card.Root class="border-warning bg-warning/10">
 					<Card.Content class="py-4">
 						<div class="flex items-start gap-3">
-							<MessageSquare class="h-5 w-5 text-warning mt-0.5" />
+							<MessageSquare class="mt-0.5 h-5 w-5 text-warning" />
 							<div class="flex-1">
 								<p class="font-medium text-warning">Edit Suggestion Pending</p>
-								<p class="text-sm text-muted-foreground mt-1">
+								<p class="mt-1 text-sm text-muted-foreground">
 									The other party has suggested changes to this debt:
 								</p>
 								<div class="mt-2 space-y-1 text-sm">
@@ -411,7 +421,9 @@
 										<p>
 											<span class="text-muted-foreground">Amount:</span>
 											<span class="font-medium">{formatCurrency(data.debt.suggestedAmount)}</span>
-											<span class="text-muted-foreground">(was {formatCurrency(data.debt.amount)})</span>
+											<span class="text-muted-foreground"
+												>(was {formatCurrency(data.debt.amount)})</span
+											>
 										</p>
 									{/if}
 									{#if data.debt.suggestedDescription}
@@ -421,7 +433,7 @@
 										</p>
 									{/if}
 								</div>
-								<div class="flex gap-2 mt-3">
+								<div class="mt-3 flex gap-2">
 									<Button size="sm" variant="default" onclick={() => respondToSuggestion(true)}>
 										<Check class="mr-2 h-4 w-4" />
 										Accept
@@ -443,10 +455,12 @@
 					<div class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
 						<!-- Amount and Direction -->
 						<div class="flex items-start gap-4">
-							<div class={cn(
-								'flex h-12 w-12 items-center justify-center rounded-full',
-								data.isCreditor ? 'bg-success/10' : 'bg-destructive/10'
-							)}>
+							<div
+								class={cn(
+									'flex h-12 w-12 items-center justify-center rounded-full',
+									data.isCreditor ? 'bg-success/10' : 'bg-destructive/10'
+								)}
+							>
 								{#if data.isCreditor}
 									<ArrowUp class="h-6 w-6 text-success" />
 								{:else}
@@ -457,10 +471,12 @@
 								<p class="mb-1 text-sm text-muted-foreground">
 									{data.isCreditor ? 'Owed to you' : 'You owe'}
 								</p>
-								<h1 class={cn(
-									'font-tabular text-4xl font-bold',
-									data.isCreditor ? 'text-success' : 'text-destructive'
-								)}>
+								<h1
+									class={cn(
+										'font-tabular text-4xl font-bold',
+										data.isCreditor ? 'text-success' : 'text-destructive'
+									)}
+								>
 									{formatCurrency(data.debt.amount)}
 								</h1>
 							</div>
@@ -472,7 +488,10 @@
 								{data.debt.status}
 							</Badge>
 							{#if data.debt.status === 'confirmed' && data.debt.hasPendingProof}
-								<Badge variant="outline" class="border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400">
+								<Badge
+									variant="outline"
+									class="border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+								>
 									<Clock class="mr-1 h-3 w-3" />
 									Proof Pending Review
 								</Badge>
@@ -606,7 +625,9 @@
 										<p class="text-sm text-destructive">{uploadError}</p>
 									{/if}
 									{#if uploadSuccess}
-										<div class="rounded-md border border-success/20 bg-success/10 p-2 text-sm text-success">
+										<div
+											class="rounded-md border border-success/20 bg-success/10 p-2 text-sm text-success"
+										>
 											Proof uploaded! The creditor will review it.
 										</div>
 									{/if}
@@ -712,7 +733,12 @@
 								<Button type="submit" disabled={isSubmitting} size="sm">
 									{isSubmitting ? 'Saving...' : 'Save Changes'}
 								</Button>
-								<Button type="button" variant="outline" size="sm" onclick={() => (isEditing = false)}>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onclick={() => (isEditing = false)}
+								>
 									Cancel
 								</Button>
 							</div>
@@ -751,7 +777,8 @@
 												type="submit"
 												disabled={isSubmitting}
 												size="sm"
-												variant={transition.status === 'cancelled' || transition.status === 'disputed'
+												variant={transition.status === 'cancelled' ||
+												transition.status === 'disputed'
 													? 'destructive'
 													: 'default'}
 											>
@@ -835,7 +862,7 @@
 									<MessageSquare class="mr-2 h-4 w-4" />
 									Suggest Edit
 								</Button>
-								<p class="text-xs text-muted-foreground mt-2">
+								<p class="mt-2 text-xs text-muted-foreground">
 									Propose changes to the creator of this debt
 								</p>
 							</div>
@@ -901,7 +928,8 @@
 			<AlertDialog.Header>
 				<AlertDialog.Title>Suggest Edit</AlertDialog.Title>
 				<AlertDialog.Description>
-					Propose changes to this debt. The creator will be notified and can accept or reject your suggestion.
+					Propose changes to this debt. The creator will be notified and can accept or reject your
+					suggestion.
 				</AlertDialog.Description>
 			</AlertDialog.Header>
 			<div class="grid gap-4 py-4">
@@ -933,9 +961,7 @@
 				</div>
 			</div>
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel onclick={() => (showSuggestModal = false)}>
-					Cancel
-				</AlertDialog.Cancel>
+				<AlertDialog.Cancel onclick={() => (showSuggestModal = false)}>Cancel</AlertDialog.Cancel>
 				<Button onclick={submitSuggestion} disabled={isSuggesting}>
 					{#if isSuggesting}
 						Sending...

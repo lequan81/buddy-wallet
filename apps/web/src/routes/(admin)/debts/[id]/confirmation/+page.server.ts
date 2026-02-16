@@ -28,7 +28,8 @@ export const load: PageServerLoad = async ({ locals, fetch, params, url }) => {
 	}
 
 	// Check if user is related to this debt
-	const isCreditor = debt.creditorId === locals.user.id || debt.creditorPhone === locals.user.phoneNumber;
+	const isCreditor =
+		debt.creditorId === locals.user.id || debt.creditorPhone === locals.user.phoneNumber;
 	const isDebtor = debt.debtorId === locals.user.id || debt.debtorPhone === locals.user.phoneNumber;
 
 	return {

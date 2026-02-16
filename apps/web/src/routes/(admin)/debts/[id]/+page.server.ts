@@ -1,6 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { API_URL, getAuthHeaders } from '$lib/api';
+import { API_URL, getAuthHeaders, serverFetch } from '$lib/api';
 
 export const load: PageServerLoad = async ({ locals, fetch, params }) => {
 	if (!locals.user) {
@@ -9,31 +9,23 @@ export const load: PageServerLoad = async ({ locals, fetch, params }) => {
 
 	const headers = getAuthHeaders(locals.accessToken);
 
-	// Fetch all debts and find the one with matching ID
-	const debtsRes = await fetch(`${API_URL}/v1/debts`, { headers });
+	// Fetch single debt by ID (instead of fetching all debts)
+	const { data: debtData, error: debtError } = await serverFetch<{ debt: any }>(
+		`/v1/debts/${params.id}`,
+		{ token: locals.accessToken }
+	);
 
-	if (!debtsRes.ok) {
-		return { debt: null, error: 'Unable to fetch debt' };
+	if (debtError || !debtData?.debt) {
+		return { debt: null, error: debtError || 'Debt not found' };
 	}
 
-	const debtsWrapper = await debtsRes.json();
-	const debts = debtsWrapper.data?.debts || [];
-
-	const debt = debts.find((d: { id: string }) => d.id === params.id);
-
-	if (!debt) {
-		return { debt: null, error: 'Debt not found' };
-	}
+	const debt = debtData.debt;
 
 	// Check if user is related to this debt
 	const isCreditor =
 		debt.creditorId === locals.user.id || debt.creditorPhone === locals.user.phoneNumber;
 	const isDebtor = debt.debtorId === locals.user.id || debt.debtorPhone === locals.user.phoneNumber;
 	const isUploader = debt.uploadedById === locals.user.id;
-
-	if (!isCreditor && !isDebtor && !isUploader) {
-		return { debt: null, error: 'Access denied' };
-	}
 
 	// Fetch additional data based on role
 	let creditorBanks = [];

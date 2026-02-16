@@ -1,7 +1,19 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import { ArrowLeft, User, Mail, Phone, Calendar, Shield, UserCheck, UserX, DollarSign, TrendingUp, TrendingDown } from '@lucide/svelte';
+	import {
+		ArrowLeft,
+		User,
+		Mail,
+		Phone,
+		Calendar,
+		Shield,
+		UserCheck,
+		UserX,
+		DollarSign,
+		TrendingUp,
+		TrendingDown
+	} from '@lucide/svelte';
 
 	let { data, form } = $props();
 
@@ -23,10 +35,10 @@
 	const debtStats = $derived(() => {
 		const debts = data.debts ?? [];
 		const userId = data.targetUser?.id;
-		
+
 		let totalOwed = 0; // Money owed TO this user
 		let totalOwing = 0; // Money this user OWES
-		
+
 		for (const debt of debts) {
 			if (debt.status === 'PAID') continue;
 			if (debt.creditorId === userId) {
@@ -35,7 +47,7 @@
 				totalOwing += debt.amount;
 			}
 		}
-		
+
 		return { totalOwed, totalOwing, count: debts.length };
 	});
 </script>
@@ -46,16 +58,19 @@
 
 <div class="container mx-auto px-4 py-8">
 	<!-- Back Link -->
-	<a href="/dashboard/users" class="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors">
+	<a
+		href="/admin/users"
+		class="mb-6 inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+	>
 		<ArrowLeft class="h-4 w-4" />
 		Back to Users
 	</a>
 
 	<!-- User Header -->
-	<div class="bg-card rounded-xl border shadow-sm p-6 mb-6">
+	<div class="mb-6 rounded-xl border bg-card p-6 shadow-sm">
 		<div class="flex flex-wrap items-start justify-between gap-4">
 			<div class="flex items-center gap-4">
-				<div class="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+				<div class="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
 					<User class="h-8 w-8 text-primary" />
 				</div>
 				<div>
@@ -65,28 +80,32 @@
 			</div>
 
 			<!-- Status Toggle -->
-			<form method="POST" action="?/toggleStatus" use:enhance={() => {
-				isSubmitting = true;
-				return async ({ update }) => {
-					await update();
-					isSubmitting = false;
-					invalidateAll();
-				};
-			}}>
+			<form
+				method="POST"
+				action="?/toggleStatus"
+				use:enhance={() => {
+					isSubmitting = true;
+					return async ({ update }) => {
+						await update();
+						isSubmitting = false;
+						invalidateAll();
+					};
+				}}
+			>
 				{#if data.targetUser?.isActive !== false}
-					<button 
+					<button
 						type="submit"
 						disabled={isSubmitting}
-						class="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50 font-medium transition-colors disabled:opacity-50"
+						class="flex items-center gap-2 rounded-lg bg-red-100 px-4 py-2 font-medium text-red-700 transition-colors hover:bg-red-200 disabled:opacity-50 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
 					>
 						<UserX class="h-4 w-4" />
 						{isSubmitting ? 'Processing...' : 'Deactivate User'}
 					</button>
 				{:else}
-					<button 
+					<button
 						type="submit"
 						disabled={isSubmitting}
-						class="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50 font-medium transition-colors disabled:opacity-50"
+						class="flex items-center gap-2 rounded-lg bg-green-100 px-4 py-2 font-medium text-green-700 transition-colors hover:bg-green-200 disabled:opacity-50 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50"
 					>
 						<UserCheck class="h-4 w-4" />
 						{isSubmitting ? 'Processing...' : 'Reactivate User'}
@@ -96,35 +115,35 @@
 		</div>
 
 		{#if form?.error}
-			<div class="mt-4 p-3 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+			<div class="mt-4 rounded-lg bg-red-100 p-3 text-red-700 dark:bg-red-900/30 dark:text-red-300">
 				{form.error}
 			</div>
 		{/if}
 
 		<!-- User Details Grid -->
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-			<div class="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+		<div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+			<div class="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
 				<Phone class="h-5 w-5 text-muted-foreground" />
 				<div>
 					<p class="text-xs text-muted-foreground">Phone</p>
 					<p class="font-medium">{data.targetUser?.phoneNumber || '—'}</p>
 				</div>
 			</div>
-			<div class="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+			<div class="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
 				<Shield class="h-5 w-5 text-muted-foreground" />
 				<div>
 					<p class="text-xs text-muted-foreground">Role</p>
 					<p class="font-medium capitalize">{data.targetUser?.role}</p>
 				</div>
 			</div>
-			<div class="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+			<div class="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
 				<Calendar class="h-5 w-5 text-muted-foreground" />
 				<div>
 					<p class="text-xs text-muted-foreground">Joined</p>
 					<p class="font-medium">{formatDate(data.targetUser?.createdAt)}</p>
 				</div>
 			</div>
-			<div class="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+			<div class="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
 				{#if data.targetUser?.isActive !== false}
 					<UserCheck class="h-5 w-5 text-green-600" />
 					<div>
@@ -143,10 +162,10 @@
 	</div>
 
 	<!-- Debt Statistics -->
-	<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-		<div class="bg-card rounded-xl border shadow-sm p-6">
+	<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+		<div class="rounded-xl border bg-card p-6 shadow-sm">
 			<div class="flex items-center gap-3">
-				<div class="p-3 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+				<div class="rounded-lg bg-blue-100 p-3 dark:bg-blue-900/30">
 					<DollarSign class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 				</div>
 				<div>
@@ -155,9 +174,9 @@
 				</div>
 			</div>
 		</div>
-		<div class="bg-card rounded-xl border shadow-sm p-6">
+		<div class="rounded-xl border bg-card p-6 shadow-sm">
 			<div class="flex items-center gap-3">
-				<div class="p-3 rounded-lg bg-green-100 dark:bg-green-900/30">
+				<div class="rounded-lg bg-green-100 p-3 dark:bg-green-900/30">
 					<TrendingUp class="h-5 w-5 text-green-600 dark:text-green-400" />
 				</div>
 				<div>
@@ -166,9 +185,9 @@
 				</div>
 			</div>
 		</div>
-		<div class="bg-card rounded-xl border shadow-sm p-6">
+		<div class="rounded-xl border bg-card p-6 shadow-sm">
 			<div class="flex items-center gap-3">
-				<div class="p-3 rounded-lg bg-red-100 dark:bg-red-900/30">
+				<div class="rounded-lg bg-red-100 p-3 dark:bg-red-900/30">
 					<TrendingDown class="h-5 w-5 text-red-600 dark:text-red-400" />
 				</div>
 				<div>
@@ -180,8 +199,8 @@
 	</div>
 
 	<!-- Debts Table -->
-	<div class="bg-card rounded-xl border shadow-sm overflow-hidden">
-		<div class="p-4 border-b">
+	<div class="overflow-hidden rounded-xl border bg-card shadow-sm">
+		<div class="border-b p-4">
 			<h2 class="text-lg font-semibold">Debt Records</h2>
 		</div>
 		<div class="overflow-x-auto">
@@ -199,7 +218,7 @@
 				<tbody class="divide-y">
 					{#each data.debts ?? [] as debt (debt.id)}
 						{@const isCreditor = debt.creditorId === data.targetUser?.id}
-						<tr class="hover:bg-muted/30 transition-colors">
+						<tr class="transition-colors hover:bg-muted/30">
 							<td class="px-6 py-4 text-sm">{debt.description || '—'}</td>
 							<td class="px-6 py-4 font-medium">{formatCurrency(debt.amount)}</td>
 							<td class="px-6 py-4">
@@ -216,16 +235,19 @@
 								{/if}
 							</td>
 							<td class="px-6 py-4 text-sm">
-								{isCreditor 
-									? (debt.debtorPhone || 'User ' + debt.debtorId?.slice(0, 8))
-									: (debt.creditorPhone || 'User ' + debt.creditorId?.slice(0, 8))
-								}
+								{isCreditor
+									? debt.debtorPhone || 'User ' + debt.debtorId?.slice(0, 8)
+									: debt.creditorPhone || 'User ' + debt.creditorId?.slice(0, 8)}
 							</td>
 							<td class="px-6 py-4">
-								<span class="px-2 py-1 rounded-full text-xs font-medium
-									{debt.status === 'PAID' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 
-									 debt.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
-									 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300'}">
+								<span
+									class="rounded-full px-2 py-1 text-xs font-medium
+									{debt.status === 'PAID'
+										? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+										: debt.status === 'PENDING'
+											? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+											: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300'}"
+								>
 									{debt.status}
 								</span>
 							</td>

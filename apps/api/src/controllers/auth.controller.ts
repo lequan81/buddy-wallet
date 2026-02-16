@@ -83,7 +83,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         value: result.accessToken!,
         httpOnly: true,
         secure: !configs.APP.IS_DEV,
-        sameSite: 'strict',
+        sameSite: 'lax',
         path: '/',
         maxAge: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
       });
@@ -93,7 +93,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         value: result.refreshToken!,
         httpOnly: true,
         secure: !configs.APP.IS_DEV,
-        sameSite: 'strict',
+        sameSite: 'lax',
         path: '/',
         maxAge: configs.AUTH.REFRESH_TOKEN_LIFETIME / 1000
       });
@@ -143,7 +143,7 @@ export const authController = new Elysia({ prefix: '/auth' })
       value: result.accessToken!,
       httpOnly: true,
       secure: !configs.APP.IS_DEV,
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: '/',
       maxAge: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
     });
@@ -154,7 +154,7 @@ export const authController = new Elysia({ prefix: '/auth' })
         value: result.refreshToken,
         httpOnly: true,
         secure: !configs.APP.IS_DEV,
-        sameSite: 'strict',
+        sameSite: 'lax',
         path: '/',
         maxAge: configs.AUTH.REFRESH_TOKEN_LIFETIME / 1000
       });
@@ -403,7 +403,8 @@ export const authController = new Elysia({ prefix: '/auth' })
       // The actual result is sent via email
       set.status = 200;
       return successResponse({
-        message: 'If the email and phone number match our records, you will receive reset instructions.'
+        message:
+          'If the email and phone number match our records, you will receive reset instructions.'
       });
     },
     {
