@@ -89,6 +89,7 @@ export const actions: Actions = {
 			console.log('[Debt Create] Response:', { data, error: error?.value, status });
 
 			if (error) {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const errorObj = error.value as any;
 
 				// Handle duplicate warning

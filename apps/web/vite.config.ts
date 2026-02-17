@@ -93,7 +93,7 @@ export default defineConfig({
 			'valibot',
 			'@elysiajs/eden'
 		],
-		exclude: ['@lucide/svelte', '@repo/config', '@repo/errors', '@repo/permissions']
+		exclude: ['@repo/config', '@repo/errors', '@repo/permissions']
 	},
 	ssr: {
 		noExternal: ['@repo/ui']

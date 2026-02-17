@@ -10,6 +10,7 @@ export const load: PageServerLoad = async ({ locals, fetch, params }) => {
 	const headers = getAuthHeaders(locals.accessToken);
 
 	// Fetch single debt by ID (instead of fetching all debts)
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const { data: debtData, error: debtError } = await serverFetch<{ debt: any }>(
 		`/v1/debts/${params.id}`,
 		{ token: locals.accessToken }

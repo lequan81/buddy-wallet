@@ -11,14 +11,13 @@
 // Helper to get env var safely across environments (Vite, Bun, Node)
 const getEnv = (key: string, def: string) => {
   try {
-    // @ts-ignore - Vite
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key])
       return import.meta.env[key];
-    // @ts-ignore - Bun
     if (typeof Bun !== 'undefined' && Bun.env && Bun.env[key]) return Bun.env[key];
-    // @ts-ignore - Node
     if (typeof process !== 'undefined' && process.env && process.env[key]) return process.env[key];
-  } catch {}
+  } catch {
+    // Ignore error
+  }
   return def;
 };
 

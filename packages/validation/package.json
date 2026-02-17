@@ -5,16 +5,31 @@
   "main": "./index.ts",
   "types": "./index.ts",
   "exports": {
-    ".": "./index.ts",
-    "./client": "./client.ts",
-    "./auth": "./src/auth.ts"
+    ".": {
+      "types": "./index.ts",
+      "default": "./index.ts"
+    },
+    "./client": {
+      "types": "./client.ts",
+      "default": "./client.ts"
+    },
+    "./auth": {
+      "types": "./src/auth.ts",
+      "default": "./src/auth.ts"
+    }
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "bunx tsc --noEmit"
   },
   "dependencies": {
     "@repo/config": "workspace:*",
     "valibot": "^1.2.0"
   },
   "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@types/bun": "^1.1.13"
+    "@types/bun": "^1.1.13",
+    "eslint": "^9.0.0"
   }
 }

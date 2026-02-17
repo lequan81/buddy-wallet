@@ -34,7 +34,7 @@ function readJournal(): Journal {
   try {
     const content = fs.readFileSync(JOURNAL_FILE, 'utf-8').trim();
     return content ? JSON.parse(content) : { version: '7', dialect: 'sqlite', entries: [] };
-  } catch (e) {
+  } catch (_e) {
     return { version: '7', dialect: 'sqlite', entries: [] };
   }
 }
@@ -44,7 +44,7 @@ function writeJournal(journal: Journal) {
 }
 
 function getMigrationFiles(): string[] {
-  const files = fs.readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql'));
+  const files = fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql'));
   return files.sort();
 }
 
@@ -52,7 +52,7 @@ async function runMigrations() {
   const db = new Database(DATABASE_URL);
   const journal = readJournal();
   const migrationFiles = getMigrationFiles();
-  const appliedTags = new Set(journal.entries.map(e => e.tag));
+  const appliedTags = new Set(journal.entries.map((e) => e.tag));
 
   let hasChanges = false;
 
@@ -70,16 +70,16 @@ async function runMigrations() {
     // Split by statement-breakpoint comments (Drizzle style)
     const statements = sql
       .split('--> statement-breakpoint')
-      .map(s => {
+      .map((s) => {
         // Remove leading comments and trim
         const lines = s.trim().split('\n');
-        const sqlLines = lines.filter(line => {
+        const sqlLines = lines.filter((line) => {
           const trimmed = line.trim();
           return trimmed.length > 0 && !trimmed.startsWith('--');
         });
         return sqlLines.join('\n').trim();
       })
-      .filter(s => s.length > 0);
+      .filter((s) => s.length > 0);
 
     try {
       for (const statement of statements) {
@@ -113,10 +113,12 @@ async function runMigrations() {
     writeJournal(journal);
   }
 
-  console.log(hasChanges ? '\n[OK] Migrations applied successfully' : '\n[OK] No migrations to apply');
+  console.log(
+    hasChanges ? '\n[OK] Migrations applied successfully' : '\n[OK] No migrations to apply'
+  );
 }
 
-runMigrations().catch(err => {
+runMigrations().catch((err) => {
   console.error('Migration failed:', err);
   process.exit(1);
 });

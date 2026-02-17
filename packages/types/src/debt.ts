@@ -16,6 +16,7 @@ export interface DebtResult {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   debt?: any;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   debts?: any[];
 }
 

@@ -5,7 +5,7 @@
  * - Stage 1: Set deletedAt (record hidden from normal queries)
  * - Stage 2: Hard delete after retention period (by cleanup worker)
  */
-import { sql, isNull } from 'drizzle-orm';
+import { isNull } from 'drizzle-orm';
 
 /**
  * Default retention period before hard delete (30 days)
@@ -17,6 +17,7 @@ export const SOFT_DELETE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
  * Usage: db.select().from(table).where(notDeleted(table.deletedAt))
  */
 export function notDeleted<T>(deletedAtColumn: T) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return isNull(deletedAtColumn as any);
 }
 

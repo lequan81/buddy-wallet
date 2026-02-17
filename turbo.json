@@ -11,6 +11,7 @@
       "env": ["VITE_API_URL", "VITE_WEB_URL", "PORT"]
     },
     "dev": {
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true,
       "outputLogs": "new-only"

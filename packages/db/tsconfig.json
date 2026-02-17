@@ -1,9 +1,6 @@
 {
-  "extends": "@repo/typescript-config/base.json",
+  "extends": "@repo/typescript-config/library.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
     "types": ["bun"]
   },
   "include": ["**/*.ts"],

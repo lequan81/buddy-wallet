@@ -3,24 +3,78 @@
   "version": "0.0.1",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./components/ui/alert": "./src/lib/components/ui/alert/index.ts",
-    "./components/ui/alert-dialog": "./src/lib/components/ui/alert-dialog/index.ts",
-    "./components/ui/avatar": "./src/lib/components/ui/avatar/index.ts",
-    "./components/ui/badge": "./src/lib/components/ui/badge/index.ts",
-    "./components/ui/button": "./src/lib/components/ui/button/index.ts",
-    "./components/ui/card": "./src/lib/components/ui/card/index.ts",
-    "./components/ui/dialog": "./src/lib/components/ui/dialog/index.ts",
-    "./components/ui/dropdown-menu": "./src/lib/components/ui/dropdown-menu/index.ts",
-    "./components/ui/form": "./src/lib/components/ui/form/index.ts",
-    "./components/ui/input": "./src/lib/components/ui/input/index.ts",
-    "./components/ui/label": "./src/lib/components/ui/label/index.ts",
-    "./components/ui/progress": "./src/lib/components/ui/progress/index.ts",
-    "./components/ui/separator": "./src/lib/components/ui/separator/index.ts",
-    "./components/ui/sheet": "./src/lib/components/ui/sheet/index.ts",
-    "./components/ui/table": "./src/lib/components/ui/table/index.ts",
-    "./components/ui/textarea": "./src/lib/components/ui/textarea/index.ts",
-    "./lib/utils.js": "./src/lib/utils.ts"
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./components/ui/alert": {
+      "types": "./src/lib/components/ui/alert/index.ts",
+      "default": "./src/lib/components/ui/alert/index.ts"
+    },
+    "./components/ui/alert-dialog": {
+      "types": "./src/lib/components/ui/alert-dialog/index.ts",
+      "default": "./src/lib/components/ui/alert-dialog/index.ts"
+    },
+    "./components/ui/avatar": {
+      "types": "./src/lib/components/ui/avatar/index.ts",
+      "default": "./src/lib/components/ui/avatar/index.ts"
+    },
+    "./components/ui/badge": {
+      "types": "./src/lib/components/ui/badge/index.ts",
+      "default": "./src/lib/components/ui/badge/index.ts"
+    },
+    "./components/ui/button": {
+      "types": "./src/lib/components/ui/button/index.ts",
+      "default": "./src/lib/components/ui/button/index.ts"
+    },
+    "./components/ui/card": {
+      "types": "./src/lib/components/ui/card/index.ts",
+      "default": "./src/lib/components/ui/card/index.ts"
+    },
+    "./components/ui/dialog": {
+      "types": "./src/lib/components/ui/dialog/index.ts",
+      "default": "./src/lib/components/ui/dialog/index.ts"
+    },
+    "./components/ui/dropdown-menu": {
+      "types": "./src/lib/components/ui/dropdown-menu/index.ts",
+      "default": "./src/lib/components/ui/dropdown-menu/index.ts"
+    },
+    "./components/ui/form": {
+      "types": "./src/lib/components/ui/form/index.ts",
+      "default": "./src/lib/components/ui/form/index.ts"
+    },
+    "./components/ui/input": {
+      "types": "./src/lib/components/ui/input/index.ts",
+      "default": "./src/lib/components/ui/input/index.ts"
+    },
+    "./components/ui/label": {
+      "types": "./src/lib/components/ui/label/index.ts",
+      "default": "./src/lib/components/ui/label/index.ts"
+    },
+    "./components/ui/progress": {
+      "types": "./src/lib/components/ui/progress/index.ts",
+      "default": "./src/lib/components/ui/progress/index.ts"
+    },
+    "./components/ui/separator": {
+      "types": "./src/lib/components/ui/separator/index.ts",
+      "default": "./src/lib/components/ui/separator/index.ts"
+    },
+    "./components/ui/sheet": {
+      "types": "./src/lib/components/ui/sheet/index.ts",
+      "default": "./src/lib/components/ui/sheet/index.ts"
+    },
+    "./components/ui/table": {
+      "types": "./src/lib/components/ui/table/index.ts",
+      "default": "./src/lib/components/ui/table/index.ts"
+    },
+    "./components/ui/textarea": {
+      "types": "./src/lib/components/ui/textarea/index.ts",
+      "default": "./src/lib/components/ui/textarea/index.ts"
+    },
+    "./lib/utils.js": {
+      "types": "./src/lib/utils.ts",
+      "default": "./src/lib/utils.ts"
+    }
   },
   "scripts": {
     "check": "svelte-check --tsconfig ./tsconfig.json",
@@ -36,7 +90,14 @@
   },
   "devDependencies": {
     "@internationalized/date": "^3.10.0",
-    "@lucide/svelte": "^0.561.0"
+    "@lucide/svelte": "^0.561.0",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "eslint": "^9.0.0",
+    "svelte-check": "^4.3.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.6"
   },
   "peerDependencies": {
     "svelte": "^5.45.6"

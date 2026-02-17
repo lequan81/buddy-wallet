@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
+    "build:emails": "turbo run build --filter=@repo/email-templates",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "check": "turbo run check check-types",

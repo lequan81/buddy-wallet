@@ -3,12 +3,14 @@ import Database from 'bun:sqlite';
 const db = new Database('buddy-wallet.sqlite');
 
 console.log('=== Users table columns ===');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const userCols = db.query('PRAGMA table_info(users)').all() as any[];
 userCols.forEach((c) => {
   console.log(`  ${c.name}: ${c.type}`);
 });
 
 console.log('\n=== Sessions table columns ===');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sessionCols = db.query('PRAGMA table_info(sessions)').all() as any[];
 sessionCols.forEach((c) => {
   console.log(`  ${c.name}: ${c.type}`);

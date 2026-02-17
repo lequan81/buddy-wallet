@@ -17,8 +17,10 @@ export interface LoginInput {
   otp?: string;
   userAgent?: string | null;
   clientIP?: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   clientHints?: any;
   coordinates?: { lat: number; lon: number } | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   clientLocation?: any;
 }
 
@@ -109,7 +111,9 @@ export interface IDebtService {
   getDebtsByUserId(userId: string, options?: PaginationOptions): Promise<PaginatedResult<Debt>>;
   countActiveDebtsForPhone(phone: string): Promise<number>;
   getDebtById(debtId: string): Promise<Debt | undefined>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createDebt(input: any, currentUser: any): Promise<DebtResult>; // Typed as any to avoid circular deps for now, or need to verify input types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   updateDebtStatus(debtId: string, newStatus: DebtStatus, currentUser: any): Promise<any>;
 }
 

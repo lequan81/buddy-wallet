@@ -1,7 +1,6 @@
 {
-  "extends": "../../packages/typescript-config/base.json",
+  "extends": "@repo/typescript-config/library.json",
   "compilerOptions": {
-    "moduleResolution": "bundler",
     "paths": {
       "$lib": ["./src/lib"],
       "$lib/*": ["./src/lib/*"],
