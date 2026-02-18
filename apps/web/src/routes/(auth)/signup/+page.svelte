@@ -1,7 +1,6 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import { superForm } from 'sveltekit-superforms';
-	import { Check, Circle, Loader2 } from '@lucide/svelte';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
@@ -89,7 +88,7 @@
 					label="Full Name"
 					name="name"
 					type="text"
-					placeholder="Nguyễn Văn A"
+					placeholder="Nguyá»…n VÄƒn A"
 					bind:value={$form.name}
 					validationState={nameState}
 					error={$errors.name?.[0]}
@@ -152,10 +151,10 @@
 						{#each passwordRules as rule}
 							<div class="flex items-center gap-1.5 text-xs">
 								{#if rule.valid}
-									<Check class="h-3 w-3 shrink-0 text-success" />
+									<IconLucideCheck class="h-3 w-3 shrink-0 text-success" />
 									<span class="text-success">{rule.label}</span>
 								{:else}
-									<Circle class="h-3 w-3 shrink-0 text-muted-foreground/50" />
+									<IconLucideCircle class="h-3 w-3 shrink-0 text-muted-foreground/50" />
 									<span class="text-muted-foreground">{rule.label}</span>
 								{/if}
 							</div>
@@ -181,7 +180,7 @@
 				<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>
 					<span class="inline-flex items-center justify-center">
 						{#if $delayed}
-							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+							<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
 							Creating account...
 						{:else}
 							Create account

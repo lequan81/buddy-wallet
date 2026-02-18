@@ -1,23 +1,22 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import {
-		Activity,
-		LogIn,
-		LogOut,
-		Plus,
-		Edit,
-		Trash2,
-		Check,
-		AlertTriangle,
-		FileText,
-		User,
-		Shield,
-		ChevronLeft,
-		ChevronRight,
-		ChevronsLeft,
-		ChevronsRight
-	} from '@lucide/svelte';
+	// import {
+	// 	Activity,
+	// 	LogIn,
+	// 	LogOut,
+	// 	Plus,
+	// 	Edit,
+	// 	Trash2,
+	// 	Check,
+	// 	AlertTriangle,
+	// 	FileText,
+	// 	User,
+	// 	Shield,
+	// 	ChevronLeft,
+	// 	ChevronRight,
+	// 	ChevronsLeft,
+	// 	ChevronsRight
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Separator } from '@repo/ui/components/ui/separator';
@@ -37,22 +36,22 @@
 	const getActionIcon = (action: string) => {
 		switch (action) {
 			case 'login':
-				return LogIn;
+				return IconLucideLogIn;
 			case 'logout':
-				return LogOut;
+				return IconLucideLogOut;
 			case 'create':
-				return Plus;
+				return IconLucidePlus;
 			case 'update':
-				return Edit;
+				return IconLucideEdit;
 			case 'delete':
-				return Trash2;
+				return IconLucideTrash2;
 			case 'confirm':
 			case 'paid':
-				return Check;
+				return IconLucideCheck;
 			case 'dispute':
-				return AlertTriangle;
+				return IconLucideAlertTriangle;
 			default:
-				return Activity;
+				return IconLucideActivity;
 		}
 	};
 
@@ -81,13 +80,13 @@
 	const getResourceIcon = (resource: string) => {
 		switch (resource) {
 			case 'debt':
-				return FileText;
+				return IconLucideFileText;
 			case 'user':
-				return User;
+				return IconLucideUser;
 			case 'session':
-				return Shield;
+				return IconLucideShield;
 			default:
-				return Activity;
+				return IconLucideActivity;
 		}
 	};
 
@@ -149,7 +148,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
-				<Activity class="h-5 w-5" />
+				<IconLucideActivity class="h-5 w-5" />
 				Recent Activity
 			</Card.Title>
 			<Card.Description>Your actions and events from the last 30 days.</Card.Description>
@@ -157,7 +156,7 @@
 		<Card.Content>
 			{#if data.logs.length === 0}
 				<div class="py-12 text-center text-muted-foreground">
-					<Activity class="mx-auto mb-4 h-12 w-12 opacity-50" />
+					<IconLucideActivity class="mx-auto mb-4 h-12 w-12 opacity-50" />
 					<p>No activity recorded yet.</p>
 				</div>
 			{:else}
@@ -250,7 +249,7 @@
 								disabled={currentPage <= 1}
 								onclick={() => navigateWithParams({ page: 1 })}
 							>
-								<ChevronsLeft class="h-4 w-4" />
+								<IconLucideChevronsLeft class="h-4 w-4" />
 							</Button>
 							<Button
 								variant="outline"
@@ -259,7 +258,7 @@
 								disabled={currentPage <= 1}
 								onclick={() => navigateWithParams({ page: currentPage - 1 })}
 							>
-								<ChevronLeft class="h-4 w-4" />
+								<IconLucideChevronLeft class="h-4 w-4" />
 							</Button>
 							<span class="px-3 text-sm">
 								Page {currentPage} of {totalPages}
@@ -271,7 +270,7 @@
 								disabled={currentPage >= totalPages}
 								onclick={() => navigateWithParams({ page: currentPage + 1 })}
 							>
-								<ChevronRight class="h-4 w-4" />
+								<IconLucideChevronRight class="h-4 w-4" />
 							</Button>
 							<Button
 								variant="outline"
@@ -280,7 +279,7 @@
 								disabled={currentPage >= totalPages}
 								onclick={() => navigateWithParams({ page: totalPages })}
 							>
-								<ChevronsRight class="h-4 w-4" />
+								<IconLucideChevronsRight class="h-4 w-4" />
 							</Button>
 						</div>
 					</div>

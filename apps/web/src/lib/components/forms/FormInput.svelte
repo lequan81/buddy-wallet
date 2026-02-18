@@ -1,7 +1,6 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { Input } from '@repo/ui/components/ui/input';
 	import { Label } from '@repo/ui/components/ui/label';
-	import { CheckCircle2, AlertCircle, AlertTriangle, Eye, EyeOff } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import type { Component } from 'svelte';
@@ -43,21 +42,21 @@
 	const stateConfig = $derived.by(() => {
 		const configs = {
 			error: {
-				icon: AlertCircle,
+				icon: IconLucideAlertCircle,
 				ringClass: 'ring-2 ring-destructive focus-visible:ring-destructive',
 				textClass: 'text-destructive',
 				iconClass: 'text-destructive',
 				message: error
 			},
 			success: {
-				icon: CheckCircle2,
+				icon: IconLucideCheckCircle2,
 				ringClass: 'ring-2 ring-success focus-visible:ring-success',
 				textClass: 'text-success',
 				iconClass: 'text-success',
 				message: success
 			},
 			warning: {
-				icon: AlertTriangle,
+				icon: IconLucideAlertTriangle,
 				ringClass: 'ring-2 ring-warning focus-visible:ring-warning',
 				textClass: 'text-warning',
 				iconClass: 'text-warning',
@@ -118,9 +117,9 @@
 				tabindex="-1"
 			>
 				{#if showPassword}
-					<EyeOff class="h-4 w-4" />
+					<IconLucideEyeOff class="h-4 w-4" />
 				{:else}
-					<Eye class="h-4 w-4" />
+					<IconLucideEye class="h-4 w-4" />
 				{/if}
 			</button>
 		{:else if StateIcon}

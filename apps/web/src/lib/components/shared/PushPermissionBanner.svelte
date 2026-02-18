@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
 	import {
@@ -8,7 +8,6 @@
 		dismissBanner,
 		shouldShowBanner
 	} from '$lib/push.svelte';
-	import { Bell, X } from '@lucide/svelte';
 
 	let visible = $state(false);
 	let isSubscribing = $state(false);
@@ -63,7 +62,7 @@
 				class="absolute top-2 right-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 				aria-label="Dismiss"
 			>
-				<X class="h-4 w-4" />
+				<IconLucideX class="h-4 w-4" />
 			</button>
 
 			<div class="flex items-start gap-3">
@@ -71,7 +70,7 @@
 				<div
 					class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
 				>
-					<Bell class="h-5 w-5" />
+					<IconLucideBell class="h-5 w-5" />
 				</div>
 
 				<!-- Content -->
@@ -133,7 +132,7 @@
 				class="absolute top-2 right-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 				aria-label="Dismiss"
 			>
-				<X class="h-4 w-4" />
+				<IconLucideX class="h-4 w-4" />
 			</button>
 
 			<div class="flex items-start gap-3">
@@ -141,7 +140,7 @@
 				<div
 					class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
 				>
-					<Bell class="h-5 w-5" />
+					<IconLucideBell class="h-5 w-5" />
 				</div>
 
 				<!-- Content -->

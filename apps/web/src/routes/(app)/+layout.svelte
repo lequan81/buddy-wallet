@@ -1,6 +1,7 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { page } from '$app/state';
-	import { Wallet } from '@lucide/svelte';
+	// @ts-ignore
+	import IconLucideWallet from '~icons/lucide/wallet';
 	import { buttonVariants } from '@repo/ui/components/ui/button';
 
 	let { children } = $props();
@@ -13,7 +14,7 @@
 >
 	<div class="container flex h-14 items-center justify-between">
 		<a href="/" class="flex items-center space-x-2">
-			<Wallet class="h-6 w-6 text-primary" />
+			<IconLucideWallet class="h-6 w-6 text-primary" />
 			<span class="text-lg font-bold">Buddy Wallet</span>
 		</a>
 
@@ -66,7 +67,7 @@
 			<!-- Brand -->
 			<div class="space-y-4">
 				<div class="flex items-center space-x-2">
-					<Wallet class="h-6 w-6 text-primary" />
+					<IconLucideWallet class="h-6 w-6 text-primary" />
 					<span class="font-bold">Buddy Wallet</span>
 				</div>
 				<p class="text-sm text-muted-foreground">

@@ -1,8 +1,7 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-	import { Loader2, Lock, AlertTriangle } from '@lucide/svelte';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import * as Alert from '@repo/ui/components/ui/alert';
@@ -88,7 +87,7 @@
 				<Alert.Root
 					class="mb-4 border-yellow-500 bg-yellow-50 dark:border-yellow-600 dark:bg-yellow-950/20"
 				>
-					<AlertTriangle class="h-4 w-4 text-yellow-600" />
+					<IconLucideAlertTriangle class="h-4 w-4 text-yellow-600" />
 					<Alert.Title class="text-yellow-900 dark:text-yellow-100"
 						>Password Change Required</Alert.Title
 					>
@@ -119,7 +118,7 @@
 					validationState={passwordError ? 'error' : 'default'}
 					error={passwordError}
 					showPasswordToggle={true}
-					icon={Lock}
+					icon={IconLucideLock}
 				/>
 
 				<!-- Password Requirements -->
@@ -131,35 +130,35 @@
 							class:dark:text-green-400={hasMinLength}
 							class:text-muted-foreground={!hasMinLength}
 						>
-							{hasMinLength ? '✓' : '○'} At least 8 characters
+							{hasMinLength ? 'âœ“' : 'â—‹'} At least 8 characters
 						</li>
 						<li
 							class:text-green-600={hasUppercase}
 							class:dark:text-green-400={hasUppercase}
 							class:text-muted-foreground={!hasUppercase}
 						>
-							{hasUppercase ? '✓' : '○'} One uppercase letter
+							{hasUppercase ? 'âœ“' : 'â—‹'} One uppercase letter
 						</li>
 						<li
 							class:text-green-600={hasLowercase}
 							class:dark:text-green-400={hasLowercase}
 							class:text-muted-foreground={!hasLowercase}
 						>
-							{hasLowercase ? '✓' : '○'} One lowercase letter
+							{hasLowercase ? 'âœ“' : 'â—‹'} One lowercase letter
 						</li>
 						<li
 							class:text-green-600={hasNumber}
 							class:dark:text-green-400={hasNumber}
 							class:text-muted-foreground={!hasNumber}
 						>
-							{hasNumber ? '✓' : '○'} One number
+							{hasNumber ? 'âœ“' : 'â—‹'} One number
 						</li>
 						<li
 							class:text-green-600={hasSpecial}
 							class:dark:text-green-400={hasSpecial}
 							class:text-muted-foreground={!hasSpecial}
 						>
-							{hasSpecial ? '✓' : '○'} One special character (recommended)
+							{hasSpecial ? 'âœ“' : 'â—‹'} One special character (recommended)
 						</li>
 					</ul>
 				</div>
@@ -174,14 +173,14 @@
 					validationState={confirmError ? 'error' : passwordsMatch ? 'success' : 'default'}
 					error={confirmError}
 					showPasswordToggle={true}
-					icon={Lock}
+					icon={IconLucideLock}
 				/>
 
 				<!-- Submit Button -->
 				<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>
 					<span class="inline-flex items-center justify-center">
 						{#if isSubmitting}
-							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+							<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
 							Changing Password...
 						{:else}
 							Change Password

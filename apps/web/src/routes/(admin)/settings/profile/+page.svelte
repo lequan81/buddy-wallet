@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import type { ActionData, PageData } from './$types';
@@ -7,16 +7,15 @@
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Separator } from '@repo/ui/components/ui/separator';
-	import {
-		User,
-		Mail,
-		Phone,
-		Camera,
-		Loader2,
-		Shield,
-		CheckCircle2,
-		AlertCircle
-	} from '@lucide/svelte';
+	// import {
+	// 	User,
+	// 	Mail,
+	// 	Phone,
+	// 	Camera,
+	// 	Loader2,
+	// 	Shield,
+	// 	CheckCircle2,
+	// 	AlertCircle
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -109,7 +108,7 @@
 					type="email"
 					value={user?.email}
 					disabled
-					icon={User}
+					icon={IconLucideUser}
 					class="bg-muted"
 					helpText="Email address cannot be changed."
 				/>
@@ -121,7 +120,7 @@
 					type="tel"
 					bind:value={phoneNumber}
 					placeholder="0123456789"
-					icon={Phone}
+					icon={IconLucidePhone}
 					validationState={phoneValidation}
 					error={phoneValidation === 'error' ? phoneMessage : undefined}
 					success={phoneValidation === 'success' ? phoneMessage : undefined}

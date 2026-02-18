@@ -1,8 +1,7 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
-	import { Loader2 } from '@lucide/svelte';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
@@ -118,7 +117,7 @@
 				<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>
 					<span class="inline-flex items-center justify-center">
 						{#if isSubmitting}
-							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+							<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
 							Signing in...
 						{:else}
 							Sign in

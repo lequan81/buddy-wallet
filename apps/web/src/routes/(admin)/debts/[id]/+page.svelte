@@ -2,25 +2,6 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-	import {
-		ArrowLeft,
-		ArrowUp,
-		ArrowDown,
-		Calendar,
-		FileText,
-		Phone,
-		User,
-		Edit,
-		Trash2,
-		Check,
-		X,
-		AlertTriangle,
-		Clock,
-		QrCode,
-		Upload,
-		Image as ImageIcon,
-		MessageSquare
-	} from '@lucide/svelte';
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
@@ -142,16 +123,19 @@
 	// Get valid status transitions based on current status
 	const getValidTransitions = (
 		status: string
-	): { status: string; label: string; icon: typeof Check }[] => {
-		const transitions: Record<string, { status: string; label: string; icon: typeof Check }[]> = {
+	): { status: string; label: string; icon: typeof IconLucideCheck }[] => {
+		const transitions: Record<
+			string,
+			{ status: string; label: string; icon: typeof IconLucideCheck }[]
+		> = {
 			pending: [
-				{ status: 'confirmed', label: 'Confirm', icon: Check },
-				{ status: 'disputed', label: 'Dispute', icon: AlertTriangle },
-				{ status: 'cancelled', label: 'Cancel', icon: X }
+				{ status: 'confirmed', label: 'Confirm', icon: IconLucideCheck },
+				{ status: 'disputed', label: 'Dispute', icon: IconLucideAlertTriangle },
+				{ status: 'cancelled', label: 'Cancel', icon: IconLucideX }
 			],
 			confirmed: [
-				{ status: 'paid', label: 'Mark as Paid', icon: Check },
-				{ status: 'disputed', label: 'Dispute', icon: AlertTriangle }
+				{ status: 'paid', label: 'Mark as Paid', icon: IconLucideCheck },
+				{ status: 'disputed', label: 'Dispute', icon: IconLucideAlertTriangle }
 			],
 			disputed: [],
 			paid: [],
@@ -288,7 +272,7 @@
 		href="/dashboard"
 		class="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
 	>
-		<ArrowLeft class="h-4 w-4" />
+		<IconLucideArrowLeft class="h-4 w-4" />
 		Back to Dashboard
 	</a>
 
@@ -299,7 +283,7 @@
 				<div
 					class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10"
 				>
-					<AlertTriangle class="h-8 w-8 text-destructive" />
+					<IconLucideAlertTriangle class="h-8 w-8 text-destructive" />
 				</div>
 				<h1 class="mb-2 text-xl font-semibold">{data.error || 'Debt not found'}</h1>
 				<p class="text-sm text-muted-foreground">
@@ -337,7 +321,7 @@
 								<div
 									class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500"
 								>
-									<AlertTriangle class="h-5 w-5 text-white" />
+									<IconLucideAlertTriangle class="h-5 w-5 text-white" />
 								</div>
 								<div>
 									<p class="font-semibold text-blue-900 dark:text-blue-100">
@@ -364,7 +348,7 @@
 									}}
 								>
 									<Button type="submit" size="sm" variant="default" disabled={isSubmitting}>
-										<Check class="mr-2 h-4 w-4" />
+										<IconLucideCheck class="mr-2 h-4 w-4" />
 										Yes, Confirm
 									</Button>
 								</form>
@@ -382,7 +366,7 @@
 								>
 									<input type="hidden" name="status" value="disputed" />
 									<Button type="submit" size="sm" variant="destructive" disabled={isSubmitting}>
-										<X class="mr-2 h-4 w-4" />
+										<IconLucideX class="mr-2 h-4 w-4" />
 										Dispute
 									</Button>
 								</form>
@@ -396,7 +380,7 @@
 			{#if data.isUploader && data.debt?.needsConfirmation}
 				<Card.Root class="border-muted bg-muted/50">
 					<Card.Content class="flex items-center gap-3 py-3">
-						<Clock class="h-5 w-5 text-muted-foreground" />
+						<IconLucideClock class="h-5 w-5 text-muted-foreground" />
 						<p class="text-sm text-muted-foreground">
 							Waiting for {data.isCreditor ? data.debt.debtorPhone : data.debt.creditorPhone} to confirm
 							this debt.
@@ -410,7 +394,7 @@
 				<Card.Root class="border-warning bg-warning/10">
 					<Card.Content class="py-4">
 						<div class="flex items-start gap-3">
-							<MessageSquare class="mt-0.5 h-5 w-5 text-warning" />
+							<IconLucideMessageSquare class="mt-0.5 h-5 w-5 text-warning" />
 							<div class="flex-1">
 								<p class="font-medium text-warning">Edit Suggestion Pending</p>
 								<p class="mt-1 text-sm text-muted-foreground">
@@ -435,11 +419,11 @@
 								</div>
 								<div class="mt-3 flex gap-2">
 									<Button size="sm" variant="default" onclick={() => respondToSuggestion(true)}>
-										<Check class="mr-2 h-4 w-4" />
+										<IconLucideCheck class="mr-2 h-4 w-4" />
 										Accept
 									</Button>
 									<Button size="sm" variant="outline" onclick={() => respondToSuggestion(false)}>
-										<X class="mr-2 h-4 w-4" />
+										<IconLucideX class="mr-2 h-4 w-4" />
 										Reject
 									</Button>
 								</div>
@@ -462,9 +446,9 @@
 								)}
 							>
 								{#if data.isCreditor}
-									<ArrowUp class="h-6 w-6 text-success" />
+									<IconLucideArrowUp class="h-6 w-6 text-success" />
 								{:else}
-									<ArrowDown class="h-6 w-6 text-destructive" />
+									<IconLucideArrowDown class="h-6 w-6 text-destructive" />
 								{/if}
 							</div>
 							<div>
@@ -492,7 +476,7 @@
 									variant="outline"
 									class="border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400"
 								>
-									<Clock class="mr-1 h-3 w-3" />
+									<IconLucideClock class="mr-1 h-3 w-3" />
 									Proof Pending Review
 								</Badge>
 							{/if}
@@ -502,7 +486,7 @@
 					<!-- Metadata Grid -->
 					<div class="mt-8 grid gap-4 sm:grid-cols-2">
 						<div class="flex items-start gap-3">
-							<FileText class="mt-0.5 h-4 w-4 text-muted-foreground" />
+							<IconLucideFileText class="mt-0.5 h-4 w-4 text-muted-foreground" />
 							<div class="min-w-0 flex-1">
 								<p class="text-xs text-muted-foreground">Description</p>
 								<p class="mt-0.5 font-medium">{data.debt.description || '—'}</p>
@@ -510,7 +494,7 @@
 						</div>
 
 						<div class="flex items-start gap-3">
-							<Phone class="mt-0.5 h-4 w-4 text-muted-foreground" />
+							<IconLucidePhone class="mt-0.5 h-4 w-4 text-muted-foreground" />
 							<div class="min-w-0 flex-1">
 								<p class="text-xs text-muted-foreground">
 									{data.isCreditor ? 'Debtor' : 'Creditor'}
@@ -522,7 +506,7 @@
 						</div>
 
 						<div class="flex items-start gap-3">
-							<Calendar class="mt-0.5 h-4 w-4 text-muted-foreground" />
+							<IconLucideCalendar class="mt-0.5 h-4 w-4 text-muted-foreground" />
 							<div class="min-w-0 flex-1">
 								<p class="text-xs text-muted-foreground">Created</p>
 								<p class="mt-0.5 text-sm">{formatDate(data.debt.createdAt)}</p>
@@ -530,7 +514,7 @@
 						</div>
 
 						<div class="flex items-start gap-3">
-							<Clock class="mt-0.5 h-4 w-4 text-muted-foreground" />
+							<IconLucideClock class="mt-0.5 h-4 w-4 text-muted-foreground" />
 							<div class="min-w-0 flex-1">
 								<p class="text-xs text-muted-foreground">Last Updated</p>
 								<p class="mt-0.5 text-sm">{formatDate(data.debt.updatedAt)}</p>
@@ -545,7 +529,7 @@
 				<Card.Root>
 					<Card.Header>
 						<Card.Title class="flex items-center gap-2 text-lg">
-							<QrCode class="h-5 w-5 text-muted-foreground" />
+							<IconLucideQrCode class="h-5 w-5 text-muted-foreground" />
 							Payment
 						</Card.Title>
 						<Card.Description>Scan QR code to pay, then upload proof</Card.Description>
@@ -616,7 +600,7 @@
 										{#if isUploading}
 											Uploading...
 										{:else}
-											<Upload class="mr-2 h-4 w-4" />
+											<IconLucideUpload class="mr-2 h-4 w-4" />
 											Upload Proof
 										{/if}
 									</Button>
@@ -643,7 +627,7 @@
 				<Card.Root class="border-blue-200 dark:border-blue-900">
 					<Card.Header>
 						<Card.Title class="flex items-center gap-2 text-lg text-blue-700 dark:text-blue-400">
-							<ImageIcon class="h-5 w-5" />
+							<IconLucideImageIcon class="h-5 w-5" />
 							Pending Payment Proofs
 						</Card.Title>
 						<Card.Description>Review and approve payment proofs</Card.Description>
@@ -668,7 +652,7 @@
 												class="flex-1 bg-success hover:bg-success/90"
 												onclick={() => approveProof(proof.id)}
 											>
-												<Check class="mr-1 h-4 w-4" /> Approve
+												<IconLucideCheck class="mr-1 h-4 w-4" /> Approve
 											</Button>
 											<Button
 												size="sm"
@@ -676,7 +660,7 @@
 												class="flex-1"
 												onclick={() => rejectProof(proof.id)}
 											>
-												<X class="mr-1 h-4 w-4" /> Reject
+												<IconLucideX class="mr-1 h-4 w-4" /> Reject
 											</Button>
 										</div>
 									</div>
@@ -797,7 +781,7 @@
 							<div class="flex flex-wrap gap-2 border-t pt-4">
 								{#if canEdit() && !isEditing}
 									<Button variant="outline" size="sm" onclick={() => (isEditing = true)}>
-										<Edit class="mr-2 h-4 w-4" />
+										<IconLucideEdit class="mr-2 h-4 w-4" />
 										Edit
 									</Button>
 								{/if}
@@ -807,7 +791,7 @@
 										<AlertDialog.Trigger>
 											{#snippet child({ props }: { props: Record<string, any> })}
 												<Button variant="destructive" size="sm" {...props}>
-													<Trash2 class="mr-2 h-4 w-4" />
+													<IconLucideTrash2 class="mr-2 h-4 w-4" />
 													Delete
 												</Button>
 											{/snippet}
@@ -849,7 +833,7 @@
 
 						<!-- Suggest Edit (for counterparty, not creator) -->
 						{#if canSuggestEdit() && !data.debt.suggestedById}
-							<div class={cn(canEdit() || canDelete() ? '' : '', 'border-t pt-4')}>
+							<div class="border-t pt-4">
 								<Button
 									variant="outline"
 									size="sm"
@@ -859,7 +843,7 @@
 										showSuggestModal = true;
 									}}
 								>
-									<MessageSquare class="mr-2 h-4 w-4" />
+									<IconLucideMessageSquare class="mr-2 h-4 w-4" />
 									Suggest Edit
 								</Button>
 								<p class="mt-2 text-xs text-muted-foreground">
@@ -872,7 +856,7 @@
 						{#if canSuggestEdit() && data.debt.suggestedById === data.currentUser?.id}
 							<div class="border-t pt-4">
 								<div class="flex items-center gap-2 text-muted-foreground">
-									<Clock class="h-4 w-4" />
+									<IconLucideClock class="h-4 w-4" />
 									<p class="text-sm">Your edit suggestion is pending review</p>
 								</div>
 							</div>
@@ -914,7 +898,7 @@
 				>
 					<input type="hidden" name="status" value="paid" />
 					<AlertDialog.Action type="submit" class="bg-success hover:bg-success/90">
-						<Check class="mr-2 h-4 w-4" />
+						<IconLucideCheck class="mr-2 h-4 w-4" />
 						Yes, Mark as Paid
 					</AlertDialog.Action>
 				</form>
@@ -966,7 +950,7 @@
 					{#if isSuggesting}
 						Sending...
 					{:else}
-						<MessageSquare class="mr-2 h-4 w-4" />
+						<IconLucideMessageSquare class="mr-2 h-4 w-4" />
 						Send Suggestion
 					{/if}
 				</Button>

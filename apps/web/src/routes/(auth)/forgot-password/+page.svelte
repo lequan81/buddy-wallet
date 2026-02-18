@@ -1,7 +1,14 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import { Loader2, CheckCircle, Mail, Phone } from '@lucide/svelte';
+	// @ts-ignore
+	import IconLucideLoader2 from '~icons/lucide/loader2';
+	// @ts-ignore
+	import IconLucideCheckCircle from '~icons/lucide/check-circle';
+	// @ts-ignore
+	import IconLucideMail from '~icons/lucide/mail';
+	// @ts-ignore
+	import IconLucidePhone from '~icons/lucide/phone';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
@@ -64,7 +71,7 @@
 			{#if isSuccess}
 				<div class="flex flex-col items-center space-y-4 py-8">
 					<div class="rounded-full bg-green-100 p-3 dark:bg-green-900/30">
-						<CheckCircle class="h-8 w-8 text-green-600 dark:text-green-400" />
+						<IconLucideCheckCircle class="h-8 w-8 text-green-600 dark:text-green-400" />
 					</div>
 					<div class="text-center">
 						<h3 class="font-semibold">Check Your Email</h3>
@@ -109,7 +116,7 @@
 						validationState={emailError ? 'error' : 'default'}
 						error={emailError}
 						required
-						icon={Mail}
+						icon={IconLucideMail}
 					/>
 
 					<!-- Phone Field -->
@@ -122,14 +129,14 @@
 						validationState={phoneError ? 'error' : 'default'}
 						error={phoneError}
 						required
-						icon={Phone}
+						icon={IconLucidePhone}
 					/>
 
 					<!-- Submit Button -->
 					<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>
 						<span class="inline-flex items-center justify-center">
 							{#if isSubmitting}
-								<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+								<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
 								Sending...
 							{:else}
 								Send Temporary Password

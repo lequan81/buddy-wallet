@@ -1,26 +1,10 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import * as Card from '@repo/ui/components/ui/card';
 	import * as Table from '@repo/ui/components/ui/table';
 	import { Badge } from '@repo/ui/components/ui/badge';
-	import { Activity } from '@lucide/svelte';
+	import { formatDuration, TRACE_STATUS_COLORS, cn } from '$lib/utils';
 
 	let { data } = $props();
-
-	function formatDuration(ms: number) {
-		if (ms < 1) return '< 1ms';
-		return `${ms.toFixed(2)}ms`;
-	}
-
-	function getStatusColor(status: string) {
-		switch (status) {
-			case 'OK':
-				return 'bg-green-500';
-			case 'ERROR':
-				return 'bg-red-500';
-			default:
-				return 'bg-gray-500';
-		}
-	}
 </script>
 
 <div class="space-y-6">
@@ -53,7 +37,14 @@
 								>
 								<Table.Cell>{formatDuration(trace.duration)}</Table.Cell>
 								<Table.Cell>
-									<Badge variant="outline" class={getStatusColor(trace.status?.code)}>
+									<Badge
+										variant="outline"
+										class={cn(
+											'border-0 text-white',
+											TRACE_STATUS_COLORS[trace.status?.code as keyof typeof TRACE_STATUS_COLORS] ||
+												TRACE_STATUS_COLORS.UNSET
+										)}
+									>
 										{trace.status?.code || 'UNSET'}
 									</Badge>
 								</Table.Cell>
@@ -66,7 +57,7 @@
 				<div
 					class="flex flex-col items-center justify-center p-8 text-center text-muted-foreground"
 				>
-					<Activity class="mb-2 h-8 w-8 opacity-50" />
+					<IconLucideActivity class="mb-2 h-8 w-8 opacity-50" />
 					<p>No traces available or OTLP exporter not configured.</p>
 				</div>
 			{/if}

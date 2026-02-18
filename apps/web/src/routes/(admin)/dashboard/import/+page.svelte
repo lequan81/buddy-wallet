@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 	import { Button } from '@repo/ui/components/ui/button';
@@ -6,19 +6,19 @@
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Progress } from '@repo/ui/components/ui/progress';
-	import {
-		ArrowLeft,
-		Upload,
-		Loader2,
-		AlertTriangle,
-		CheckCircle,
-		Copy,
-		XCircle,
-		FileSpreadsheet,
-		Settings2,
-		Send
-	} from '@lucide/svelte';
+	// import {
+	// 	ArrowLeft,
+	// 	Upload,
+	// 	Loader2,
+	// 	AlertTriangle,
+	// 	CheckCircle,
+	// 	Copy,
+	// 	XCircle,
+	// 	FileSpreadsheet,
+	// 	Settings2,
+	// 	Send
 	import { toast } from 'svelte-sonner';
+	import { cn } from '$lib/utils';
 
 	let { form } = $props();
 	let isSubmitting = $state(false);
@@ -49,8 +49,8 @@
 
 	// Database fields
 	const dbFields = [
-		{ key: 'name', label: 'Name/Tên', required: true, description: 'Person who owes' },
-		{ key: 'amount', label: 'Amount/Số nợ', required: true, description: 'Debt amount' },
+		{ key: 'name', label: 'Name/TÃªn', required: true, description: 'Person who owes' },
+		{ key: 'amount', label: 'Amount/Sá»‘ ná»£', required: true, description: 'Debt amount' },
 		{ key: 'phone', label: 'Phone', required: false, description: 'For user linking' },
 		{ key: 'email', label: 'Email', required: false, description: 'For user linking' },
 		{ key: 'description', label: 'Description', required: false, description: 'Notes' },
@@ -130,13 +130,13 @@
 
 <div class="container max-w-3xl py-10">
 	<Button variant="ghost" href="/dashboard" class="mb-6 pl-0 hover:bg-transparent">
-		<ArrowLeft class="mr-2 h-4 w-4" /> Back to Dashboard
+		<IconLucideArrowLeft class="mr-2 h-4 w-4" /> Back to Dashboard
 	</Button>
 
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
-				<FileSpreadsheet class="h-5 w-5" />
+				<IconLucideFileSpreadsheet class="h-5 w-5" />
 				Import Debts from Excel
 			</Card.Title>
 			<Card.Description>Upload an Excel file and configure column mapping.</Card.Description>
@@ -240,11 +240,11 @@
 						>
 							<Label for="file" class="flex cursor-pointer flex-col items-center">
 								{#if selectedFiles && selectedFiles.length > 0}
-									<FileSpreadsheet class="mb-3 h-10 w-10 text-primary" />
+									<IconLucideFileSpreadsheet class="mb-3 h-10 w-10 text-primary" />
 									<span class="font-medium text-primary">{selectedFiles[0].name}</span>
 									<span class="mt-1 text-sm text-muted-foreground">Click to change</span>
 								{:else}
-									<Upload class="mb-3 h-10 w-10 text-muted-foreground" />
+									<IconLucideUpload class="mb-3 h-10 w-10 text-muted-foreground" />
 									<span class="font-medium">Click to select file or drag & drop</span>
 									<span class="mt-1 text-sm text-muted-foreground">.xlsx files only</span>
 								{/if}
@@ -263,9 +263,9 @@
 						<div class="flex justify-end">
 							<Button type="submit" formaction="?/preview" disabled={isAnalyzing}>
 								{#if isAnalyzing}
-									<Loader2 class="mr-2 h-4 w-4 animate-spin" /> Analyzing...
+									<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" /> Analyzing...
 								{:else}
-									<Upload class="mr-2 h-4 w-4" /> Analyze File
+									<IconLucideUpload class="mr-2 h-4 w-4" /> Analyze File
 								{/if}
 							</Button>
 						</div>
@@ -279,7 +279,7 @@
 						class="mb-6 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 p-3"
 					>
 						<div class="flex items-center gap-3">
-							<CheckCircle class="h-5 w-5 text-primary" />
+							<IconLucideCheckCircle class="h-5 w-5 text-primary" />
 							<div>
 								<p class="font-medium">{fileName}</p>
 								<p class="text-xs text-muted-foreground">
@@ -307,10 +307,10 @@
 								</thead>
 								<tbody class="divide-y">
 									{#each previewData as row, i}
-										<tr class={i === 0 ? 'bg-yellow-50 dark:bg-yellow-900/10' : ''}>
+										<tr class={cn(i === 0 && 'bg-yellow-50 dark:bg-yellow-900/10')}>
 											<td class="px-2 py-1 text-muted-foreground">{i + 1}</td>
 											{#each row as cell}
-												<td class="max-w-24 truncate px-2 py-1">{cell || '—'}</td>
+												<td class="max-w-24 truncate px-2 py-1">{cell || 'â€”'}</td>
 											{/each}
 										</tr>
 									{/each}
@@ -322,17 +322,19 @@
 					<!-- Column Mapping -->
 					<div class="mb-6 space-y-3">
 						<Label class="flex items-center gap-2 text-sm font-semibold">
-							<Settings2 class="h-4 w-4" />
+							<IconLucideSettings2 class="h-4 w-4" />
 							Column Mapping
 						</Label>
 
 						<div class="grid grid-cols-1 gap-2 md:grid-cols-2">
 							{#each dbFields as field}
 								<div
-									class="flex items-center gap-2 rounded border bg-card p-2 {field.required &&
-									!columnMapping[field.key]
-										? 'border-destructive/50 bg-destructive/5'
-										: ''}"
+									class={cn(
+										'flex items-center gap-2 rounded border bg-card p-2',
+										field.required &&
+											!columnMapping[field.key] &&
+											'border-destructive/50 bg-destructive/5'
+									)}
 								>
 									<div class="min-w-0 flex-1">
 										<span class="text-sm font-medium">{field.label}</span>
@@ -344,7 +346,7 @@
 										bind:value={columnMapping[field.key]}
 										class="w-16 rounded border bg-background px-2 py-1 text-sm"
 									>
-										<option value="">—</option>
+										<option value="">â€”</option>
 										{#each columnHeaders as col}
 											<option value={col}>{col}</option>
 										{/each}
@@ -366,7 +368,7 @@
 						<div
 							class="mb-6 flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-destructive"
 						>
-							<AlertTriangle class="mt-0.5 h-4 w-4" />
+							<IconLucideAlertTriangle class="mt-0.5 h-4 w-4" />
 							<div class="text-sm">
 								<p class="font-semibold">Missing required fields</p>
 								<p class="text-xs">{missingRequired().join(', ')}</p>
@@ -392,9 +394,9 @@
 						disabled={isSubmitting || missingRequired().length > 0}
 					>
 						{#if isSubmitting}
-							<Loader2 class="mr-2 h-4 w-4 animate-spin" /> Importing...
+							<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" /> Importing...
 						{:else}
-							<Send class="mr-2 h-4 w-4" /> Submit file ({totalRows - startRow + 1} records)
+							<IconLucideSend class="mr-2 h-4 w-4" /> Submit file ({totalRows - startRow + 1} records)
 						{/if}
 					</Button>
 				</div>
@@ -407,7 +409,7 @@
 				>
 					<div class="mb-2 flex items-center justify-between">
 						<div class="flex items-center gap-2 font-semibold">
-							<XCircle class="h-4 w-4" />
+							<IconLucideXCircle class="h-4 w-4" />
 							Error
 						</div>
 						<button
@@ -415,7 +417,7 @@
 							onclick={() => copyErrorCode(form?.code || '')}
 							class="flex items-center gap-1 rounded bg-destructive/20 px-2 py-1 text-xs hover:bg-destructive/30"
 						>
-							<Copy class="h-3 w-3" />
+							<IconLucideCopy class="h-3 w-3" />
 							{form.code}
 						</button>
 					</div>
@@ -429,7 +431,7 @@
 					class="rounded-md border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm text-yellow-700 dark:text-yellow-400"
 				>
 					<div class="mb-2 flex items-center gap-2 font-semibold">
-						<AlertTriangle class="h-4 w-4" />
+						<IconLucideAlertTriangle class="h-4 w-4" />
 						Warnings ({form.errors.length})
 					</div>
 					<ul class="max-h-32 list-none space-y-1 overflow-y-auto font-mono text-xs">
@@ -446,8 +448,8 @@
 					class="rounded-md border border-green-500/20 bg-green-500/10 p-4 text-green-700 dark:text-green-400"
 				>
 					<div class="flex items-center gap-2 font-semibold">
-						<CheckCircle class="h-4 w-4" />
-						Import Complete — {form.imported} records created
+						<IconLucideCheckCircle class="h-4 w-4" />
+						Import Complete â€” {form.imported} records created
 					</div>
 				</div>
 			{/if}

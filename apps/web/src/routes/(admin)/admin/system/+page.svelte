@@ -1,16 +1,15 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { onDestroy, onMount } from 'svelte';
-	import {
-		Activity,
-		Server,
-		Database,
-		Cpu,
-		Clock,
-		Users,
-		AlertCircle,
-		CheckCircle2
-	} from '@lucide/svelte';
+	// import {
+	// 	Activity,
+	// 	Server,
+	// 	Database,
+	// 	Cpu,
+	// 	Clock,
+	// 	Users,
+	// 	AlertCircle,
+	// 	CheckCircle2
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Progress } from '@repo/ui/components/ui/progress';
 
@@ -59,9 +58,9 @@
 				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<Card.Title class="text-sm font-medium">API Status</Card.Title>
 					{#if data.health.status === 'ok'}
-						<CheckCircle2 class="h-4 w-4 text-green-500" />
+						<IconLucideCheckCircle2 class="h-4 w-4 text-green-500" />
 					{:else}
-						<AlertCircle class="h-4 w-4 text-red-500" />
+						<IconLucideAlertCircle class="h-4 w-4 text-red-500" />
 					{/if}
 				</Card.Header>
 				<Card.Content>
@@ -74,7 +73,7 @@
 			<Card.Root>
 				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<Card.Title class="text-sm font-medium">Uptime</Card.Title>
-					<Clock class="h-4 w-4 text-muted-foreground" />
+					<IconLucideClock class="h-4 w-4 text-muted-foreground" />
 				</Card.Header>
 				<Card.Content>
 					<div class="text-2xl font-bold">{formatUptime(data.health.uptime || 0)}</div>
@@ -86,7 +85,7 @@
 			<Card.Root>
 				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<Card.Title class="text-sm font-medium">Active Sessions</Card.Title>
-					<Users class="h-4 w-4 text-muted-foreground" />
+					<IconLucideUsers class="h-4 w-4 text-muted-foreground" />
 				</Card.Header>
 				<Card.Content>
 					<div class="text-2xl font-bold">{data.health.activeSessions?.count || '-'}</div>
@@ -98,7 +97,7 @@
 			<Card.Root>
 				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<Card.Title class="text-sm font-medium">Memory Usage</Card.Title>
-					<Cpu class="h-4 w-4 text-muted-foreground" />
+					<IconLucideCpu class="h-4 w-4 text-muted-foreground" />
 				</Card.Header>
 				<Card.Content>
 					<div class="text-2xl font-bold">
@@ -141,7 +140,7 @@
 	{:else}
 		<div class="flex h-100 items-center justify-center rounded-lg border border-dashed">
 			<div class="flex flex-col items-center gap-2 text-muted-foreground">
-				<AlertCircle class="h-8 w-8" />
+				<IconLucideAlertCircle class="h-8 w-8" />
 				<p>System metrics unavailable</p>
 			</div>
 		</div>

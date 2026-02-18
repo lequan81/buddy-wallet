@@ -1,19 +1,28 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import {
-		ArrowLeft,
-		User,
-		Mail,
-		Phone,
-		Calendar,
-		Shield,
-		UserCheck,
-		UserX,
-		DollarSign,
-		TrendingUp,
-		TrendingDown
-	} from '@lucide/svelte';
+	// @ts-ignore
+	import IconLucideArrowLeft from '~icons/lucide/arrow-left';
+	// @ts-ignore
+	import IconLucideUser from '~icons/lucide/user';
+	// @ts-ignore
+	import IconLucideMail from '~icons/lucide/mail';
+	// @ts-ignore
+	import IconLucidePhone from '~icons/lucide/phone';
+	// @ts-ignore
+	import IconLucideCalendar from '~icons/lucide/calendar';
+	// @ts-ignore
+	import IconLucideShield from '~icons/lucide/shield';
+	// @ts-ignore
+	import IconLucideUserCheck from '~icons/lucide/user-check';
+	// @ts-ignore
+	import IconLucideUserX from '~icons/lucide/user-x';
+	// @ts-ignore
+	import IconLucideDollarSign from '~icons/lucide/dollar-sign';
+	// @ts-ignore
+	import IconLucideTrendingUp from '~icons/lucide/trending-up';
+	// @ts-ignore
+	import IconLucideTrendingDown from '~icons/lucide/trending-down';
 
 	let { data, form } = $props();
 
@@ -62,7 +71,7 @@
 		href="/admin/users"
 		class="mb-6 inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
 	>
-		<ArrowLeft class="h-4 w-4" />
+		<IconLucideArrowLeft class="h-4 w-4" />
 		Back to Users
 	</a>
 
@@ -71,7 +80,7 @@
 		<div class="flex flex-wrap items-start justify-between gap-4">
 			<div class="flex items-center gap-4">
 				<div class="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-					<User class="h-8 w-8 text-primary" />
+					<IconLucideUser class="h-8 w-8 text-primary" />
 				</div>
 				<div>
 					<h1 class="text-2xl font-bold">{data.targetUser?.name || 'No name'}</h1>
@@ -98,7 +107,7 @@
 						disabled={isSubmitting}
 						class="flex items-center gap-2 rounded-lg bg-red-100 px-4 py-2 font-medium text-red-700 transition-colors hover:bg-red-200 disabled:opacity-50 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
 					>
-						<UserX class="h-4 w-4" />
+						<IconLucideUserX class="h-4 w-4" />
 						{isSubmitting ? 'Processing...' : 'Deactivate User'}
 					</button>
 				{:else}
@@ -107,7 +116,7 @@
 						disabled={isSubmitting}
 						class="flex items-center gap-2 rounded-lg bg-green-100 px-4 py-2 font-medium text-green-700 transition-colors hover:bg-green-200 disabled:opacity-50 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50"
 					>
-						<UserCheck class="h-4 w-4" />
+						<IconLucideUserCheck class="h-4 w-4" />
 						{isSubmitting ? 'Processing...' : 'Reactivate User'}
 					</button>
 				{/if}
@@ -123,21 +132,21 @@
 		<!-- User Details Grid -->
 		<div class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
 			<div class="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-				<Phone class="h-5 w-5 text-muted-foreground" />
+				<IconLucidePhone class="h-5 w-5 text-muted-foreground" />
 				<div>
 					<p class="text-xs text-muted-foreground">Phone</p>
 					<p class="font-medium">{data.targetUser?.phoneNumber || '—'}</p>
 				</div>
 			</div>
 			<div class="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-				<Shield class="h-5 w-5 text-muted-foreground" />
+				<IconLucideShield class="h-5 w-5 text-muted-foreground" />
 				<div>
 					<p class="text-xs text-muted-foreground">Role</p>
 					<p class="font-medium capitalize">{data.targetUser?.role}</p>
 				</div>
 			</div>
 			<div class="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-				<Calendar class="h-5 w-5 text-muted-foreground" />
+				<IconLucideCalendar class="h-5 w-5 text-muted-foreground" />
 				<div>
 					<p class="text-xs text-muted-foreground">Joined</p>
 					<p class="font-medium">{formatDate(data.targetUser?.createdAt)}</p>
@@ -145,13 +154,13 @@
 			</div>
 			<div class="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
 				{#if data.targetUser?.isActive !== false}
-					<UserCheck class="h-5 w-5 text-green-600" />
+					<IconLucideUserCheck class="h-5 w-5 text-green-600" />
 					<div>
 						<p class="text-xs text-muted-foreground">Status</p>
 						<p class="font-medium text-green-600">Active</p>
 					</div>
 				{:else}
-					<UserX class="h-5 w-5 text-red-600" />
+					<IconLucideUserX class="h-5 w-5 text-red-600" />
 					<div>
 						<p class="text-xs text-muted-foreground">Status</p>
 						<p class="font-medium text-red-600">Inactive</p>
@@ -166,7 +175,7 @@
 		<div class="rounded-xl border bg-card p-6 shadow-sm">
 			<div class="flex items-center gap-3">
 				<div class="rounded-lg bg-blue-100 p-3 dark:bg-blue-900/30">
-					<DollarSign class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+					<IconLucideDollarSign class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 				</div>
 				<div>
 					<p class="text-sm text-muted-foreground">Total Debts</p>
@@ -177,7 +186,7 @@
 		<div class="rounded-xl border bg-card p-6 shadow-sm">
 			<div class="flex items-center gap-3">
 				<div class="rounded-lg bg-green-100 p-3 dark:bg-green-900/30">
-					<TrendingUp class="h-5 w-5 text-green-600 dark:text-green-400" />
+					<IconLucideTrendingUp class="h-5 w-5 text-green-600 dark:text-green-400" />
 				</div>
 				<div>
 					<p class="text-sm text-muted-foreground">Owed to User</p>
@@ -188,7 +197,7 @@
 		<div class="rounded-xl border bg-card p-6 shadow-sm">
 			<div class="flex items-center gap-3">
 				<div class="rounded-lg bg-red-100 p-3 dark:bg-red-900/30">
-					<TrendingDown class="h-5 w-5 text-red-600 dark:text-red-400" />
+					<IconLucideTrendingDown class="h-5 w-5 text-red-600 dark:text-red-400" />
 				</div>
 				<div>
 					<p class="text-sm text-muted-foreground">User Owes</p>
@@ -224,12 +233,12 @@
 							<td class="px-6 py-4">
 								{#if isCreditor}
 									<span class="flex items-center gap-1 text-green-600">
-										<TrendingUp class="h-4 w-4" />
+										<IconLucideTrendingUp class="h-4 w-4" />
 										Lent
 									</span>
 								{:else}
 									<span class="flex items-center gap-1 text-red-600">
-										<TrendingDown class="h-4 w-4" />
+										<IconLucideTrendingDown class="h-4 w-4" />
 										Borrowed
 									</span>
 								{/if}

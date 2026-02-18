@@ -1,6 +1,5 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { onMount } from 'svelte';
-	import { AlertTriangle, X } from '@lucide/svelte';
 	import { Toaster } from 'svelte-sonner';
 	import { useRegisterSW } from 'virtual:pwa-register/svelte';
 	import PageLoadingBar from '$lib/components/shared/PageLoadingBar.svelte';
@@ -53,13 +52,13 @@
 	<div
 		class="fixed top-0 right-0 left-0 z-100 flex items-center justify-center gap-2 bg-yellow-500/95 p-2 text-sm font-medium text-yellow-950 backdrop-blur"
 	>
-		<AlertTriangle class="h-4 w-4" />
+		<IconLucideAlertTriangle class="h-4 w-4" />
 		<span>Backend API is offline. Some features may be unavailable.</span>
 		<button
 			onclick={() => (showOfflineWarning = false)}
 			class="ml-2 rounded p-1 hover:bg-yellow-600/30"
 		>
-			<X class="h-4 w-4" />
+			<IconLucideX class="h-4 w-4" />
 		</button>
 	</div>
 {/if}

@@ -1,10 +1,9 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 	import { checkDebtByPhone } from '$lib/api';
-	import { Users, FileCheck, Lock, Zap, Loader2, Phone } from '@lucide/svelte';
 
 	let { data } = $props();
 	let isLoggedIn = $derived(!!data.user);
@@ -84,7 +83,7 @@
 						{validationState}
 						{error}
 						success={result ? `Checked: ${result.phone}` : undefined}
-						icon={Phone}
+						icon={IconLucidePhone}
 						required
 					/>
 
@@ -94,7 +93,7 @@
 						class="w-full"
 					>
 						{#if checking}
-							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+							<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
 							Checking...
 						{:else}
 							Check Status
@@ -167,7 +166,7 @@
 			<!-- Feature 1: Easy Tracking -->
 			<div class="rounded-lg border bg-card p-6 transition-shadow hover:shadow-md">
 				<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-					<Users class="h-6 w-6 text-primary" />
+					<IconLucideUsers class="h-6 w-6 text-primary" />
 				</div>
 				<h3 class="mb-2 text-lg font-semibold text-card-foreground">Easy Tracking</h3>
 				<p class="text-sm text-muted-foreground">
@@ -178,7 +177,7 @@
 			<!-- Feature 2: Clear Records -->
 			<div class="rounded-lg border bg-card p-6 transition-shadow hover:shadow-md">
 				<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-					<FileCheck class="h-6 w-6 text-primary" />
+					<IconLucideFileCheck class="h-6 w-6 text-primary" />
 				</div>
 				<h3 class="mb-2 text-lg font-semibold text-card-foreground">Clear Records</h3>
 				<p class="text-sm text-muted-foreground">
@@ -189,7 +188,7 @@
 			<!-- Feature 3: Safe & Private -->
 			<div class="rounded-lg border bg-card p-6 transition-shadow hover:shadow-md">
 				<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-					<Lock class="h-6 w-6 text-primary" />
+					<IconLucideLock class="h-6 w-6 text-primary" />
 				</div>
 				<h3 class="mb-2 text-lg font-semibold text-card-foreground">Safe & Private</h3>
 				<p class="text-sm text-muted-foreground">
@@ -200,7 +199,7 @@
 			<!-- Feature 4: Fast Settlement -->
 			<div class="rounded-lg border bg-card p-6 transition-shadow hover:shadow-md">
 				<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-					<Zap class="h-6 w-6 text-primary" />
+					<IconLucideZap class="h-6 w-6 text-primary" />
 				</div>
 				<h3 class="mb-2 text-lg font-semibold text-card-foreground">Fast Settlement</h3>
 				<p class="text-sm text-muted-foreground">

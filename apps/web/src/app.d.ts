@@ -1,5 +1,11 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
+declare module '~icons/*' {
+	import { SvelteComponent } from 'svelte';
+	export default class extends SvelteComponent<
+		import('svelte/elements').SVGAttributes<SVGSVGElement>
+	> {}
+}
 
 import 'vite-plugin-pwa/svelte';
 import 'vite-plugin-pwa/info';

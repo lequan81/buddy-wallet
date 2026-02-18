@@ -1,5 +1,4 @@
-<script lang="ts">
-	import { Loader2 } from '@lucide/svelte';
+﻿<script lang="ts">
 	import { cn } from '$lib/utils';
 
 	let {
@@ -18,5 +17,5 @@
 </script>
 
 <div class={cn('flex items-center justify-center', className)}>
-	<Loader2 class={cn('animate-spin text-muted-foreground', sizeClasses[size])} />
+	<IconLucideLoader2 class={cn('animate-spin text-muted-foreground', sizeClasses[size])} />
 </div>

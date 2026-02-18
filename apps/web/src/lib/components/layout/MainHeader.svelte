@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { Button, buttonVariants } from '@repo/ui/components/ui/button';
@@ -6,7 +6,6 @@
 	import * as DropdownMenu from '@repo/ui/components/ui/dropdown-menu';
 	import * as Avatar from '@repo/ui/components/ui/avatar';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
-	import { Menu, User, LogOut, Wallet, LayoutDashboard } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 
 	let user = $derived(page.data.user);
@@ -18,7 +17,7 @@
 		<!-- Logo -->
 		<div class="mr-4 hidden md:flex">
 			<a href="/" class="flex items-center space-x-2">
-				<Wallet class="h-5 w-5 text-muted-foreground" />
+				<IconLucideWallet class="h-5 w-5 text-muted-foreground" />
 				<span class="font-bold">Buddy Wallet</span>
 			</a>
 		</div>
@@ -26,13 +25,13 @@
 		<!-- Mobile Menu -->
 		<Sheet.Root>
 			<Sheet.Trigger class={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'md:hidden')}>
-				<Menu class="h-5 w-5" />
+				<IconLucideMenu class="h-5 w-5" />
 				<span class="sr-only">Toggle Menu</span>
 			</Sheet.Trigger>
 			<Sheet.Content side="left">
 				<div class="mb-6">
 					<a href="/" class="flex items-center space-x-2">
-						<Wallet class="h-5 w-5 text-muted-foreground" />
+						<IconLucideWallet class="h-5 w-5 text-muted-foreground" />
 						<span class="font-bold">Buddy Wallet</span>
 					</a>
 				</div>
@@ -42,7 +41,7 @@
 							href="/dashboard"
 							class="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
 						>
-							<LayoutDashboard class="h-4 w-4" />
+							<IconLucideLayoutDashboard class="h-4 w-4" />
 							Dashboard
 						</a>
 					{:else}
@@ -59,7 +58,7 @@
 
 		<!-- Mobile logo -->
 		<a href="/" class="flex items-center space-x-2 md:hidden">
-			<Wallet class="h-5 w-5 text-muted-foreground" />
+			<IconLucideWallet class="h-5 w-5 text-muted-foreground" />
 			<span class="font-bold">Buddy Wallet</span>
 		</a>
 
@@ -87,7 +86,7 @@
 						<DropdownMenu.Item>
 							{#snippet child({ props }: { props: Record<string, any> })}
 								<a href="/dashboard" {...props} class="flex w-full items-center">
-									<LayoutDashboard class="mr-2 h-4 w-4 text-muted-foreground" />
+									<IconLucideLayoutDashboard class="mr-2 h-4 w-4 text-muted-foreground" />
 									Dashboard
 								</a>
 							{/snippet}
@@ -95,7 +94,7 @@
 						<DropdownMenu.Item>
 							{#snippet child({ props }: { props: Record<string, any> })}
 								<a href="/settings/profile" {...props} class="flex w-full items-center">
-									<User class="mr-2 h-4 w-4 text-muted-foreground" />
+									<IconLucideUser class="mr-2 h-4 w-4 text-muted-foreground" />
 									Settings
 								</a>
 							{/snippet}
@@ -119,7 +118,7 @@
 										{...props}
 										class="flex w-full items-center text-destructive"
 									>
-										<LogOut class="mr-2 h-4 w-4" />
+										<IconLucideLogOut class="mr-2 h-4 w-4" />
 										{isLoggingOut ? 'Logging out...' : 'Log out'}
 									</button>
 								{/snippet}

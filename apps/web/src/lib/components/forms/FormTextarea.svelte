@@ -1,7 +1,6 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { Textarea } from '@repo/ui/components/ui/textarea';
 	import { Label } from '@repo/ui/components/ui/label';
-	import { CheckCircle2, AlertCircle, AlertTriangle } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 
 	import type { HTMLTextareaAttributes } from 'svelte/elements';
@@ -31,21 +30,21 @@
 	const stateConfig = $derived.by(() => {
 		const configs = {
 			error: {
-				icon: AlertCircle,
+				icon: IconLucideAlertCircle,
 				ringClass: 'ring-2 ring-destructive focus-visible:ring-destructive',
 				textClass: 'text-destructive',
 				iconClass: 'text-destructive',
 				message: error
 			},
 			success: {
-				icon: CheckCircle2,
+				icon: IconLucideCheckCircle2,
 				ringClass: 'ring-2 ring-success focus-visible:ring-success',
 				textClass: 'text-success',
 				iconClass: 'text-success',
 				message: success
 			},
 			warning: {
-				icon: AlertTriangle,
+				icon: IconLucideAlertTriangle,
 				ringClass: 'ring-2 ring-warning focus-visible:ring-warning',
 				textClass: 'text-warning',
 				iconClass: 'text-warning',

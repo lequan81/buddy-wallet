@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -8,19 +8,18 @@
 	import { Separator } from '@repo/ui/components/ui/separator';
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
 	import { Badge } from '@repo/ui/components/ui/badge';
-	import {
-		Monitor,
-		Smartphone,
-		Tablet,
-		MapPin,
-		Clock,
-		Shield,
-		LogOut,
-		AlertTriangle,
-		Key,
-		Bell,
-		BellOff
-	} from '@lucide/svelte';
+	// import {
+	// 	Monitor,
+	// 	Smartphone,
+	// 	Tablet,
+	// 	MapPin,
+	// 	Clock,
+	// 	Shield,
+	// 	LogOut,
+	// 	AlertTriangle,
+	// 	Key,
+	// 	Bell,
+	// 	BellOff
 	import {
 		pushState,
 		initializePushState,
@@ -168,11 +167,11 @@
 	function getDeviceIcon(deviceType: string | null) {
 		switch (deviceType?.toLowerCase()) {
 			case 'mobile':
-				return Smartphone;
+				return IconLucideSmartphone;
 			case 'tablet':
-				return Tablet;
+				return IconLucideTablet;
 			default:
-				return Monitor;
+				return IconLucideMonitor;
 		}
 	}
 </script>
@@ -200,7 +199,7 @@
 		<div
 			class="rounded-md bg-yellow-50 p-4 text-sm text-yellow-600 dark:bg-yellow-950 dark:text-yellow-400"
 		>
-			<AlertTriangle class="mr-2 inline-block h-4 w-4" />
+			<IconLucideAlertTriangle class="mr-2 inline-block h-4 w-4" />
 			Failed to load sessions: {data.error}
 		</div>
 	{/if}
@@ -211,7 +210,7 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<Card.Title class="flex items-center gap-2">
-						<Shield class="h-5 w-5" />
+						<IconLucideShield class="h-5 w-5" />
 						Active Sessions
 					</Card.Title>
 					<Card.Description>
@@ -223,7 +222,7 @@
 						<AlertDialog.Trigger>
 							{#snippet child({ props }: { props: Record<string, any> })}
 								<Button variant="destructive" size="sm" {...props}>
-									<LogOut class="mr-2 h-4 w-4" />
+									<IconLucideLogOut class="mr-2 h-4 w-4" />
 									Logout All Devices
 								</Button>
 							{/snippet}
@@ -310,7 +309,7 @@
 									</p>
 								</div>
 								<div class="flex items-center gap-1 text-sm text-muted-foreground">
-									<Clock class="h-3 w-3" />
+									<IconLucideClock class="h-3 w-3" />
 									{#if isCurrent}
 										Active now
 									{:else}
@@ -344,7 +343,7 @@
 									{#if isRevoking === session.id}
 										Revoking...
 									{:else}
-										<LogOut class="h-4 w-4" />
+										<IconLucideLogOut class="h-4 w-4" />
 									{/if}
 								</Button>
 							</form>
@@ -361,9 +360,9 @@
 			<Card.Header>
 				<Card.Title class="flex items-center gap-2">
 					{#if pushState.isSubscribed}
-						<Bell class="h-5 w-5 text-primary" />
+						<IconLucideBell class="h-5 w-5 text-primary" />
 					{:else}
-						<BellOff class="h-5 w-5" />
+						<IconLucideBellOff class="h-5 w-5" />
 					{/if}
 					Push Notifications
 				</Card.Title>
@@ -442,10 +441,10 @@
 			<Card.Title>Security Tips</Card.Title>
 		</Card.Header>
 		<Card.Content class="space-y-3 text-sm text-muted-foreground">
-			<p>• Review your active sessions regularly and revoke any you don't recognize.</p>
-			<p>• If you see a session from an unfamiliar location, change your password immediately.</p>
-			<p>• Use "Logout All Devices" after changing your password for maximum security.</p>
-			<p>• Your session will automatically expire after 90 days of inactivity.</p>
+			<p>â€¢ Review your active sessions regularly and revoke any you don't recognize.</p>
+			<p>â€¢ If you see a session from an unfamiliar location, change your password immediately.</p>
+			<p>â€¢ Use "Logout All Devices" after changing your password for maximum security.</p>
+			<p>â€¢ Your session will automatically expire after 90 days of inactivity.</p>
 		</Card.Content>
 	</Card.Root>
 
@@ -453,7 +452,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
-				<Key class="h-5 w-5" />
+				<IconLucideKey class="h-5 w-5" />
 				Change Password
 			</Card.Title>
 			<Card.Description>

@@ -1,20 +1,19 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { enhance } from '$app/forms';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
 	import { Badge } from '@repo/ui/components/ui/badge';
-	import {
-		ArrowLeft,
-		ArrowUp,
-		ArrowDown,
-		Landmark,
-		Plus,
-		Clock,
-		AlertTriangle,
-		User
-	} from '@lucide/svelte';
+	// import {
+	// 	ArrowLeft,
+	// 	ArrowUp,
+	// 	ArrowDown,
+	// 	Landmark,
+	// 	Plus,
+	// 	Clock,
+	// 	AlertTriangle,
+	// 	User
 	import { toast } from 'svelte-sonner';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
@@ -190,7 +189,7 @@
 		href="/dashboard"
 		class="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
 	>
-		<ArrowLeft class="h-4 w-4" />
+		<IconLucideArrowLeft class="h-4 w-4" />
 		Back to Dashboard
 	</a>
 
@@ -203,7 +202,7 @@
 				<div
 					class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10"
 				>
-					<Landmark class="h-8 w-8 text-destructive" />
+					<IconLucideLandmark class="h-8 w-8 text-destructive" />
 				</div>
 				<h3 class="mb-2 text-lg font-semibold text-destructive">Bank Account Required</h3>
 				<p class="mb-4 text-sm text-muted-foreground">
@@ -211,7 +210,7 @@
 					money. Without a bank account, debtors cannot scan QR codes to pay you.
 				</p>
 				<Button href="/settings/banks" size="lg">
-					<Plus class="mr-2 h-4 w-4" />
+					<IconLucidePlus class="mr-2 h-4 w-4" />
 					Add Bank Account Now
 				</Button>
 				<p class="mt-4 text-xs text-muted-foreground">
@@ -270,7 +269,7 @@
 												showAutocomplete = false;
 											}}
 										>
-											<User class="h-4 w-4 text-muted-foreground" />
+											<IconLucideUser class="h-4 w-4 text-muted-foreground" />
 											{contact}
 										</button>
 									{/each}
@@ -315,7 +314,7 @@
 										: 'border-muted hover:bg-muted/50'
 								)}
 							>
-								<ArrowUp
+								<IconLucideArrowUp
 									class={cn('h-6 w-6', canLend ? 'text-success' : 'text-muted-foreground')}
 								/>
 								<span class="text-sm font-semibold">I Lent</span>
@@ -345,7 +344,7 @@
 										: 'border-muted hover:bg-muted/50'
 								)}
 							>
-								<ArrowDown class="h-6 w-6 text-destructive" />
+								<IconLucideArrowDown class="h-6 w-6 text-destructive" />
 								<span class="text-sm font-semibold">I Borrowed</span>
 								<span class="text-xs text-muted-foreground">I owe them</span>
 							</Label>
@@ -446,10 +445,10 @@
 						<span class="text-sm text-muted-foreground">Direction</span>
 						<Badge variant={direction === 'LEND' ? 'default' : 'secondary'}>
 							{#if direction === 'LEND'}
-								<ArrowUp class="mr-1 h-3 w-3" />
+								<IconLucideArrowUp class="mr-1 h-3 w-3" />
 								They Owe You
 							{:else}
-								<ArrowDown class="mr-1 h-3 w-3" />
+								<IconLucideArrowDown class="mr-1 h-3 w-3" />
 								You Owe Them
 							{/if}
 						</Badge>
@@ -506,7 +505,7 @@
 		<AlertDialog.Content>
 			<AlertDialog.Header>
 				<AlertDialog.Title class="flex items-center gap-2">
-					<AlertTriangle class="h-5 w-5 text-amber-500" />
+					<IconLucideAlertTriangle class="h-5 w-5 text-amber-500" />
 					Potential Duplicate Found
 				</AlertDialog.Title>
 				<AlertDialog.Description>

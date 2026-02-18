@@ -1,11 +1,10 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Separator } from '@repo/ui/components/ui/separator';
-	import { Plus, Trash2, Landmark } from '@lucide/svelte';
 	import * as Dialog from '@repo/ui/components/ui/dialog';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
@@ -97,7 +96,7 @@
 		}
 
 		if (
-			/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(accountName)
+			/[Ã Ã¡áº¡áº£Ã£Ã¢áº§áº¥áº­áº©áº«Äƒáº±áº¯áº·áº³áºµÃ¨Ã©áº¹áº»áº½Ãªá»áº¿á»‡á»ƒá»…Ã¬Ã­á»‹á»‰Ä©Ã²Ã³á»á»ÃµÃ´á»“á»‘á»™á»•á»—Æ¡á»á»›á»£á»Ÿá»¡Ã¹Ãºá»¥á»§Å©Æ°á»«á»©á»±á»­á»¯á»³Ã½á»µá»·á»¹Ä‘]/i.test(accountName)
 		) {
 			accountNameValidation = 'warning';
 			accountNameMessage = 'Remove Vietnamese accents for better compatibility';
@@ -131,7 +130,7 @@
 		<Dialog.Root open={isAdding} onOpenChange={(open: boolean) => (isAdding = open)}>
 			<Dialog.Trigger>
 				<Button size="sm">
-					<Plus class="mr-2 h-4 w-4" />
+					<IconLucidePlus class="mr-2 h-4 w-4" />
 					Add Account
 				</Button>
 			</Dialog.Trigger>
@@ -254,7 +253,7 @@
 			<div
 				class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center text-muted-foreground"
 			>
-				<Landmark class="mb-4 h-8 w-8 opacity-50" />
+				<IconLucideLandmark class="mb-4 h-8 w-8 opacity-50" />
 				<p>No bank accounts added yet.</p>
 				<p class="text-sm">Add an account to easier receive payments.</p>
 			</div>
@@ -264,7 +263,7 @@
 					<div class="flex items-center justify-between p-6">
 						<div class="flex items-center gap-4">
 							<div class="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-								<Landmark class="h-5 w-5 text-muted-foreground" />
+								<IconLucideLandmark class="h-5 w-5 text-muted-foreground" />
 							</div>
 							<div>
 								<div class="flex items-center gap-2">
@@ -277,7 +276,7 @@
 									{/if}
 								</div>
 								<p class="text-sm text-muted-foreground">
-									{account.accountNumber} • {account.accountName}
+									{account.accountNumber} â€¢ {account.accountName}
 								</p>
 							</div>
 						</div>
@@ -296,7 +295,7 @@
 								size="icon"
 								class="text-muted-foreground hover:text-destructive"
 							>
-								<Trash2 class="h-4 w-4" />
+								<IconLucideTrash2 class="h-4 w-4" />
 							</Button>
 						</form>
 					</div>

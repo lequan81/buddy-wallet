@@ -1,6 +1,9 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { Button } from '@repo/ui/components/ui/button';
-	import { Moon, Sun } from '@lucide/svelte';
+	// @ts-ignore
+	import IconLucideSun from '~icons/lucide/sun';
+	// @ts-ignore
+	import IconLucideMoon from '~icons/lucide/moon';
 	import { useTheme } from '$lib/hooks';
 	import { cn } from '$lib/utils';
 
@@ -16,11 +19,11 @@
 	title="Toggle theme"
 >
 	{#if theme.current === 'light'}
-		<Sun
+		<IconLucideSun
 			class="block size-4.5 transition-transform duration-500 ease-in-out group-hover:rotate-360 dark:hidden"
 		/>
 	{:else}
-		<Moon
+		<IconLucideMoon
 			class="hidden size-4.5 transition-transform duration-500 ease-in-out group-hover:rotate-360 dark:block"
 		/>
 	{/if}

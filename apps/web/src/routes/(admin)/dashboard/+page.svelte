@@ -1,32 +1,31 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { enhance } from '$app/forms';
 	/* eslint-disable svelte/prefer-svelte-reactivity */
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { toast } from 'svelte-sonner';
 	import * as Card from '@repo/ui/components/ui/card';
-	import {
-		Users,
-		FileText,
-		Clock,
-		Plus,
-		Download,
-		FileSpreadsheet,
-		Trash2,
-		Filter,
-		CheckSquare,
-		Square,
-		Eye,
-		Search,
-		X,
-		ChevronLeft,
-		ChevronRight,
-		ChevronsLeft,
-		ChevronsRight,
-		ArrowUpDown,
-		ArrowUp,
-		ArrowDown
-	} from '@lucide/svelte';
+	// import {
+	// 	Users,
+	// 	FileText,
+	// 	Clock,
+	// 	Plus,
+	// 	Download,
+	// 	FileSpreadsheet,
+	// 	Trash2,
+	// 	Filter,
+	// 	CheckSquare,
+	// 	Square,
+	// 	Eye,
+	// 	Search,
+	// 	X,
+	// 	ChevronLeft,
+	// 	ChevronRight,
+	// 	ChevronsLeft,
+	// 	ChevronsRight,
+	// 	ArrowUpDown,
+	// 	ArrowUp,
+	// 	ArrowDown
 	import { Badge } from '@repo/ui/components/ui/badge';
 	import * as Table from '@repo/ui/components/ui/table';
 	import { Button } from '@repo/ui/components/ui/button';
@@ -201,16 +200,16 @@
 		{#snippet actions()}
 			<div class="flex flex-wrap gap-2">
 				<Button href="/debts/create" size="sm">
-					<Plus class="mr-2 h-4 w-4" /> New Debt
+					<IconLucidePlus class="mr-2 h-4 w-4" /> New Debt
 				</Button>
 				{#if permissions.canImportData}
 					<Button variant="outline" href="/dashboard/import" size="sm">
-						<Download class="mr-2 h-4 w-4" /> Import
+						<IconLucideDownload class="mr-2 h-4 w-4" /> Import
 					</Button>
 				{/if}
 				{#if permissions.canExportData}
 					<Button variant="outline" href="/api/v1/export/debts" size="sm">
-						<FileSpreadsheet class="mr-2 h-4 w-4" /> Export
+						<IconLucideFileSpreadsheet class="mr-2 h-4 w-4" /> Export
 					</Button>
 				{/if}
 			</div>
@@ -264,7 +263,7 @@
 					<Card.Header>
 						<div class="flex items-center justify-between">
 							<div class="flex items-center gap-2">
-								<Clock class="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+								<IconLucideClock class="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
 								<Card.Title class="text-lg text-yellow-900 dark:text-yellow-100"
 									>Action Required</Card.Title
 								>
@@ -313,7 +312,7 @@
 									size="sm"
 									class="w-full text-yellow-700 hover:bg-yellow-100 hover:text-yellow-900 dark:text-yellow-300 dark:hover:bg-yellow-900/50"
 								>
-									View all {debtsNeedingMyConfirmation.length} pending debts →
+									View all {debtsNeedingMyConfirmation.length} pending debts â†’
 								</Button>
 							{/if}
 						</div>
@@ -327,7 +326,7 @@
 					<Card.Root>
 						<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 							<Card.Title class="text-sm font-medium text-muted-foreground">Total Users</Card.Title>
-							<Users class="h-4 w-4 text-muted-foreground" />
+							<IconLucideUsers class="h-4 w-4 text-muted-foreground" />
 						</Card.Header>
 						<Card.Content>
 							{#await data.streamed.users}
@@ -336,7 +335,7 @@
 								<div class="font-tabular text-4xl font-bold">{users.length}</div>
 							{/await}
 							<p class="mt-1 text-xs text-muted-foreground">
-								<a href="/admin/users" class="hover:underline">Manage users →</a>
+								<a href="/admin/users" class="hover:underline">Manage users â†’</a>
 							</p>
 						</Card.Content>
 					</Card.Root>
@@ -345,7 +344,7 @@
 				<Card.Root>
 					<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 						<Card.Title class="text-sm font-medium text-muted-foreground">Total Debts</Card.Title>
-						<FileText class="h-4 w-4 text-muted-foreground" />
+						<IconLucideFileText class="h-4 w-4 text-muted-foreground" />
 					</Card.Header>
 					<Card.Content>
 						<div class="font-tabular text-4xl font-bold">{debts.length}</div>
@@ -356,7 +355,7 @@
 				<Card.Root>
 					<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 						<Card.Title class="text-sm font-medium text-muted-foreground">Pending</Card.Title>
-						<Clock class="h-4 w-4 text-muted-foreground" />
+						<IconLucideClock class="h-4 w-4 text-muted-foreground" />
 					</Card.Header>
 					<Card.Content>
 						<div class="font-tabular text-4xl font-bold">
@@ -382,7 +381,7 @@
 						<div class="flex flex-wrap items-center gap-2">
 							<!-- Search Input -->
 							<div class="relative">
-								<Search
+								<IconLucideSearch
 									class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
 								/>
 								<input
@@ -396,14 +395,14 @@
 										onclick={() => (searchQuery = '')}
 										class="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
 									>
-										<X class="h-4 w-4" />
+										<IconLucideX class="h-4 w-4" />
 									</button>
 								{/if}
 							</div>
 
 							<!-- Status Filter -->
 							<div class="flex items-center gap-1 rounded-lg border p-1">
-								<Filter class="ml-1 h-4 w-4 text-muted-foreground" />
+								<IconLucideFilter class="ml-1 h-4 w-4 text-muted-foreground" />
 								{#each ['all', 'pending', 'confirmed', 'paid', 'disputed', 'cancelled'] as status}
 									<button
 										class={cn(
@@ -425,7 +424,7 @@
 									<AlertDialog.Trigger>
 										{#snippet child({ props }: { props: Record<string, any> })}
 											<Button variant="destructive" size="sm" {...props}>
-												<Trash2 class="mr-2 h-4 w-4" />
+												<IconLucideTrash2 class="mr-2 h-4 w-4" />
 												Delete ({selectedIds.size})
 											</Button>
 										{/snippet}
@@ -493,7 +492,7 @@
 				{#if sortedDebts.length === 0}
 					<div class="flex flex-col items-center justify-center py-12 text-center">
 						<div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-							<FileText class="h-8 w-8 text-muted-foreground" />
+							<IconLucideFileText class="h-8 w-8 text-muted-foreground" />
 						</div>
 
 						<h3 class="mb-2 text-lg font-semibold">No debts found</h3>
@@ -506,7 +505,7 @@
 
 						{#if statusFilter === 'all'}
 							<Button href="/debts/create" variant="outline" size="sm">
-								<Plus class="mr-2 h-4 w-4" /> New Debt
+								<IconLucidePlus class="mr-2 h-4 w-4" /> New Debt
 							</Button>
 						{/if}
 					</div>
@@ -521,9 +520,9 @@
 										title={allSelectedOnPage ? 'Deselect all' : 'Select all deletable'}
 									>
 										{#if allSelectedOnPage}
-											<CheckSquare class="h-4 w-4 text-foreground" />
+											<IconLucideCheckSquare class="h-4 w-4 text-foreground" />
 										{:else}
-											<Square class="h-4 w-4 text-muted-foreground" />
+											<IconLucideSquare class="h-4 w-4 text-muted-foreground" />
 										{/if}
 									</button>
 								</Table.Head>
@@ -535,12 +534,12 @@
 										Description
 										{#if sortField === 'description'}
 											{#if sortDirection === 'asc'}
-												<ArrowUp class="h-3 w-3" />
+												<IconLucideArrowUp class="h-3 w-3" />
 											{:else}
-												<ArrowDown class="h-3 w-3" />
+												<IconLucideArrowDown class="h-3 w-3" />
 											{/if}
 										{:else}
-											<ArrowUpDown class="h-3 w-3 opacity-50" />
+											<IconLucideArrowUpDown class="h-3 w-3 opacity-50" />
 										{/if}
 									</button>
 								</Table.Head>
@@ -552,12 +551,12 @@
 										Status
 										{#if sortField === 'status'}
 											{#if sortDirection === 'asc'}
-												<ArrowUp class="h-3 w-3" />
+												<IconLucideArrowUp class="h-3 w-3" />
 											{:else}
-												<ArrowDown class="h-3 w-3" />
+												<IconLucideArrowDown class="h-3 w-3" />
 											{/if}
 										{:else}
-											<ArrowUpDown class="h-3 w-3 opacity-50" />
+											<IconLucideArrowUpDown class="h-3 w-3 opacity-50" />
 										{/if}
 									</button>
 								</Table.Head>
@@ -569,12 +568,12 @@
 										Amount
 										{#if sortField === 'amount'}
 											{#if sortDirection === 'asc'}
-												<ArrowUp class="h-3 w-3" />
+												<IconLucideArrowUp class="h-3 w-3" />
 											{:else}
-												<ArrowDown class="h-3 w-3" />
+												<IconLucideArrowDown class="h-3 w-3" />
 											{/if}
 										{:else}
-											<ArrowUpDown class="h-3 w-3 opacity-50" />
+											<IconLucideArrowUpDown class="h-3 w-3 opacity-50" />
 										{/if}
 									</button>
 								</Table.Head>
@@ -586,12 +585,12 @@
 										Date
 										{#if sortField === 'date'}
 											{#if sortDirection === 'asc'}
-												<ArrowUp class="h-3 w-3" />
+												<IconLucideArrowUp class="h-3 w-3" />
 											{:else}
-												<ArrowDown class="h-3 w-3" />
+												<IconLucideArrowDown class="h-3 w-3" />
 											{/if}
 										{:else}
-											<ArrowUpDown class="h-3 w-3 opacity-50" />
+											<IconLucideArrowUpDown class="h-3 w-3 opacity-50" />
 										{/if}
 									</button>
 								</Table.Head>
@@ -609,9 +608,9 @@
 												onclick={() => toggleSelect(debt.id)}
 											>
 												{#if selectedIds.has(debt.id)}
-													<CheckSquare class="h-4 w-4 text-foreground" />
+													<IconLucideCheckSquare class="h-4 w-4 text-foreground" />
 												{:else}
-													<Square class="h-4 w-4 text-muted-foreground" />
+													<IconLucideSquare class="h-4 w-4 text-muted-foreground" />
 												{/if}
 											</button>
 										{:else}
@@ -619,7 +618,7 @@
 										{/if}
 									</Table.Cell>
 									<Table.Cell class="max-w-50 truncate font-medium">
-										{debt.description || '—'}
+										{debt.description || 'â€”'}
 									</Table.Cell>
 									<Table.Cell>
 										<Badge variant={getStatusVariant(debt.status)} class="capitalize">
@@ -634,7 +633,7 @@
 									</Table.Cell>
 									<Table.Cell class="pr-6 text-right">
 										<Button variant="ghost" size="sm" href="/debts/{debt.id}">
-											<Eye class="h-4 w-4" />
+											<IconLucideEye class="h-4 w-4" />
 										</Button>
 									</Table.Cell>
 								</Table.Row>
@@ -672,7 +671,7 @@
 									disabled={currentPage <= 1}
 									onclick={() => navigateWithParams({ page: 1 })}
 								>
-									<ChevronsLeft class="h-4 w-4" />
+									<IconLucideChevronsLeft class="h-4 w-4" />
 								</Button>
 								<Button
 									variant="outline"
@@ -681,7 +680,7 @@
 									disabled={currentPage <= 1}
 									onclick={() => navigateWithParams({ page: currentPage - 1 })}
 								>
-									<ChevronLeft class="h-4 w-4" />
+									<IconLucideChevronLeft class="h-4 w-4" />
 								</Button>
 								<span class="px-3 text-sm">
 									Page {currentPage} of {totalPages}
@@ -693,7 +692,7 @@
 									disabled={currentPage >= totalPages}
 									onclick={() => navigateWithParams({ page: currentPage + 1 })}
 								>
-									<ChevronRight class="h-4 w-4" />
+									<IconLucideChevronRight class="h-4 w-4" />
 								</Button>
 								<Button
 									variant="outline"
@@ -702,7 +701,7 @@
 									disabled={currentPage >= totalPages}
 									onclick={() => navigateWithParams({ page: totalPages })}
 								>
-									<ChevronsRight class="h-4 w-4" />
+									<IconLucideChevronsRight class="h-4 w-4" />
 								</Button>
 							</div>
 						</div>

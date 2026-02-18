@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { preloadData } from '$app/navigation';
@@ -7,21 +7,20 @@
 	import * as DropdownMenu from '@repo/ui/components/ui/dropdown-menu';
 	import * as Avatar from '@repo/ui/components/ui/avatar';
 	import PushPermissionBanner from '$lib/components/shared/PushPermissionBanner.svelte';
-	import {
-		Wallet,
-		LayoutDashboard,
-		Users,
-		FileText,
-		Settings,
-		LogOut,
-		User,
-		Shield,
-		Menu,
-		X,
-		Activity,
-		Bell,
-		Server
-	} from '@lucide/svelte';
+	// import {
+	// 	Wallet,
+	// 	LayoutDashboard,
+	// 	Users,
+	// 	FileText,
+	// 	Settings,
+	// 	LogOut,
+	// 	User,
+	// 	Shield,
+	// 	Menu,
+	// 	X,
+	// 	Activity,
+	// 	Bell,
+	// 	Server
 	import { cn } from '$lib/utils';
 
 	let { children, data } = $props();
@@ -54,27 +53,27 @@
 
 	// Build nav items based on server-computed permissions
 	const navItems = $derived(() => {
-		const items = [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }];
+		const items = [{ href: '/dashboard', label: 'Dashboard', icon: IconLucideLayoutDashboard }];
 
 		if (permissions.isAdmin) {
-			items.push({ href: '/admin/system', label: 'System', icon: Server });
-			items.push({ href: '/admin/traces', label: 'Traces', icon: Activity });
-			items.push({ href: '/admin/users', label: 'Users', icon: Users });
+			items.push({ href: '/admin/system', label: 'System', icon: IconLucideServer });
+			items.push({ href: '/admin/traces', label: 'Traces', icon: IconLucideActivity });
+			items.push({ href: '/admin/users', label: 'Users', icon: IconLucideUsers });
 		}
 
 		if (permissions.canImportData) {
-			items.push({ href: '/dashboard/import', label: 'Import', icon: FileText });
+			items.push({ href: '/dashboard/import', label: 'Import', icon: IconLucideFileText });
 		}
 
 		return items;
 	});
 
 	const settingsItems = [
-		{ href: '/settings/profile', label: 'Profile', icon: User },
-		{ href: '/settings/security', label: 'Security', icon: Shield },
-		{ href: '/settings/notifications', label: 'Notifications', icon: Bell },
-		{ href: '/settings/activity', label: 'Activity', icon: Activity },
-		{ href: '/settings/banks', label: 'Banks', icon: Wallet }
+		{ href: '/settings/profile', label: 'Profile', icon: IconLucideUser },
+		{ href: '/settings/security', label: 'Security', icon: IconLucideShield },
+		{ href: '/settings/notifications', label: 'Notifications', icon: IconLucideBell },
+		{ href: '/settings/activity', label: 'Activity', icon: IconLucideActivity },
+		{ href: '/settings/banks', label: 'Banks', icon: IconLucideWallet }
 	];
 </script>
 
@@ -84,7 +83,7 @@
 		<!-- Logo -->
 		<div class="flex h-14 items-center border-b px-4">
 			<a href="/" class="flex items-center space-x-2">
-				<Wallet class="h-5 w-5 text-muted-foreground" />
+				<IconLucideWallet class="h-5 w-5 text-muted-foreground" />
 				<span class="font-semibold">Buddy Wallet</span>
 			</a>
 		</div>
@@ -152,15 +151,18 @@
 				role="button"
 				tabindex="-1"
 				onclick={() => (sidebarOpen = false)}
+				onkeydown={(e) => {
+					if (e.key === 'Escape') sidebarOpen = false;
+				}}
 			></div>
 			<aside class="fixed inset-y-0 left-0 w-64 border-r bg-background">
 				<div class="flex h-14 items-center justify-between border-b px-4">
 					<a href="/" class="flex items-center space-x-2">
-						<Wallet class="h-5 w-5 text-muted-foreground" />
+						<IconLucideWallet class="h-5 w-5 text-muted-foreground" />
 						<span class="font-semibold">Buddy Wallet</span>
 					</a>
 					<button onclick={() => (sidebarOpen = false)} class="rounded p-1 hover:bg-muted">
-						<X class="h-5 w-5" />
+						<IconLucideX class="h-5 w-5" />
 					</button>
 				</div>
 				<nav class="flex-1 space-y-1 px-3 py-4">
@@ -212,7 +214,7 @@
 		<!-- Top header -->
 		<header class="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4">
 			<button onclick={() => (sidebarOpen = true)} class="rounded p-2 hover:bg-muted lg:hidden">
-				<Menu class="h-5 w-5" />
+				<IconLucideMenu class="h-5 w-5" />
 			</button>
 
 			<div class="flex-1"></div>
@@ -240,7 +242,7 @@
 					<DropdownMenu.Item>
 						{#snippet child({ props }: { props: Record<string, any> })}
 							<a href="/settings/profile" {...props} class="flex w-full items-center">
-								<User class="mr-2 h-4 w-4 text-muted-foreground" />
+								<IconLucideUser class="mr-2 h-4 w-4 text-muted-foreground" />
 								Profile
 							</a>
 						{/snippet}
@@ -248,7 +250,7 @@
 					<DropdownMenu.Item>
 						{#snippet child({ props }: { props: Record<string, any> })}
 							<a href="/settings/security" {...props} class="flex w-full items-center">
-								<Shield class="mr-2 h-4 w-4 text-muted-foreground" />
+								<IconLucideShield class="mr-2 h-4 w-4 text-muted-foreground" />
 								Security
 							</a>
 						{/snippet}
@@ -256,7 +258,7 @@
 					<DropdownMenu.Item>
 						{#snippet child({ props }: { props: Record<string, any> })}
 							<a href="/settings/activity" {...props} class="flex w-full items-center">
-								<Activity class="mr-2 h-4 w-4 text-muted-foreground" />
+								<IconLucideActivity class="mr-2 h-4 w-4 text-muted-foreground" />
 								Activity
 							</a>
 						{/snippet}
@@ -276,7 +278,7 @@
 						<DropdownMenu.Item disabled={isLoggingOut}>
 							{#snippet child({ props }: { props: Record<string, any> })}
 								<button type="submit" {...props} class="flex w-full items-center text-destructive">
-									<LogOut class="mr-2 h-4 w-4" />
+									<IconLucideLogOut class="mr-2 h-4 w-4" />
 									{isLoggingOut ? 'Logging out...' : 'Log out'}
 								</button>
 							{/snippet}

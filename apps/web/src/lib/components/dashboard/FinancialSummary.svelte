@@ -1,6 +1,5 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import * as Card from '@repo/ui/components/ui/card';
-	import { ArrowUp, ArrowDown, TrendingUp } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 
 	type Props = {
@@ -34,7 +33,7 @@
 	<Card.Root>
 		<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 			<Card.Title class="text-sm font-medium text-muted-foreground">Owed to You</Card.Title>
-			<ArrowUp class="h-4 w-4 text-success" />
+			<IconLucideArrowUp class="h-4 w-4 text-success" />
 		</Card.Header>
 		<Card.Content>
 			<div class="space-y-1">
@@ -50,7 +49,7 @@
 	<Card.Root>
 		<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 			<Card.Title class="text-sm font-medium text-muted-foreground">You Owe</Card.Title>
-			<ArrowDown class="h-4 w-4 text-destructive" />
+			<IconLucideArrowDown class="h-4 w-4 text-destructive" />
 		</Card.Header>
 		<Card.Content>
 			<div class="space-y-1">
@@ -66,7 +65,7 @@
 	<Card.Root>
 		<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 			<Card.Title class="text-sm font-medium text-muted-foreground">Net Balance</Card.Title>
-			<TrendingUp class="h-4 w-4 text-muted-foreground" />
+			<IconLucideTrendingUp class="h-4 w-4 text-muted-foreground" />
 		</Card.Header>
 		<Card.Content>
 			<div class="space-y-1">

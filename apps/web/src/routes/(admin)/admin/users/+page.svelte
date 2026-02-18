@@ -2,17 +2,6 @@
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import {
-		Users,
-		UserCheck,
-		UserX,
-		Eye,
-		Search,
-		ChevronLeft,
-		ChevronRight,
-		ChevronsLeft,
-		ChevronsRight
-	} from '@lucide/svelte';
 	import { useDebounce } from '$lib/hooks/use-debounce.svelte';
 	import { Button } from '@repo/ui/components/ui/button';
 
@@ -77,7 +66,7 @@
 <div class="container mx-auto px-4 py-8">
 	<div class="mb-8">
 		<h1 class="flex items-center gap-3 text-3xl font-bold">
-			<Users class="h-8 w-8 text-primary" />
+			<IconLucideUser class="h-8 w-8 text-primary" />
 			User Management
 		</h1>
 		<p class="mt-2 text-muted-foreground">View and manage all registered users</p>
@@ -86,7 +75,9 @@
 	<!-- Filters -->
 	<div class="mb-6 flex flex-wrap gap-4">
 		<div class="relative min-w-64 flex-1">
-			<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+			<IconLucideSearch
+				class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+			/>
 			<input
 				type="text"
 				placeholder="Search by name, email, or phone..."
@@ -123,7 +114,11 @@
 							<td class="px-6 py-4">
 								<div>
 									<p class="font-medium">{user.name || 'No name'}</p>
-									<p class="text-sm text-muted-foreground">{user.email}</p>
+									<p class="text-sm text-muted-foreground">
+										<IconLucidePhone
+											class="mr-1 inline-block h-5 w-5 align-middle text-muted-foreground"
+										/>{user.email}
+									</p>
 								</div>
 							</td>
 							<td class="px-6 py-4 text-sm">
@@ -142,12 +137,12 @@
 							<td class="px-6 py-4">
 								{#if user.isActive !== false}
 									<span class="flex items-center gap-1 text-green-600 dark:text-green-400">
-										<UserCheck class="h-4 w-4" />
+										<IconLucideUserCheck class="h-4 w-4" />
 										Active
 									</span>
 								{:else}
 									<span class="flex items-center gap-1 text-red-600 dark:text-red-400">
-										<UserX class="h-4 w-4" />
+										<IconLucideUserX class="h-4 w-4" />
 										Inactive
 									</span>
 								{/if}
@@ -157,7 +152,7 @@
 									href="/admin/users/{user.id}"
 									class="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
 								>
-									<Eye class="h-4 w-4" />
+									<IconLucideEye class="h-4 w-4" />
 									View
 								</a>
 							</td>
@@ -204,7 +199,7 @@
 					disabled={currentPage <= 1}
 					onclick={() => navigateWithParams({ page: 1 })}
 				>
-					<ChevronsLeft class="h-4 w-4" />
+					<IconLucideChevronsLeft class="h-4 w-4" />
 				</Button>
 				<Button
 					variant="outline"
@@ -213,7 +208,7 @@
 					disabled={currentPage <= 1}
 					onclick={() => navigateWithParams({ page: currentPage - 1 })}
 				>
-					<ChevronLeft class="h-4 w-4" />
+					<IconLucideChevronLeft class="h-4 w-4" />
 				</Button>
 				<span class="px-3 text-sm">
 					Page {currentPage} of {totalPages}
@@ -225,7 +220,7 @@
 					disabled={currentPage >= totalPages}
 					onclick={() => navigateWithParams({ page: currentPage + 1 })}
 				>
-					<ChevronRight class="h-4 w-4" />
+					<IconLucideChevronRight class="h-4 w-4" />
 				</Button>
 				<Button
 					variant="outline"
@@ -234,7 +229,7 @@
 					disabled={currentPage >= totalPages}
 					onclick={() => navigateWithParams({ page: totalPages })}
 				>
-					<ChevronsRight class="h-4 w-4" />
+					<IconLucideChevronsRight class="h-4 w-4" />
 				</Button>
 			</div>
 		</div>

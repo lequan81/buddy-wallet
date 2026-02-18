@@ -3,12 +3,28 @@ import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vite';
+import Icons from 'unplugin-icons/vite';
+import AutoImport from 'unplugin-auto-import/vite';
+import IconsResolver from 'unplugin-icons/resolver';
 
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
 		paraglideVitePlugin({ project: './project.inlang', outdir: './src/lib/paraglide' }),
+		AutoImport({
+			resolvers: [
+				IconsResolver({
+					prefix: 'Icon', // Viết <IconMdiAlarm /> để tự import mdi:alarm
+					extension: 'svelte'
+				})
+			],
+			dts: 'src/auto-imports.d.ts'
+		}),
+		Icons({
+			compiler: 'svelte',
+			autoInstall: true // Tự động tải bộ icon khi bạn gọi tên nó
+		}),
 		VitePWA({
 			strategies: 'injectManifest',
 			srcDir: 'src/service-worker',
