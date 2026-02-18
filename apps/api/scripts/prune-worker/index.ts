@@ -7,14 +7,14 @@
  * For production deployment, use the buddy-cleanup.timer systemd unit
  * to run this script on a schedule (e.g., daily).
  */
-import { cleanupService } from '@services/cleanup.service';
+import { CleanupService } from '@services/cleanup.service';
 
 async function main() {
   console.log('[Prune Worker] Starting cleanup...');
   const startTime = Date.now();
 
   try {
-    await cleanupService.runAll();
+    await CleanupService.runAll();
   } catch (error) {
     console.error('[Prune Worker] Error during cleanup:', error);
     process.exit(1);

@@ -58,7 +58,7 @@ function renderTraceViewer(): string {
     .replace('{{TRACE_ROWS}}', traceRows);
 }
 
-export const tracesController = new Elysia({ name: 'TracesController' })
+export const TracesController = new Elysia({ name: 'TracesController' })
   .get('/traces', () => {
     if (!isDev) {
       return new Response('Not Found', { status: 404 });

@@ -18,10 +18,15 @@ import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 // Cast self to ServiceWorkerGlobalScope for proper typing
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
+// Declare Workbox's injected manifest type on self
+declare const self: ServiceWorkerGlobalScope & {
+	__WB_MANIFEST: Array<{ url: string; revision: string | null }>;
+};
+
 // Precache and route assets injected by Workbox at build time
-// self.__WB_MANIFEST is replaced with the actual precache manifest
-// In development, it may be undefined, so we provide a fallback empty array
-const manifest = sw.__WB_MANIFEST;
+// self.__WB_MANIFEST is replaced with the actual precache manifest by Workbox at build time
+// IMPORTANT: Must use `self.__WB_MANIFEST` literally (not via an alias) for Workbox injection to work
+const manifest = self.__WB_MANIFEST;
 if (Array.isArray(manifest) && manifest.length > 0) {
 	precacheAndRoute(manifest);
 }

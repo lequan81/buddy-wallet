@@ -335,7 +335,7 @@
 								<div class="font-tabular text-4xl font-bold">{users.length}</div>
 							{/await}
 							<p class="mt-1 text-xs text-muted-foreground">
-								<a href="/admin/users" class="hover:underline">Manage users â†’</a>
+								<a href="/admin/users" class="hover:underline">Manage users →</a>
 							</p>
 						</Card.Content>
 					</Card.Root>

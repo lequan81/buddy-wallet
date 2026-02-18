@@ -117,5 +117,3 @@ export class VietQRService {
     });
   }
 }
-
-export const vietqrService = new VietQRService();

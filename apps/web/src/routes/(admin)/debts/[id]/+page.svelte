@@ -627,7 +627,7 @@
 				<Card.Root class="border-blue-200 dark:border-blue-900">
 					<Card.Header>
 						<Card.Title class="flex items-center gap-2 text-lg text-blue-700 dark:text-blue-400">
-							<IconLucideImageIcon class="h-5 w-5" />
+							<IconLucideImage class="h-5 w-5" />
 							Pending Payment Proofs
 						</Card.Title>
 						<Card.Description>Review and approve payment proofs</Card.Description>
@@ -709,7 +709,8 @@
 									id="amount"
 									name="amount"
 									bind:value={editAmount}
-									min="1"
+									min="1000"
+									step="1000"
 									placeholder="Amount in VND"
 								/>
 							</div>

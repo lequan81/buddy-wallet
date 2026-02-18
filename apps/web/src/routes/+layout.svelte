@@ -1,8 +1,10 @@
 ﻿<script lang="ts">
 	import { onMount } from 'svelte';
+	import { onNavigate } from '$app/navigation';
 	import { Toaster } from 'svelte-sonner';
 	import { useRegisterSW } from 'virtual:pwa-register/svelte';
 	import PageLoadingBar from '$lib/components/shared/PageLoadingBar.svelte';
+	import GlobalProgressToast from '$lib/components/shared/GlobalProgressToast.svelte';
 	import favicon from '$lib/assets/favicon.svg';
 	import './layout.css';
 
@@ -29,6 +31,21 @@
 		// Clearing the cache on every load defeated the purpose of navigation caching.
 	});
 
+	// ── View Transitions API ──────────────────────────────
+	// Creates smooth crossfade transitions between pages.
+	// Supported: Chrome 111+, Edge 111+. Gracefully degrades on others.
+	onNavigate((navigation) => {
+		// Skip if View Transitions API is not available
+		if (!document.startViewTransition) return;
+
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
+
 	let { children, data } = $props();
 	let showOfflineWarning = $state(true);
 </script>
@@ -42,9 +59,12 @@
 <!-- Page Loading Bar -->
 <PageLoadingBar />
 
+<!-- Global Progress Toast -->
+<GlobalProgressToast />
+
 <!-- Toast Notifications (client-only to prevent hydration mismatch) -->
 {#if mounted}
-	<Toaster richColors position="top-center" />
+	<Toaster richColors position="top-center" duration={3500} />
 {/if}
 
 <!-- API Offline Warning Banner -->

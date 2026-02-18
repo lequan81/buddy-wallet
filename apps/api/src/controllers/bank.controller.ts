@@ -6,10 +6,10 @@
 import { Elysia, t } from 'elysia';
 import { permissionPlugin } from '../plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
-import { bankAccountService, vietqrService, debtService } from '../services';
+import { BankAccountService, VietqrService, DebtService } from '../services';
 import { insertBankAccountSchema } from '@repo/db';
 
-export const bankController = new Elysia({ prefix: '/banks' })
+export const BankController = new Elysia({ prefix: '/banks' })
   .use(permissionPlugin)
 
   // ==================== GET SUPPORTED BANKS ====================
@@ -17,7 +17,7 @@ export const bankController = new Elysia({ prefix: '/banks' })
   .get(
     '/list',
     async () => {
-      const banks = await vietqrService.getBanks();
+      const banks = await VietqrService.getBanks();
       return { success: true, banks };
     },
     {
@@ -31,7 +31,7 @@ export const bankController = new Elysia({ prefix: '/banks' })
   .get(
     '/me',
     async ({ user }) => {
-      const accounts = await bankAccountService.getUserBankAccounts(user!.id);
+      const accounts = await BankAccountService.getUserBankAccounts(user!.id);
       return { success: true, accounts };
     },
     {
@@ -43,7 +43,7 @@ export const bankController = new Elysia({ prefix: '/banks' })
   .post(
     '/me',
     async ({ user, body, set }) => {
-      const result = await bankAccountService.addBankAccount({
+      const result = await BankAccountService.addBankAccount({
         ...body,
         userId: user!.id
       });
@@ -68,7 +68,7 @@ export const bankController = new Elysia({ prefix: '/banks' })
     async ({ params: { userId } }) => {
       // In a strict system, we'd check if requestor has a debt with userId.
       // For now, we allow seeing bank accounts if you know the userId (needed for QR gen)
-      const accounts = await bankAccountService.getUserBankAccounts(userId);
+      const accounts = await BankAccountService.getUserBankAccounts(userId);
       // Only return necessary info
       return {
         success: true,
@@ -95,7 +95,7 @@ export const bankController = new Elysia({ prefix: '/banks' })
     '/qr/:debtId',
     async ({ user, params: { debtId }, set }) => {
       // 1. Get debt details
-      const debt = await debtService.getDebtById(debtId);
+      const debt = await DebtService.getDebtById(debtId);
       if (!debt) {
         set.status = 404;
         return { success: false, error: 'Debt not found' };
@@ -116,7 +116,7 @@ export const bankController = new Elysia({ prefix: '/banks' })
         set.status = 400;
         return { success: false, error: 'Debt has no creditor assigned' };
       }
-      const accounts = await bankAccountService.getUserBankAccounts(debt.creditorId);
+      const accounts = await BankAccountService.getUserBankAccounts(debt.creditorId);
       const defaultAccount = accounts.find((a) => a.isDefault) || accounts[0];
 
       if (!defaultAccount) {
@@ -125,7 +125,7 @@ export const bankController = new Elysia({ prefix: '/banks' })
       }
 
       // 4. Generate QR
-      const qrUrl = vietqrService.generateDebtPaymentQR({
+      const qrUrl = VietqrService.generateDebtPaymentQR({
         bankBin: defaultAccount.bankBin,
         accountNumber: defaultAccount.accountNumber,
         accountName: defaultAccount.accountName,
@@ -145,7 +145,7 @@ export const bankController = new Elysia({ prefix: '/banks' })
   .delete(
     '/:id',
     async ({ user, params: { id }, set }) => {
-      const result = await bankAccountService.deleteBankAccount(id, user!.id);
+      const result = await BankAccountService.deleteBankAccount(id, user!.id);
 
       if (!result.success) {
         set.status = 404;

@@ -7,9 +7,9 @@
 import { Elysia, t } from 'elysia';
 import { strictRateLimiter } from '../plugins/middleware';
 import { normalizePhoneNumber, maskPhone } from '../utils/phone';
-import { debtService } from '../services';
+import { DebtService } from '../services';
 
-export const publicController = new Elysia({ prefix: '/public' })
+export const PublicController = new Elysia({ prefix: '/public' })
   .use(strictRateLimiter)
 
   // Check if a phone number has active debts
@@ -30,7 +30,7 @@ export const publicController = new Elysia({ prefix: '/public' })
       }
 
       // Use DebtService for the lookup
-      const count = await debtService.countActiveDebtsForPhone(normalizedPhone);
+      const count = await DebtService.countActiveDebtsForPhone(normalizedPhone);
 
       return {
         success: true,

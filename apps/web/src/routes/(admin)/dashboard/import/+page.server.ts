@@ -56,7 +56,7 @@ export const actions: Actions = {
 			console.log(`[SvelteKit] API Status: ${res.status}`);
 
 			const data = await res.json();
-			console.log(`[SvelteKit] API Response received (rows: ${data.totalRows})`);
+			console.log(`[SvelteKit] API Response:`, JSON.stringify(data).slice(0, 200));
 
 			if (!res.ok) {
 				return fail(res.status, {
@@ -66,7 +66,9 @@ export const actions: Actions = {
 			}
 
 			return {
+				success: true,
 				preview: true,
+				jobId: data.data?.jobId || data.jobId,
 				logId: data.data?.logId || data.logId,
 				fileName: data.data?.fileName || data.fileName,
 				totalRows: data.data?.totalRows || data.totalRows,
@@ -90,7 +92,12 @@ export const actions: Actions = {
 		const configRaw = formData.get('config') as string;
 		const previewLogId = formData.get('previewLogId') as string | null;
 
+		console.log(
+			`[Import] Action called. File: ${file?.name} (size: ${file?.size}, type: ${typeof file}, isFile: ${file instanceof File}), Config: ${configRaw ? 'Present' : 'Missing'}`
+		);
+
 		if (!file || file.size === 0) {
+			console.error('[Import] Error: File is missing or empty');
 			return fail(400, {
 				code: FE_ERRORS.FILE_NOT_SELECTED.code,
 				message: FE_ERRORS.FILE_NOT_SELECTED.message
@@ -98,6 +105,7 @@ export const actions: Actions = {
 		}
 
 		if (!configRaw) {
+			console.error('[Import] Error: Config is missing');
 			return fail(400, {
 				code: FE_ERRORS.IMPORT_NO_CONFIG.code,
 				message: FE_ERRORS.IMPORT_NO_CONFIG.message
@@ -113,7 +121,7 @@ export const actions: Actions = {
 
 		try {
 			console.log(
-				`[Import] Import: ${file.name}${previewLogId ? ` (linked to preview: ${previewLogId})` : ''}`
+				`[Import] Sending to API: ${file.name}${previewLogId ? ` (linked to preview: ${previewLogId})` : ''}`
 			);
 
 			// Note: For FormData, browser sets Content-Type with boundary automatically
@@ -129,14 +137,17 @@ export const actions: Actions = {
 			const data = await res.json();
 
 			if (!res.ok) {
+				console.error(`[Import] API Error (${res.status}):`, JSON.stringify(data));
 				return fail(res.status, {
 					code: data.code || 'BE_UNKNOWN',
 					message: data.message || 'Import failed'
 				});
 			}
 
+			console.log('[Import] Success:', data);
 			return {
 				success: true,
+				jobId: data.data?.jobId || data.jobId,
 				logId: data.data?.logId || data.logId,
 				imported: data.data?.imported || data.imported,
 				errors: data.data?.errors || data.errors

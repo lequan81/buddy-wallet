@@ -22,8 +22,7 @@ import {
 import type { DbClient, JwtService } from '../types';
 import type { RegisterInput, LoginInput, AuthResult } from '../types';
 import type { IAuthService } from '../types';
-import { emailService } from './email.service';
-import { emailVerificationService } from './email-verification.service';
+import { EmailService, EmailVerificationService } from './index';
 
 // Dummy hash for timing attack mitigation (pre-calculated at startup)
 let DUMMY_HASH = '';
@@ -135,9 +134,9 @@ export class AuthService implements IAuthService {
 
     // Send verification OTP email if user has email
     if (newUser.email) {
-      const result = await emailVerificationService.createOtp(newUser.id, newUser.email);
+      const result = await EmailVerificationService.createOtp(newUser.id, newUser.email);
       if (result.success && result.otp) {
-        await emailService.sendOtp(newUser.email, result.otp, newUser.name);
+        await EmailService.sendOtp(newUser.email, result.otp, newUser.name);
       }
     }
 

@@ -10,6 +10,7 @@ export interface ImportProgress {
   total: number;
   status: string;
   errors?: string[];
+  result?: any;
 }
 
 export const importCache = {

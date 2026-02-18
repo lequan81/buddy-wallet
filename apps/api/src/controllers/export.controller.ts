@@ -8,10 +8,10 @@ import { Elysia } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse } from '@repo/errors';
 import { sessionAuthPlugin } from '../plugins/auth';
 import { accessControlPlugin } from '../plugins';
-import { exportService } from '../services';
+import { ExportService } from '../services';
 import type { ExportFormat } from '../types';
 
-export const exportController = new Elysia({ prefix: '/export' })
+export const ExportController = new Elysia({ prefix: '/export' })
   .use(sessionAuthPlugin)
   .use(accessControlPlugin)
 
@@ -19,7 +19,7 @@ export const exportController = new Elysia({ prefix: '/export' })
   .get('/debts', async ({ user, set, query }) => {
     const format = ((query as any)?.format || 'xlsx') as ExportFormat;
 
-    const result = await exportService.exportUserDebts(user!.id, format);
+    const result = await ExportService.exportUserDebts(user!.id, format);
 
     if (!result.success) {
       set.status = 404;
@@ -41,7 +41,7 @@ export const exportController = new Elysia({ prefix: '/export' })
 
     const format = ((query as any)?.format || 'xlsx') as ExportFormat;
 
-    const result = await exportService.exportAllDebts(format);
+    const result = await ExportService.exportAllDebts(format);
 
     if (!result.success) {
       set.status = 404;

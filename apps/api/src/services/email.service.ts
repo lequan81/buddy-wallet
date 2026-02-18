@@ -129,4 +129,3 @@ export class EmailService {
 }
 
 // Singleton instance
-export const emailService = new EmailService();

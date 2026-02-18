@@ -4,7 +4,6 @@ import { validateSecretStrength } from '@repo/config';
 export const getEnv = (key: string, defaultValue?: string): string => {
   // Bun.env là cách truy cập biến môi trường nhanh nhất trong Bun
   const value = Bun.env[key] || defaultValue;
-
   if (value === undefined) {
     throw new Error(`[ERROR] Missing required environment variable: ${key}`);
   }
@@ -14,9 +13,8 @@ export const getEnv = (key: string, defaultValue?: string): string => {
 /**
  * Validate JWT secret strength using shared validation rules
  */
-function validateJWTSecretOnStartup(secret: string): void {
+function validateJWTSecretOnStartup(secret: string) {
   const validation = validateSecretStrength(secret);
-
   if (!validation.isValid && Bun.env.NODE_ENV === 'production') {
     throw new Error(`[ERROR] JWT_SECRET security issues:\n  - ${validation.issues.join('\n  - ')}`);
   } else if (validation.issues.length > 0) {

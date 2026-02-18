@@ -12,7 +12,7 @@ import { configs } from '../configs';
 import { log } from '../utils/logger';
 import { normalizePhoneNumber } from '../utils';
 import type { DbClient } from '../types';
-import { emailService } from './email.service';
+import { EmailService } from './index';
 
 const TEMP_PASSWORD_LENGTH = 16;
 const TEMP_PASSWORD_EXPIRY_HOURS = 24;
@@ -75,7 +75,11 @@ export class PasswordResetService {
     if (!user) {
       // SECURITY: Don't reveal if email/phone exists - use generic message
       log.warn('PASSWORD_RESET', 'Reset attempt with non-matching credentials', { email });
-      return { success: false, error: 'If the email and phone number match our records, you will receive reset instructions.' };
+      return {
+        success: false,
+        error:
+          'If the email and phone number match our records, you will receive reset instructions.'
+      };
     }
 
     if (user.isLocked) {
@@ -86,7 +90,11 @@ export class PasswordResetService {
     if (user.temporaryPassword && user.temporaryPasswordExpires) {
       const expiresAt = new Date(user.temporaryPasswordExpires);
       if (expiresAt > new Date() && !user.temporaryPasswordUsed) {
-        return { success: false, error: 'A temporary password was already sent. Please check your email or wait for it to expire.' };
+        return {
+          success: false,
+          error:
+            'A temporary password was already sent. Please check your email or wait for it to expire.'
+        };
       }
     }
 
@@ -109,7 +117,7 @@ export class PasswordResetService {
       .run();
 
     // Send email with temporary password
-    const emailResult = await emailService.send({
+    const emailResult = await EmailService.send({
       to: email,
       subject: 'BuddyWallet - Your Temporary Password',
       html: this.generateEmailHtml(user.name, tempPassword, TEMP_PASSWORD_EXPIRY_HOURS),
@@ -118,7 +126,10 @@ export class PasswordResetService {
     });
 
     if (!emailResult.success) {
-      log.error('PASSWORD_RESET', 'Failed to send reset email', { userId: user.id, error: emailResult.error });
+      log.error('PASSWORD_RESET', 'Failed to send reset email', {
+        userId: user.id,
+        error: emailResult.error
+      });
       return { success: false, error: 'Failed to send email. Please try again.' };
     }
 
@@ -130,7 +141,10 @@ export class PasswordResetService {
    * Verify temporary password during login
    * Returns true if temp password is valid, marks it as used
    */
-  async verifyTemporaryPassword(userId: string, password: string): Promise<{ valid: boolean; mustChange?: boolean }> {
+  async verifyTemporaryPassword(
+    userId: string,
+    password: string
+  ): Promise<{ valid: boolean; mustChange?: boolean }> {
     const user = this.db.select().from(users).where(eq(users.id, userId)).get();
 
     if (!user || !user.temporaryPassword) {

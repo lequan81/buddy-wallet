@@ -362,7 +362,7 @@
 					success={amountValidation === 'success' ? amountMessage : undefined}
 					error={amountValidation === 'error' ? amountMessage : undefined}
 					warning={amountValidation === 'warning' ? amountMessage : undefined}
-					min="1"
+					min="1000"
 					step="1000"
 					required
 				/>

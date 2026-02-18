@@ -39,4 +39,5 @@ export interface ProgressResult {
   status?: string;
   errors?: string[];
   percentage?: number;
+  result?: any;
 }

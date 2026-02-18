@@ -238,4 +238,3 @@ export class EmailVerificationService {
 }
 
 // Singleton instance for the main app
-export const emailVerificationService = new EmailVerificationService(db);

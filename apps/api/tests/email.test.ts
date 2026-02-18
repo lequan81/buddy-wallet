@@ -7,13 +7,13 @@
  * Requires SMTP credentials in .env file.
  */
 import { describe, expect, it, afterAll } from 'bun:test';
-import { emailService } from '@/services/email.service';
+import { EmailService } from '@/services';
 
 const testEmail = Bun.env.TEST_EMAIL;
 
 describe('EmailService (Integration)', () => {
   afterAll(async () => {
-    await emailService.close();
+    await EmailService.close();
   });
 
   describe('when SMTP is configured', () => {
@@ -25,7 +25,7 @@ describe('EmailService (Integration)', () => {
 
       console.log('📧 Sending test OTP email to:', testEmail);
 
-      const result = await emailService.sendOtp(testEmail, '123456', 'Test User');
+      const result = await EmailService.sendOtp(testEmail, '123456', 'Test User');
 
       expect(result.success).toBe(true);
       expect(result.messageId).toBeDefined();
@@ -38,7 +38,7 @@ describe('EmailService (Integration)', () => {
         return;
       }
 
-      const result = await emailService.send({
+      const result = await EmailService.send({
         to: testEmail,
         subject: 'BuddyWallet Test Email',
         text: 'This is a test email from BuddyWallet API tests.',
@@ -52,7 +52,7 @@ describe('EmailService (Integration)', () => {
 
   describe('when SMTP is not configured', () => {
     it.skipIf(!!Bun.env.SMTP_USER)('should fail gracefully without SMTP credentials', async () => {
-      const result = await emailService.send({
+      const result = await EmailService.send({
         to: 'test@example.com',
         subject: 'Test',
         text: 'Test'

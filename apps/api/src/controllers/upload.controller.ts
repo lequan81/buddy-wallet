@@ -7,21 +7,25 @@ import { Elysia, t } from 'elysia';
 import { permissionPlugin } from '../plugins/guards';
 import { standardRateLimiter, uploadRateLimiter, deleteRateLimiter } from '../plugins/middleware';
 import { PERMISSIONS } from '@repo/permissions';
-import { fileService, debtService, pushService, userService } from '../services';
+import { FileService, DebtService, PushService, UserService } from '../services';
 
 // Helper to format currency
 const formatVND = (amount: number) =>
-  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(amount);
+  new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0
+  }).format(amount);
 
 // Helper to check if user can receive push notifications
 async function canReceivePush(userId: string): Promise<boolean> {
-  const result = await userService.getUserById(userId);
+  const result = await UserService.getUserById(userId);
   if (!result.user) return false;
   // Must have verified email AND push enabled
   return result.user.emailVerified === true && result.user.pushNotificationsEnabled === true;
 }
 
-export const uploadController = new Elysia({ prefix: '/upload' })
+export const UploadController = new Elysia({ prefix: '/upload' })
   .use(permissionPlugin)
   // Use uploadRateLimiter for all routes in this controller (most are uploads)
   // GET routes will also share this limit, which is fine (10/min is strict but acceptable)
@@ -34,7 +38,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
     async ({ user, body, set }) => {
       const file = body.file;
 
-      const result = await fileService.uploadFile(file, user!.id, 'qr_code');
+      const result = await FileService.uploadFile(file, user!.id, 'qr_code');
 
       if (!result.success) {
         set.status = 400;
@@ -67,7 +71,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
     '/payment-proof/:debtId',
     async ({ user, params: { debtId }, body, set }) => {
       // Verify debt exists and user is related to it
-      const debt = await debtService.getDebtById(debtId);
+      const debt = await DebtService.getDebtById(debtId);
       if (!debt) {
         set.status = 404;
         return { success: false, error: 'Debt not found' };
@@ -84,7 +88,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
       }
 
       const file = body.file;
-      const result = await fileService.uploadFile(file, user!.id, 'payment_proof', debtId);
+      const result = await FileService.uploadFile(file, user!.id, 'payment_proof', debtId);
 
       if (!result.success) {
         set.status = 400;
@@ -95,7 +99,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
       if (debt.creditorId && debt.creditorId !== user!.id) {
         const canNotify = await canReceivePush(debt.creditorId);
         if (canNotify) {
-          pushService.sendToUser(debt.creditorId, {
+          PushService.sendToUser(debt.creditorId, {
             title: 'Payment Proof Uploaded',
             body: `Someone uploaded payment proof for ${formatVND(debt.amount)}`,
             url: `/debts/${debtId}`,
@@ -131,7 +135,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
   .get(
     '/file/:id',
     async ({ user, params: { id }, set }) => {
-      const result = await fileService.getFile(id);
+      const result = await FileService.getFile(id);
 
       if (!result.success) {
         set.status = 404;
@@ -144,7 +148,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
 
       let hasAccess = isOwner;
       if (!hasAccess && meta.relatedDebtId) {
-        const debt = await debtService.getDebtById(meta.relatedDebtId);
+        const debt = await DebtService.getDebtById(meta.relatedDebtId);
         if (debt) {
           // SECURITY FIX 1: Use user ID for authorization (not phoneNumber)
           hasAccess = debt.debtorId === user?.id || debt.creditorId === user?.id;
@@ -177,7 +181,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
   .get(
     '/my-qr',
     async ({ user }) => {
-      const qrCodes = await fileService.getUserQRCodes(user!.id);
+      const qrCodes = await FileService.getUserQRCodes(user!.id);
       return {
         success: true,
         files: qrCodes.map((f) => ({
@@ -197,7 +201,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
     '/pending-proofs/:debtId',
     async ({ user, params: { debtId }, set }) => {
       // Verify debt exists and user is creditor
-      const debt = await debtService.getDebtById(debtId);
+      const debt = await DebtService.getDebtById(debtId);
       if (!debt) {
         set.status = 404;
         return { success: false, error: 'Debt not found' };
@@ -210,7 +214,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
         return { success: false, error: 'Only creditor can view pending proofs' };
       }
 
-      const proofs = await fileService.getPendingProofs(debtId);
+      const proofs = await FileService.getPendingProofs(debtId);
       return {
         success: true,
         files: proofs.map((f) => ({
@@ -234,7 +238,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
   .post(
     '/proof/:id/approve',
     async ({ user, params: { id }, set }) => {
-      const result = await fileService.approveProof(id, user!.id);
+      const result = await FileService.approveProof(id, user!.id);
 
       if (!result.success) {
         set.status = 400;
@@ -245,7 +249,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
       if (result.uploaderId && result.uploaderId !== user!.id) {
         const canNotify = await canReceivePush(result.uploaderId);
         if (canNotify) {
-          pushService.sendToUser(result.uploaderId, {
+          PushService.sendToUser(result.uploaderId, {
             title: 'Proof Approved',
             body: 'Your payment proof has been approved by the creditor',
             url: `/debts/${result.debtId}`,
@@ -254,8 +258,8 @@ export const uploadController = new Elysia({ prefix: '/upload' })
         }
       }
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         message: 'Proof approved',
         allProofsApproved: result.allProofsApproved,
         debtId: result.debtId
@@ -271,7 +275,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
   .post(
     '/proof/:id/reject',
     async ({ user, params: { id }, body, set }) => {
-      const result = await fileService.rejectProof(id, user!.id, body.reason);
+      const result = await FileService.rejectProof(id, user!.id, body.reason);
 
       if (!result.success) {
         set.status = 400;
@@ -283,7 +287,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
         const canNotify = await canReceivePush(result.uploaderId);
         if (canNotify) {
           const reasonText = body.reason ? `: ${body.reason}` : '';
-          pushService.sendToUser(result.uploaderId, {
+          PushService.sendToUser(result.uploaderId, {
             title: 'Proof Rejected',
             body: `Your payment proof was rejected${reasonText}`,
             url: `/debts/${result.debtId}`,
@@ -308,7 +312,7 @@ export const uploadController = new Elysia({ prefix: '/upload' })
   .delete(
     '/file/:id',
     async ({ user, params: { id }, set }) => {
-      const result = await fileService.deleteFile(id, user!.id);
+      const result = await FileService.deleteFile(id, user!.id);
 
       if (!result.success) {
         set.status = result.error === 'Not authorized' ? 403 : 400;

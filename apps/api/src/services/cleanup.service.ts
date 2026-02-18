@@ -6,13 +6,17 @@
  */
 import { db, importLogs, sessions, debts, users, eq, and, lte, ne, not, isNull } from '@repo/db';
 import { log } from '../utils/logger';
-import { pushService } from './index';
+import { PushService } from './index';
 
 // Helper to format currency
 const formatVND = (amount: number) =>
-  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(amount);
+  new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0
+  }).format(amount);
 
-export const cleanupService = {
+export const CleanupService = {
   /**
    * Cleanup stale pending import logs (older than 24 hours)
    */
@@ -117,7 +121,7 @@ export const cleanupService = {
             // Check if user can receive notifications
             const user = db.select().from(users).where(eq(users.id, debt.uploadedById)).get();
             if (user?.emailVerified && user?.pushNotificationsEnabled) {
-              await pushService.sendToUser(debt.uploadedById, {
+              await PushService.sendToUser(debt.uploadedById, {
                 title: 'Debt Expired',
                 body: `Your debt of ${formatVND(debt.amount)} was auto-cancelled - confirmation period ended.`,
                 url: `/debts/${debt.id}`

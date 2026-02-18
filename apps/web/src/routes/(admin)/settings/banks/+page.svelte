@@ -96,7 +96,7 @@
 		}
 
 		if (
-			/[Ã Ã¡áº¡áº£Ã£Ã¢áº§áº¥áº­áº©áº«Äƒáº±áº¯áº·áº³áºµÃ¨Ã©áº¹áº»áº½Ãªá»áº¿á»‡á»ƒá»…Ã¬Ã­á»‹á»‰Ä©Ã²Ã³á»á»ÃµÃ´á»“á»‘á»™á»•á»—Æ¡á»á»›á»£á»Ÿá»¡Ã¹Ãºá»¥á»§Å©Æ°á»«á»©á»±á»­á»¯á»³Ã½á»µá»·á»¹Ä‘]/i.test(accountName)
+			/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(accountName)
 		) {
 			accountNameValidation = 'warning';
 			accountNameMessage = 'Remove Vietnamese accents for better compatibility';
@@ -276,7 +276,7 @@
 									{/if}
 								</div>
 								<p class="text-sm text-muted-foreground">
-									{account.accountNumber} â€¢ {account.accountName}
+									{account.accountNumber} • {account.accountName}
 								</p>
 							</div>
 						</div>

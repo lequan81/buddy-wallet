@@ -10,17 +10,17 @@ import {
   securityHeadersPlugin
 } from './plugins';
 import {
-  activityController,
-  authController,
-  debtsController,
-  exportController,
-  importController,
-  publicController,
-  usersController,
-  tracesController,
-  pushController,
-  bankController,
-  uploadController
+  ActivityController,
+  AuthController,
+  DebtsController,
+  ExportController,
+  ImportController,
+  PublicController,
+  UsersController,
+  TracesController,
+  PushController,
+  BankController,
+  UploadController
 } from './controllers';
 import { telemetry } from './instrumentation';
 import { logger } from './utils/logger';
@@ -59,9 +59,9 @@ export const app = new Elysia()
       // Session-based authentication (sets user if valid token exists)
       .use(sessionAuthPlugin)
       // Auth routes (login/register work without user, /me/logout need user)
-      .use(authController)
-      .use(publicController) // /v1/check-debt
-      .use(pushController) // Push notifications (vapid-key is public, others check user internally)
+      .use(AuthController)
+      .use(PublicController) // /v1/check-debt
+      .use(PushController) // Push notifications (vapid-key is public, others check user internally)
       .use(permissionPlugin)
       // Guarded Routes (Require Authentication)
       .guard(
@@ -77,13 +77,13 @@ export const app = new Elysia()
         },
         (app) =>
           app
-            .use(usersController)
-            .use(debtsController)
-            .use(importController)
-            .use(exportController)
-            .use(activityController)
-            .use(bankController)
-            .use(uploadController) // File uploads for QR codes and payment proofs
+            .use(UsersController)
+            .use(DebtsController)
+            .use(ImportController)
+            .use(ExportController)
+            .use(ActivityController)
+            .use(BankController)
+            .use(UploadController) // File uploads for QR codes and payment proofs
       )
   )
   .get('/', () => ({
@@ -103,7 +103,7 @@ export const app = new Elysia()
     return base;
   })
   // Trace viewer (dev only)
-  .use(tracesController)
+  .use(TracesController)
   .onError(({ code, error, set }) => {
     console.error(`Global error caught`, { code, error });
     set.status = 500;

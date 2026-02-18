@@ -441,10 +441,10 @@
 			<Card.Title>Security Tips</Card.Title>
 		</Card.Header>
 		<Card.Content class="space-y-3 text-sm text-muted-foreground">
-			<p>â€¢ Review your active sessions regularly and revoke any you don't recognize.</p>
-			<p>â€¢ If you see a session from an unfamiliar location, change your password immediately.</p>
-			<p>â€¢ Use "Logout All Devices" after changing your password for maximum security.</p>
-			<p>â€¢ Your session will automatically expire after 90 days of inactivity.</p>
+			<p>• Review your active sessions regularly and revoke any you don't recognize.</p>
+			<p>• If you see a session from an unfamiliar location, change your password immediately.</p>
+			<p>• Use "Logout All Devices" after changing your password for maximum security.</p>
+			<p>• Your session will automatically expire after 90 days of inactivity.</p>
 		</Card.Content>
 	</Card.Root>
 

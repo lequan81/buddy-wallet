@@ -98,7 +98,6 @@ export default defineConfig({
 	],
 	optimizeDeps: {
 		include: [
-			'@repo/ui',
 			'clsx',
 			'tailwind-merge',
 			'tailwind-variants',
@@ -109,7 +108,7 @@ export default defineConfig({
 			'valibot',
 			'@elysiajs/eden'
 		],
-		exclude: ['@repo/config', '@repo/errors', '@repo/permissions']
+		exclude: ['@repo/ui', '@repo/config', '@repo/errors', '@repo/permissions']
 	},
 	ssr: {
 		noExternal: ['@repo/ui']

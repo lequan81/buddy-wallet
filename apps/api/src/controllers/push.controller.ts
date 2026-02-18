@@ -7,15 +7,15 @@ import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { permissionPlugin } from '../plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
-import { pushService } from '../services';
+import { PushService } from '../services';
 import { broadcastRateLimiter } from '../plugins/middleware';
 
-export const pushController = new Elysia({ prefix: '/push' })
+export const PushController = new Elysia({ prefix: '/push' })
   .use(permissionPlugin)
 
   // Get VAPID public key (for client to create subscription)
   .get('/vapid-key', async ({ set }) => {
-    const publicKey = pushService.getVapidPublicKey();
+    const publicKey = PushService.getVapidPublicKey();
 
     if (!publicKey) {
       set.status = 503;
@@ -34,7 +34,7 @@ export const pushController = new Elysia({ prefix: '/push' })
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
 
-      const result = await pushService.subscribe(user.id, {
+      const result = await PushService.subscribe(user.id, {
         endpoint: body.endpoint,
         keys: body.keys,
         expirationTime: body.expirationTime,
@@ -74,7 +74,7 @@ export const pushController = new Elysia({ prefix: '/push' })
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
 
-      const result = await pushService.unsubscribe(user.id, body.endpoint);
+      const result = await PushService.unsubscribe(user.id, body.endpoint);
 
       if (!result.success) {
         set.status = 400;
@@ -97,7 +97,7 @@ export const pushController = new Elysia({ prefix: '/push' })
       return errorResponse(GEN_ERRORS.UNAUTHORIZED);
     }
 
-    const subscriptions = await pushService.getUserSubscriptions(user.id);
+    const subscriptions = await PushService.getUserSubscriptions(user.id);
     return successResponse({ subscriptions });
   })
 
@@ -108,7 +108,7 @@ export const pushController = new Elysia({ prefix: '/push' })
       return errorResponse(GEN_ERRORS.UNAUTHORIZED);
     }
 
-    const result = await pushService.sendToUser(user.id, {
+    const result = await PushService.sendToUser(user.id, {
       title: 'Test Notification',
       body: 'Push notifications are working!',
       icon: '/icons/pwa-192x192.png',
@@ -132,7 +132,7 @@ export const pushController = new Elysia({ prefix: '/push' })
   .post(
     '/broadcast',
     async ({ body, set }) => {
-      const result = await pushService.broadcast({
+      const result = await PushService.broadcast({
         title: body.title,
         body: body.body,
         icon: body.icon,

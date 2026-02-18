@@ -224,8 +224,11 @@ export const handleError: HandleServerError = async ({ error, event, status, mes
 		timestamp: new Date().toISOString()
 	});
 
-	// In production, send to error tracking service
-	// await sendToErrorTracking({ error, status, url: event.url.pathname });
+	// In production, send to error tracking service (e.g., Sentry, BetterStack)
+	// For server-side, prefer a logging/APM service over HTTP calls.
+	// Example with Sentry:
+	// import * as Sentry from '@sentry/node';
+	// Sentry.captureException(error, { extra: { status, url: event.url.pathname } });
 
 	// Return user-friendly error
 	return {

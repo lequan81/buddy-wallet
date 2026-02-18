@@ -9,9 +9,9 @@ import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/err
 import { accessControlPlugin } from '../plugins';
 import { permissionPlugin } from '../plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
-import { userService } from '../services';
+import { UserService } from '../services';
 
-export const usersController = new Elysia({ prefix: '/users' })
+export const UsersController = new Elysia({ prefix: '/users' })
   .use(accessControlPlugin)
   .use(permissionPlugin)
 
@@ -34,7 +34,7 @@ export const usersController = new Elysia({ prefix: '/users' })
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
 
-      const result = await userService.updateProfile(user.id, {
+      const result = await UserService.updateProfile(user.id, {
         name: body.name,
         email: body.email,
         phoneNumber: body.phoneNumber,
@@ -67,8 +67,8 @@ export const usersController = new Elysia({ prefix: '/users' })
     async ({ query }) => {
       const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
       const offset = query.offset ? parseInt(query.offset) : 0;
-      const result = await userService.getAllUsers({ limit, offset });
-      return successResponse({ 
+      const result = await UserService.getAllUsers({ limit, offset });
+      return successResponse({
         users: result.users,
         pagination: {
           total: result.total,
@@ -78,7 +78,7 @@ export const usersController = new Elysia({ prefix: '/users' })
         }
       });
     },
-    { 
+    {
       checkPermission: PERMISSIONS.ADMIN_MANAGE_USERS,
       query: t.Object({
         limit: t.Optional(t.String()),
@@ -91,7 +91,7 @@ export const usersController = new Elysia({ prefix: '/users' })
   .get(
     '/:id',
     async ({ params: { id }, set }) => {
-      const result = await userService.getUserById(id);
+      const result = await UserService.getUserById(id);
 
       if (!result.success) {
         set.status = 404;
@@ -110,7 +110,7 @@ export const usersController = new Elysia({ prefix: '/users' })
   .patch(
     '/:id/status',
     async ({ params: { id }, set }) => {
-      const result = await userService.toggleUserStatus(id);
+      const result = await UserService.toggleUserStatus(id);
 
       if (!result.success) {
         set.status = 404;

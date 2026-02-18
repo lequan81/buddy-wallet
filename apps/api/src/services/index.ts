@@ -2,42 +2,31 @@
  * Services Index
  *
  * Central export point for all services.
- * Provides both class exports and factory functions for creating instances.
+ * Exports singleton instances for use in controllers.
+ *
+ * NOTE: Service classes are NOT re-exported.
+ * Tests should import classes directly from specific service files.
  */
 import { db } from '@repo/db';
 
-// Service classes (for DI/testing)
-import { AuthService } from './auth.service';
-import { SessionService } from './session.service';
-import { DebtService } from './debt.service';
-import { UserService } from './user.service';
-import { ExportService } from './export.service';
-import { ImportService } from './import.service';
-import { FileService } from './file.service';
-import { EmailService, emailService } from './email.service';
-import { PushService } from './push.service';
-import { ActivityService } from './activity.service';
-import { BankAccountService } from './bank-account.service';
-import { EmailVerificationService } from './email-verification.service';
-import { PasswordResetService } from './password-reset.service';
-export { cleanupService } from './cleanup.service';
+// Import Service Classes (aliased to avoid name collision with singleton exports)
+import { AuthService as AuthServiceClass } from './auth.service';
+import { SessionService as SessionServiceClass } from './session.service';
+import { DebtService as DebtServiceClass } from './debt.service';
+import { UserService as UserServiceClass } from './user.service';
+import { ExportService as ExportServiceClass } from './export.service';
+import { ImportService as ImportServiceClass } from './import.service';
+import { FileService as FileServiceClass } from './file.service';
+import { EmailService as EmailServiceClass } from './email.service';
+import { PushService as PushServiceClass } from './push.service';
+import { ActivityService as ActivityServiceClass } from './activity.service';
+import { BankAccountService as BankAccountServiceClass } from './bank-account.service';
+import { EmailVerificationService as EmailVerificationServiceClass } from './email-verification.service';
+import { PasswordResetService as PasswordResetServiceClass } from './password-reset.service';
+import { VietQRService as VietQRServiceClass } from './vietqr.service';
+import { JobsService as JobsServiceClass } from './jobs.service';
 
-// Re-export service classes
-export {
-  AuthService,
-  SessionService,
-  DebtService,
-  UserService,
-  ExportService,
-  ImportService,
-  FileService,
-  EmailService,
-  PushService,
-  ActivityService,
-  BankAccountService,
-  EmailVerificationService,
-  PasswordResetService
-};
+export { CleanupService } from './cleanup.service';
 
 // Re-export types
 export type { DbClient, JwtService, CacheService } from '../types';
@@ -51,61 +40,62 @@ export type { ExportFormat, ExportResult } from '../types';
 export type { PreviewResult, ImportResult, ProgressResult } from '../types';
 
 // Singleton instances for the main app
-export const authService = new AuthService(db);
-export const sessionService = new SessionService(db);
-export const debtService = new DebtService(db);
-export const userService = new UserService(db);
-export const exportService = new ExportService(db);
-export const importService = new ImportService(db);
-export const fileService = new FileService(db);
-export const pushService = new PushService(db);
-export const activityService = new ActivityService(db);
-export const bankAccountService = new BankAccountService(db);
-export const emailVerificationService = new EmailVerificationService(db);
-export const passwordResetService = new PasswordResetService(db);
-export { emailService };
-export * from './vietqr.service';
+export const AuthService = new AuthServiceClass(db);
+export const SessionService = new SessionServiceClass(db);
+export const DebtService = new DebtServiceClass(db);
+export const UserService = new UserServiceClass(db);
+export const ExportService = new ExportServiceClass(db);
+export const ImportService = new ImportServiceClass(db);
+export const FileService = new FileServiceClass(db);
+export const PushService = new PushServiceClass(db);
+export const ActivityService = new ActivityServiceClass(db);
+export const BankAccountService = new BankAccountServiceClass(db);
+export const EmailVerificationService = new EmailVerificationServiceClass(db);
+export const PasswordResetService = new PasswordResetServiceClass(db);
+export const EmailService = new EmailServiceClass();
+export const VietqrService = new VietQRServiceClass();
+export const JobsService = new JobsServiceClass();
 
 // Connect push service to debt service for notifications
-debtService.setPushService(pushService);
-debtService.setActivityService(activityService);
+DebtService.setPushService(PushService);
+DebtService.setActivityService(ActivityService);
 
 /**
  * Factory functions for creating services with custom dependencies
  * Used for testing with mocks
  */
 export function createAuthService(customDb: typeof db) {
-  return new AuthService(customDb);
+  return new AuthServiceClass(customDb);
 }
 
 export function createSessionService(customDb: typeof db) {
-  return new SessionService(customDb);
+  return new SessionServiceClass(customDb);
 }
 
 export function createDebtService(customDb: typeof db) {
-  return new DebtService(customDb);
+  return new DebtServiceClass(customDb);
 }
 
 export function createUserService(customDb: typeof db) {
-  return new UserService(customDb);
+  return new UserServiceClass(customDb);
 }
 
 export function createExportService(customDb: typeof db) {
-  return new ExportService(customDb);
+  return new ExportServiceClass(customDb);
 }
 
 export function createImportService(customDb: typeof db) {
-  return new ImportService(customDb);
+  return new ImportServiceClass(customDb);
 }
 
 export function createActivityService(customDb: typeof db) {
-  return new ActivityService(customDb);
+  return new ActivityServiceClass(customDb);
 }
 
 export function createEmailVerificationService(customDb: typeof db) {
-  return new EmailVerificationService(customDb);
+  return new EmailVerificationServiceClass(customDb);
 }
 
 export function createPasswordResetService(customDb: typeof db) {
-  return new PasswordResetService(customDb);
+  return new PasswordResetServiceClass(customDb);
 }

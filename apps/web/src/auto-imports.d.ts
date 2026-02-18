@@ -39,6 +39,7 @@ declare global {
   const IconLucideFilter: typeof import('~icons/lucide/filter.svelte').default
   const IconLucideHelpCircle: typeof import('~icons/lucide/help-circle.svelte').default
   const IconLucideHome: typeof import('~icons/lucide/home.svelte').default
+  const IconLucideImage: typeof import('~icons/lucide/image.svelte').default
   const IconLucideImageIcon: typeof import('~icons/lucide/image-icon.svelte').default
   const IconLucideKey: typeof import('~icons/lucide/key.svelte').default
   const IconLucideLandmark: typeof import('~icons/lucide/landmark.svelte').default

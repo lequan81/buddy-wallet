@@ -4,7 +4,8 @@
 	"compilerOptions": {
 		"rewriteRelativeImportExtensions": true,
 		"moduleResolution": "bundler",
-		"strict": true
+		"strict": true,
+		"types": ["unplugin-icons/types/svelte"]
 	},
 	"include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.js", "src/**/*.svelte"]
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
