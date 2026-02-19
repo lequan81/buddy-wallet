@@ -119,6 +119,14 @@ export async function apiFetch<T>(
 	endpoint: string,
 	options: RequestInit = {}
 ): Promise<{ data: T | null; error: string | null; response: Response }> {
+	if (!endpoint) {
+		console.error('[API] Empty endpoint requested');
+		return {
+			data: null,
+			error: 'Empty endpoint',
+			response: new Response(null, { status: 400 })
+		};
+	}
 	const url = `${API_URL}${endpoint}`;
 
 	// Don't retry refresh endpoint itself to avoid infinite loops

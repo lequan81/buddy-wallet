@@ -5,7 +5,7 @@
  * Uses constructor injection for testability.
  */
 import { randomUUIDv7 } from 'bun';
-import { users, debts, importLogs, eq, or, and, lte } from '@repo/db';
+import { users, debts, importLogs, eq, or, and, lte, desc } from '@repo/db';
 import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config';
 import { importCache, isRedisAvailable } from '../plugins/redis';
 import type { ImportConfig } from '../types';
@@ -14,26 +14,7 @@ import * as XLSX from 'xlsx';
 import { configs } from '../configs';
 import type { DbClient } from '../types';
 
-interface CurrentUser {
-  id: string;
-  phoneNumber: string | null;
-}
-
-interface ImportRow {
-  id: string;
-  debtorId: string | null;
-  creditorId: string;
-  debtorPhone: string;
-  creditorPhone: string;
-  amount: number;
-  description: string;
-  status: string;
-  uploadedById: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-type DetectedMapping = Record<string, string>;
+import type { CurrentUser, ImportRow, DetectedMapping } from '../types';
 
 /**
  * ImportService class with dependency injection
@@ -45,14 +26,14 @@ export class ImportService {
    * Preview an import file
    */
   async previewFile(file: File, userId: string, logId?: string): Promise<PreviewResult> {
+    const id: string = logId || randomUUIDv7('base64url');
+
     if (!isValidImportFile(file.name)) {
-      return {
-        success: false,
-        error: `Invalid format. Accepted: ${ACCEPTED_IMPORT_EXTENSIONS.join(', ')}`
-      };
+      const error = `Invalid format. Accepted: ${ACCEPTED_IMPORT_EXTENSIONS.join(', ')}`;
+      await this.updateLogStatus(id, 'failed', [error]);
+      return { success: false, error };
     }
 
-    const id: string = logId || randomUUIDv7('base64url');
     await this.db.insert(importLogs).values({
       id,
       userId,
@@ -70,7 +51,7 @@ export class ImportService {
       const sheet = workbook.Sheets[sheetName];
 
       if (!sheet['!ref']) {
-        await this.updateLogStatus(logId, 'failed', ['Empty sheet']);
+        await this.updateLogStatus(id, 'failed', ['Empty sheet']);
         return { success: false, error: 'Empty sheet' };
       }
 
@@ -178,20 +159,29 @@ export class ImportService {
         await importCache.setProgress(id, {
           current: 0,
           total: totalRowsToProcess,
-          status: 'processing'
+          status: 'processing',
+          message: 'Starting import...'
         });
       }
 
       let consecutiveEmpty = 0;
+      let lastUpdate = Date.now();
 
       for (let excelRow = startRow; excelRow <= range.e.r + 1; excelRow++) {
-        if (excelRow % 10 === 0 && isRedisAvailable()) {
-          await importCache.setProgress(id, {
-            current: excelRow - startRow,
-            total: totalRowsToProcess,
-            status: 'processing',
-            errors: errors.length > 0 ? errors.slice(-5) : undefined
-          });
+        // Throttled Redis updates (max once per second) to prevent rate limiting
+        const now = Date.now();
+        if (now - lastUpdate > 1000 && isRedisAvailable()) {
+          lastUpdate = now;
+          // Fire-and-forget Redis update to avoid blocking import loop
+          importCache
+            .setProgress(id, {
+              current: excelRow - startRow,
+              total: totalRowsToProcess,
+              status: 'processing',
+              message: `Processing row ${excelRow} / ${range.e.r + 1}...`,
+              errors: errors.length > 0 ? errors.slice(-5) : undefined
+            })
+            .catch((err) => console.error('[Import] Redis update failed', err));
         }
 
         if (excelRow > 10000 || consecutiveEmpty > 20) break;
@@ -257,7 +247,11 @@ export class ImportService {
           current: totalRowsToProcess,
           total: totalRowsToProcess,
           status: 'success',
-          errors: errors.length > 0 ? errors : undefined
+          message: 'Import completed successfully',
+          result: {
+            imported: newDebts.length,
+            errors: errors.length > 0 ? errors : undefined
+          }
         });
       }
 
@@ -273,6 +267,69 @@ export class ImportService {
       }
       return { success: false, error: String(err) };
     }
+  }
+
+  /**
+   * Get progress for multiple logs (Batch)
+   * Optimization to reduce HTTP/JWT overhead
+   */
+  async getProgressBatch(
+    logIds: string[],
+    userId: string
+  ): Promise<Record<string, ProgressResult>> {
+    const results: Record<string, ProgressResult> = {};
+    if (logIds.length === 0) return results;
+
+    // 1. Try Redis first (fastest)
+    if (isRedisAvailable()) {
+      // TODO: Use MGET if available in redis plugin, but for now loop is fine as it's in-memory/local network usually
+      // The main overhead we want to save is HTTP/JWT, not necessarily Redis RTT (though MGET is better)
+      for (const id of logIds) {
+        const progress = await importCache.getProgress(id);
+        if (progress) {
+          results[id] = {
+            success: true,
+            ...progress,
+            percentage: Math.round((progress.current / progress.total) * 100),
+            result: progress.result
+          };
+        }
+      }
+    }
+
+    // 2. Fallback to DB for missing keys (older jobs)
+    const missingIds = logIds.filter((id) => !results[id]);
+    if (missingIds.length > 0) {
+      const logs = await this.db
+        .select()
+        .from(importLogs)
+        .where(
+          and(
+            // Use 'inArray' if available, or 'or(eq...)'
+            // Drizzle 'inArray' should be imported. Let's check imports.
+            // We have { users, debts, importLogs, eq, or, and, lte }
+            // We need 'inArray'. If not available, we can map to ORs
+            // or(eq(id, 1), eq(id, 2)...)
+            or(...missingIds.map((id) => eq(importLogs.id, id))),
+            eq(importLogs.userId, userId)
+          )
+        );
+
+      for (const log of logs) {
+        results[log.id] = {
+          success: true,
+          current: log.importedCount || 0,
+          total: log.totalRows || 0,
+          status: log.status,
+          errors: log.errors ? JSON.parse(log.errors) : undefined,
+          percentage: log.totalRows
+            ? Math.round(((log.importedCount || 0) / log.totalRows) * 100)
+            : 0
+        };
+      }
+    }
+
+    return results;
   }
 
   /**
@@ -340,12 +397,7 @@ export class ImportService {
         .select()
         .from(importLogs)
         .where(eq(importLogs.userId, userId))
-        .orderBy(importLogs.createdAt) // desc via sql or just sort in memory if needed, but sql is better.
-        // Wait, Drizzle order by desc needs 'desc(column)'
-        // Let's use simple .orderBy and rely on default or fix imports
-        // Actually, let's look at imports. We imported 'desc' from somewhere? No.
-        // We imported: { users, debts, importLogs, eq, or, and, lte } from '@repo/db';
-        // We need 'desc' from 'drizzle-orm'.
+        .orderBy(desc(importLogs.createdAt))
         .limit(limit)
         .offset(offset),
 
@@ -358,7 +410,7 @@ export class ImportService {
     // Let's check imports.
     return {
       success: true,
-      logs: logs.reverse(), // Simple hack for now if native desc is missing
+      logs: logs,
       total: total.length,
       page,
       limit,
@@ -470,11 +522,47 @@ export class ImportService {
   private async updateLogStatus(
     logId: string,
     status: 'pending' | 'processing' | 'success' | 'failed',
-    errors: string[]
+    errors: string[],
+    result?: unknown
   ): Promise<void> {
+    // Update DB
     await this.db
       .update(importLogs)
       .set({ status, errors: JSON.stringify(errors) })
       .where(eq(importLogs.id, logId));
+
+    // Update Redis
+    if (isRedisAvailable()) {
+      // Get existing progress to preserve counts if not provided?
+      // For simplicity, just update status/errors/result.
+      // If we are "success", we set current=total (or 100%).
+      // If "failed", we keep it.
+
+      const progress: any = {
+        status,
+        errors,
+        result
+      };
+
+      if (status === 'success') {
+        // Helper: assume completed if success
+        progress.current = 100;
+        progress.total = 100;
+      }
+
+      // We merge with existing progress if needed, but setProgress overwrites.
+      // Ideally we should get then set. But for status updates this is usually fine.
+      // Wait, let's read old progress first to safe counters?
+      // Actually, for preview, counters don't matter much. For import, they do.
+      // Let's rely on the caller to handle counters via separate calls if needed?
+      // Or just fetch-modify-set.
+
+      const old = await importCache.getProgress(logId);
+      await importCache.setProgress(logId, {
+        current: old?.current || 0,
+        total: old?.total || 0,
+        ...progress
+      });
+    }
   }
 }

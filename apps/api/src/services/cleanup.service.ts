@@ -4,19 +4,56 @@
  * Handles database cleanup operations for stale data.
  * Can be used by the API scheduler or standalone worker script.
  */
-import { db, importLogs, sessions, debts, users, eq, and, lte, ne, not, isNull } from '@repo/db';
+import {
+  db,
+  importLogs,
+  sessions,
+  debts,
+  users,
+  eq,
+  and,
+  or,
+  lte,
+  ne,
+  not,
+  isNull
+} from '@repo/db';
 import { log } from '../utils/logger';
 import { PushService } from './index';
 
-// Helper to format currency
-const formatVND = (amount: number) =>
-  new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0
-  }).format(amount);
+import { formatVND } from '@repo/utils';
 
 export const CleanupService = {
+  /**
+   * Cleanup stale processing logs (zombies > 1 hour)
+   * Marks them as failed instead of deleting, so user sees "Failed"
+   */
+  async cleanupStaleProcessingLogs(): Promise<{ updated: number }> {
+    try {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+      await db
+        .update(importLogs)
+        .set({
+          status: 'failed',
+          errors: JSON.stringify(['System: Job timed out (zombie worker)']),
+          completedAt: new Date()
+        })
+        .where(
+          and(
+            or(eq(importLogs.status, 'processing'), eq(importLogs.status, 'pending')),
+            lte(importLogs.createdAt, oneHourAgo)
+          )
+        );
+
+      log.info('CLEANUP', 'Marked stale processing logs as failed');
+      return { updated: 0 };
+    } catch (err) {
+      log.error('CLEANUP', 'Failed to clean processing logs', { error: String(err) });
+      return { updated: 0 };
+    }
+  },
+
   /**
    * Cleanup stale pending import logs (older than 24 hours)
    */
@@ -24,8 +61,7 @@ export const CleanupService = {
     try {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-      // Delete pending logs older than 24 hours
-      const result = await db
+      await db
         .delete(importLogs)
         .where(and(eq(importLogs.status, 'pending'), lte(importLogs.createdAt, oneDayAgo)));
 
@@ -127,7 +163,7 @@ export const CleanupService = {
                 url: `/debts/${debt.id}`
               });
             }
-          } catch (e) {
+          } catch (_e) {
             // Ignore notification failures
           }
         }
@@ -145,6 +181,7 @@ export const CleanupService = {
    */
   async runAll(): Promise<void> {
     log.info('CLEANUP', 'Starting cleanup tasks...');
+    await this.cleanupStaleProcessingLogs();
     await this.cleanupStalePendingLogs();
     await this.cleanupExpiredSessions();
     await this.expireUnconfirmedDebts();

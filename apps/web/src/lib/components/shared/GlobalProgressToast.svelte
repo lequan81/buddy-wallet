@@ -9,6 +9,7 @@
 	import AlertCircle from '~icons/lucide/alert-circle';
 	import FileSpreadsheet from '~icons/lucide/file-spreadsheet';
 	import ChevronDown from '~icons/lucide/chevron-down';
+	import ExternalLink from '~icons/lucide/external-link';
 	import ChevronUp from '~icons/lucide/chevron-up';
 
 	let expanded = $state(true);
@@ -30,7 +31,7 @@
 						<span class="text-sm font-medium">{processingCount} Processing</span>
 					{:else}
 						<CheckCircle class="h-4 w-4 text-green-500" />
-						<span class="text-sm font-medium">All Complete</span>
+						<span class="text-sm font-medium text-green-600 dark:text-green-400">All Complete</span>
 					{/if}
 				</div>
 				<div class="flex gap-1">
@@ -60,7 +61,17 @@
 			{#if expanded}
 				<div class="flex max-h-60 flex-col gap-2 overflow-y-auto p-2" transition:slide>
 					{#each jobs as job (job.jobId)}
-						<div class="flex items-start gap-3 rounded-lg border bg-background/50 p-2 text-sm">
+						<!-- svelte-ignore a11y_click_events_have_key_events -->
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div
+							class="flex items-start gap-3 rounded-lg border bg-background/50 p-2 text-sm transition-colors hover:bg-muted/50"
+							class:cursor-pointer={job.status === 'success' && job.type === 'preview'}
+							onclick={() => {
+								if (job.status === 'success' && job.type === 'preview') {
+									window.location.href = '/dashboard/import';
+								}
+							}}
+						>
 							<div class="mt-1">
 								<FileSpreadsheet class="h-4 w-4 text-muted-foreground" />
 							</div>
@@ -88,15 +99,32 @@
 								{/if}
 							</div>
 
-							<Button
-								variant="ghost"
-								size="icon"
-								class="-mt-1 -mr-1 h-6 w-6 text-muted-foreground hover:text-foreground"
-								disabled={job.status === 'processing' || job.status === 'pending'}
-								onclick={() => importProgress.removeJob(job.jobId)}
-							>
-								<X class="h-3 w-3" />
-							</Button>
+							<div class="-mt-1 -mr-1 flex gap-1">
+								{#if job.status === 'success' && job.type === 'preview'}
+									<Button
+										variant="ghost"
+										size="sm"
+										class="h-6 px-2 text-xs text-green-600 hover:bg-green-50 hover:text-green-700"
+										href="/dashboard/import"
+										onclick={(e) => e.stopPropagation()}
+									>
+										View
+										<ExternalLink class="ml-1 h-3 w-3" />
+									</Button>
+								{/if}
+								<Button
+									variant="ghost"
+									size="icon"
+									class="h-6 w-6 text-muted-foreground hover:text-foreground"
+									disabled={job.status === 'processing' || job.status === 'pending'}
+									onclick={(e) => {
+										e.stopPropagation();
+										importProgress.removeJob(job.jobId);
+									}}
+								>
+									<X class="h-3 w-3" />
+								</Button>
+							</div>
 						</div>
 					{/each}
 				</div>

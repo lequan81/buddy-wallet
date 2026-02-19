@@ -25,6 +25,7 @@
     "@repo/errors": "workspace:*",
     "@repo/permissions": "workspace:*",
     "@repo/types": "workspace:*",
+    "@repo/utils": "workspace:*",
     "@repo/validation": "workspace:*",
     "@repo/email-templates": "workspace:*",
     "@upyo/core": "^0.4.0",

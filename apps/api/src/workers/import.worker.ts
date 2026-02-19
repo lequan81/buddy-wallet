@@ -3,8 +3,12 @@ import { ImportService } from '../services/import.service';
 import { initRedis } from '../plugins/redis/connection';
 
 // Initialize Redis for this worker thread
+console.log(`[Worker] Starting initialization...`);
+const initStart = performance.now();
+
 // We await this at the top level to ensure readiness
 await initRedis();
+console.log(`[Worker] Redis initialized in ${(performance.now() - initStart).toFixed(2)}ms`);
 
 // Instantiate service with thread-local DB connection
 const service = new ImportService(db);

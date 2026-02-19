@@ -6,7 +6,7 @@
  * Implements IAuthService interface for LSP compliance.
  */
 import { randomUUIDv7 } from 'bun';
-import { users, sessions, debts, eq, and, or, isNull, ne, gte } from '@repo/db';
+import { users, sessions, debts, eq, and, or, isNull, ne } from '@repo/db';
 import { DEFAULT_USER_PERMISSIONS } from '@repo/permissions';
 import { configs } from '../configs';
 import {
@@ -19,7 +19,7 @@ import {
   isCommonPassword,
   toSafeUser
 } from '../utils';
-import type { DbClient, JwtService } from '../types';
+import type { DbClient } from '../types';
 import type { RegisterInput, LoginInput, AuthResult } from '../types';
 import type { IAuthService } from '../types';
 import { EmailService, EmailVerificationService } from './index';

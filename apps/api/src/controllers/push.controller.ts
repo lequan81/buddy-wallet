@@ -4,7 +4,7 @@
  * Handles Web Push subscription management and notification sending.
  */
 import { Elysia, t } from 'elysia';
-import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
+import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { permissionPlugin } from '../plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
 import { PushService } from '../services';
@@ -131,7 +131,7 @@ export const PushController = new Elysia({ prefix: '/push' })
   .use(broadcastRateLimiter) // Rate limit: 1 broadcast per minute
   .post(
     '/broadcast',
-    async ({ body, set }) => {
+    async ({ body }) => {
       const result = await PushService.broadcast({
         title: body.title,
         body: body.body,

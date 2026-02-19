@@ -92,7 +92,7 @@ export const app = new Elysia()
     status: 'running',
     docs: '/health'
   }))
-  .get('/health', async ({ headers, set }) => {
+  .get('/health', async () => {
     // Basic health check
     const base = {
       status: 'ok',

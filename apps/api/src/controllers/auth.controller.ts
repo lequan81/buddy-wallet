@@ -301,7 +301,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
       let currentSessionId: string | null = null;
       const refreshToken = cookie.refresh_token.value as string;
       if (refreshToken) {
-        const refreshTokenHash = await hashToken(refreshToken);
+        await hashToken(refreshToken);
         const { sessions } = await SessionService.getUserSessions(user.id);
         // Find matching session (simplified)
         currentSessionId = sessions[0]?.id || null;

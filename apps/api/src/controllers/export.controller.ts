@@ -17,7 +17,7 @@ export const ExportController = new Elysia({ prefix: '/export' })
 
   // Export user's own debts
   .get('/debts', async ({ user, set, query }) => {
-    const format = ((query as any)?.format || 'xlsx') as ExportFormat;
+    const format = ((query as Record<string, unknown>)?.format || 'xlsx') as ExportFormat;
 
     const result = await ExportService.exportUserDebts(user!.id, format);
 
@@ -39,7 +39,7 @@ export const ExportController = new Elysia({ prefix: '/export' })
       return errorResponse(GEN_ERRORS.FORBIDDEN, 'Admin access required');
     }
 
-    const format = ((query as any)?.format || 'xlsx') as ExportFormat;
+    const format = ((query as Record<string, unknown>)?.format || 'xlsx') as ExportFormat;
 
     const result = await ExportService.exportAllDebts(format);
 

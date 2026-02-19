@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Badge } from '@repo/ui/components/ui/badge';
@@ -177,7 +177,7 @@
 		const formData = new FormData();
 		formData.append('file', uploadFile[0]);
 
-		const res = await apiFetch(`/upload/payment-proof/${data.debt.id}`, {
+		const res = await apiFetch(`/v1/upload/payment-proof/${data.debt.id}`, {
 			method: 'POST',
 			body: formData
 			// Don't set Content-Type header, browser sets it with boundary
@@ -195,7 +195,7 @@
 	}
 
 	async function approveProof(proofId: string) {
-		const res = await apiFetch(`/upload/proof/${proofId}/approve`, { method: 'POST' });
+		const res = await apiFetch(`/v1/upload/proof/${proofId}/approve`, { method: 'POST' });
 		if (!res.error) {
 			invalidateAll();
 			// Show "Mark as Paid" modal if all proofs are now approved
@@ -211,7 +211,7 @@
 		const reason = prompt('Enter rejection reason:');
 		if (reason === null) return;
 
-		const res = await apiFetch(`/upload/proof/${proofId}/reject`, {
+		const res = await apiFetch(`/v1/upload/proof/${proofId}/reject`, {
 			method: 'POST',
 			body: JSON.stringify({ reason })
 		});
@@ -227,7 +227,7 @@
 		}
 
 		isSuggesting = true;
-		const res = await apiFetch(`/debts/${data.debt.id}/suggest`, {
+		const res = await apiFetch(`/v1/debts/${data.debt.id}/suggest`, {
 			method: 'POST',
 			body: JSON.stringify({
 				amount: suggestAmount ? Number(suggestAmount) : undefined,
@@ -248,7 +248,7 @@
 	}
 
 	async function respondToSuggestion(accept: boolean) {
-		const res = await apiFetch(`/debts/${data.debt.id}/suggestion/respond`, {
+		const res = await apiFetch(`/v1/debts/${data.debt.id}/suggestion/respond`, {
 			method: 'POST',
 			body: JSON.stringify({ accept })
 		});

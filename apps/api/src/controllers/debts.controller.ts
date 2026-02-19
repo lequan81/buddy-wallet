@@ -120,7 +120,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Create new debt
   .post(
     '/',
-    async ({ user, body, set, request }) => {
+    async ({ user, body, set }) => {
       // SECURITY FIX 2: Get fresh user data from database (bypassing cache)
       // This ensures phoneNumber is from authoritative source
       const freshUser = await getUserWithFreshData(user!.id);
@@ -157,7 +157,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
             success: false,
             error: result.error,
             code: result.code,
-            duplicates: (result as any).duplicates
+            duplicates: (result as unknown as { duplicates: unknown[] }).duplicates
           };
         }
         set.status = 400;
@@ -184,7 +184,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Update debt status
   .patch(
     '/:id/status',
-    async ({ user, params: { id }, body, set, request }) => {
+    async ({ user, params: { id }, body, set }) => {
       // SECURITY FIX 2: Get fresh user data from database (bypassing cache)
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
@@ -229,7 +229,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Update debt details (description/amount)
   .put(
     '/:id',
-    async ({ user, params: { id }, body, set, request }) => {
+    async ({ user, params: { id }, body, set }) => {
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
@@ -353,7 +353,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Delete single debt (soft delete)
   .delete(
     '/:id',
-    async ({ user, params: { id }, set, request }) => {
+    async ({ user, params: { id }, set }) => {
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
@@ -389,7 +389,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Confirm debt by counterparty
   .post(
     '/:id/confirm',
-    async ({ user, params: { id }, set, request }) => {
+    async ({ user, params: { id }, set }) => {
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;

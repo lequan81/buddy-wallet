@@ -12,6 +12,9 @@ export * from '@repo/types';
 
 // Service Types
 export * from './services/common';
+export * from './services/import';
+export * from './services/vietqr';
+export * from './services/jobs';
 // Services are now in @repo/types
 
 // Debt State Types (OCP) - Dedicated location

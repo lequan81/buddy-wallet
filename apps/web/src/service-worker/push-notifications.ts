@@ -13,6 +13,11 @@
 // Cast self to ServiceWorkerGlobalScope for proper typing
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
+// Backend API base URL (injected at build time via Vite; use Bun/env for the app)
+const API_BASE =
+	(typeof import.meta !== 'undefined' && (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL) ||
+	'';
+
 // Default notification configuration
 const DEFAULT_NOTIFICATION = {
 	title: 'Buddy Wallet',
@@ -123,28 +128,9 @@ sw.addEventListener('notificationclick', (event) => {
 	);
 });
 
-// Handle notification close (for analytics/tracking)
-sw.addEventListener('notificationclose', (event) => {
-	const notification = event.notification;
-	const notificationData = notification.data || {};
-
-	// Optionally send analytics event
-	// This can be used to track notification engagement
-	if (notificationData.trackClose) {
-		event.waitUntil(
-			fetch('/api/v1/notifications/track', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					action: 'close',
-					notificationId: notification.tag,
-					timestamp: Date.now()
-				})
-			}).catch(() => {
-				// Silently fail if tracking fails
-			})
-		);
-	}
+// Handle notification close (no proxy; backend has no notifications/track route)
+sw.addEventListener('notificationclose', () => {
+	// Optional: track close via backend when/if that endpoint exists
 });
 
 // ============================================
@@ -197,8 +183,13 @@ sw.addEventListener('pushsubscriptionchange', ((event: Event) => {
 					return;
 				}
 
-				// Send new subscription to server
-				const response = await fetch('/api/v1/push/subscribe', {
+				// Send new subscription to backend API directly (no proxy)
+				const url = API_BASE ? `${API_BASE.replace(/\/$/, '')}/v1/push/subscribe` : '';
+				if (!url) {
+					console.warn('[SW] VITE_API_URL not set; cannot update push subscription');
+					return;
+				}
+				const response = await fetch(url, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json'
@@ -210,7 +201,6 @@ sw.addEventListener('pushsubscriptionchange', ((event: Event) => {
 							p256dh: arrayBufferToBase64(p256dhKey),
 							auth: arrayBufferToBase64(authKey)
 						},
-						// Include old subscription if available for server-side cleanup
 						oldEndpoint: extendableEvent.oldSubscription?.endpoint
 					})
 				});

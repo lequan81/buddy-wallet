@@ -5,8 +5,14 @@
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Separator } from '@repo/ui/components/ui/separator';
-	import * as Dialog from '@repo/ui/components/ui/dialog';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
+	// Icons
+	import IconLucidePlus from '~icons/lucide/plus';
+	import IconLucideLandmark from '~icons/lucide/landmark';
+	import IconLucideTrash2 from '~icons/lucide/trash-2';
+	import IconLucidePencil from '~icons/lucide/pencil';
 
 	let { data, form } = $props();
 
@@ -107,18 +113,48 @@
 		accountNameMessage = 'Account name looks good';
 	});
 
+	// Edit state
+	let isEditing = $state(false);
+	let editingId = $state('');
+
+	// Delete state
+	let deleteId = $state('');
+	let isDeleting = $state(false);
+
 	// Reset form when dialog closes
 	$effect(() => {
-		if (!isAdding) {
+		if (!isAdding && !isEditing) {
 			accountNumber = '';
 			accountName = '';
 			selectedBankCode = '';
+			editingId = '';
 			accountNumberValidation = 'default';
 			accountNumberMessage = '';
 			accountNameValidation = 'default';
 			accountNameMessage = '';
 		}
 	});
+
+	function startEdit(account: any) {
+		isEditing = true;
+		editingId = account.id;
+		accountNumber = account.accountNumber;
+		accountName = account.accountName;
+
+		// Find bank code by name/bin (since we might not have code stored directly if it changed)
+		// Usually we store bankName/bin. Let's try to match by bin first.
+		const bank = banks.find((b: any) => b.bin === account.bankBin);
+		if (bank) {
+			selectedBankCode = bank.code;
+		} else {
+			// Fallback or handle error?
+			selectedBankCode = '';
+		}
+
+		// Validate immediately
+		accountNumberValidation = 'success';
+		accountNameValidation = 'success';
+	}
 </script>
 
 <div class="space-y-6">
@@ -127,24 +163,33 @@
 			<h3 class="text-lg font-medium">Bank Accounts</h3>
 			<p class="text-sm text-muted-foreground">Manage your bank accounts for receiving payments.</p>
 		</div>
-		<Dialog.Root open={isAdding} onOpenChange={(open: boolean) => (isAdding = open)}>
-			<Dialog.Trigger>
-				<Button size="sm">
-					<IconLucidePlus class="mr-2 h-4 w-4" />
-					Add Account
-				</Button>
-			</Dialog.Trigger>
+		<Button size="sm" onclick={() => (isAdding = true)}>
+			<IconLucidePlus class="mr-2 h-4 w-4" />
+			Add Account
+		</Button>
+
+		<Dialog.Root
+			open={isAdding || isEditing}
+			onOpenChange={(open: boolean) => {
+				if (!open) {
+					isAdding = false;
+					isEditing = false;
+				}
+			}}
+		>
 			<Dialog.Content class="sm:max-w-md">
 				<Dialog.Header>
-					<Dialog.Title>Add Bank Account</Dialog.Title>
+					<Dialog.Title>{isEditing ? 'Edit Bank Account' : 'Add Bank Account'}</Dialog.Title>
 					<Dialog.Description>
-						Enter your bank details to receive payments via VietQR.
+						{isEditing
+							? 'Update your bank account details.'
+							: 'Enter your bank details to receive payments via VietQR.'}
 					</Dialog.Description>
 				</Dialog.Header>
 
 				<form
 					method="POST"
-					action="?/add"
+					action={isEditing ? '?/edit' : '?/add'}
 					use:enhance={() => {
 						isSubmitting = true;
 						return async ({ update, result }) => {
@@ -152,12 +197,16 @@
 							isSubmitting = false;
 							if (result.type === 'success') {
 								isAdding = false;
+								isEditing = false;
 								selectedBankCode = '';
 							}
 						};
 					}}
 					class="grid gap-4 py-4"
 				>
+					{#if isEditing}
+						<input type="hidden" name="id" value={editingId} />
+					{/if}
 					<div class="grid gap-2">
 						<Label>Bank</Label>
 						<select
@@ -233,7 +282,13 @@
 								accountNumber === '' ||
 								accountName === ''}
 						>
-							{isSubmitting ? 'Adding...' : 'Add Account'}
+							{isSubmitting
+								? isEditing
+									? 'Updating...'
+									: 'Adding...'
+								: isEditing
+									? 'Update Account'
+									: 'Add Account'}
 						</Button>
 					</Dialog.Footer>
 				</form>
@@ -280,24 +335,69 @@
 								</p>
 							</div>
 						</div>
-						<form
-							method="POST"
-							action="?/delete"
-							use:enhance={() => {
-								return async ({ update }) => {
-									await update();
-								};
-							}}
-						>
-							<input type="hidden" name="id" value={account.id} />
+						<div class="flex items-center gap-1">
 							<Button
 								variant="ghost"
 								size="icon"
-								class="text-muted-foreground hover:text-destructive"
+								class="text-muted-foreground hover:text-foreground"
+								onclick={() => startEdit(account)}
 							>
-								<IconLucideTrash2 class="h-4 w-4" />
+								<IconLucidePencil class="h-4 w-4" />
 							</Button>
-						</form>
+
+							<AlertDialog.Root
+								open={deleteId === account.id}
+								onOpenChange={(open) => {
+									if (!open) deleteId = '';
+								}}
+							>
+								<AlertDialog.Trigger>
+									{#snippet child({ props }: { props: Record<string, any> })}
+										<Button
+											variant="ghost"
+											size="icon"
+											class="text-muted-foreground hover:text-destructive"
+											onclick={() => (deleteId = account.id)}
+											{...props}
+										>
+											<IconLucideTrash2 class="h-4 w-4" />
+										</Button>
+									{/snippet}
+								</AlertDialog.Trigger>
+								<AlertDialog.Content>
+									<AlertDialog.Header>
+										<AlertDialog.Title>Delete Bank Account</AlertDialog.Title>
+										<AlertDialog.Description>
+											Are you sure you want to delete this bank account? This action cannot be
+											undone.
+										</AlertDialog.Description>
+									</AlertDialog.Header>
+									<AlertDialog.Footer>
+										<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+										<form
+											method="POST"
+											action="?/delete"
+											use:enhance={() => {
+												isDeleting = true;
+												return async ({ update }) => {
+													await update();
+													isDeleting = false;
+													deleteId = '';
+												};
+											}}
+										>
+											<input type="hidden" name="id" value={account.id} />
+											<AlertDialog.Action
+												type="submit"
+												class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+											>
+												{isDeleting ? 'Deleting...' : 'Delete'}
+											</AlertDialog.Action>
+										</form>
+									</AlertDialog.Footer>
+								</AlertDialog.Content>
+							</AlertDialog.Root>
+						</div>
 					</div>
 				</Card.Root>
 			{/each}

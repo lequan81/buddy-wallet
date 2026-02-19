@@ -1,4 +1,5 @@
 import { SvelteMap } from 'svelte/reactivity';
+import { apiFetch } from '$lib/api';
 
 export interface ImportJob {
 	jobId: string;
@@ -10,14 +11,33 @@ export interface ImportJob {
 		total: number;
 		percentage: number;
 	};
-	result?: any;
+	result?: unknown;
 	error?: string;
+	message?: string;
 	pollInterval?: Timer;
+}
+
+interface ProgressResponse {
+	success: boolean;
+	current?: number;
+	total?: number;
+	status: 'pending' | 'processing' | 'success' | 'failed';
+	result?: unknown;
+	errors?: string[];
+	message?: string;
+	percentage?: number;
 }
 
 class ImportProgressStore {
 	// Use Svelte 5 Map for reactivity
 	activeJobs = new SvelteMap<string, ImportJob>();
+	private pollingTimer: Timer | undefined;
+
+	constructor() {
+		if (typeof window !== 'undefined') {
+			this.startGlobalPoller();
+		}
+	}
 
 	addJob(jobId: string, type: 'preview' | 'import', fileName: string) {
 		this.activeJobs.set(jobId, {
@@ -27,71 +47,63 @@ class ImportProgressStore {
 			status: 'pending',
 			progress: { current: 0, total: 0, percentage: 0 }
 		});
-		this.startPolling(jobId);
+		// No need to start individual polling anymore
 	}
 
-	private startPolling(jobId: string) {
-		// Poll every 1s
-		const interval = setInterval(async () => {
-			try {
-				const res = await fetch(`/api/import/progress/${jobId}`);
-				if (!res.ok) {
-					if (res.status === 404) return; // Job might not be ready in Redis yet
-					return;
+	private startGlobalPoller() {
+		// Poll every 4s for ALL active jobs
+		// This reduces N requests to 1 request
+		this.pollingTimer = setInterval(async () => {
+			if (this.activeJobs.size === 0) return;
+
+			// Filter only pending/processing jobs
+			const jobsToPoll: string[] = [];
+			for (const [id, job] of this.activeJobs) {
+				if (job.status === 'pending' || job.status === 'processing') {
+					jobsToPoll.push(id);
 				}
-
-				const data = await res.json();
-				if (!data.success) return;
-
-				const job = this.activeJobs.get(jobId);
-				if (!job) {
-					clearInterval(interval);
-					return;
-				}
-
-				// Update job state
-				job.status = data.status;
-				job.progress = {
-					current: data.current || 0,
-					total: data.total || 0,
-					percentage: data.percentage || 0
-				};
-
-				if (data.status === 'success') {
-					job.result = data; // Store result/preview data
-					this.stopPolling(jobId);
-				} else if (data.status === 'failed') {
-					job.error = data.errors ? JSON.stringify(data.errors) : 'Unknown error';
-					this.stopPolling(jobId);
-				}
-
-				// Trigger reactivity update (Map.set might differ in behavior depending on exact svelte version,
-				// but modifying the object inside the reactive map usually works in Runes if the object properties are also proxied
-				// or if we re-set. Re-setting is safest.)
-				this.activeJobs.set(jobId, job);
-			} catch (err) {
-				console.error('Polling error:', err);
 			}
-		}, 1000);
 
-		const job = this.activeJobs.get(jobId);
-		if (job) {
-			job.pollInterval = interval;
-			this.activeJobs.set(jobId, job);
-		}
-	}
+			if (jobsToPoll.length === 0) return;
 
-	stopPolling(jobId: string) {
-		const job = this.activeJobs.get(jobId);
-		if (job?.pollInterval) {
-			clearInterval(job.pollInterval);
-			job.pollInterval = undefined;
-			this.activeJobs.set(jobId, job);
-		}
+			try {
+				const { data } = await apiFetch<Record<string, ProgressResponse>>(
+					'/v1/import/progress-batch',
+					{
+						method: 'POST',
+						body: JSON.stringify({ logIds: jobsToPoll })
+					}
+				);
+
+				if (!data) return;
+
+				for (const [id, result] of Object.entries(data)) {
+					const job = this.activeJobs.get(id);
+					if (job) {
+						job.status = result.status;
+						job.progress = {
+							current: result.current || 0,
+							total: result.total || 0,
+							percentage: result.percentage || 0
+						};
+						job.message = result.message;
+
+						if (result.status === 'success') {
+							job.result = result.result;
+						} else if (result.status === 'failed') {
+							job.error = result.errors ? JSON.stringify(result.errors) : 'Unknown error';
+						}
+
+						this.activeJobs.set(id, job);
+					}
+				}
+			} catch (err) {
+				console.error('Batch polling error:', err);
+			}
+		}, 4000);
 	}
 
 	removeJob(jobId: string) {
-		this.stopPolling(jobId);
 		this.activeJobs.delete(jobId);
 	}
 

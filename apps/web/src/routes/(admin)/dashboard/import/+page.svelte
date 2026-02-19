@@ -68,6 +68,25 @@
 
 	let hasPreview = $derived(previewData.length > 0);
 
+	// Restore state from global store if available
+	$effect(() => {
+		// Find most recent relevant job
+		// We track 'currentJobId' locally, but if it's empty (reload/nav), check store
+		if (!currentJobId) {
+			const jobs = Array.from(importProgress.activeJobs.values());
+			// Find last preview job that is successful
+			const recentPreview = jobs
+				.reverse()
+				.find((j) => j.type === 'preview' && j.status === 'success' && j.result);
+
+			if (recentPreview && recentPreview.result) {
+				// Restore it!
+				currentJobId = recentPreview.jobId;
+				// The main effect will pick up 'currentJob' change and hydrate the UI
+			}
+		}
+	});
+
 	// React to job completion
 	$effect(() => {
 		if (currentJob?.status === 'success' && currentJob.result) {
@@ -87,13 +106,7 @@
 					columnMapping = { ...current, ...res.autoMapping };
 				}
 
-				// Clear job from global toast so it doesn't linger
-				// importProgress.removeJob(currentJobId);
-				// actually, let's keep it until user dismisses or we start new one?
-				// For preview, maybe better to remove it automatically or just let it be.
-				// Let's remove it to keep UI clean
-				importProgress.removeJob(currentJobId);
-				currentJobId = '';
+				// Do NOT remove job - let it stay in global toast for feedback
 			} else if (currentJob.type === 'import') {
 				isSubmitting = false;
 				const count = res.imported;
@@ -106,13 +119,12 @@
 				}
 
 				resetForm();
-				// Keep import job in toast so user can see result
 			}
 		} else if (currentJob?.status === 'failed') {
 			isAnalyzing = false;
 			isSubmitting = false;
 			toast.error(currentJob.error || 'Operation failed');
-			// importProgress.removeJob(currentJobId);
+			// Do NOT remove job - let user see error
 		}
 	});
 
@@ -160,11 +172,18 @@
 
 	<Card.Root>
 		<Card.Header>
-			<Card.Title class="flex items-center gap-2">
-				<IconLucideFileSpreadsheet class="h-5 w-5" />
-				Import Debts from Excel
-			</Card.Title>
-			<Card.Description>Upload an Excel file and configure column mapping.</Card.Description>
+			<div class="flex items-center justify-between">
+				<div class="space-y-1">
+					<Card.Title class="flex items-center gap-2">
+						<IconLucideFileSpreadsheet class="h-5 w-5" />
+						Import Debts from Excel
+					</Card.Title>
+					<Card.Description>Upload an Excel file and configure column mapping.</Card.Description>
+				</div>
+				<Button variant="outline" size="sm" href="/dashboard/import/tasks">
+					<IconLucideClock class="mr-2 h-4 w-4" /> History
+				</Button>
+			</div>
 		</Card.Header>
 		<Card.Content class="space-y-6">
 			<form

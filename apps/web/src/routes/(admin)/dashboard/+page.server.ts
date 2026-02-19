@@ -58,6 +58,32 @@ export const load: PageServerLoad = async ({ fetch, locals, parent, url }) => {
 };
 
 export const actions: Actions = {
+	exportDebts: async ({ locals, fetch }) => {
+		if (!locals.user || !locals.accessToken) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+		const headers = getAuthHeaders(locals.accessToken);
+		const res = await fetch(`${API_URL}/v1/export/debts`, { headers });
+		if (!res.ok) {
+			const data = await res.json().catch(() => ({}));
+			return fail(res.status, {
+				error: (data?.message ?? data?.error) || 'Export failed'
+			});
+		}
+		const contentType =
+			res.headers.get('Content-Type') ?? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+		const contentDisposition =
+			res.headers.get('Content-Disposition') ?? 'attachment; filename="debts.xlsx"';
+		const buffer = await res.arrayBuffer();
+		return new Response(buffer, {
+			status: 200,
+			headers: {
+				'Content-Type': contentType,
+				'Content-Disposition': contentDisposition
+			}
+		});
+	},
+
 	batchDelete: async ({ locals, fetch, request }) => {
 		if (!locals.user) {
 			return fail(401, { error: 'Unauthorized' });
@@ -99,6 +125,34 @@ export const actions: Actions = {
 
 		const result = await response.json();
 		return { success: true, deleted: result.data?.deleted || ids.length };
+	},
+
+	delete: async ({ locals, fetch, request }) => {
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
+		const formData = await request.formData();
+		const id = formData.get('id') as string;
+
+		if (!id) {
+			return fail(400, { error: 'No debt selected' });
+		}
+
+		const headers = getAuthHeaders(locals.accessToken);
+
+		const response = await fetch(`${API_URL}/v1/debts/${id}`, {
+			method: 'DELETE',
+			headers
+		});
+
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			const errorMsg = data.error?.message || data.error?.details || 'Failed to delete debt';
+			return fail(response.status, { error: errorMsg });
+		}
+
+		return { success: true, deleted: 1 };
 	},
 
 	deleteAll: async ({ locals, fetch }) => {

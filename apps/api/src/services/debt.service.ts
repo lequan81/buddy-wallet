@@ -6,7 +6,7 @@
  * Implements IDebtService interface for LSP compliance.
  * Uses State Machine pattern for status transitions (OCP compliance).
  */
-import { debts, users, eq, or, and, ne, gte, desc, count, type Debt } from '@repo/db';
+import { debts, users, eq, or, and, ne, gte, desc, count, isNull, type Debt } from '@repo/db';
 import { hasPermission, PERMISSIONS } from '@repo/permissions';
 import { normalizePhoneNumber } from '../utils/phone';
 // import { configs } from '../configs'; // Deprecated local config usage for limits
@@ -104,7 +104,9 @@ export class DebtService implements IDebtService {
           gte(debts.amount, amount - amountRange),
           // amount <= (amount + amountRange) - handled client side
           gte(debts.createdAt, sevenDaysAgo),
-          ne(debts.status, 'cancelled')
+          gte(debts.createdAt, sevenDaysAgo),
+          ne(debts.status, 'cancelled'),
+          isNull(debts.deletedAt)
         )
       )
       .all();
@@ -133,6 +135,11 @@ export class DebtService implements IDebtService {
       const statusCondition = eq(debts.status, status);
       whereCondition = whereCondition ? and(whereCondition, statusCondition) : statusCondition;
     }
+
+    // Exclude soft-deleted debts
+    whereCondition = whereCondition
+      ? and(whereCondition, isNull(debts.deletedAt))
+      : isNull(debts.deletedAt);
 
     // Get total count
     const countResult = whereCondition
@@ -166,6 +173,9 @@ export class DebtService implements IDebtService {
       whereCondition = and(whereCondition, eq(debts.status, status)) as typeof whereCondition;
     }
 
+    // Exclude soft-deleted debts
+    whereCondition = and(whereCondition, isNull(debts.deletedAt)) as typeof whereCondition;
+
     const countResult = this.db.select({ count: count() }).from(debts).where(whereCondition!).get();
     const total = countResult?.count ?? 0;
 
@@ -192,7 +202,8 @@ export class DebtService implements IDebtService {
       .where(
         and(
           or(eq(debts.debtorPhone, phone), eq(debts.creditorPhone, phone)),
-          and(ne(debts.status, 'paid'), ne(debts.status, 'cancelled'))
+          and(ne(debts.status, 'paid'), ne(debts.status, 'cancelled')),
+          isNull(debts.deletedAt)
         )
       )
       .all();
@@ -205,7 +216,7 @@ export class DebtService implements IDebtService {
    */
   async getDebtById(debtId: string) {
     return this.db.query.debts.findFirst({
-      where: eq(debts.id, debtId)
+      where: and(eq(debts.id, debtId), isNull(debts.deletedAt))
     });
   }
 

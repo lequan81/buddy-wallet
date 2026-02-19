@@ -1,3 +1,4 @@
+import path from 'path';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
@@ -114,7 +115,10 @@ export default defineConfig({
 		noExternal: ['@repo/ui']
 	},
 	resolve: {
-		dedupe: ['svelte']
+		dedupe: ['svelte'],
+		alias: {
+			'@repo/ui/lib/utils.js': path.resolve(__dirname, '../../packages/ui/src/lib/utils.ts')
+		}
 	},
 	cacheDir: '.vite',
 	server: {

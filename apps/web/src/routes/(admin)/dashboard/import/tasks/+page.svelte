@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
+	import { apiFetch } from '$lib/api';
 	import * as Card from '@repo/ui/components/ui/card';
 	import * as Table from '@repo/ui/components/ui/table';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Badge } from '@repo/ui/components/ui/badge';
 	import * as Dialog from '@repo/ui/components/ui/dialog';
+	import { Progress } from '@repo/ui/components/ui/progress';
+	import { importProgress } from '$lib/stores/import-progress.svelte';
 	import { toast } from 'svelte-sonner';
 
 	import FileSpreadsheet from '~icons/lucide/file-spreadsheet';
@@ -16,6 +19,7 @@
 	import ChevronLeft from '~icons/lucide/chevron-left';
 	import ChevronRight from '~icons/lucide/chevron-right';
 	import Eye from '~icons/lucide/eye';
+	import Trash2 from '~icons/lucide/trash-2';
 
 	// Types
 	interface ImportLog {
@@ -48,18 +52,30 @@
 	let showDetails = $state(false);
 
 	async function fetchLogs(p: number = 1) {
+		console.log('[Import] Fetching logs page', p);
 		loading = true;
 		try {
-			const res = await fetch(`/api/import/logs?page=${p}&limit=10`);
-			if (res.ok) {
-				const data: LogsResponse = await res.json();
-				if (data.success) {
-					logs = data.logs;
-					page = data.page;
-					totalPages = data.totalPages;
-				}
+			const res = await apiFetch<LogsResponse>(`/v1/import/logs?page=${p}&limit=10`);
+			if (res.error || !res.data) {
+				toast.error(res.error ?? 'Failed to load import history');
 			} else {
-				toast.error('Failed to load import history');
+				const payload = res.data;
+				logs = payload.logs ?? [];
+				page = payload.page ?? p;
+				totalPages = payload.totalPages ?? 1;
+
+				// Start polling for any processing logs (if < 1 hour old)
+				const oneHourAgo = Date.now() - 60 * 60 * 1000;
+				for (const log of logs) {
+					if (log.status === 'processing' || log.status === 'pending') {
+						const logTime = new Date(log.createdAt).getTime();
+						if (logTime > oneHourAgo) {
+							if (!importProgress.getJob(log.id)) {
+								importProgress.addJob(log.id, 'import', log.fileName);
+							}
+						}
+					}
+				}
 			}
 		} catch (err) {
 			console.error(err);
@@ -94,16 +110,35 @@
 		selectedLog = log;
 		showDetails = true;
 	}
+	async function clearHistory() {
+		if (!confirm('This will clear stuck/pending jobs. Continue?')) return;
+		loading = true;
+		try {
+			const res = await apiFetch('/v1/import/cleanup', { method: 'DELETE' });
+			if (res.error) {
+				toast.error(res.error);
+			} else {
+				toast.success('Cleanup completed');
+				await fetchLogs(); // Refresh list
+			}
+		} catch (err) {
+			toast.error('Failed to cleanup');
+		} finally {
+			loading = false;
+		}
+	}
 </script>
 
 <div class="container max-w-5xl space-y-6 py-10">
-	<div class="flex items-center gap-4">
-		<Button variant="ghost" href="/dashboard/import" size="icon">
-			<ArrowLeft class="h-4 w-4" />
-		</Button>
-		<div>
-			<h1 class="text-2xl font-bold tracking-tight">Import History</h1>
-			<p class="text-muted-foreground">View status and details of past import jobs.</p>
+	<div class="flex items-center justify-between">
+		<div class="flex items-center gap-4">
+			<Button variant="ghost" href="/dashboard/import" size="icon">
+				<ArrowLeft class="h-4 w-4" />
+			</Button>
+			<div>
+				<h1 class="text-2xl font-bold tracking-tight">Import History</h1>
+				<p class="text-muted-foreground">View status and details of past import jobs.</p>
+			</div>
 		</div>
 	</div>
 
@@ -148,18 +183,40 @@
 										</Badge>
 									</Table.Cell>
 									<Table.Cell>
-										<div class="text-sm">
-											{#if log.status === 'success'}
-												<span class="text-green-600 dark:text-green-400">{log.importedCount}</span>
-												/ {log.totalRows}
+										{@const activeJob = importProgress.activeJobs.get(log.id)}
+										<div class="flex flex-col gap-2 text-sm">
+											{#if activeJob && (activeJob.status === 'processing' || activeJob.status === 'pending')}
+												<div class="space-y-1">
+													<div
+														class="flex items-center justify-between text-xs text-muted-foreground"
+													>
+														<span>{activeJob.status}</span>
+														<span>{Math.round(activeJob.progress.percentage)}%</span>
+													</div>
+													<Progress value={activeJob.progress.percentage} max={100} class="h-2" />
+													{#if activeJob.message}
+														<p
+															class="max-w-50 truncate text-xs text-muted-foreground"
+															title={activeJob.message}
+														>
+															{activeJob.message}
+														</p>
+													{/if}
+												</div>
+											{:else if log.status === 'success'}
+												<div>
+													<span class="text-green-600 dark:text-green-400">{log.importedCount}</span
+													>
+													/ {log.totalRows}
+												</div>
 											{:else if log.status === 'failed'}
 												<span class="text-destructive">Failed</span>
 											{:else}
-												Processing...
+												<span>{log.status}</span>
 											{/if}
 										</div>
 										{#if log.errorCount > 0}
-											<div class="mt-0.5 flex items-center gap-1 text-xs text-destructive">
+											<div class="mt-1 flex items-center gap-1 text-xs text-destructive">
 												<AlertTriangle class="h-3 w-3" />
 												{log.errorCount} warnings
 											</div>

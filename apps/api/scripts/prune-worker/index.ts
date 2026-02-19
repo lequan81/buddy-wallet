@@ -1,3 +1,4 @@
+/// <reference types="node" />
 /**
  * Prune Worker
  *
@@ -7,7 +8,7 @@
  * For production deployment, use the buddy-cleanup.timer systemd unit
  * to run this script on a schedule (e.g., daily).
  */
-import { CleanupService } from '@services/cleanup.service';
+import { CleanupService } from '../../src/services/cleanup.service';
 
 async function main() {
   console.log('[Prune Worker] Starting cleanup...');

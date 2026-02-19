@@ -9,8 +9,9 @@ export interface ImportProgress {
   current: number;
   total: number;
   status: string;
+  result?: unknown;
   errors?: string[];
-  result?: any;
+  message?: string;
 }
 
 export const importCache = {

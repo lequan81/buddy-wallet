@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { enhance } from '$app/forms';
 	/* eslint-disable svelte/prefer-svelte-reactivity */
 	import { invalidateAll, goto } from '$app/navigation';
@@ -63,6 +63,10 @@
 	// Selection state
 	let selectedIds = $state<Set<string>>(new Set());
 	let isSubmitting = $state(false);
+
+	// Single delete state
+	let deleteId = $state('');
+	let isDeleting = $state(false);
 
 	// Search state
 	let searchQuery = $state('');
@@ -178,7 +182,7 @@
 	// Status badge variant
 	const getStatusVariant = (
 		status: string
-	): 'default' | 'secondary' | 'destructive' | 'outline' => {
+	): 'default' | 'secondary' | 'destructive' | 'outline' | 'muted' => {
 		switch (status) {
 			case 'pending':
 				return 'outline';
@@ -188,6 +192,8 @@
 				return 'default';
 			case 'disputed':
 				return 'destructive';
+			case 'cancelled':
+				return 'muted';
 			default:
 				return 'outline';
 		}
@@ -208,9 +214,11 @@
 					</Button>
 				{/if}
 				{#if permissions.canExportData}
-					<Button variant="outline" href="/api/v1/export/debts" size="sm">
-						<IconLucideFileSpreadsheet class="mr-2 h-4 w-4" /> Export
-					</Button>
+					<form method="POST" action="?/exportDebts">
+						<Button type="submit" variant="outline" size="sm">
+							<IconLucideFileSpreadsheet class="mr-2 h-4 w-4" /> Export
+						</Button>
+					</form>
 				{/if}
 			</div>
 		{/snippet}
@@ -225,6 +233,16 @@
 				<div class="h-32 animate-pulse rounded-xl bg-muted/50"></div>
 				<div class="h-32 animate-pulse rounded-xl bg-muted/50"></div>
 			</div>
+
+			<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+				{#if permissions.canManageUsers}
+					<div class="h-32 animate-pulse rounded-xl bg-muted/50"></div>
+				{/if}
+				<div class="h-32 animate-pulse rounded-xl bg-muted/50"></div>
+				<div class="h-32 animate-pulse rounded-xl bg-muted/50"></div>
+			</div>
+
+			<div class="h-125 animate-pulse rounded-xl bg-muted/50"></div>
 		{:then debtsResult}
 			{@const debts = debtsResult.debts}
 			{@const pagination = debtsResult.pagination}
@@ -323,22 +341,24 @@
 			<!-- Stats Grid -->
 			<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 				{#if permissions.canManageUsers}
-					<Card.Root>
-						<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-							<Card.Title class="text-sm font-medium text-muted-foreground">Total Users</Card.Title>
-							<IconLucideUsers class="h-4 w-4 text-muted-foreground" />
-						</Card.Header>
-						<Card.Content>
-							{#await data.streamed.users}
-								<div class="h-8 w-16 animate-pulse rounded bg-muted"></div>
-							{:then users}
+					{#await data.streamed.users}
+						<div class="h-32 animate-pulse rounded-xl bg-muted/50"></div>
+					{:then users}
+						<Card.Root>
+							<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
+								<Card.Title class="text-sm font-medium text-muted-foreground"
+									>Total Users</Card.Title
+								>
+								<IconLucideUsers class="h-4 w-4 text-muted-foreground" />
+							</Card.Header>
+							<Card.Content>
 								<div class="font-tabular text-4xl font-bold">{users.length}</div>
-							{/await}
-							<p class="mt-1 text-xs text-muted-foreground">
-								<a href="/admin/users" class="hover:underline">Manage users →</a>
-							</p>
-						</Card.Content>
-					</Card.Root>
+								<p class="mt-1 text-xs text-muted-foreground">
+									<a href="/admin/users" class="hover:underline">Manage users →</a>
+								</p>
+							</Card.Content>
+						</Card.Root>
+					{/await}
 				{/if}
 
 				<Card.Root>
@@ -458,6 +478,50 @@
 													class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 												>
 													{isSubmitting ? 'Deleting...' : 'Delete'}
+												</AlertDialog.Action>
+											</form>
+										</AlertDialog.Footer>
+									</AlertDialog.Content>
+								</AlertDialog.Root>
+							{/if}
+
+							<!-- Delete all debts (with confirmation) -->
+							{#if debts.length > 0}
+								<AlertDialog.Root>
+									<AlertDialog.Trigger>
+										{#snippet child({ props }: { props: Record<string, any> })}
+											<Button variant="outline" size="sm" {...props}>
+												<IconLucideTrash2 class="mr-2 h-4 w-4" />
+												Delete all
+											</Button>
+										{/snippet}
+									</AlertDialog.Trigger>
+									<AlertDialog.Content>
+										<AlertDialog.Header>
+											<AlertDialog.Title>Delete all debts</AlertDialog.Title>
+											<AlertDialog.Description>
+												Are you sure you want to delete all your debts? This action cannot be undone.
+											</AlertDialog.Description>
+										</AlertDialog.Header>
+										<AlertDialog.Footer>
+											<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+											<form
+												method="POST"
+												action="?/deleteAll"
+												use:enhance={() => {
+													isSubmitting = true;
+													return async ({ update }) => {
+														await update();
+														isSubmitting = false;
+														invalidateAll();
+													};
+												}}
+											>
+												<AlertDialog.Action
+													type="submit"
+													class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+												>
+													{isSubmitting ? 'Deleting...' : 'Delete all'}
 												</AlertDialog.Action>
 											</form>
 										</AlertDialog.Footer>
@@ -632,9 +696,67 @@
 										{new Date(debt.createdAt).toLocaleDateString()}
 									</Table.Cell>
 									<Table.Cell class="pr-6 text-right">
-										<Button variant="ghost" size="sm" href="/debts/{debt.id}">
-											<IconLucideEye class="h-4 w-4" />
-										</Button>
+										<div class="flex items-center justify-end gap-1">
+											<Button variant="ghost" size="sm" href="/debts/{debt.id}">
+												<IconLucideEye class="h-4 w-4" />
+											</Button>
+
+											{#if canDelete}
+												<AlertDialog.Root
+													open={deleteId === debt.id}
+													onOpenChange={(open) => {
+														if (!open) deleteId = '';
+													}}
+												>
+													<AlertDialog.Trigger>
+														{#snippet child({ props }: { props: Record<string, any> })}
+															<Button
+																variant="ghost"
+																size="sm"
+																class="text-muted-foreground hover:text-destructive"
+																onclick={() => (deleteId = debt.id)}
+																{...props}
+															>
+																<IconLucideTrash2 class="h-4 w-4" />
+															</Button>
+														{/snippet}
+													</AlertDialog.Trigger>
+													<AlertDialog.Content>
+														<AlertDialog.Header>
+															<AlertDialog.Title>Delete Debt</AlertDialog.Title>
+															<AlertDialog.Description>
+																Are you sure you want to delete this debt? This action cannot be
+																undone.
+															</AlertDialog.Description>
+														</AlertDialog.Header>
+														<AlertDialog.Footer>
+															<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+															<form
+																method="POST"
+																action="?/delete"
+																use:enhance={() => {
+																	isDeleting = true;
+																	return async ({ update }) => {
+																		await update();
+																		isDeleting = false;
+																		deleteId = '';
+																		invalidateAll();
+																	};
+																}}
+															>
+																<input type="hidden" name="id" value={debt.id} />
+																<AlertDialog.Action
+																	type="submit"
+																	class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+																>
+																	{isDeleting ? 'Deleting...' : 'Delete'}
+																</AlertDialog.Action>
+															</form>
+														</AlertDialog.Footer>
+													</AlertDialog.Content>
+												</AlertDialog.Root>
+											{/if}
+										</div>
 									</Table.Cell>
 								</Table.Row>
 							{/each}

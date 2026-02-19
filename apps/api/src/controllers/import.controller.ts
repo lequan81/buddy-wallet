@@ -121,8 +121,16 @@ export const ImportController = new Elysia({ prefix: '/import' })
   .use(deleteRateLimiter) // Rate limit: 20 deletes per minute
   .delete('/cleanup', async (ctx) => {
     const { user } = ctx as typeof ctx & { user: User };
+
+    // Clean up user's stale pending logs
     await ImportService.cleanupStaleLogs(user.id);
-    return successResponse({ message: 'Stale pending logs cleaned up' });
+
+    // Also trigger system-wide cleanup of zombie processing logs (safe as it checks >1h)
+    // This helps users fix "stuck" jobs without needing admin access
+    const { CleanupService } = await import('../services/cleanup.service');
+    await CleanupService.cleanupStaleProcessingLogs();
+
+    return successResponse({ message: 'Cleanup completed' });
   })
 
   // Get import progress
@@ -147,6 +155,22 @@ export const ImportController = new Elysia({ prefix: '/import' })
     { params: t.Object({ logId: t.String() }) }
   )
 
+  // Get batch import progress
+  // Reduces 10+ concurrent requests to 1
+  .post(
+    '/progress-batch',
+    async (ctx) => {
+      const {
+        body: { logIds },
+        user
+      } = ctx as typeof ctx & { user: User; body: { logIds: string[] } };
+
+      const result = await ImportService.getProgressBatch(logIds, user.id);
+      return successResponse(result);
+    },
+    { body: t.Object({ logIds: t.Array(t.String()) }) }
+  )
+
   // Get import logs
   .get(
     '/logs',
@@ -155,9 +179,14 @@ export const ImportController = new Elysia({ prefix: '/import' })
       const page = parseInt(query.page || '1');
       const limit = parseInt(query.limit || '10');
 
-      // Note: We need to implement getLogs in ImportService first (done in previous step)
-      // We will perform a quick hack: sort in-memory in service since we modified it.
-      // Ideally we'd fix the imports to use desc().
+      // OPTIMIZATION: Auto-cleanup of stale processing logs (zombies)
+      // This ensures the user always sees clean data without needing manual action
+      // We run this async without awaiting to not slow down the response
+      import('../services/cleanup.service').then(({ CleanupService }) => {
+        CleanupService.cleanupStaleProcessingLogs().catch((err) =>
+          console.error('[AutoCleanup] Failed to clean stale logs during fetch:', err)
+        );
+      });
 
       // Let's call the service method we just added
       const result = await ImportService.getLogs(user.id, page, limit);

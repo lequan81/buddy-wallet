@@ -16,6 +16,27 @@ export interface ImportConfig {
   startRow: number;
 }
 
+export type DetectedMapping = Record<string, string>;
+
+export interface CurrentUser {
+  id: string;
+  phoneNumber: string | null;
+}
+
+export interface ImportRow {
+  id: string;
+  debtorId: string | null;
+  creditorId: string;
+  debtorPhone: string;
+  creditorPhone: string;
+  amount: number;
+  description: string;
+  status: string;
+  uploadedById: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface PreviewResult {
   success: boolean;
   error?: string;
@@ -24,7 +45,7 @@ export interface PreviewResult {
   totalRows?: number;
   columnHeaders?: string[];
   previewData?: string[][];
-  autoMapping?: Record<string, string>;
+  autoMapping?: DetectedMapping;
 }
 
 export interface ImportResult {
@@ -43,4 +64,5 @@ export interface ProgressResult {
   status?: string;
   errors?: string[];
   percentage?: number;
+  result?: unknown;
 }

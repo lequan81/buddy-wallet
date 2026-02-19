@@ -5,17 +5,11 @@
  */
 import { Elysia, t } from 'elysia';
 import { permissionPlugin } from '../plugins/guards';
-import { standardRateLimiter, uploadRateLimiter, deleteRateLimiter } from '../plugins/middleware';
+import { uploadRateLimiter, deleteRateLimiter } from '../plugins/middleware';
 import { PERMISSIONS } from '@repo/permissions';
 import { FileService, DebtService, PushService, UserService } from '../services';
 
-// Helper to format currency
-const formatVND = (amount: number) =>
-  new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0
-  }).format(amount);
+import { formatVND } from '@repo/utils';
 
 // Helper to check if user can receive push notifications
 async function canReceivePush(userId: string): Promise<boolean> {

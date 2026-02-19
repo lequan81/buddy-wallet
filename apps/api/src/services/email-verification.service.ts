@@ -5,7 +5,7 @@
  * for email verification flow.
  */
 import { randomUUIDv7 } from 'bun';
-import { db, emailVerifications, users, eq, and, desc } from '@repo/db';
+import { emailVerifications, users, eq, and, desc } from '@repo/db';
 import { hashToken } from '../utils';
 import type { DbClient } from '../types';
 

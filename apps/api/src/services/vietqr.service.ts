@@ -9,11 +9,7 @@ import { cache } from '../plugins/redis';
 import { log } from '../utils/logger';
 import { MAJOR_BANKS_FALLBACK, type VietQRBank } from '@repo/types';
 
-interface VietQRResponse {
-  code: string;
-  desc: string;
-  data: VietQRBank[];
-}
+import type { VietQRResponse } from '../types';
 
 const VIETQR_API_URL = 'https://api.vietqr.io/v2/banks';
 const CACHE_TTL = 86400; // 24 hours

@@ -27,37 +27,7 @@ function shouldLog(level: LogLevel): boolean {
   return LOG_LEVELS[level] >= LOG_LEVELS[currentLevel];
 }
 
-function formatLog(
-  level: LogLevel,
-  category: string,
-  message: string,
-  context?: LogContext
-): string {
-  const timestamp = new Date().toISOString();
-
-  if (isDev) {
-    // Pretty print for development
-    const levelColors: Record<LogLevel, string> = {
-      debug: '\x1b[36m', // cyan
-      info: '\x1b[32m', // green
-      warn: '\x1b[33m', // yellow
-      error: '\x1b[31m' // red
-    };
-    const reset = '\x1b[0m';
-    const color = levelColors[level];
-    const ctx = context ? ` ${JSON.stringify(context)}` : '';
-    return `${timestamp} ${color}[${level.toUpperCase()}]${reset} [${category}] ${message}${ctx}`;
-  }
-
-  // JSON for production (easy to parse by log aggregators)
-  return JSON.stringify({
-    timestamp,
-    level,
-    category,
-    message,
-    ...context
-  });
-}
+import { formatLog } from '@repo/utils';
 
 export const log = {
   debug: (category: string, message: string, context?: LogContext) => {

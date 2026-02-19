@@ -79,6 +79,52 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
+	edit: async ({
+		request,
+		fetch,
+		locals
+	}: {
+		request: Request;
+		fetch: typeof window.fetch;
+		locals: App.Locals;
+	}) => {
+		if (!locals.user) return fail(401);
+
+		const formData = await request.formData();
+		const id = formData.get('id');
+		const bankCode = formData.get('bankCode');
+		const bankName = formData.get('bankName');
+		const bankBin = formData.get('bankBin');
+		const accountNumber = formData.get('accountNumber');
+		const accountName = formData.get('accountName');
+		const isDefault = formData.get('isDefault') === 'on';
+
+		const headers = getAuthHeaders(locals.accessToken);
+
+		const payload = {
+			bankCode,
+			bankName,
+			bankBin,
+			accountNumber,
+			accountName,
+			isDefault
+		};
+
+		const res = await fetch(`${API_URL}/v1/banks/${id}`, {
+			method: 'PATCH',
+			body: JSON.stringify(payload),
+			headers
+		});
+
+		const data = await safeJsonParse<{ message?: string }>(res);
+
+		if (!res.ok) {
+			return fail(res.status, { message: data?.message || 'Failed to update account' });
+		}
+
+		return { success: true };
+	},
+
 	delete: async ({
 		request,
 		fetch,
