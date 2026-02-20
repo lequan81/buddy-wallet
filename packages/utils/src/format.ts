@@ -78,22 +78,3 @@ export function maskPhone(phone: string): string {
 
   return normalized.slice(0, visibleStart) + masked + normalized.slice(-visibleEnd);
 }
-
-/**
- * Log levels
- */
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-
-/**
- * Format log message for consistent output
- */
-export function formatLog(
-  level: LogLevel,
-  category: string,
-  message: string,
-  context?: Record<string, unknown>
-): string {
-  const timestamp = new Date().toISOString();
-  const contextStr = context ? ` | ${JSON.stringify(context)}` : '';
-  return `[${timestamp}] [${level.toUpperCase()}] [${category}] ${message}${contextStr}`;
-}

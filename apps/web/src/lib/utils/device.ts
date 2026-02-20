@@ -56,7 +56,6 @@ export function getDeviceInfo(): { deviceName: string; deviceType: DeviceType } 
 		}
 	}
 
-	// Build device name with better fallback
 	let deviceName: string;
 	if (browser && osName) {
 		deviceName = `${browser} on ${osName}`;

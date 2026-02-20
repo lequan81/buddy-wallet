@@ -23,8 +23,9 @@ import {
   UploadController
 } from './controllers';
 import { telemetry } from './instrumentation';
-import { logger } from './utils/logger';
-// Cleanup jobs now run externally via scripts/prune-worker
+import { logger } from '@repo/logger';
+import { CleanupService } from './services/cleanup.service';
+// Cleanup jobs now run externally via scripts/prune-worker AND internally via timers
 
 export const app = new Elysia()
   // Global error handler - ensures all errors return proper JSON
@@ -105,7 +106,7 @@ export const app = new Elysia()
   // Trace viewer (dev only)
   .use(TracesController)
   .onError(({ code, error, set }) => {
-    console.error(`Global error caught`, { code, error });
+    logger.error(`Global error caught`, { code, error: String(error) });
     set.status = 500;
     return {
       success: false,
@@ -117,7 +118,21 @@ export const app = new Elysia()
 // Only listen if run directly (not imported)
 if (import.meta.main) {
   app.listen(configs.APP.PORT, () => {
-    console.log(`🦊 API is running at ${app.server?.hostname}:${app.server?.port}`);
+    logger.app(`🦊 API is running at ${app.server?.hostname}:${app.server?.port}`);
+
+    // Start background cleanup cron (every 15 minutes)
+    setInterval(
+      () => {
+        logger.app('🧹 [CRON] Running automated background cleanup tasks...');
+        CleanupService.cleanupStaleProcessingLogs().catch((err) =>
+          logger.error('Cron Error:', { error: String(err) })
+        );
+        CleanupService.cleanupStalePendingLogs().catch((err) =>
+          logger.error('Cron Error:', { error: String(err) })
+        );
+      },
+      15 * 60 * 1000
+    );
   });
 }
 

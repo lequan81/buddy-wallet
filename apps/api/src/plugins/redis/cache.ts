@@ -4,7 +4,7 @@
  * Provides get/set/del/incr/ttl operations.
  * Uses native Bun RedisClient for Redis access.
  */
-import { log } from '../../utils/logger';
+import { log } from '@repo/logger';
 import { getClient, isRedisAvailable } from './connection';
 import { circuitBreaker } from './circuit-breaker';
 

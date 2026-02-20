@@ -5,13 +5,14 @@
  * Uses constructor injection for testability.
  */
 import { randomUUIDv7 } from 'bun';
-import { users, debts, importLogs, eq, or, and, lte, desc } from '@repo/db';
+import { users, debts, importLogs, eq, or, and, lte, desc, inArray } from '@repo/db';
 import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config';
 import { importCache, isRedisAvailable } from '../plugins/redis';
 import type { ImportConfig } from '../types';
 import type { PreviewResult, ImportResult, ProgressResult } from '../types';
 import * as XLSX from 'xlsx';
 import { configs } from '../configs';
+import { logger } from '@repo/logger';
 import type { DbClient } from '../types';
 
 import type { CurrentUser, ImportRow, DetectedMapping } from '../types';
@@ -150,10 +151,40 @@ export class ImportService {
       }
 
       const range = XLSX.utils.decode_range(sheet['!ref']);
+      const startTime = performance.now();
       const errors: string[] = [];
       const newDebts: ImportRow[] = [];
       const userCache = new Map<string, { id: string; phone: string | null }>();
       const totalRowsToProcess = range.e.r + 1 - startRow;
+
+      // --- OPTIMIZATION: BATCH USER RESOLUTION ---
+      const uniqueIdentifiers = new Set<string>();
+      for (let r = startRow; r <= range.e.r + 1; r++) {
+        if (r > 10000) break;
+        const name = this.getCellValue(sheet, mapping.name, r);
+        const phone = this.getCellValue(sheet, mapping.phone, r);
+        const email = this.getCellValue(sheet, mapping.email, r);
+        if (phone) uniqueIdentifiers.add(String(phone).trim());
+        if (email) uniqueIdentifiers.add(String(email).trim());
+        if (name && !phone && !email) uniqueIdentifiers.add(String(name).trim());
+      }
+
+      const identifiersArray = Array.from(uniqueIdentifiers).filter(Boolean);
+      if (identifiersArray.length > 0) {
+        // Chunk to avoid SQLite limits string size
+        const chunkSize = 200;
+        for (let i = 0; i < identifiersArray.length; i += chunkSize) {
+          const chunk = identifiersArray.slice(i, i + chunkSize);
+          const foundUsers = await this.db
+            .select()
+            .from(users)
+            .where(or(inArray(users.email, chunk), inArray(users.phoneNumber, chunk)));
+          for (const u of foundUsers) {
+            if (u.email) userCache.set(u.email, { id: u.id, phone: u.phoneNumber });
+            if (u.phoneNumber) userCache.set(u.phoneNumber, { id: u.id, phone: u.phoneNumber });
+          }
+        }
+      }
 
       if (isRedisAvailable()) {
         await importCache.setProgress(id, {
@@ -181,7 +212,7 @@ export class ImportService {
               message: `Processing row ${excelRow} / ${range.e.r + 1}...`,
               errors: errors.length > 0 ? errors.slice(-5) : undefined
             })
-            .catch((err) => console.error('[Import] Redis update failed', err));
+            .catch((err) => logger.error('[Import] Redis update failed', { error: String(err) }));
         }
 
         if (excelRow > 10000 || consecutiveEmpty > 20) break;
@@ -255,9 +286,14 @@ export class ImportService {
         });
       }
 
+      const endTime = performance.now();
+      logger.info(
+        `[Benchmark] Job ${id} processing took ${(endTime - startTime).toFixed(2)}ms for ${range.e.r + 1} rows`
+      );
+
       return { success: true, logId: id, imported: newDebts.length, errors };
     } catch (err) {
-      console.error('[ImportService] Error processing file:', err);
+      logger.error('[ImportService] Error processing file:', { error: String(err) });
       await this.updateLogStatus(id, 'failed', [String(err)]);
       if (previewLogId) {
         await this.db

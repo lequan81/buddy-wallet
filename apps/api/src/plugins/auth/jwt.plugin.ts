@@ -2,7 +2,7 @@ import { Elysia, t, type Static } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { bearer } from '@elysiajs/bearer';
 import { configs } from '../../configs';
-import { logger } from '../../utils/logger';
+import { logger } from '@repo/logger';
 
 /**
  * JWT Payload Schema

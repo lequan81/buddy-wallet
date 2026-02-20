@@ -13,7 +13,7 @@ import { BatchSpanProcessor, SimpleSpanProcessor } from '@opentelemetry/sdk-trac
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import type { SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { ExportResultCode, type ExportResult } from '@opentelemetry/core';
-import { logger } from './utils/logger';
+import { logger } from '@repo/logger';
 import { traceStore } from './utils/trace-store';
 
 const isDev = Bun.env.NODE_ENV !== 'production';
@@ -59,12 +59,7 @@ class MinimalSpanExporter implements SpanExporter {
           attributes: span.attributes as Record<string, unknown>
         });
 
-        // Log to console for immediate visibility
-        const color = status >= 500 ? '\x1b[31m' : status >= 400 ? '\x1b[33m' : '\x1b[32m';
-        const reset = '\x1b[0m';
-        console.log(
-          `[TRACE] ${method} ${path} ${color}${status}${reset} - ${durationMs.toFixed(2)}ms`
-        );
+        logger.trace(`${method} ${path} ${status} - ${durationMs.toFixed(2)}ms`);
       }
       // Store error spans too
       else if (span.status.code === 2) {

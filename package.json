@@ -15,8 +15,8 @@
     "start:unified": "bun run start.ts"
   },
   "devDependencies": {
-    "prettier": "^3.7.4",
-    "prettier-plugin-svelte": "^3.4.0",
+    "prettier": "^3.8.1",
+    "prettier-plugin-svelte": "^3.5.0",
     "turbo": "2.8.8"
   },
   "engines": {

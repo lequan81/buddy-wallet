@@ -9,7 +9,7 @@
  */
 import { users, eq, and } from '@repo/db';
 import { configs } from '../configs';
-import { log } from '../utils/logger';
+import { log } from '@repo/logger';
 import { normalizePhoneNumber } from '../utils';
 import type { DbClient } from '../types';
 import { EmailService } from './index';

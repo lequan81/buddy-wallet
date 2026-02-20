@@ -1,5 +1,5 @@
 import { Elysia, type Context } from 'elysia';
-import { logger } from '../../utils/logger';
+import { logger } from '@repo/logger';
 import { cache, isRedisAvailable } from '../redis';
 import { configs } from '../../configs';
 import type { RateLimitEntry, RateLimitConfig } from '../../types';
@@ -232,6 +232,13 @@ export const uploadRateLimiter = createRateLimiter({
   windowMs: 60 * 1000, // 1 minute
   maxRequests: 10,
   message: 'Upload limit exceeded. Please wait before uploading more files.'
+});
+
+// Download/View: 100 requests per minute (for UI image fetching)
+export const fileDownloadRateLimiter = createRateLimiter({
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 100,
+  message: 'Download limit exceeded. Please slow down.'
 });
 
 // Broadcast: 1 request per minute (for admin broadcast notifications)

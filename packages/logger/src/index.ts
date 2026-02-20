@@ -1,17 +1,19 @@
 /**
- * Structured Logger for Buddy Wallet API
- * - Dev: Pretty print with colors
- * - Prod: JSON format for log aggregators
- * - Minimal footprint using Bun native APIs
- *
- * Environment variables:
- * - LOG_LEVEL: Set log level ('debug', 'info', 'warn', 'error') - default: 'info'
+ * Logger Type Definitions
  */
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-import type { LogLevel, LogContext as LogContextType } from '../types';
-
-// Re-export for consumers
-export type LogContext = LogContextType;
+export interface LogContext {
+  requestId?: string;
+  userId?: string;
+  method?: string;
+  path?: string;
+  status?: number;
+  duration?: number;
+  error?: string;
+  stack?: string;
+  [key: string]: unknown;
+}
 
 const LOG_LEVELS: Record<LogLevel, number> = {
   debug: 0,
@@ -20,14 +22,25 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   error: 3
 };
 
-const currentLevel = (Bun.env.LOG_LEVEL?.toLocaleLowerCase() as LogLevel) || 'info';
-const isDev = Bun.env.NODE_ENV !== 'production';
+const currentLevel = (process.env.LOG_LEVEL?.toLocaleLowerCase() as LogLevel) || 'info';
 
 function shouldLog(level: LogLevel): boolean {
   return LOG_LEVELS[level] >= LOG_LEVELS[currentLevel];
 }
 
-import { formatLog } from '@repo/utils';
+/**
+ * Format log message for consistent output
+ */
+export function formatLog(
+  level: LogLevel,
+  category: string,
+  message: string,
+  context?: Record<string, unknown>
+): string {
+  const timestamp = new Date().toISOString();
+  const contextStr = context ? ` | ${JSON.stringify(context)}` : '';
+  return `[${timestamp}] [${level.toUpperCase()}] [${category}] ${message}${contextStr}`;
+}
 
 export const log = {
   debug: (category: string, message: string, context?: LogContext) => {

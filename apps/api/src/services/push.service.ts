@@ -8,7 +8,7 @@ import { randomUUIDv7 } from 'bun';
 import webpush from 'web-push';
 import { pushSubscriptions, eq, and } from '@repo/db';
 import { configs } from '../configs';
-import { logger } from '../utils';
+import { logger } from '@repo/logger';
 import type { DbClient } from '../types';
 
 // Configure web-push with VAPID keys (only if valid keys are provided)

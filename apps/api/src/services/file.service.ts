@@ -1,6 +1,6 @@
 import { fileMetadata, debts, eq, and } from '@repo/db';
 import { cache } from '../plugins/redis';
-import { log } from '../utils/logger';
+import { log } from '@repo/logger';
 import type { DbClient } from '../types';
 import type { FileType, FileStatus, FileMetadata } from '@repo/db';
 import { DiskStorageService, type IStorageService } from './storage.service';

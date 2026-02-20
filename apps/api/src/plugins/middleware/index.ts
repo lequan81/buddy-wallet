@@ -9,7 +9,8 @@ export {
   uploadRateLimiter,
   broadcastRateLimiter,
   deleteRateLimiter,
-  createRateLimiter
+  createRateLimiter,
+  fileDownloadRateLimiter
 } from './rate-limit.middleware';
 export { requestLoggerPlugin } from './request-logger.middleware';
 export { securityHeadersPlugin } from './security-headers.middleware';

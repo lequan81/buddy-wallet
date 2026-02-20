@@ -5,7 +5,7 @@
     "test": "bun test",
     "lint": "eslint .",
     "dev": "bun run --watch src/index.ts",
-    "build": "bun build src/index.ts --outdir=dist --target=bun --sourcemap",
+    "build": "bun build src/index.ts --outdir=dist --target=bun --packages external --sourcemap --minify",
     "start": "bun run dist/index.js",
     "check-types": "bunx tsc --noEmit",
     "clean": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\""
@@ -23,6 +23,7 @@
     "@repo/config": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/errors": "workspace:*",
+    "@repo/logger": "workspace:*",
     "@repo/permissions": "workspace:*",
     "@repo/types": "workspace:*",
     "@repo/utils": "workspace:*",

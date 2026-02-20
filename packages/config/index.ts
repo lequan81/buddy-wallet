@@ -76,6 +76,91 @@ export * from './security';
 export * from './env';
 
 // ============================================
+// SYSTEM CONSTANTS
+// ============================================
+
+export const UPLOAD_TMP_DIR = getEnv('UPLOAD_TMP_DIR', './tmp/uploads');
+
+/**
+ * Maximum file size for direct (foreground) processing in bytes (200KB).
+ * Files larger than this will be processed in the background worker queue.
+ */
+export const MAX_DIRECT_PROCESS_SIZE_BYTES = 200 * 1024;
+
+export const MAJOR_BANKS_FALLBACK = [
+  {
+    id: 17,
+    name: 'Ngân hàng TMCP Ngoại Thương Việt Nam',
+    code: 'VCB',
+    bin: '970436',
+    shortName: 'Vietcombank',
+    logo: 'https://img.vietqr.io/image/VCB-logo.png',
+    transferSupported: 1,
+    lookupSupported: 1
+  },
+  {
+    id: 42,
+    name: 'Ngân hàng TMCP Kỹ thương Việt Nam',
+    code: 'TCB',
+    bin: '970407',
+    shortName: 'Techcombank',
+    logo: 'https://img.vietqr.io/image/TCB-logo.png',
+    transferSupported: 1,
+    lookupSupported: 1
+  },
+  {
+    id: 2,
+    name: 'Ngân hàng TMCP Công Thương Việt Nam',
+    code: 'CTG',
+    bin: '970415',
+    shortName: 'VietinBank',
+    logo: 'https://img.vietqr.io/image/CTG-logo.png',
+    transferSupported: 1,
+    lookupSupported: 1
+  },
+  {
+    id: 4,
+    name: 'Ngân hàng TMCP Đầu tư và Phát triển Việt Nam',
+    code: 'BIDV',
+    bin: '970418',
+    shortName: 'BIDV',
+    logo: 'https://img.vietqr.io/image/BIDV-logo.png',
+    transferSupported: 1,
+    lookupSupported: 1
+  },
+  {
+    id: 10,
+    name: 'Ngân hàng TMCP Á Châu',
+    code: 'ACB',
+    bin: '970416',
+    shortName: 'ACB',
+    logo: 'https://img.vietqr.io/image/ACB-logo.png',
+    transferSupported: 1,
+    lookupSupported: 1
+  },
+  {
+    id: 21,
+    name: 'Ngân hàng TMCP Quân đội',
+    code: 'MB',
+    bin: '970422',
+    shortName: 'MBBank',
+    logo: 'https://img.vietqr.io/image/MB-logo.png',
+    transferSupported: 1,
+    lookupSupported: 1
+  },
+  {
+    id: 47,
+    name: 'Ngân hàng TMCP Tiên Phong',
+    code: 'TPB',
+    bin: '970423',
+    shortName: 'TPBank',
+    logo: 'https://img.vietqr.io/image/TPB-logo.png',
+    transferSupported: 1,
+    lookupSupported: 1
+  }
+];
+
+// ============================================
 // DEBT CONFIGURATION
 // ============================================
 

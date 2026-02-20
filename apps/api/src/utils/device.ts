@@ -2,6 +2,7 @@
  * Device fingerprinting utilities
  * Parses user agent to extract device information for session management
  */
+import type { Server } from 'bun';
 
 interface DeviceInfo {
   deviceName: string;
@@ -183,7 +184,7 @@ export async function getLocationFromIP(
 
   // Check for private network
   if (isPrivateIP(cleanIP)) {
-    return 'Private Network';
+    return 'Local Network';
   }
 
   // 5. Try IP geolocation as last resort
@@ -215,7 +216,7 @@ export async function getLocationFromIP(
  * Extract client IP from request headers
  * Handles various proxy headers
  */
-export function getClientIP(request: Request): string | null {
+export function getClientIP(request: Request, server?: Server<unknown> | null): string | null {
   // Check common proxy headers (in order of preference)
   const headers = [
     'cf-connecting-ip', // Cloudflare
@@ -232,6 +233,12 @@ export function getClientIP(request: Request): string | null {
       const ip = value.split(',')[0].trim();
       if (ip) return ip;
     }
+  }
+
+  // Fallback to socket IP if server instance is passed
+  if (server?.requestIP) {
+    const socketIP = server.requestIP(request)?.address;
+    if (socketIP) return socketIP;
   }
 
   return null;

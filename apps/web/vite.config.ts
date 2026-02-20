@@ -112,7 +112,8 @@ export default defineConfig({
 		exclude: ['@repo/ui', '@repo/config', '@repo/errors', '@repo/permissions']
 	},
 	ssr: {
-		noExternal: ['@repo/ui']
+		noExternal: ['@repo/ui'],
+		external: ['async_hooks']
 	},
 	resolve: {
 		dedupe: ['svelte'],

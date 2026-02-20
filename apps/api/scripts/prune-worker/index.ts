@@ -9,20 +9,21 @@
  * to run this script on a schedule (e.g., daily).
  */
 import { CleanupService } from '../../src/services/cleanup.service';
+import { logger } from '@repo/logger';
 
 async function main() {
-  console.log('[Prune Worker] Starting cleanup...');
+  logger.app('[Prune Worker] Starting cleanup...');
   const startTime = Date.now();
 
   try {
     await CleanupService.runAll();
   } catch (error) {
-    console.error('[Prune Worker] Error during cleanup:', error);
+    logger.error('[Prune Worker] Error during cleanup:', { error: String(error) });
     process.exit(1);
   }
 
   const duration = Date.now() - startTime;
-  console.log(`[Prune Worker] Cleanup completed in ${duration}ms`);
+  logger.app(`[Prune Worker] Cleanup completed in ${duration}ms`);
   process.exit(0);
 }
 

@@ -13,45 +13,27 @@ import { normalizePhoneNumber } from '../utils/phone';
 import { DEBT_MIN_AMOUNT, DEBT_MAX_AMOUNT } from '@repo/config';
 import { CreateDebtInputSchema, safeParse } from '@repo/validation';
 import { debtStateMachine } from '../states';
-import { logger } from '../utils';
+import { logger } from '@repo/logger';
 import type { DbClient } from '../types';
 import type { DebtStatus, CreateDebtInput, DebtResult, StatusUpdateResult } from '../types';
 import type { IDebtService, CurrentUser } from '../types';
+import type { ExpiryOption, PaginationOptions, PaginatedResult } from '../types';
 import type { PushService } from './push.service';
 import type { ActivityService } from './activity.service';
 
-// Expiry option type
-type ExpiryOption = '7d' | '30d' | '90d' | 'never';
-
-// Pagination options type
-interface PaginationOptions {
-  limit?: number;
-  offset?: number;
-  status?: string;
-}
-
-interface PaginatedResult<T> {
-  data: T[];
-  total: number;
-  limit: number;
-  offset: number;
-}
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const EXPIRY_DAYS: Record<Exclude<ExpiryOption, 'never'>, number> = {
+  '7d': 7,
+  '30d': 30,
+  '90d': 90
+};
 
 // Calculate expiry date from option
 function calculateExpiryDate(option: ExpiryOption): Date | null {
-  const now = Date.now();
-  switch (option) {
-    case '7d':
-      return new Date(now + 7 * 24 * 60 * 60 * 1000);
-    case '30d':
-      return new Date(now + 30 * 24 * 60 * 60 * 1000);
-    case '90d':
-      return new Date(now + 90 * 24 * 60 * 60 * 1000);
-    case 'never':
-      return null;
-    default:
-      return null;
-  }
+  if (option === 'never') return null;
+  const days = EXPIRY_DAYS[option];
+  if (!days) return null;
+  return new Date(Date.now() + days * MS_PER_DAY);
 }
 
 /**
@@ -122,7 +104,7 @@ export class DebtService implements IDebtService {
     userId: string,
     hasViewAllPermission: boolean,
     options: PaginationOptions = {}
-  ): Promise<PaginatedResult<any>> {
+  ): Promise<PaginatedResult<Debt>> {
     const { limit = 50, offset = 0, status } = options;
 
     // Build where condition
@@ -164,7 +146,7 @@ export class DebtService implements IDebtService {
   async getDebtsByUserId(
     userId: string,
     options: PaginationOptions = {}
-  ): Promise<PaginatedResult<any>> {
+  ): Promise<PaginatedResult<Debt>> {
     const { limit = 50, offset = 0, status } = options;
 
     let whereCondition = or(eq(debts.debtorId, userId), eq(debts.creditorId, userId));
@@ -837,7 +819,7 @@ export class DebtService implements IDebtService {
           body: `Someone suggested changes to your debt of ${debt.amount.toLocaleString()} VND`,
           url: `/debts/${debtId}`
         });
-      } catch (e) {
+      } catch (_e) {
         // Ignore notification failures
       }
     }
@@ -916,7 +898,7 @@ export class DebtService implements IDebtService {
           body: accept ? 'Your suggested edit was accepted' : 'Your suggested edit was rejected',
           url: `/debts/${debtId}`
         });
-      } catch (e) {
+      } catch (_e) {
         // Ignore notification failures
       }
     }

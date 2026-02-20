@@ -11,7 +11,7 @@
 import type { Debt } from '@repo/db';
 import type { DebtStatus } from '../types';
 import type { IDebtState, IDebtStateMachine, TransitionContext, TransitionResult } from '../types/debt-state';
-import { log } from '../utils/logger';
+import { log } from '@repo/logger';
 
 // Import all state implementations
 import { PendingState } from './pending.state';

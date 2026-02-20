@@ -1,7 +1,6 @@
 export * from './api';
 export * from './activity';
 export * from './bank';
-export * from './bank-fallback';
 export * from './debt';
 export * from './session';
 export * from './user';

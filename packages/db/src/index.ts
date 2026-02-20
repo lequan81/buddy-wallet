@@ -1,4 +1,18 @@
 // Export mọi thứ cần thiết
 export * from './schema';
 export * from './db';
-export { eq, sql, and, or, desc, asc, gte, lte, ne, isNull, not, count } from 'drizzle-orm';
+export {
+  eq,
+  sql,
+  and,
+  or,
+  desc,
+  asc,
+  gte,
+  lte,
+  ne,
+  isNull,
+  not,
+  count,
+  inArray
+} from 'drizzle-orm';

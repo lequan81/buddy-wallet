@@ -18,31 +18,31 @@ import {
   not,
   isNull
 } from '@repo/db';
-import { log } from '../utils/logger';
+import { log } from '@repo/logger';
 import { PushService } from './index';
 
 import { formatVND } from '@repo/utils';
 
 export const CleanupService = {
   /**
-   * Cleanup stale processing logs (zombies > 1 hour)
+   * Cleanup stale processing logs (zombies > 3 hours)
    * Marks them as failed instead of deleting, so user sees "Failed"
    */
   async cleanupStaleProcessingLogs(): Promise<{ updated: number }> {
     try {
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
 
       await db
         .update(importLogs)
         .set({
           status: 'failed',
-          errors: JSON.stringify(['System: Job timed out (zombie worker)']),
+          errors: JSON.stringify(['System: Job timed out (zombie worker > 3 hours)']),
           completedAt: new Date()
         })
         .where(
           and(
             or(eq(importLogs.status, 'processing'), eq(importLogs.status, 'pending')),
-            lte(importLogs.createdAt, oneHourAgo)
+            lte(importLogs.createdAt, threeHoursAgo)
           )
         );
 

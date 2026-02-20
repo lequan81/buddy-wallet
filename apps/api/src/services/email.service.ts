@@ -6,7 +6,7 @@
  */
 import { SmtpTransport } from '@upyo/smtp';
 import { createMessage } from '@upyo/core';
-import { log } from '../utils/logger';
+import { log } from '@repo/logger';
 import { renderOtp, renderWelcome } from '@repo/email-templates';
 
 type EmailFrom = 'noreply' | 'support';

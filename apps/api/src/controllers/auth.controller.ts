@@ -59,9 +59,9 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   // ==================== LOGIN ====================
   .post(
     '/login',
-    async ({ body, jwt, cookie, set, request }) => {
+    async ({ body, jwt, cookie, set, request, server }) => {
       const userAgent = request.headers.get('user-agent');
-      const clientIP = getClientIP(request) || request.headers.get('x-forwarded-for');
+      const clientIP = getClientIP(request, server);
 
       const result = await AuthService.login(
         {
@@ -123,12 +123,12 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   )
 
   // ==================== REFRESH ====================
-  .post('/refresh', async ({ jwt, cookie, set, request }) => {
+  .post('/refresh', async ({ jwt, cookie, set, request, server }) => {
     const refreshToken = cookie.refresh_token.value as string;
 
     const result = await SessionService.refreshSession(refreshToken, jwt, {
       userAgent: request.headers.get('user-agent'),
-      clientIP: getClientIP(request)
+      clientIP: getClientIP(request, server)
     });
 
     if (!result.success) {
@@ -173,7 +173,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   })
 
   // ==================== LOGOUT ====================
-  .post('/logout', async ({ user, cookie, set, request }) => {
+  .post('/logout', async ({ user, cookie, set, request, server }) => {
     const refreshToken = cookie.refresh_token.value as string;
     const accessToken = cookie.session.value as string;
 
@@ -204,7 +204,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
         userId: user.id,
         action: 'logout',
         resource: 'session',
-        ipAddress: getClientIP(request) || undefined,
+        ipAddress: getClientIP(request, server) || undefined,
         userAgent: request.headers.get('user-agent') || undefined
       });
     }
@@ -218,7 +218,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   })
 
   // ==================== LOGOUT ALL ====================
-  .post('/logout-all', async ({ user, cookie, set, request }) => {
+  .post('/logout-all', async ({ user, cookie, set, request, server }) => {
     if (!user) {
       set.status = 401;
       return errorResponse(GEN_ERRORS.UNAUTHORIZED);
@@ -231,7 +231,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
       userId: user.id,
       action: 'logout_all',
       resource: 'session',
-      ipAddress: getClientIP(request) || undefined,
+      ipAddress: getClientIP(request, server) || undefined,
       userAgent: request.headers.get('user-agent') || undefined
     });
 
@@ -397,7 +397,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   .post(
     '/forgot-password',
     async ({ body, set }) => {
-      const result = await PasswordResetService.requestReset(body.email, body.phoneNumber);
+      await PasswordResetService.requestReset(body.email, body.phoneNumber);
 
       // Always return success to prevent user enumeration
       // The actual result is sent via email

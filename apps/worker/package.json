@@ -1,0 +1,27 @@
+{
+  "name": "@repo/worker",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir=dist --target=bun",
+    "start": "bun run dist/index.js",
+    "lint": "eslint .",
+    "check-types": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "@repo/config": "workspace:*",
+    "@repo/db": "workspace:*",
+    "@repo/errors": "workspace:*",
+    "@repo/logger": "workspace:*",
+    "@repo/types": "workspace:*",
+    "@repo/utils": "workspace:*",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "bun-types": "^1.1.20",
+    "eslint": "^9.0.0",
+    "typescript": "^5.5.3"
+  }
+}

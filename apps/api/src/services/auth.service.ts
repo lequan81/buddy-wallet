@@ -14,11 +14,11 @@ import {
   normalizePhoneNumber,
   parseUserAgent,
   getLocationFromIP,
-  logger,
   validatePasswordComplexity,
   isCommonPassword,
   toSafeUser
 } from '../utils';
+import { logger } from '@repo/logger';
 import type { DbClient } from '../types';
 import type { RegisterInput, LoginInput, AuthResult } from '../types';
 import type { IAuthService } from '../types';

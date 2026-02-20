@@ -7,7 +7,7 @@
 import type { Debt } from '@repo/db';
 import type { DebtStatus } from '../types';
 import type { IDebtState, TransitionContext } from '../types/debt-state';
-import { log } from '../utils/logger';
+import { log } from '@repo/logger';
 
 export class PendingState implements IDebtState {
   readonly status: DebtStatus = 'pending';

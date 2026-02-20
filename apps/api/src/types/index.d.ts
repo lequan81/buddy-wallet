@@ -5,7 +5,6 @@
  */
 
 // Re-export all types
-export * from './logger';
 export * from './rate-limit';
 export * from './trace';
 export * from '@repo/types';
@@ -67,4 +66,20 @@ export interface AuthenticatedContext {
     permissions: string[];
   } | null;
   sessionId: string | null;
+}
+
+// Common service options and types
+export type ExpiryOption = '7d' | '30d' | '90d' | 'never';
+
+export interface PaginationOptions {
+  limit?: number;
+  offset?: number;
+  status?: string;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
 }

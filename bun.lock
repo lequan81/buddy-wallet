@@ -5,8 +5,8 @@
     "": {
       "name": "buddy-wallet",
       "devDependencies": {
-        "prettier": "^3.7.4",
-        "prettier-plugin-svelte": "^3.4.0",
+        "prettier": "^3.8.1",
+        "prettier-plugin-svelte": "^3.5.0",
         "turbo": "2.8.8",
       },
     },
@@ -27,6 +27,7 @@
         "@repo/db": "workspace:*",
         "@repo/email-templates": "workspace:*",
         "@repo/errors": "workspace:*",
+        "@repo/logger": "workspace:*",
         "@repo/permissions": "workspace:*",
         "@repo/types": "workspace:*",
         "@repo/utils": "workspace:*",
@@ -56,6 +57,7 @@
         "@repo/config": "workspace:*",
         "@repo/errors": "workspace:*",
         "@repo/types": "workspace:*",
+        "@repo/utils": "workspace:*",
         "svelte-sonner": "^1.0.7",
         "valibot": "^1.2.0",
       },
@@ -102,6 +104,26 @@
         "workbox-routing": "^7.4.0",
         "workbox-strategies": "^7.4.0",
         "workbox-window": "^7.4.0",
+      },
+    },
+    "apps/worker": {
+      "name": "@repo/worker",
+      "version": "1.0.0",
+      "dependencies": {
+        "@repo/config": "workspace:*",
+        "@repo/db": "workspace:*",
+        "@repo/errors": "workspace:*",
+        "@repo/logger": "workspace:*",
+        "@repo/types": "workspace:*",
+        "@repo/utils": "workspace:*",
+        "xlsx": "^0.18.5",
+      },
+      "devDependencies": {
+        "@repo/eslint-config": "workspace:*",
+        "@repo/typescript-config": "workspace:*",
+        "bun-types": "^1.1.20",
+        "eslint": "^9.0.0",
+        "typescript": "^5.5.3",
       },
     },
     "packages/config": {
@@ -178,6 +200,17 @@
       },
       "peerDependencies": {
         "eslint": "^9.0.0",
+      },
+    },
+    "packages/logger": {
+      "name": "@repo/logger",
+      "version": "1.0.0",
+      "devDependencies": {
+        "@repo/eslint-config": "workspace:*",
+        "@repo/typescript-config": "workspace:*",
+        "bun-types": "^1.1.20",
+        "eslint": "^9.0.0",
+        "typescript": "^5.5.3",
       },
     },
     "packages/permissions": {
@@ -769,6 +802,8 @@
 
     "@repo/eslint-config": ["@repo/eslint-config@workspace:packages/eslint-config"],
 
+    "@repo/logger": ["@repo/logger@workspace:packages/logger"],
+
     "@repo/permissions": ["@repo/permissions@workspace:packages/permissions"],
 
     "@repo/types": ["@repo/types@workspace:packages/types"],
@@ -782,6 +817,8 @@
     "@repo/validation": ["@repo/validation@workspace:packages/validation"],
 
     "@repo/web": ["@repo/web@workspace:apps/web"],
+
+    "@repo/worker": ["@repo/worker@workspace:apps/worker"],
 
     "@rolldown/binding-android-arm64": ["@rolldown/binding-android-arm64@1.0.0-rc.4", "", { "os": "android", "cpu": "arm64" }, "sha512-vRq9f4NzvbdZavhQbjkJBx7rRebDKYR9zHfO/Wg486+I7bSecdUapzCm5cyXoK+LHokTxgSq7A5baAXUZkIz0w=="],
 
@@ -1791,7 +1828,7 @@
 
     "prettier": ["prettier@3.8.1", "", { "bin": { "prettier": "bin/prettier.cjs" } }, "sha512-UOnG6LftzbdaHZcKoPFtOcCKztrQ57WkHDeRD9t/PTQtmT0NHSeWWepj6pS0z/N7+08BHFDQVUrfmfMRcZwbMg=="],
 
-    "prettier-plugin-svelte": ["prettier-plugin-svelte@3.4.1", "", { "peerDependencies": { "prettier": "^3.0.0", "svelte": "^3.2.0 || ^4.0.0-next.0 || ^5.0.0-next.0" } }, "sha512-xL49LCloMoZRvSwa6IEdN2GV6cq2IqpYGstYtMT+5wmml1/dClEoI0MZR78MiVPpu6BdQFfN0/y73yO6+br5Pg=="],
+    "prettier-plugin-svelte": ["prettier-plugin-svelte@3.5.0", "", { "peerDependencies": { "prettier": "^3.0.0", "svelte": "^3.2.0 || ^4.0.0-next.0 || ^5.0.0-next.0" } }, "sha512-2lLO/7EupnjO/95t+XZesXs8Bf3nYLIDfCo270h5QWbj/vjLqmrQ1LiRk9LPggxSDsnVYfehamZNf+rgQYApZg=="],
 
     "prettier-plugin-tailwindcss": ["prettier-plugin-tailwindcss@0.7.2", "", { "peerDependencies": { "@ianvs/prettier-plugin-sort-imports": "*", "@prettier/plugin-hermes": "*", "@prettier/plugin-oxc": "*", "@prettier/plugin-pug": "*", "@shopify/prettier-plugin-liquid": "*", "@trivago/prettier-plugin-sort-imports": "*", "@zackad/prettier-plugin-twig": "*", "prettier": "^3.0", "prettier-plugin-astro": "*", "prettier-plugin-css-order": "*", "prettier-plugin-jsdoc": "*", "prettier-plugin-marko": "*", "prettier-plugin-multiline-arrays": "*", "prettier-plugin-organize-attributes": "*", "prettier-plugin-organize-imports": "*", "prettier-plugin-sort-imports": "*", "prettier-plugin-svelte": "*" }, "optionalPeers": ["@ianvs/prettier-plugin-sort-imports", "@prettier/plugin-hermes", "@prettier/plugin-oxc", "@prettier/plugin-pug", "@shopify/prettier-plugin-liquid", "@trivago/prettier-plugin-sort-imports", "@zackad/prettier-plugin-twig", "prettier-plugin-astro", "prettier-plugin-css-order", "prettier-plugin-jsdoc", "prettier-plugin-marko", "prettier-plugin-multiline-arrays", "prettier-plugin-organize-attributes", "prettier-plugin-organize-imports", "prettier-plugin-sort-imports", "prettier-plugin-svelte"] }, "sha512-LkphyK3Fw+q2HdMOoiEHWf93fNtYJwfamoKPl7UwtjFQdei/iIBoX11G6j706FzN3ymX9mPVi97qIY8328vdnA=="],
 
