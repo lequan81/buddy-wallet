@@ -20,7 +20,8 @@ import {
   TracesController,
   PushController,
   BankController,
-  UploadController
+  UploadController,
+  ProofController
 } from './controllers';
 import { telemetry } from './instrumentation';
 import { logger } from '@repo/logger';
@@ -85,6 +86,7 @@ export const app = new Elysia()
             .use(ActivityController)
             .use(BankController)
             .use(UploadController) // File uploads for QR codes and payment proofs
+            .use(ProofController)
       )
   )
   .get('/', () => ({
@@ -128,6 +130,12 @@ if (import.meta.main) {
           logger.error('Cron Error:', { error: String(err) })
         );
         CleanupService.cleanupStalePendingLogs().catch((err) =>
+          logger.error('Cron Error:', { error: String(err) })
+        );
+        CleanupService.cleanupExpiredSessions().catch((err) =>
+          logger.error('Cron Error:', { error: String(err) })
+        );
+        CleanupService.cleanupExpiredOTPs().catch((err) =>
           logger.error('Cron Error:', { error: String(err) })
         );
       },

@@ -2,11 +2,33 @@
  * @repo/config - Shared Configuration & Constants
  *
  * Contains shared constants used by both frontend and backend.
+ * Organized into shared, backend, and frontend specific constants.
  */
 
-// ============================================
-// FILE IMPORT CONFIGURATION
-// ============================================
+export * from './shared';
+export * from './backend';
+export * from './frontend';
+
+// Legacy exports for backward compatibility
+export const ACCEPTED_IMPORT_EXTENSIONS = ['.xlsx', '.xls', '.csv'] as const;
+export const ACCEPTED_IMPORT_MIME_TYPES = [
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+  'application/vnd.ms-excel', // xls
+  'text/csv',
+  'application/csv'
+] as const;
+export const MAX_IMPORT_ROWS = 10000;
+export const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
+export const MAX_DIRECT_PROCESS_SIZE_BYTES = 200 * 1024;
+export const DEFAULT_PAGE_SIZE = 20;
+export const MAX_PAGE_SIZE = 100;
+export const DEBT_MIN_AMOUNT = 1000;
+export const DEBT_MAX_AMOUNT = 1000000000000;
+export const MAX_BATCH_DELETE_SIZE = 50;
+export const DUPLICATE_CHECK_DAYS = 7;
+export const DUPLICATE_AMOUNT_TOLERANCE = 0.1;
+export const MAX_DAILY_IMPORT_ROWS = 500;
+export const MAX_PENDING_DEBTS = 200;
 
 // Helper to get env var safely across environments (Vite, Bun, Node)
 const getEnv = (key: string, def: string) => {
@@ -21,17 +43,6 @@ const getEnv = (key: string, def: string) => {
   return def;
 };
 
-/** Accepted file extensions for spreadsheet import */
-export const ACCEPTED_IMPORT_EXTENSIONS = ['.xlsx', '.xls', '.csv'] as const;
-
-/** Accepted MIME types for spreadsheet import */
-export const ACCEPTED_IMPORT_MIME_TYPES = [
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
-  'application/vnd.ms-excel', // xls
-  'text/csv',
-  'application/csv'
-] as const;
-
 /** Check if file extension is valid for import */
 export const isValidImportFile = (filename: string): boolean => {
   const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'));
@@ -41,52 +52,30 @@ export const isValidImportFile = (filename: string): boolean => {
 /** Get accept string for file input */
 export const getImportAcceptString = (): string => ACCEPTED_IMPORT_EXTENSIONS.join(',');
 
-// ============================================
-// API CONFIGURATION
-// ============================================
-
-/** API base URL - should be overridden by env in production */
-export const API_BASE_URL = 'http://localhost:3000';
-
-/** Web base URL - should be overridden by env in production */
+// Legacy API URLs
+export const API_BASE_URL = getEnv('VITE_API_URL', 'http://localhost:3000');
 export const WEB_BASE_URL = getEnv('VITE_WEB_URL', 'http://localhost:5173');
 
-// ============================================
-// PAGINATION DEFAULTS
-// ============================================
+// Legacy storage directories
+export const UPLOAD_TMP_DIR = getEnv('UPLOAD_TMP_DIR', '../../tmp/uploads');
+export const PROOF_TMP_DIR = getEnv('PROOF_TMP_DIR', '../../tmp/proofs');
 
-export const DEFAULT_PAGE_SIZE = 20;
-export const MAX_PAGE_SIZE = 100;
+// Legacy image config
+export const MAX_IMAGE_FILE_SIZE = 4 * 1024 * 1024;
+export const ACCEPTED_IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/heic',
+  'image/heif'
+] as const;
 
-// ============================================
-// FILE SIZE LIMITS
-// ============================================
-
-/** Max file size for import (5MB) */
-export const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
-
-/** Max rows to process in import */
-export const MAX_IMPORT_ROWS = 10000;
-
-// ============================================
-// SECURITY VALIDATION
-// ============================================
-
+// Export other legacy modules
 export * from './security';
 export * from './env';
 
-// ============================================
-// SYSTEM CONSTANTS
-// ============================================
-
-export const UPLOAD_TMP_DIR = getEnv('UPLOAD_TMP_DIR', './tmp/uploads');
-
-/**
- * Maximum file size for direct (foreground) processing in bytes (200KB).
- * Files larger than this will be processed in the background worker queue.
- */
-export const MAX_DIRECT_PROCESS_SIZE_BYTES = 200 * 1024;
-
+// Legacy banks data
 export const MAJOR_BANKS_FALLBACK = [
   {
     id: 17,
@@ -160,19 +149,6 @@ export const MAJOR_BANKS_FALLBACK = [
   }
 ];
 
-// ============================================
-// DEBT CONFIGURATION
-// ============================================
-
-/** Minimum debt amount (1,000 VND) */
-export const DEBT_MIN_AMOUNT = 1000;
-
-/** Maximum debt amount (1 Trillion VND) */
-export const DEBT_MAX_AMOUNT = 1000000000000;
-
-// ============================================
-// EXTERNAL SERVICES
-// ============================================
-
+// Legacy external services
 export const VIETQR_API_URL = getEnv('VIETQR_API_URL', 'https://api.vietqr.io/v2/banks');
 export const VIETQR_TIMEOUT = Number(getEnv('VIETQR_TIMEOUT', '5000'));

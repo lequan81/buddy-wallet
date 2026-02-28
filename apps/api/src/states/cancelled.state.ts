@@ -30,8 +30,30 @@ export class CancelledState implements IDebtState {
       previousStatus: context.previousStatus
     });
 
-    // TODO: Send cancellation notice to both parties
-    // await notificationService.sendDebtCancelled(debt, context.reason);
+    // Send cancellation notice to counterparty
+    const notifyUserId = context.userId === debt.creditorId ? debt.debtorId : debt.creditorId;
+    if (notifyUserId) {
+      import('../services').then(({ PushService, UserService }) => {
+        UserService.getUserById(context.userId).then((canceller) => {
+          UserService.getUserById(notifyUserId).then((target) => {
+            if (canceller.user && target.user?.pushNotificationsEnabled) {
+              const amount = new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND',
+                maximumFractionDigits: 0
+              }).format(debt.amount);
+
+              PushService.sendToUser(notifyUserId, {
+                title: 'Debt Cancelled',
+                body: `${canceller.user.name} has cancelled the debt of ${amount} for "${debt.description}".`,
+                url: `/debts/${debt.id}`,
+                tag: `debt-cancelled-${debt.id}`
+              }).catch(() => {});
+            }
+          });
+        });
+      });
+    }
   }
 
   // No onExit - terminal state cannot be exited

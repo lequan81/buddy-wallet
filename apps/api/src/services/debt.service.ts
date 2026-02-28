@@ -6,11 +6,31 @@
  * Implements IDebtService interface for LSP compliance.
  * Uses State Machine pattern for status transitions (OCP compliance).
  */
-import { debts, users, eq, or, and, ne, gte, desc, count, isNull, type Debt } from '@repo/db';
+import {
+  debts,
+  users,
+  eq,
+  or,
+  and,
+  ne,
+  gte,
+  desc,
+  count,
+  isNull,
+  type Debt,
+  type ActivityAction
+} from '@repo/db';
 import { hasPermission, PERMISSIONS } from '@repo/permissions';
 import { normalizePhoneNumber } from '../utils/phone';
 // import { configs } from '../configs'; // Deprecated local config usage for limits
-import { DEBT_MIN_AMOUNT, DEBT_MAX_AMOUNT } from '@repo/config';
+import {
+  DEBT_MIN_AMOUNT,
+  DEBT_MAX_AMOUNT,
+  MAX_PENDING_DEBTS,
+  MAX_BATCH_DELETE_SIZE,
+  DUPLICATE_CHECK_DAYS,
+  DUPLICATE_AMOUNT_TOLERANCE
+} from '@repo/config';
 import { CreateDebtInputSchema, safeParse } from '@repo/validation';
 import { debtStateMachine } from '../states';
 import { logger } from '@repo/logger';
@@ -36,6 +56,13 @@ function calculateExpiryDate(option: ExpiryOption): Date | null {
   return new Date(Date.now() + days * MS_PER_DAY);
 }
 
+/** Push notification payload shape */
+interface PushPayload {
+  title: string;
+  body: string;
+  url?: string;
+}
+
 /**
  * DebtService class with dependency injection
  * Implements IDebtService for LSP compliance
@@ -59,17 +86,78 @@ export class DebtService implements IDebtService {
   }
   constructor(private db: DbClient) {}
 
+  // ── Private Helpers ──────────────────────────────────────────────
+
+  /** Fetch a debt by ID or return a NOT_FOUND error */
+  private async getDebtOrFail(debtId: string): Promise<[Debt, null] | [null, DebtResult]> {
+    const debt = await this.db.query.debts.findFirst({
+      where: and(eq(debts.id, debtId), isNull(debts.deletedAt))
+    });
+    if (!debt) return [null, { success: false, error: 'Debt not found', code: 'NOT_FOUND' }];
+    return [debt as Debt, null];
+  }
+
+  /** Validate amount bounds, returns error result or null */
+  private validateAmount(amount: number): DebtResult | null {
+    if (amount < DEBT_MIN_AMOUNT) {
+      return {
+        success: false,
+        error: `Minimum debt amount is ${DEBT_MIN_AMOUNT}`,
+        code: 'AMOUNT_TOO_LOW'
+      };
+    }
+    if (amount > DEBT_MAX_AMOUNT) {
+      return {
+        success: false,
+        error: `Maximum debt amount is ${DEBT_MAX_AMOUNT}`,
+        code: 'AMOUNT_TOO_HIGH'
+      };
+    }
+    return null;
+  }
+
+  /** Send push notification (fire-and-forget, never throws) */
+  private async notifyUser(userId: string, payload: PushPayload): Promise<void> {
+    if (!this.pushService) return;
+    try {
+      await this.pushService.sendToUser(userId, payload);
+    } catch (error) {
+      logger.error('Failed to send notification', { error: String(error) });
+    }
+  }
+
+  /** Log an activity event (fire-and-forget) */
+  private async logActivity(
+    userId: string,
+    action: ActivityAction,
+    resourceId?: string,
+    changes?: Record<string, unknown>,
+    metadata?: Record<string, unknown>
+  ): Promise<void> {
+    if (!this.activityService) return;
+    await this.activityService.log({
+      userId,
+      action,
+      resource: 'debt',
+      ...(resourceId && { resourceId }),
+      ...(changes && { changes }),
+      ...(metadata && { metadata })
+    });
+  }
+
+  // ── Query Methods ──────────────────────────────────────────────
+
   /**
    * Find potential duplicate debts
-   * Checks for debts with same parties and similar amount in the last 7 days
+   * Checks for debts with same parties and similar amount
    */
   async findPotentialDuplicates(
     debtorPhone: string,
     creditorPhone: string,
     amount: number
   ): Promise<{ id: string; amount: number; description: string | null; createdAt: Date }[]> {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const amountRange = amount * 0.1; // 10% tolerance
+    const cutoffDate = new Date(Date.now() - DUPLICATE_CHECK_DAYS * MS_PER_DAY);
+    const amountRange = amount * DUPLICATE_AMOUNT_TOLERANCE;
 
     const duplicates = this.db
       .select({
@@ -84,93 +172,61 @@ export class DebtService implements IDebtService {
           eq(debts.debtorPhone, debtorPhone),
           eq(debts.creditorPhone, creditorPhone),
           gte(debts.amount, amount - amountRange),
-          // amount <= (amount + amountRange) - handled client side
-          gte(debts.createdAt, sevenDaysAgo),
-          gte(debts.createdAt, sevenDaysAgo),
+          gte(debts.createdAt, cutoffDate),
           ne(debts.status, 'cancelled'),
           isNull(debts.deletedAt)
         )
       )
       .all();
 
-    // Filter for amount within range (can't do <= in simple query)
     return duplicates.filter((d) => d.amount <= amount + amountRange);
   }
 
-  /**
-   * Get debts for a user (or all debts if admin) with pagination
-   */
-  async getDebtsForUser(
-    userId: string,
-    hasViewAllPermission: boolean,
+  /** Shared paginated query builder */
+  private queryDebts(
+    baseWhere: ReturnType<typeof or> | undefined,
     options: PaginationOptions = {}
-  ): Promise<PaginatedResult<Debt>> {
+  ): PaginatedResult<Debt> {
     const { limit = 50, offset = 0, status } = options;
 
-    // Build where condition
-    let whereCondition = hasViewAllPermission
-      ? undefined
-      : or(eq(debts.debtorId, userId), eq(debts.creditorId, userId));
-
-    // Add status filter if provided
+    // Build where: base filter + status + soft-delete
+    let where = baseWhere;
     if (status && status !== 'all') {
-      const statusCondition = eq(debts.status, status);
-      whereCondition = whereCondition ? and(whereCondition, statusCondition) : statusCondition;
+      const statusCond = eq(debts.status, status);
+      where = where ? and(where, statusCond) : statusCond;
     }
+    where = where ? and(where, isNull(debts.deletedAt)) : isNull(debts.deletedAt);
 
-    // Exclude soft-deleted debts
-    whereCondition = whereCondition
-      ? and(whereCondition, isNull(debts.deletedAt))
-      : isNull(debts.deletedAt);
-
-    // Get total count
-    const countResult = whereCondition
-      ? this.db.select({ count: count() }).from(debts).where(whereCondition).get()
+    const countResult = where
+      ? this.db.select({ count: count() }).from(debts).where(where).get()
       : this.db.select({ count: count() }).from(debts).get();
-
     const total = countResult?.count ?? 0;
 
-    // Get paginated data
     let query = this.db.select().from(debts);
-    if (whereCondition) {
-      query = query.where(whereCondition) as typeof query;
-    }
+    if (where) query = query.where(where) as typeof query;
     const data = query.orderBy(desc(debts.createdAt)).limit(limit).offset(offset).all();
 
     return { data, total, limit, offset };
   }
 
-  /**
-   * Get debts for a specific user (admin only) with pagination
-   */
+  /** Get debts for a user (or all debts if admin) with pagination */
+  async getDebtsForUser(
+    userId: string,
+    hasViewAllPermission: boolean,
+    options: PaginationOptions = {}
+  ): Promise<PaginatedResult<Debt>> {
+    const baseWhere = hasViewAllPermission
+      ? undefined
+      : or(eq(debts.debtorId, userId), eq(debts.creditorId, userId));
+    return this.queryDebts(baseWhere, options);
+  }
+
+  /** Get debts for a specific user (admin only) with pagination */
   async getDebtsByUserId(
     userId: string,
     options: PaginationOptions = {}
   ): Promise<PaginatedResult<Debt>> {
-    const { limit = 50, offset = 0, status } = options;
-
-    let whereCondition = or(eq(debts.debtorId, userId), eq(debts.creditorId, userId));
-
-    if (status && status !== 'all') {
-      whereCondition = and(whereCondition, eq(debts.status, status)) as typeof whereCondition;
-    }
-
-    // Exclude soft-deleted debts
-    whereCondition = and(whereCondition, isNull(debts.deletedAt)) as typeof whereCondition;
-
-    const countResult = this.db.select({ count: count() }).from(debts).where(whereCondition!).get();
-    const total = countResult?.count ?? 0;
-
-    const data = this.db
-      .select()
-      .from(debts)
-      .where(whereCondition!)
-      .orderBy(desc(debts.createdAt))
-      .limit(limit)
-      .offset(offset)
-      .all();
-
-    return { data, total, limit, offset };
+    return this.queryDebts(or(eq(debts.debtorId, userId), eq(debts.creditorId, userId)), options);
   }
 
   /**
@@ -178,8 +234,8 @@ export class DebtService implements IDebtService {
    * Active = status NOT 'paid' or 'cancelled'
    */
   async countActiveDebtsForPhone(phone: string): Promise<number> {
-    const activeDebts = this.db
-      .select()
+    const result = this.db
+      .select({ count: count() })
       .from(debts)
       .where(
         and(
@@ -188,9 +244,9 @@ export class DebtService implements IDebtService {
           isNull(debts.deletedAt)
         )
       )
-      .all();
+      .get();
 
-    return activeDebts.length;
+    return result?.count ?? 0;
   }
 
   /**
@@ -294,6 +350,20 @@ export class DebtService implements IDebtService {
       };
     }
 
+    // Check unconfirmed debt limit (anti-abuse)
+    const pendingCountResult = this.db
+      .select({ value: count() })
+      .from(debts)
+      .where(and(eq(debts.creditorId, currentUser.id), eq(debts.needsConfirmation, true)))
+      .get();
+    if (pendingCountResult && pendingCountResult.value >= MAX_PENDING_DEBTS) {
+      return {
+        success: false,
+        error: `Too many unconfirmed debts (max ${MAX_PENDING_DEBTS}). Wait for debtors to confirm existing debts.`,
+        code: 'PENDING_DEBT_LIMIT'
+      };
+    }
+
     // Check for potential duplicates (unless confirmDuplicate is set)
     if (!options?.confirmDuplicate) {
       const debtorPhone = direction === 'LEND' ? normalizedCounterpartyPhone : normalizedUserPhone!;
@@ -320,21 +390,21 @@ export class DebtService implements IDebtService {
     // Calculate expiry date
     const expiresAt = calculateExpiryDate(options?.expiryOption || 'never');
 
+    const now = new Date();
     const entry = {
       id: crypto.randomUUID(),
       amount,
       description,
-      status: 'confirmed' as const, // Confirmed for creator's view, but needs counterparty confirmation
+      status: 'confirmed' as const,
       uploadedById: currentUser.id,
-      // Confirmation tracking - creator auto-confirms, counterparty needs to confirm
-      confirmedByCreditor: direction === 'LEND', // Auto-confirmed by creator if they're creditor
-      confirmedByDebtor: direction === 'BORROW', // Auto-confirmed by creator if they're debtor
-      needsConfirmation: true, // Flag that counterparty still needs to confirm
-      creditorConfirmedAt: direction === 'LEND' ? new Date() : null,
-      debtorConfirmedAt: direction === 'BORROW' ? new Date() : null,
-      expiresAt, // Expiry for unconfirmed debts (null = never expires)
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      confirmedByCreditor: direction === 'LEND',
+      confirmedByDebtor: direction === 'BORROW',
+      needsConfirmation: true,
+      creditorConfirmedAt: direction === 'LEND' ? now : null,
+      debtorConfirmedAt: direction === 'BORROW' ? now : null,
+      expiresAt,
+      createdAt: now,
+      updatedAt: now,
       debtorId: null as string | null,
       creditorId: null as string | null,
       debtorPhone: '',
@@ -355,16 +425,9 @@ export class DebtService implements IDebtService {
 
     await this.db.insert(debts).values(entry);
 
-    // Activity Log
-    if (this.activityService) {
-      await this.activityService.log({
-        userId: currentUser.id,
-        action: 'create',
-        resource: 'debt',
-        resourceId: entry.id,
-        changes: { after: { amount: entry.amount, description: entry.description } }
-      });
-    }
+    await this.logActivity(currentUser.id, 'create', entry.id, {
+      after: { amount: entry.amount, description: entry.description }
+    });
 
     // Send push notification to counterparty if they're a registered user
     if (counterparty && this.pushService) {
@@ -375,11 +438,9 @@ export class DebtService implements IDebtService {
           amount: entry.amount,
           description: entry.description || 'No description',
           debtId: entry.id,
-          isCreditor: direction === 'BORROW' // If creator borrowed, counterparty is creditor
+          isCreditor: direction === 'BORROW'
         });
-        logger.push(`Debt notification sent to ${counterparty.id}`);
       } catch (error) {
-        // Don't fail debt creation if notification fails
         logger.error('Failed to send debt notification', { error: String(error) });
       }
     }
@@ -392,15 +453,9 @@ export class DebtService implements IDebtService {
    * Only the counterparty (not the creator) can confirm
    */
   async confirmDebt(debtId: string, currentUser: CurrentUser): Promise<DebtResult> {
-    const debt = await this.db.query.debts.findFirst({
-      where: eq(debts.id, debtId)
-    });
+    const [debt, err] = await this.getDebtOrFail(debtId);
+    if (err) return err;
 
-    if (!debt) {
-      return { success: false, error: 'Debt not found', code: 'NOT_FOUND' };
-    }
-
-    // Check if user is creditor or debtor
     const isCreditor = debt.creditorId === currentUser.id;
     const isDebtor = debt.debtorId === currentUser.id;
 
@@ -408,9 +463,7 @@ export class DebtService implements IDebtService {
       return { success: false, error: 'You are not involved in this debt', code: 'FORBIDDEN' };
     }
 
-    // Check if user is the creator (creators cannot confirm their own debts)
-    const isCreator = debt.uploadedById === currentUser.id;
-    if (isCreator) {
+    if (debt.uploadedById === currentUser.id) {
       return {
         success: false,
         error:
@@ -419,42 +472,32 @@ export class DebtService implements IDebtService {
       };
     }
 
-    // Check if already confirmed by this party
     if ((isCreditor && debt.confirmedByCreditor) || (isDebtor && debt.confirmedByDebtor)) {
       return { success: true, debt, message: 'You already confirmed this debt' };
     }
 
-    // Update confirmation status
-    const updates: Partial<typeof debt> = {
-      updatedAt: new Date()
-    };
+    const now = new Date();
+    const updates: Partial<typeof debt> = { updatedAt: now };
 
     if (isCreditor) {
       updates.confirmedByCreditor = true;
-      updates.creditorConfirmedAt = new Date();
+      updates.creditorConfirmedAt = now;
     }
     if (isDebtor) {
       updates.confirmedByDebtor = true;
-      updates.debtorConfirmedAt = new Date();
+      updates.debtorConfirmedAt = now;
     }
 
-    // If both parties confirmed, mark as fully confirmed
     const willBeFullyConfirmed =
       (updates.confirmedByCreditor || debt.confirmedByCreditor) &&
       (updates.confirmedByDebtor || debt.confirmedByDebtor);
-
-    if (willBeFullyConfirmed) {
-      updates.needsConfirmation = false;
-    }
+    if (willBeFullyConfirmed) updates.needsConfirmation = false;
 
     await this.db.update(debts).set(updates).where(eq(debts.id, debtId));
 
-    // Fetch updated debt
-    const updatedDebt = await this.db.query.debts.findFirst({
-      where: eq(debts.id, debtId)
-    });
+    const updatedDebt = await this.db.query.debts.findFirst({ where: eq(debts.id, debtId) });
 
-    // Send notification to the creator that their debt was confirmed
+    // Send notification to the creator
     if (this.pushService && debt.uploadedById) {
       try {
         await this.pushService.sendDebtConfirmedNotification({
@@ -464,22 +507,12 @@ export class DebtService implements IDebtService {
           description: debt.description || 'No description',
           debtId
         });
-        logger.push(`Debt confirmation notification sent to ${debt.uploadedById}`);
       } catch (error) {
-        // Don't fail confirmation if notification fails
         logger.error('Failed to send confirmation notification', { error: String(error) });
       }
     }
 
-    // Activity Log
-    if (this.activityService) {
-      await this.activityService.log({
-        userId: currentUser.id,
-        action: 'confirm',
-        resource: 'debt',
-        resourceId: debtId
-      });
-    }
+    await this.logActivity(currentUser.id, 'confirm', debtId);
 
     return { success: true, debt: updatedDebt, message: 'Debt confirmed successfully' };
   }
@@ -493,28 +526,20 @@ export class DebtService implements IDebtService {
     newStatus: DebtStatus,
     currentUser: CurrentUser
   ): Promise<StatusUpdateResult> {
-    // Get current debt
-    const debt = await this.db.query.debts.findFirst({
-      where: eq(debts.id, debtId)
-    });
+    const [debt, err] = await this.getDebtOrFail(debtId);
+    if (err) return err;
 
-    if (!debt) {
-      return { success: false, error: 'Debt not found' };
-    }
-
-    // Check if user is involved (unless admin)
     const isAdmin = hasPermission(currentUser.permissions, PERMISSIONS.DEBT_VIEW_ALL);
     const isInvolved = debt.debtorId === currentUser.id || debt.creditorId === currentUser.id;
-
     if (!isAdmin && !isInvolved) {
       return { success: false, error: 'You are not a party to this debt' };
     }
 
-    // Use State Machine for transition validation and lifecycle hooks
+    const now = new Date();
     const transitionResult = await debtStateMachine.transition(debt as Debt, newStatus, {
       userId: currentUser.id,
       permissions: currentUser.permissions,
-      timestamp: new Date()
+      timestamp: now
     });
 
     if (!transitionResult.success) {
@@ -526,27 +551,16 @@ export class DebtService implements IDebtService {
       };
     }
 
-    // Update debt status
     await this.db
       .update(debts)
-      .set({ status: newStatus, updatedAt: new Date() })
+      .set({ status: newStatus, updatedAt: now })
       .where(eq(debts.id, debtId));
+    const updatedDebt = await this.db.query.debts.findFirst({ where: eq(debts.id, debtId) });
 
-    // Fetch the updated debt
-    const updatedDebt = await this.db.query.debts.findFirst({
-      where: eq(debts.id, debtId)
+    await this.logActivity(currentUser.id, newStatus, debtId, {
+      before: { status: debt.status },
+      after: { status: newStatus }
     });
-
-    // Activity Log
-    if (this.activityService) {
-      await this.activityService.log({
-        userId: currentUser.id,
-        action: newStatus,
-        resource: 'debt',
-        resourceId: debtId,
-        changes: { before: { status: debt.status }, after: { status: newStatus } }
-      });
-    }
 
     return { success: true, debt: updatedDebt, previousStatus: debt.status, newStatus };
   }
@@ -560,24 +574,14 @@ export class DebtService implements IDebtService {
     data: { description?: string; amount?: number },
     currentUser: CurrentUser
   ): Promise<DebtResult> {
-    // Get current debt
-    const debt = await this.db.query.debts.findFirst({
-      where: eq(debts.id, debtId)
-    });
+    const [debt, err] = await this.getDebtOrFail(debtId);
+    if (err) return err;
 
-    if (!debt) {
-      return { success: false, error: 'Debt not found', code: 'NOT_FOUND' };
-    }
-
-    // Check if user is owner (uploaded the debt) or admin
     const isAdmin = hasPermission(currentUser.permissions, PERMISSIONS.DEBT_VIEW_ALL);
-    const isOwner = debt.uploadedById === currentUser.id;
-
-    if (!isAdmin && !isOwner) {
+    if (!isAdmin && debt.uploadedById !== currentUser.id) {
       return { success: false, error: 'You can only edit debts you created', code: 'FORBIDDEN' };
     }
 
-    // Can only edit if status is pending or disputed
     if (!['pending', 'disputed'].includes(debt.status)) {
       return {
         success: false,
@@ -586,92 +590,40 @@ export class DebtService implements IDebtService {
       };
     }
 
-    // Validate amount if provided
     if (data.amount !== undefined) {
-      if (data.amount < DEBT_MIN_AMOUNT) {
-        return {
-          success: false,
-          error: `Minimum debt amount is ${DEBT_MIN_AMOUNT}`,
-          code: 'AMOUNT_TOO_LOW'
-        };
-      }
-      if (data.amount > DEBT_MAX_AMOUNT) {
-        return {
-          success: false,
-          error: `Maximum debt amount is ${DEBT_MAX_AMOUNT}`,
-          code: 'AMOUNT_TOO_HIGH'
-        };
-      }
+      const amountErr = this.validateAmount(data.amount);
+      if (amountErr) return amountErr;
     }
 
-    // Update debt
+    const now = new Date();
     await this.db
       .update(debts)
       .set({
         ...(data.description !== undefined && { description: data.description }),
         ...(data.amount !== undefined && { amount: data.amount }),
-        updatedAt: new Date()
+        updatedAt: now
       })
       .where(eq(debts.id, debtId));
 
-    // Fetch updated debt
-    const updatedDebt = await this.db.query.debts.findFirst({
-      where: eq(debts.id, debtId)
-    });
-
-    // Activity Log
-    if (this.activityService) {
-      await this.activityService.log({
-        userId: currentUser.id,
-        action: 'update',
-        resource: 'debt',
-        resourceId: debtId,
-        changes: { after: data }
-      });
-    }
+    const updatedDebt = await this.db.query.debts.findFirst({ where: eq(debts.id, debtId) });
+    await this.logActivity(currentUser.id, 'update', debtId, { after: data });
 
     return { success: true, debt: updatedDebt };
   }
 
-  /**
-   * Soft delete a single debt
-   */
+  /** Soft delete a single debt */
   async deleteDebt(debtId: string, currentUser: CurrentUser): Promise<DebtResult> {
-    // Get current debt
-    const debt = await this.db.query.debts.findFirst({
-      where: eq(debts.id, debtId)
-    });
+    const [debt, err] = await this.getDebtOrFail(debtId);
+    if (err) return err;
 
-    if (!debt) {
-      return { success: false, error: 'Debt not found', code: 'NOT_FOUND' };
-    }
-
-    // Check if user is owner or admin
     const isAdmin = hasPermission(currentUser.permissions, PERMISSIONS.DEBT_DELETE_ALL);
-    const isOwner = debt.uploadedById === currentUser.id;
-
-    if (!isAdmin && !isOwner) {
+    if (!isAdmin && debt.uploadedById !== currentUser.id) {
       return { success: false, error: 'You can only delete debts you created', code: 'FORBIDDEN' };
     }
 
-    // Soft delete by setting deletedAt
-    await this.db
-      .update(debts)
-      .set({
-        deletedAt: new Date(),
-        updatedAt: new Date()
-      })
-      .where(eq(debts.id, debtId));
-
-    // Activity Log
-    if (this.activityService) {
-      await this.activityService.log({
-        userId: currentUser.id,
-        action: 'delete',
-        resource: 'debt',
-        resourceId: debtId
-      });
-    }
+    const now = new Date();
+    await this.db.update(debts).set({ deletedAt: now, updatedAt: now }).where(eq(debts.id, debtId));
+    await this.logActivity(currentUser.id, 'delete', debtId);
 
     return { success: true };
   }
@@ -686,91 +638,69 @@ export class DebtService implements IDebtService {
     const errors: string[] = [];
     let deletedCount = 0;
 
-    // Limit batch size
-    if (debtIds.length > 50) {
-      return { success: false, deleted: 0, errors: ['Maximum 50 debts can be deleted at once'] };
+    if (debtIds.length > MAX_BATCH_DELETE_SIZE) {
+      return {
+        success: false,
+        deleted: 0,
+        errors: [`Maximum ${MAX_BATCH_DELETE_SIZE} debts can be deleted at once`]
+      };
     }
 
     const isAdmin = hasPermission(currentUser.permissions, PERMISSIONS.DEBT_DELETE_ALL);
+    const now = new Date();
 
     for (const debtId of debtIds) {
-      const debt = await this.db.query.debts.findFirst({
-        where: eq(debts.id, debtId)
-      });
+      const debt = await this.db.query.debts.findFirst({ where: eq(debts.id, debtId) });
 
       if (!debt) {
         errors.push(`Debt ${debtId} not found`);
         continue;
       }
 
-      const isOwner = debt.uploadedById === currentUser.id;
-      if (!isAdmin && !isOwner) {
+      if (!isAdmin && debt.uploadedById !== currentUser.id) {
         errors.push(`Not authorized to delete debt ${debtId}`);
         continue;
       }
 
       await this.db
         .update(debts)
-        .set({
-          deletedAt: new Date(),
-          updatedAt: new Date()
-        })
+        .set({ deletedAt: now, updatedAt: now })
         .where(eq(debts.id, debtId));
-
       deletedCount++;
     }
 
-    // Activity Log (Batch)
-    if (deletedCount > 0 && this.activityService) {
-      await this.activityService.log({
-        userId: currentUser.id,
-        action: 'delete',
-        resource: 'debt',
-        metadata: { deletedCount, ids: debtIds }
+    if (deletedCount > 0) {
+      await this.logActivity(currentUser.id, 'delete', undefined, undefined, {
+        deletedCount,
+        ids: debtIds
       });
     }
 
-    return {
-      success: errors.length === 0,
-      deleted: deletedCount,
-      errors
-    };
+    return { success: errors.length === 0, deleted: deletedCount, errors };
   }
 
-  /**
-   * Suggest an edit to a debt (counterparty can suggest changes to amount/description)
-   */
+  /** Suggest an edit to a debt (counterparty can suggest changes) */
   async suggestEdit(
     debtId: string,
     currentUser: CurrentUser,
     suggestion: { amount?: number; description?: string }
   ): Promise<DebtResult> {
-    const debt = await this.db.query.debts.findFirst({
-      where: eq(debts.id, debtId)
-    });
+    const [debt, err] = await this.getDebtOrFail(debtId);
+    if (err) return err;
 
-    if (!debt) {
-      return { success: false, error: 'Debt not found', code: 'NOT_FOUND' };
-    }
-
-    // Only counterparty (not creator) can suggest edits
     const isCreditor = debt.creditorId === currentUser.id;
     const isDebtor = debt.debtorId === currentUser.id;
-    const isCreator = debt.uploadedById === currentUser.id;
 
     if (!isCreditor && !isDebtor) {
       return { success: false, error: 'You are not involved in this debt', code: 'FORBIDDEN' };
     }
-
-    if (isCreator) {
+    if (debt.uploadedById === currentUser.id) {
       return {
         success: false,
         error: 'Creators cannot suggest edits to their own debts',
         code: 'FORBIDDEN'
       };
     }
-
-    // Cannot suggest if already confirmed or paid
     if (debt.status === 'paid' || debt.status === 'cancelled') {
       return {
         success: false,
@@ -778,8 +708,6 @@ export class DebtService implements IDebtService {
         code: 'INVALID_STATE'
       };
     }
-
-    // Must provide at least one change
     if (!suggestion.amount && !suggestion.description) {
       return {
         success: false,
@@ -788,66 +716,44 @@ export class DebtService implements IDebtService {
       };
     }
 
-    // Validate amount if provided
     if (suggestion.amount !== undefined) {
-      if (suggestion.amount < DEBT_MIN_AMOUNT || suggestion.amount > DEBT_MAX_AMOUNT) {
-        return {
-          success: false,
-          error: `Amount must be between ${DEBT_MIN_AMOUNT} and ${DEBT_MAX_AMOUNT}`,
-          code: 'VALIDATION_ERROR'
-        };
-      }
+      const amountErr = this.validateAmount(suggestion.amount);
+      if (amountErr) return amountErr;
     }
 
-    // Update debt with suggestion
+    const now = new Date();
     await this.db
       .update(debts)
       .set({
         suggestedAmount: suggestion.amount ?? null,
         suggestedDescription: suggestion.description ?? null,
         suggestedById: currentUser.id,
-        suggestedAt: new Date(),
-        updatedAt: new Date()
+        suggestedAt: now,
+        updatedAt: now
       })
       .where(eq(debts.id, debtId));
 
-    // Notify the creator
-    if (debt.uploadedById && this.pushService) {
-      try {
-        await this.pushService.sendToUser(debt.uploadedById, {
-          title: 'Edit Suggested',
-          body: `Someone suggested changes to your debt of ${debt.amount.toLocaleString()} VND`,
-          url: `/debts/${debtId}`
-        });
-      } catch (_e) {
-        // Ignore notification failures
-      }
+    if (debt.uploadedById) {
+      await this.notifyUser(debt.uploadedById, {
+        title: 'Edit Suggested',
+        body: `Someone suggested changes to your debt of ${debt.amount.toLocaleString()} VND`,
+        url: `/debts/${debtId}`
+      });
     }
 
-    const updatedDebt = await this.db.query.debts.findFirst({
-      where: eq(debts.id, debtId)
-    });
-
+    const updatedDebt = await this.db.query.debts.findFirst({ where: eq(debts.id, debtId) });
     return { success: true, debt: updatedDebt, message: 'Edit suggestion sent' };
   }
 
-  /**
-   * Accept or reject a suggested edit
-   */
+  /** Accept or reject a suggested edit */
   async respondToSuggestion(
     debtId: string,
     currentUser: CurrentUser,
     accept: boolean
   ): Promise<DebtResult> {
-    const debt = await this.db.query.debts.findFirst({
-      where: eq(debts.id, debtId)
-    });
+    const [debt, err] = await this.getDebtOrFail(debtId);
+    if (err) return err;
 
-    if (!debt) {
-      return { success: false, error: 'Debt not found', code: 'NOT_FOUND' };
-    }
-
-    // Only the creator can respond to suggestions
     if (debt.uploadedById !== currentUser.id) {
       return {
         success: false,
@@ -855,58 +761,37 @@ export class DebtService implements IDebtService {
         code: 'FORBIDDEN'
       };
     }
-
-    // Check if there's a pending suggestion
     if (!debt.suggestedById) {
       return { success: false, error: 'No pending suggestion', code: 'INVALID_STATE' };
     }
 
-    if (accept) {
-      // Apply the suggested changes
-      await this.db
-        .update(debts)
-        .set({
+    const now = new Date();
+    const clearSuggestion = {
+      suggestedAmount: null,
+      suggestedDescription: null,
+      suggestedById: null,
+      suggestedAt: null,
+      updatedAt: now
+    };
+    const updates = accept
+      ? {
+          ...clearSuggestion,
           amount: debt.suggestedAmount ?? debt.amount,
-          description: debt.suggestedDescription ?? debt.description,
-          // Clear suggestion fields
-          suggestedAmount: null,
-          suggestedDescription: null,
-          suggestedById: null,
-          suggestedAt: null,
-          updatedAt: new Date()
-        })
-        .where(eq(debts.id, debtId));
-    } else {
-      // Just clear the suggestion
-      await this.db
-        .update(debts)
-        .set({
-          suggestedAmount: null,
-          suggestedDescription: null,
-          suggestedById: null,
-          suggestedAt: null,
-          updatedAt: new Date()
-        })
-        .where(eq(debts.id, debtId));
+          description: debt.suggestedDescription ?? debt.description
+        }
+      : clearSuggestion;
+
+    await this.db.update(debts).set(updates).where(eq(debts.id, debtId));
+
+    if (debt.suggestedById) {
+      await this.notifyUser(debt.suggestedById, {
+        title: accept ? 'Edit Accepted' : 'Edit Rejected',
+        body: accept ? 'Your suggested edit was accepted' : 'Your suggested edit was rejected',
+        url: `/debts/${debtId}`
+      });
     }
 
-    // Notify the suggester
-    if (debt.suggestedById && this.pushService) {
-      try {
-        await this.pushService.sendToUser(debt.suggestedById, {
-          title: accept ? 'Edit Accepted' : 'Edit Rejected',
-          body: accept ? 'Your suggested edit was accepted' : 'Your suggested edit was rejected',
-          url: `/debts/${debtId}`
-        });
-      } catch (_e) {
-        // Ignore notification failures
-      }
-    }
-
-    const updatedDebt = await this.db.query.debts.findFirst({
-      where: eq(debts.id, debtId)
-    });
-
+    const updatedDebt = await this.db.query.debts.findFirst({ where: eq(debts.id, debtId) });
     return {
       success: true,
       debt: updatedDebt,
@@ -914,26 +799,18 @@ export class DebtService implements IDebtService {
     };
   }
 
-  /**
-   * Delete all debts for a user
-   */
+  /** Delete all debts for a user */
   async deleteAllDebts(userId: string): Promise<{ success: boolean; deleted: number }> {
-    // Get all debts uploaded by this user
     const userDebts = await this.db.query.debts.findMany({
       where: eq(debts.uploadedById, userId)
     });
 
-    if (userDebts.length === 0) {
-      return { success: true, deleted: 0 };
-    }
+    if (userDebts.length === 0) return { success: true, deleted: 0 };
 
-    // Soft delete all
+    const now = new Date();
     await this.db
       .update(debts)
-      .set({
-        deletedAt: new Date(),
-        updatedAt: new Date()
-      })
+      .set({ deletedAt: now, updatedAt: now })
       .where(eq(debts.uploadedById, userId));
 
     return { success: true, deleted: userDebts.length };

@@ -9,6 +9,21 @@ import AutoImport from 'unplugin-auto-import/vite';
 import IconsResolver from 'unplugin-icons/resolver';
 
 export default defineConfig({
+	// PERFORMANCE: Explicitly disable features that slow startup in dev
+	envPrefix: 'VITE_',
+	
+	// PERFORMANCE: Skip preprocessing for faster cold starts
+	css: {
+		devSourcemap: false
+	},
+
+	// PERFORMANCE: Reduce bundle operations in dev mode
+	build: {
+		// Only used for production, but set explicitly to avoid any overhead
+		reportCompressedSize: false,
+		// Disable sourcemaps in dev entirely
+		sourcemap: false
+	},
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
@@ -46,6 +61,7 @@ export default defineConfig({
 				theme_color: '#3B82F6',
 				background_color: '#ffffff',
 				display: 'standalone',
+				display_override: ['window-controls-overlay', 'standalone'],
 				orientation: 'portrait-primary',
 				scope: '/',
 				start_url: '/',
@@ -68,7 +84,22 @@ export default defineConfig({
 						purpose: 'maskable'
 					}
 				],
-				screenshots: [],
+				screenshots: [
+					{
+						src: '/icons/screenshot-wide.png',
+						sizes: '1280x720',
+						type: 'image/png',
+						form_factor: 'wide',
+						label: 'Buddy Wallet Dashboard'
+					},
+					{
+						src: '/icons/screenshot-narrow.png',
+						sizes: '750x1334',
+						type: 'image/png',
+						form_factor: 'narrow',
+						label: 'Buddy Wallet Mobile View'
+					}
+				],
 				shortcuts: [
 					{
 						name: 'Dashboard',
@@ -107,9 +138,17 @@ export default defineConfig({
 			'svelte-sonner',
 			'sveltekit-superforms',
 			'valibot',
-			'@elysiajs/eden'
+			'@elysiajs/eden',
+			// Add common UI dependencies for faster startup
+			'@internationalized/date',
+			'@inlang/paraglide-js'
 		],
-		exclude: ['@repo/ui', '@repo/config', '@repo/errors', '@repo/permissions']
+		exclude: ['@repo/ui', '@repo/config', '@repo/errors', '@repo/permissions'],
+		// PERFORMANCE: Force pre-bundling of these deps on startup
+		force: true,
+		// PERFORMANCE: Don't hold up the server while optimizing
+		// This is the default, but explicit for clarity
+		holdUntilCrawlEnd: false
 	},
 	ssr: {
 		noExternal: ['@repo/ui'],
@@ -124,12 +163,19 @@ export default defineConfig({
 	cacheDir: '.vite',
 	server: {
 		fs: { strict: false },
+		// PERFORMANCE: Increase HMR performance
+		hmr: {
+			// Use overlay but don't block on errors
+			overlay: false
+		},
+		// PERFORMANCE: Pre-transform common files
 		warmup: {
 			clientFiles: [
 				'src/routes/(app)/+page.svelte',
 				'src/routes/(auth)/login/+page.svelte',
 				'src/routes/(admin)/+layout.svelte',
-				'src/lib/components/**/*.svelte'
+				'src/lib/components/**/*.svelte',
+				'src/lib/components/ui/**/*.svelte'
 			]
 		}
 	}

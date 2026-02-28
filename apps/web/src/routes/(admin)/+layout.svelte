@@ -7,27 +7,23 @@
 	import * as DropdownMenu from '@repo/ui/components/ui/dropdown-menu';
 	import * as Avatar from '@repo/ui/components/ui/avatar';
 	import PushPermissionBanner from '$lib/components/shared/PushPermissionBanner.svelte';
-	// import {
-	// 	Wallet,
-	// 	LayoutDashboard,
-	// 	Users,
-	// 	FileText,
-	// 	Settings,
-	// 	LogOut,
-	// 	User,
-	// 	Shield,
-	// 	Menu,
-	// 	X,
-	// 	Activity,
-	// 	Bell,
-	// 	Server
+	import PwaInstall from '$lib/components/PwaInstall.svelte';
 	import { cn } from '$lib/utils';
+	import { getCookie, setCookie } from '$lib/utils/cookie-utils';
 
 	let { children, data } = $props();
 	let user = $derived(data.user);
 	let permissions = $derived(data.permissions);
 	let sidebarOpen = $state(false);
 	let isLoggingOut = $state(false);
+	let bannerDismissed = $state(true); // Start true to avoid flash
+
+	const showVerificationBanner = $derived(user && user.emailVerified === false && !bannerDismissed);
+
+	onMount(() => {
+		// Check cookie for banner dismissal
+		bannerDismissed = getCookie('bw-email-banner-dismissed') === 'true';
+	});
 
 	// Preload frequently accessed pages after dashboard loads
 	onMount(() => {
@@ -219,6 +215,9 @@
 
 			<div class="flex-1"></div>
 
+			<!-- PWA install inline button -->
+			<PwaInstall />
+
 			<!-- User dropdown -->
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger
@@ -287,6 +286,38 @@
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
 		</header>
+
+		<!-- Email Verification Banner -->
+		{#if showVerificationBanner}
+			<div
+				class="border-b border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950/50"
+			>
+				<div class="flex items-center justify-between gap-3">
+					<div class="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
+						<IconLucideShield class="h-4 w-4 shrink-0" />
+						<span>Verify your email to unlock all features</span>
+					</div>
+					<div class="flex items-center gap-2">
+						<a
+							href="/settings/profile"
+							class="rounded-md bg-amber-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-amber-700"
+						>
+							Verify Now
+						</a>
+						<button
+							onclick={() => {
+								bannerDismissed = true;
+								setCookie('bw-email-banner-dismissed', 'true', 30);
+							}}
+							class="rounded p-1 text-amber-600 transition-colors hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900"
+							aria-label="Dismiss"
+						>
+							<IconLucideX class="h-4 w-4" />
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Page content -->
 		<main class="flex-1 p-4 lg:p-6">

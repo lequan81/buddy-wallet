@@ -32,6 +32,15 @@ export const AuthController = new Elysia({ prefix: '/auth' })
       const result = await AuthService.register(body);
 
       if (!result.success) {
+        if (result.error === 'DATABASE_ERROR') {
+          set.status = 503;
+          set.headers['Retry-After'] = '30';
+          return errorResponse(
+            BE_ERRORS.DB_CONNECTION,
+            'Service unavailable. Please try again later.'
+          );
+        }
+
         set.status = 400;
         // Map service errors to standardized error codes
         const errorMap: Record<string, (typeof BE_ERRORS)[keyof typeof BE_ERRORS]> = {
@@ -70,10 +79,23 @@ export const AuthController = new Elysia({ prefix: '/auth' })
           userAgent,
           clientIP
         },
-        jwt
+        jwt as unknown as {
+          sign: (
+            payload: Record<string, string | number | boolean | null | undefined>
+          ) => Promise<string>;
+        }
       );
 
       if (!result.success) {
+        if (result.error === 'DATABASE_ERROR') {
+          set.status = 503;
+          set.headers['Retry-After'] = '30';
+          return errorResponse(
+            BE_ERRORS.DB_CONNECTION,
+            'Service unavailable. Please try again later.'
+          );
+        }
+
         set.status = 401;
         return errorResponse(BE_ERRORS.AUTH_INVALID_CREDENTIALS, result.error);
       }
@@ -169,7 +191,25 @@ export const AuthController = new Elysia({ prefix: '/auth' })
 
   // ==================== ME ====================
   .get('/me', async ({ user }) => {
-    return successResponse({ user });
+    return successResponse({
+      user: user
+        ? {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            role: user.role,
+            permissions: user.permissions || [],
+            isActive: user.isActive,
+            emailVerified: user.emailVerified,
+            emailNotificationsEnabled: user.emailNotificationsEnabled,
+            pushNotificationsEnabled: user.pushNotificationsEnabled,
+            mustChangePassword: user.mustChangePassword,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
+          }
+        : null
+    });
   })
 
   // ==================== LOGOUT ====================
@@ -411,6 +451,32 @@ export const AuthController = new Elysia({ prefix: '/auth' })
       body: t.Object({
         email: t.String({ format: 'email' }),
         phoneNumber: t.String({ minLength: 10 })
+      })
+    }
+  )
+
+  // ==================== RESET PASSWORD WITH TOKEN ====================
+  .post(
+    '/reset-password',
+    async ({ body, set }) => {
+      const resetResult = await PasswordResetService.resetPasswordWithToken(
+        body.email,
+        body.token,
+        body.newPassword
+      );
+
+      if (!resetResult.success) {
+        set.status = 400;
+        return errorResponse(GEN_ERRORS.INVALID_INPUT, resetResult.error);
+      }
+
+      return successResponse({ message: 'Password has been reset successfully' });
+    },
+    {
+      body: t.Object({
+        email: t.String({ format: 'email' }),
+        token: t.String({ minLength: 32 }),
+        newPassword: t.String({ minLength: configs.AUTH.MIN_PASSWORD_LENGTH })
       })
     }
   )

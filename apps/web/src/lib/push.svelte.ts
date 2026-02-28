@@ -9,9 +9,11 @@
 
 import { apiFetch, API_URL, getDefaultHeaders } from './api';
 import { getDeviceInfo } from '$lib/utils/device';
-const STORAGE_KEYS = {
-	PUSH_BANNER_DISMISSED: 'push_banner_dismissed',
-	PUSH_BANNER_DISMISSED_UNTIL: 'push_banner_dismissed_until'
+import { getCookie, setCookie, deleteCookie } from '$lib/utils/cookie-utils';
+
+const COOKIE_KEYS = {
+	PUSH_BANNER_DISMISSED: 'bw-push-dismissed',
+	PUSH_BANNER_DISMISSED_UNTIL: 'bw-push-dismissed-until'
 } as const;
 
 // Push notification state
@@ -287,10 +289,10 @@ export function shouldShowBanner(): boolean {
 	if (pushState.permission !== 'prompt' || pushState.isSubscribed) return false;
 
 	// Check if permanently dismissed
-	if (localStorage.getItem(STORAGE_KEYS.PUSH_BANNER_DISMISSED) === 'true') return false;
+	if (getCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED) === 'true') return false;
 
 	// Check if temporarily dismissed
-	const dismissedUntil = localStorage.getItem(STORAGE_KEYS.PUSH_BANNER_DISMISSED_UNTIL);
+	const dismissedUntil = getCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED_UNTIL);
 	if (dismissedUntil && Date.now() < parseInt(dismissedUntil, 10)) return false;
 
 	return true;
@@ -298,15 +300,15 @@ export function shouldShowBanner(): boolean {
 
 export function dismissBanner(permanent = false): void {
 	if (permanent) {
-		localStorage.setItem(STORAGE_KEYS.PUSH_BANNER_DISMISSED, 'true');
+		setCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED, 'true', 365);
 	} else {
 		// Dismiss for 7 days
 		const dismissUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
-		localStorage.setItem(STORAGE_KEYS.PUSH_BANNER_DISMISSED_UNTIL, dismissUntil.toString());
+		setCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED_UNTIL, dismissUntil.toString(), 7);
 	}
 }
 
 export function resetBannerDismissal(): void {
-	localStorage.removeItem(STORAGE_KEYS.PUSH_BANNER_DISMISSED);
-	localStorage.removeItem(STORAGE_KEYS.PUSH_BANNER_DISMISSED_UNTIL);
+	deleteCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED);
+	deleteCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED_UNTIL);
 }

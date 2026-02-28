@@ -18,12 +18,7 @@ import { jwtPlugin } from './jwt.plugin';
 import { logger } from '@repo/logger';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from '../redis';
 import { hashToken } from '../../utils';
-import {
-  logJWTTampered,
-  logTokenReplay,
-  logSessionHijack,
-  logSecurityEvent
-} from '../../utils/security-logger';
+import { logJWTTampered, logSessionHijack, logSecurityEvent } from '../../utils/security-logger';
 
 export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
   .use(jwtPlugin)
@@ -95,7 +90,7 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
           role: (cached.role as string) || 'user',
           isActive: (cached.isActive as boolean) ?? true,
           permissions: (cached.permissions as string[]) || [],
-          email: null, // Not cached for security - fetch from DB if needed
+          email: null, // Email removed from JWT for security - use getUserWithFreshData() when needed
           phoneNumber: payload.phoneNumber // From JWT payload, not cache
         } as unknown as User;
 

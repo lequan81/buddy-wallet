@@ -6,10 +6,11 @@
  */
 import { randomUUIDv7 } from 'bun';
 import webpush from 'web-push';
-import { pushSubscriptions, eq, and } from '@repo/db';
+import { pushSubscriptions, eq, and, sql } from '@repo/db';
 import { configs } from '../configs';
 import { logger } from '@repo/logger';
 import type { DbClient } from '../types';
+import type { PushPayload, SubscribeInput, SendResult } from '../types/push';
 
 // Configure web-push with VAPID keys (only if valid keys are provided)
 const hasValidVapidKeys =
@@ -35,36 +36,6 @@ if (hasValidVapidKeys) {
 } else {
   logger.warn('VAPID keys not configured. Push notifications disabled.');
   logger.warn('Generate keys with: bunx web-push generate-vapid-keys');
-}
-
-export interface PushPayload {
-  title: string;
-  body: string;
-  icon?: string;
-  badge?: string;
-  tag?: string;
-  url?: string;
-  data?: Record<string, unknown>;
-  requireInteraction?: boolean;
-  silent?: boolean;
-}
-
-export interface SubscribeInput {
-  endpoint: string;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
-  expirationTime?: number | null;
-  deviceName?: string;
-  deviceType?: 'desktop' | 'mobile' | 'tablet';
-}
-
-export interface SendResult {
-  success: boolean;
-  sent: number;
-  failed: number;
-  errors?: string[];
 }
 
 export class PushService {
@@ -152,7 +123,7 @@ export class PushService {
     endpoint: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const result = await this.db
+      await this.db
         .delete(pushSubscriptions)
         .where(and(eq(pushSubscriptions.userId, userId), eq(pushSubscriptions.endpoint, endpoint)));
 
@@ -217,13 +188,19 @@ export class PushService {
   ): Promise<SendResult> {
     const results = await Promise.allSettled(
       subscriptions.map(async (sub) => {
-        const pushSubscription = {
+        const pushSubscription: {
+          endpoint: string;
+          keys: {
+            p256dh: string;
+            auth: string;
+          };
+        } = {
           endpoint: sub.endpoint,
           keys: {
             p256dh: sub.p256dhKey,
             auth: sub.authKey
           }
-        } as any;
+        };
 
         try {
           await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
@@ -301,11 +278,18 @@ export class PushService {
    * Cleanup inactive/expired subscriptions
    */
   async cleanup(): Promise<number> {
-    const result = await this.db
+    await this.db
       .delete(pushSubscriptions)
       .where(eq(pushSubscriptions.isActive, false));
 
-    return 0; // SQLite doesn't return affected rows count easily
+    // Return count of deleted subscriptions (approximate)
+    const deletedCount = await this.db
+      .select({ count: sql<number>`COUNT(${pushSubscriptions.id})`.as('count') })
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.isActive, false))
+      .get();
+    
+    return deletedCount?.count || 0;
   }
 
   /**

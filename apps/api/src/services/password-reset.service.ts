@@ -11,45 +11,18 @@ import { users, eq, and } from '@repo/db';
 import { configs } from '../configs';
 import { log } from '@repo/logger';
 import { normalizePhoneNumber } from '../utils';
-import type { DbClient } from '../types';
+import type { DbClient, ResetResult } from '../types';
 import { EmailService } from './index';
 
-const TEMP_PASSWORD_LENGTH = 16;
+import * as crypto from 'node:crypto';
+
 const TEMP_PASSWORD_EXPIRY_HOURS = 24;
 
 /**
- * Generate a secure random temporary password
- * Includes uppercase, lowercase, numbers, and special characters
+ * Generate a secure random token for password reset
  */
-function generateTemporaryPassword(): string {
-  const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-  const lowercase = 'abcdefghjkmnpqrstuvwxyz';
-  const numbers = '23456789';
-  const special = '!@#$%&*';
-  const all = uppercase + lowercase + numbers + special;
-
-  let password = '';
-  // Ensure at least one of each type
-  password += uppercase[Math.floor(Math.random() * uppercase.length)];
-  password += lowercase[Math.floor(Math.random() * lowercase.length)];
-  password += numbers[Math.floor(Math.random() * numbers.length)];
-  password += special[Math.floor(Math.random() * special.length)];
-
-  // Fill the rest randomly
-  for (let i = password.length; i < TEMP_PASSWORD_LENGTH; i++) {
-    password += all[Math.floor(Math.random() * all.length)];
-  }
-
-  // Shuffle the password
-  return password
-    .split('')
-    .sort(() => Math.random() - 0.5)
-    .join('');
-}
-
-interface ResetResult {
-  success: boolean;
-  error?: string;
+function generateResetToken(): string {
+  return crypto.randomBytes(32).toString('hex');
 }
 
 export class PasswordResetService {
@@ -82,7 +55,8 @@ export class PasswordResetService {
       };
     }
 
-    if (user.isLocked) {
+    // Only block if permanently locked (by admin). Auto-lockouts have a lockoutUntil date.
+    if (user.isLocked && !user.lockoutUntil) {
       return { success: false, error: 'Account is locked. Please contact support.' };
     }
 
@@ -98,30 +72,32 @@ export class PasswordResetService {
       }
     }
 
-    // Generate temporary password
-    const tempPassword = generateTemporaryPassword();
-    const hashedTempPassword = await Bun.password.hash(tempPassword, configs.AUTH.ARGON2_OPTIONS);
+    // Generate reset token
+    const token = generateResetToken();
+    const hashedToken = await Bun.password.hash(token, configs.AUTH.ARGON2_OPTIONS);
     const expiresAt = new Date(Date.now() + TEMP_PASSWORD_EXPIRY_HOURS * 60 * 60 * 1000);
 
-    // Update user with temp password
+    // Update user with token hash
     this.db
       .update(users)
       .set({
-        temporaryPassword: hashedTempPassword,
+        temporaryPassword: hashedToken,
         temporaryPasswordExpires: expiresAt,
-        mustChangePassword: true,
+        mustChangePassword: false, // We don't force login with temp password anymore
         temporaryPasswordUsed: false,
         updatedAt: new Date()
       })
       .where(eq(users.id, user.id))
       .run();
 
-    // Send email with temporary password
+    const resetLink = `${configs.APP.WEB_URL}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+
+    // Send email with reset link
     const emailResult = await EmailService.send({
       to: email,
-      subject: 'BuddyWallet - Your Temporary Password',
-      html: this.generateEmailHtml(user.name, tempPassword, TEMP_PASSWORD_EXPIRY_HOURS),
-      text: `Hi ${user.name},\n\nYour temporary password is: ${tempPassword}\n\nThis password expires in ${TEMP_PASSWORD_EXPIRY_HOURS} hours and can only be used once.\n\nAfter logging in, you will be required to change your password.\n\nIf you didn't request this, please secure your account immediately.\n\nBuddyWallet Team`,
+      subject: 'BuddyWallet - Password Reset Request',
+      html: this.generateEmailHtml(user.name, resetLink, TEMP_PASSWORD_EXPIRY_HOURS),
+      text: `Hi ${user.name},\n\nYou requested a password reset. Please click the following link to reset your password:\n\n${resetLink}\n\nThis link expires in ${TEMP_PASSWORD_EXPIRY_HOURS} hours and can only be used once.\n\nIf you didn't request this, please secure your account immediately.\n\nBuddyWallet Team`,
       from: 'noreply'
     });
 
@@ -138,51 +114,67 @@ export class PasswordResetService {
   }
 
   /**
-   * Verify temporary password during login
-   * Returns true if temp password is valid, marks it as used
+   * Complete password reset using token - set new password and clear temp fields
    */
-  async verifyTemporaryPassword(
-    userId: string,
-    password: string
-  ): Promise<{ valid: boolean; mustChange?: boolean }> {
-    const user = this.db.select().from(users).where(eq(users.id, userId)).get();
+  async resetPasswordWithToken(
+    email: string,
+    token: string,
+    newPassword: string
+  ): Promise<ResetResult> {
+    const user = this.db.select().from(users).where(eq(users.email, email)).get();
 
-    if (!user || !user.temporaryPassword) {
-      return { valid: false };
+    if (!user || (user.isLocked && !user.lockoutUntil)) {
+      return { success: false, error: 'Invalid or expired reset link' };
+    }
+
+    if (!user.temporaryPassword || !user.temporaryPasswordExpires) {
+      return { success: false, error: 'Invalid or expired reset link' };
     }
 
     // Check if expired
-    if (!user.temporaryPasswordExpires || new Date(user.temporaryPasswordExpires) < new Date()) {
-      return { valid: false };
+    if (new Date(user.temporaryPasswordExpires) < new Date()) {
+      return { success: false, error: 'Reset link has expired' };
     }
 
     // Check if already used
     if (user.temporaryPasswordUsed) {
-      return { valid: false };
+      return { success: false, error: 'Reset link has already been used' };
     }
 
-    // Verify the password
-    const isValid = await Bun.password.verify(password, user.temporaryPassword);
+    // Verify token matches hash
+    const isValid = await Bun.password.verify(token, user.temporaryPassword);
     if (!isValid) {
-      return { valid: false };
+      return { success: false, error: 'Invalid reset link' };
     }
 
-    // Mark as used
+    // Update password and clear temp fields
+    const hashedPassword = await Bun.password.hash(newPassword, configs.AUTH.ARGON2_OPTIONS);
+
     this.db
       .update(users)
       .set({
-        temporaryPasswordUsed: true,
-        updatedAt: new Date()
+        password: hashedPassword,
+        temporaryPassword: null,
+        temporaryPasswordExpires: null,
+        temporaryPasswordUsed: false,
+        mustChangePassword: false,
+        lastPasswordChangeAt: new Date(),
+        sessionVersion: users.sessionVersion, // Could increment if we wanted to log out existing sessions
+        updatedAt: new Date(),
+        // Clear automatic lockouts to restore account access
+        isLocked: false,
+        lockoutUntil: null,
+        failedLoginAttempts: 0
       })
-      .where(eq(users.id, userId))
+      .where(eq(users.id, user.id))
       .run();
 
-    log.info('PASSWORD_RESET', 'Temp password verified', { userId });
-    return { valid: true, mustChange: true };
+    log.info('PASSWORD_RESET', 'Password reset completed via token', { userId: user.id });
+    return { success: true };
   }
 
   /**
-   * Complete password reset - set new password and clear temp fields
+   * Obsolete completeReset method to handle force-change password, refactored to specific forceChange logic
    */
   async completeReset(userId: string, newPassword: string): Promise<ResetResult> {
     const hashedPassword = await Bun.password.hash(newPassword, configs.AUTH.ARGON2_OPTIONS);
@@ -196,7 +188,7 @@ export class PasswordResetService {
         temporaryPasswordUsed: false,
         mustChangePassword: false,
         lastPasswordChangeAt: new Date(),
-        sessionVersion: users.sessionVersion, // Will be incremented by trigger if needed
+        sessionVersion: users.sessionVersion,
         updatedAt: new Date()
       })
       .where(eq(users.id, userId))
@@ -209,7 +201,7 @@ export class PasswordResetService {
   /**
    * Generate HTML email for password reset
    */
-  private generateEmailHtml(name: string, tempPassword: string, expiryHours: number): string {
+  private generateEmailHtml(name: string, resetLink: string, expiryHours: number): string {
     return `
 <!DOCTYPE html>
 <html>
@@ -225,18 +217,22 @@ export class PasswordResetService {
     <div style="padding: 32px;">
       <p style="color: #374151; font-size: 16px; margin: 0 0 16px;">Hi <strong>${name}</strong>,</p>
       <p style="color: #6b7280; font-size: 14px; margin: 0 0 24px;">
-        You requested to reset your password. Here's your temporary password:
+        You recently requested to reset your password. Click the button below to set a new password securely:
       </p>
-      <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 24px;">
-        <code style="font-size: 24px; font-weight: bold; color: #1f2937; letter-spacing: 2px;">${tempPassword}</code>
+      <div style="text-align: center; margin-bottom: 24px;">
+        <a href="${resetLink}" style="display: inline-block; background-color: #2563eb; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500; font-size: 16px;">Reset Password</a>
       </div>
+      <p style="color: #6b7280; font-size: 14px; margin: 0 0 24px; text-align: center;">
+        Or copy and paste this link into your browser:<br>
+        <a href="${resetLink}" style="color: #2563eb; font-size: 12px; word-break: break-all;">${resetLink}</a>
+      </p>
       <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin-bottom: 24px; border-radius: 0 8px 8px 0;">
         <p style="color: #92400e; font-size: 13px; margin: 0;">
-          <strong>Important:</strong> This password expires in <strong>${expiryHours} hours</strong> and can only be used <strong>once</strong>.
+          <strong>Important:</strong> This link expires in <strong>${expiryHours} hours</strong> and can only be used <strong>once</strong>.
         </p>
       </div>
       <p style="color: #6b7280; font-size: 14px; margin: 0 0 16px;">
-        After logging in, you will be required to set a new password.
+        If you didn't request this, please ignore this email or secure your account.
       </p>
       <p style="color: #9ca3af; font-size: 13px; margin: 0;">
         If you didn't request this, please secure your account by changing your password immediately.

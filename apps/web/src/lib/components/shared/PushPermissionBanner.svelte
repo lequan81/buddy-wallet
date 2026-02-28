@@ -8,6 +8,7 @@
 		dismissBanner,
 		shouldShowBanner
 	} from '$lib/push.svelte';
+	import IconLucideLoader2 from '~icons/lucide/loader-2';
 
 	let visible = $state(false);
 	let isSubscribing = $state(false);
@@ -89,9 +90,7 @@
 							class="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							{#if isSubscribing || pushState.isLoading}
-								<span
-									class="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
-								></span>
+								<IconLucideLoader2 class="mr-2 h-3 w-3 animate-spin" />
 								Enabling...
 							{:else}
 								Enable
@@ -159,9 +158,7 @@
 							class="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							{#if isSubscribing || pushState.isLoading}
-								<span
-									class="mr-2 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
-								></span>
+								<IconLucideLoader2 class="mr-2 h-3 w-3 animate-spin" />
 								Enabling...
 							{:else}
 								Enable

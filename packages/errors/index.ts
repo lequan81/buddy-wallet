@@ -68,6 +68,13 @@ export const BE_ERRORS = {
   AUTH_NO_SESSION: { code: 'BE_017', message: 'No valid session' },
   AUTH_PASSWORD_MISMATCH: { code: 'BE_018', message: 'Current password is incorrect' },
 
+  // Email Verification Errors
+  EMAIL_OTP_EXPIRED: { code: 'BE_050', message: 'Verification code has expired' },
+  EMAIL_OTP_INVALID: { code: 'BE_051', message: 'Invalid verification code' },
+  EMAIL_ALREADY_VERIFIED: { code: 'BE_052', message: 'Email is already verified' },
+  EMAIL_SEND_FAILED: { code: 'BE_053', message: 'Failed to send verification email' },
+  EMAIL_TOO_MANY_ATTEMPTS: { code: 'BE_054', message: 'Too many verification attempts' },
+
   // Import/Export Errors
   IMPORT_PARSE_ERROR: { code: 'BE_020', message: 'Failed to parse file' },
   IMPORT_EMPTY_SHEET: { code: 'BE_021', message: 'File contains no data' },
@@ -86,7 +93,28 @@ export const BE_ERRORS = {
   DEBT_PERMISSION_DENIED: { code: 'BE_037', message: 'Not authorized to modify this debt' },
 
   // Rate Limiting
-  RATE_LIMITED: { code: 'BE_040', message: 'Too many requests' }
+  RATE_LIMITED: { code: 'BE_040', message: 'Too many requests' },
+
+  // File Upload Errors
+  FILE_TOO_LARGE: { code: 'BE_060', message: 'File size exceeds the allowed limit' },
+  FILE_INVALID_TYPE: { code: 'BE_061', message: 'File type is not allowed' },
+  FILE_UPLOAD_FAILED: { code: 'BE_062', message: 'File upload failed' },
+  FILE_NOT_FOUND: { code: 'BE_063', message: 'File not found' },
+  FILE_PERMISSION_DENIED: { code: 'BE_064', message: 'Not authorized to access this file' },
+  FILE_CONTENT_MISMATCH: { code: 'BE_065', message: 'File content does not match its extension' },
+  FILE_QUEUE_FULL: { code: 'BE_066', message: 'Upload queue is full, try again later' },
+
+  // Push Notification Errors
+  PUSH_SUBSCRIPTION_FAILED: { code: 'BE_070', message: 'Failed to create push subscription' },
+  PUSH_SUBSCRIPTION_NOT_FOUND: { code: 'BE_071', message: 'Push subscription not found' },
+  PUSH_SEND_FAILED: { code: 'BE_072', message: 'Failed to send push notification' },
+  PUSH_INVALID_SUBSCRIPTION: { code: 'BE_073', message: 'Invalid push subscription data' },
+
+  // Bank Account Errors
+  BANK_ACCOUNT_NOT_FOUND: { code: 'BE_080', message: 'Bank account not found' },
+  BANK_ACCOUNT_LIMIT: { code: 'BE_081', message: 'Maximum number of bank accounts reached' },
+  BANK_ACCOUNT_DUPLICATE: { code: 'BE_082', message: 'Bank account already exists' },
+  BANK_ACCOUNT_PERMISSION_DENIED: { code: 'BE_083', message: 'Not authorized to manage this bank account' }
 } as const;
 
 // ============================================

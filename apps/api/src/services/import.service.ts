@@ -6,16 +6,20 @@
  */
 import { randomUUIDv7 } from 'bun';
 import { users, debts, importLogs, eq, or, and, lte, desc, inArray } from '@repo/db';
-import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config';
+import {
+  isValidImportFile,
+  ACCEPTED_IMPORT_EXTENSIONS,
+  BACKEND_CONSTANTS,
+  FRONTEND_CONSTANTS
+} from '@repo/config';
 import { importCache, isRedisAvailable } from '../plugins/redis';
 import type { ImportConfig } from '../types';
 import type { PreviewResult, ImportResult, ProgressResult } from '../types';
-import * as XLSX from 'xlsx';
+import { SpreadsheetService, ImportLoggerService } from './index';
 import { configs } from '../configs';
 import { logger } from '@repo/logger';
 import type { DbClient } from '../types';
-
-import type { CurrentUser, ImportRow, DetectedMapping } from '../types';
+import type { CurrentUser, ImportRow } from '../types';
 
 /**
  * ImportService class with dependency injection
@@ -28,13 +32,15 @@ export class ImportService {
    */
   async previewFile(file: File, userId: string, logId?: string): Promise<PreviewResult> {
     const id: string = logId || randomUUIDv7('base64url');
+    logger.info(`[ImportService] Starting previewFile for job ${id}, file: ${file.name}`);
 
     if (!isValidImportFile(file.name)) {
       const error = `Invalid format. Accepted: ${ACCEPTED_IMPORT_EXTENSIONS.join(', ')}`;
-      await this.updateLogStatus(id, 'failed', [error]);
+      await ImportLoggerService.updateLogStatus(id, 'failed', [error]);
       return { success: false, error };
     }
 
+    logger.info(`[ImportService] Creating import log for job ${id}`);
     await this.db.insert(importLogs).values({
       id,
       userId,
@@ -45,49 +51,59 @@ export class ImportService {
     });
 
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = this.parseWorkbook(file.name, arrayBuffer);
+      logger.info(`[ImportService] Parsing file for job ${id}`);
+      const allRows = await SpreadsheetService.parseToRows(file);
+      logger.info(`[ImportService] Parsed ${allRows.length} rows for job ${id}`);
 
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-
-      if (!sheet['!ref']) {
-        await this.updateLogStatus(id, 'failed', ['Empty sheet']);
+      if (allRows.length === 0) {
+        await ImportLoggerService.updateLogStatus(id, 'failed', ['Empty sheet']);
         return { success: false, error: 'Empty sheet' };
       }
 
-      const data: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-      const range = XLSX.utils.decode_range(sheet['!ref']);
+      // Determine column count from widest row
+      const maxCols = allRows.reduce((max, row) => Math.max(max, row.length), 0);
 
       const columnHeaders: string[] = [];
-      for (let c = range.s.c; c <= range.e.c; c++) {
-        columnHeaders.push(XLSX.utils.encode_col(c));
+      for (let c = 0; c < maxCols; c++) {
+        const letter = SpreadsheetService.indexToColLetter(c);
+        const headerName = allRows[0]?.[c]?.trim() || '';
+        columnHeaders.push(headerName ? `${letter}:${headerName}` : letter);
       }
 
-      const previewData = data
-        .slice(0, 5)
+      const previewData = allRows
+        .slice(0, BACKEND_CONSTANTS.PREVIEW_ROWS)
         .map((row) => columnHeaders.map((_, i) => String(row[i] ?? '')));
 
-      const autoMapping = this.detectColumnMapping(data[0] || [], columnHeaders);
+      const autoMapping = SpreadsheetService.detectColumnMapping(allRows[0] || [], columnHeaders);
 
-      await this.db.update(importLogs).set({ totalRows: data.length }).where(eq(importLogs.id, id));
+      await this.db
+        .update(importLogs)
+        .set({
+          totalRows: allRows.length,
+          config: JSON.stringify({
+            previewData: previewData.slice(0, 20),
+            columnHeaders,
+            autoMapping
+          })
+        })
+        .where(eq(importLogs.id, id));
 
       const result = {
         success: true,
         logId: id,
         fileName: file.name,
-        totalRows: data.length,
+        totalRows: allRows.length,
         columnHeaders,
         previewData,
         autoMapping
       };
 
-      await this.updateLogStatus(id, 'success', []);
+      await ImportLoggerService.updateLogStatus(id, 'success', []);
 
       if (isRedisAvailable()) {
         await importCache.setProgress(id, {
-          current: data.length, // Preview is "done"
-          total: data.length,
+          current: allRows.length, // Preview is "done"
+          total: allRows.length,
           status: 'success',
           result
         });
@@ -95,7 +111,7 @@ export class ImportService {
 
       return result;
     } catch (err) {
-      await this.updateLogStatus(id, 'failed', [String(err)]);
+      await ImportLoggerService.updateLogStatus(id, 'failed', [String(err)]);
       return { success: false, error: String(err) };
     }
   }
@@ -139,31 +155,42 @@ export class ImportService {
     }
 
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = this.parseWorkbook(file.name, arrayBuffer);
+      const allRows = await SpreadsheetService.parseToRows(file);
 
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-
-      if (!sheet['!ref']) {
-        await this.updateLogStatus(id, 'failed', ['Empty sheet']);
+      if (allRows.length === 0) {
+        await ImportLoggerService.updateLogStatus(id, 'failed', ['Empty sheet']);
         return { success: false, error: 'Empty sheet' };
       }
 
-      const range = XLSX.utils.decode_range(sheet['!ref']);
       const startTime = performance.now();
       const errors: string[] = [];
       const newDebts: ImportRow[] = [];
       const userCache = new Map<string, { id: string; phone: string | null }>();
-      const totalRowsToProcess = range.e.r + 1 - startRow;
+      const dataStartIndex = startRow - 1; // 0-based
+      const totalRowsToProcess = allRows.length - dataStartIndex;
+
+      if (totalRowsToProcess <= 0) {
+        await ImportLoggerService.updateLogStatus(id, 'failed', [
+          'No data rows found (only headers)'
+        ]);
+        return { success: false, error: 'No data rows found' };
+      }
+
+      // Helper to get value from row array by column letter
+      const getRowValue = (row: string[], col: string | undefined): string | undefined => {
+        if (!col) return undefined;
+        const idx = SpreadsheetService.colLetterToIndex(col.toUpperCase());
+        return idx >= 0 && idx < row.length && row[idx] ? row[idx] : undefined;
+      };
 
       // --- OPTIMIZATION: BATCH USER RESOLUTION ---
       const uniqueIdentifiers = new Set<string>();
-      for (let r = startRow; r <= range.e.r + 1; r++) {
-        if (r > 10000) break;
-        const name = this.getCellValue(sheet, mapping.name, r);
-        const phone = this.getCellValue(sheet, mapping.phone, r);
-        const email = this.getCellValue(sheet, mapping.email, r);
+      for (let i = dataStartIndex; i < allRows.length; i++) {
+        if (i - dataStartIndex > BACKEND_CONSTANTS.MAX_ROWS) break;
+        const row = allRows[i];
+        const name = getRowValue(row, mapping.name);
+        const phone = getRowValue(row, mapping.phone);
+        const email = getRowValue(row, mapping.email);
         if (phone) uniqueIdentifiers.add(String(phone).trim());
         if (email) uniqueIdentifiers.add(String(email).trim());
         if (name && !phone && !email) uniqueIdentifiers.add(String(name).trim());
@@ -172,7 +199,7 @@ export class ImportService {
       const identifiersArray = Array.from(uniqueIdentifiers).filter(Boolean);
       if (identifiersArray.length > 0) {
         // Chunk to avoid SQLite limits string size
-        const chunkSize = 200;
+        const chunkSize = BACKEND_CONSTANTS.CHUNK_SIZE;
         for (let i = 0; i < identifiersArray.length; i += chunkSize) {
           const chunk = identifiersArray.slice(i, i + chunkSize);
           const foundUsers = await this.db
@@ -198,27 +225,35 @@ export class ImportService {
       let consecutiveEmpty = 0;
       let lastUpdate = Date.now();
 
-      for (let excelRow = startRow; excelRow <= range.e.r + 1; excelRow++) {
+      for (let i = dataStartIndex; i < allRows.length; i++) {
+        const rowCount = i - dataStartIndex;
+        const excelRow = i + 1; // 1-based for user-facing messages
+        const row = allRows[i];
+
         // Throttled Redis updates (max once per second) to prevent rate limiting
         const now = Date.now();
-        if (now - lastUpdate > 1000 && isRedisAvailable()) {
+        if (now - lastUpdate > FRONTEND_CONSTANTS.TOAST_DURATION_MS && isRedisAvailable()) {
           lastUpdate = now;
           // Fire-and-forget Redis update to avoid blocking import loop
           importCache
             .setProgress(id, {
-              current: excelRow - startRow,
+              current: rowCount,
               total: totalRowsToProcess,
               status: 'processing',
-              message: `Processing row ${excelRow} / ${range.e.r + 1}...`,
+              message: `Processing row ${rowCount} / ${totalRowsToProcess}...`,
               errors: errors.length > 0 ? errors.slice(-5) : undefined
             })
             .catch((err) => logger.error('[Import] Redis update failed', { error: String(err) }));
         }
 
-        if (excelRow > 10000 || consecutiveEmpty > 20) break;
+        if (
+          rowCount > BACKEND_CONSTANTS.MAX_ROWS ||
+          consecutiveEmpty > BACKEND_CONSTANTS.MAX_EMPTY_ROWS
+        )
+          break;
 
-        const name = this.getCellValue(sheet, mapping.name, excelRow);
-        const amountRaw = this.getCellValue(sheet, mapping.amount, excelRow);
+        const name = getRowValue(row, mapping.name);
+        const amountRaw = getRowValue(row, mapping.amount);
 
         if (!name && !amountRaw) {
           consecutiveEmpty++;
@@ -237,9 +272,9 @@ export class ImportService {
           continue;
         }
 
-        const phone = this.getCellValue(sheet, mapping.phone, excelRow);
-        const email = this.getCellValue(sheet, mapping.email, excelRow);
-        const description = this.getCellValue(sheet, mapping.description, excelRow);
+        const phone = getRowValue(row, mapping.phone);
+        const email = getRowValue(row, mapping.email);
+        const description = getRowValue(row, mapping.description);
         const debtorData = await this.resolveUser(phone || email || name, userCache);
 
         newDebts.push({
@@ -265,7 +300,7 @@ export class ImportService {
         .update(importLogs)
         .set({
           status: 'success',
-          totalRows: range.e.r + 1,
+          totalRows: allRows.length,
           importedCount: newDebts.length,
           errorCount: errors.length,
           errors: errors.length > 0 ? JSON.stringify(errors) : null,
@@ -288,13 +323,13 @@ export class ImportService {
 
       const endTime = performance.now();
       logger.info(
-        `[Benchmark] Job ${id} processing took ${(endTime - startTime).toFixed(2)}ms for ${range.e.r + 1} rows`
+        `[Benchmark] Job ${id} processing took ${(endTime - startTime).toFixed(2)}ms for ${allRows.length} rows`
       );
 
       return { success: true, logId: id, imported: newDebts.length, errors };
     } catch (err) {
       logger.error('[ImportService] Error processing file:', { error: String(err) });
-      await this.updateLogStatus(id, 'failed', [String(err)]);
+      await ImportLoggerService.updateLogStatus(id, 'failed', [String(err)]);
       if (previewLogId) {
         await this.db
           .update(importLogs)
@@ -318,8 +353,6 @@ export class ImportService {
 
     // 1. Try Redis first (fastest)
     if (isRedisAvailable()) {
-      // TODO: Use MGET if available in redis plugin, but for now loop is fine as it's in-memory/local network usually
-      // The main overhead we want to save is HTTP/JWT, not necessarily Redis RTT (though MGET is better)
       for (const id of logIds) {
         const progress = await importCache.getProgress(id);
         if (progress) {
@@ -340,15 +373,7 @@ export class ImportService {
         .select()
         .from(importLogs)
         .where(
-          and(
-            // Use 'inArray' if available, or 'or(eq...)'
-            // Drizzle 'inArray' should be imported. Let's check imports.
-            // We have { users, debts, importLogs, eq, or, and, lte }
-            // We need 'inArray'. If not available, we can map to ORs
-            // or(eq(id, 1), eq(id, 2)...)
-            or(...missingIds.map((id) => eq(importLogs.id, id))),
-            eq(importLogs.userId, userId)
-          )
+          and(or(...missingIds.map((id) => eq(importLogs.id, id))), eq(importLogs.userId, userId))
         );
 
       for (const log of logs) {
@@ -440,10 +465,6 @@ export class ImportService {
       this.db.select({ count: importLogs.id }).from(importLogs).where(eq(importLogs.userId, userId))
     ]);
 
-    // Since we can't easily import 'desc' without changing top imports and potentially breaking things,
-    // let's try to just return them and sort in memory or accept default for now.
-    // actually, typically newer logs are more important.
-    // Let's check imports.
     return {
       success: true,
       logs: logs,
@@ -452,34 +473,6 @@ export class ImportService {
       limit,
       totalPages: Math.ceil(total.length / limit)
     };
-  }
-
-  // ==================== Private Helpers ====================
-
-  private parseWorkbook(filename: string, arrayBuffer: ArrayBuffer): XLSX.WorkBook {
-    // Force UTF-8 for all reads to handle Vietnamese characters correctly
-    const options: XLSX.ParsingOptions = {
-      type: 'array',
-      codepage: 65001 // UTF-8
-    };
-
-    if (filename.toLowerCase().endsWith('.csv')) {
-      // For CSV, we use TextDecoder to ensure UTF-8 before passing to XLSX
-      const text = new TextDecoder('utf-8').decode(arrayBuffer);
-      return XLSX.read(text, { type: 'string', codepage: 65001 });
-    }
-
-    return XLSX.read(arrayBuffer, options);
-  }
-
-  private getCellValue(
-    sheet: XLSX.WorkSheet,
-    col: string | undefined,
-    row: number
-  ): string | undefined {
-    if (!col) return undefined;
-    const cell = sheet[`${col}${row}`];
-    return cell?.v !== undefined ? String(cell.v) : undefined;
   }
 
   private async resolveUser(
@@ -505,100 +498,43 @@ export class ImportService {
     return null;
   }
 
-  private detectColumnMapping(headerRow: unknown[], columnHeaders: string[]): DetectedMapping {
-    const autoMapping: DetectedMapping = {
-      name: '',
-      amount: '',
-      phone: '',
-      email: '',
-      description: '',
-      dueDate: ''
-    };
+  /**
+   * Get single import log by ID
+   */
+  async getLogById(id: string, userId: string) {
+    const log = await this.db
+      .select()
+      .from(importLogs)
+      .where(and(eq(importLogs.id, id), eq(importLogs.userId, userId)))
+      .get();
 
-    headerRow.forEach((header, i) => {
-      const h = String(header).toLowerCase().trim();
-      const col = columnHeaders[i];
+    if (!log) return null;
 
-      if ((h.includes('ten') || h.includes('tên') || h.includes('name')) && !autoMapping.name)
-        autoMapping.name = col;
-      if (
-        (h.includes('so no') ||
-          h.includes('số nợ') ||
-          h.includes('amount') ||
-          h.includes('tien') ||
-          h.includes('tiền')) &&
-        !autoMapping.amount
-      )
-        autoMapping.amount = col;
-      if (
-        (h.includes('phone') || h.includes('sdt') || h.includes('điện thoại')) &&
-        !autoMapping.phone
-      )
-        autoMapping.phone = col;
-      if ((h.includes('email') || h.includes('mail')) && !autoMapping.email)
-        autoMapping.email = col;
-      if (
-        (h.includes('ghi chu') ||
-          h.includes('ghi chú') ||
-          h.includes('note') ||
-          h.includes('desc')) &&
-        !autoMapping.description
-      )
-        autoMapping.description = col;
-      if (
-        (h.includes('han') || h.includes('hạn') || h.includes('due') || h.includes('date')) &&
-        !autoMapping.dueDate
-      )
-        autoMapping.dueDate = col;
-    });
+    // Parse config JSON if available (contains preview data, column mapping, etc)
+    let previewData: string[][] = [];
+    let columnHeaders: string[] = [];
+    let columnMapping: Record<string, string> = {};
+    let startRow = 2;
 
-    return autoMapping;
-  }
-
-  private async updateLogStatus(
-    logId: string,
-    status: 'pending' | 'processing' | 'success' | 'failed',
-    errors: string[],
-    result?: unknown
-  ): Promise<void> {
-    // Update DB
-    await this.db
-      .update(importLogs)
-      .set({ status, errors: JSON.stringify(errors) })
-      .where(eq(importLogs.id, logId));
-
-    // Update Redis
-    if (isRedisAvailable()) {
-      // Get existing progress to preserve counts if not provided?
-      // For simplicity, just update status/errors/result.
-      // If we are "success", we set current=total (or 100%).
-      // If "failed", we keep it.
-
-      const progress: any = {
-        status,
-        errors,
-        result
-      };
-
-      if (status === 'success') {
-        // Helper: assume completed if success
-        progress.current = 100;
-        progress.total = 100;
+    if (log.config) {
+      try {
+        const parsed = JSON.parse(log.config);
+        previewData = parsed.previewData || [];
+        columnHeaders = parsed.columnHeaders || [];
+        columnMapping = parsed.columnMapping || {};
+        startRow = parsed.startRow || 2;
+      } catch {
+        // Ignore parse errors
       }
-
-      // We merge with existing progress if needed, but setProgress overwrites.
-      // Ideally we should get then set. But for status updates this is usually fine.
-      // Wait, let's read old progress first to safe counters?
-      // Actually, for preview, counters don't matter much. For import, they do.
-      // Let's rely on the caller to handle counters via separate calls if needed?
-      // Or just fetch-modify-set.
-
-      const old = await importCache.getProgress(logId);
-      await importCache.setProgress(logId, {
-        current: old?.current || 0,
-        total: old?.total || 0,
-        ...progress
-      });
     }
+
+    return {
+      ...log,
+      previewData,
+      columnHeaders,
+      columnMapping,
+      startRow,
+      errors: log.errors ? JSON.parse(log.errors) : []
+    };
   }
 }

@@ -25,6 +25,8 @@ import { EmailVerificationService as EmailVerificationServiceClass } from './ema
 import { PasswordResetService as PasswordResetServiceClass } from './password-reset.service';
 import { VietQRService as VietQRServiceClass } from './vietqr.service';
 import { JobsService as JobsServiceClass } from './jobs.service';
+import { SpreadsheetService as SpreadsheetServiceClass } from './spreadsheet.service';
+import { ImportLoggerService as ImportLoggerServiceClass } from './import-logger.service';
 
 export { CleanupService } from './cleanup.service';
 
@@ -55,6 +57,8 @@ export const PasswordResetService = new PasswordResetServiceClass(db);
 export const EmailService = new EmailServiceClass();
 export const VietqrService = new VietQRServiceClass();
 export const JobsService = new JobsServiceClass();
+export const SpreadsheetService = new SpreadsheetServiceClass();
+export const ImportLoggerService = new ImportLoggerServiceClass(db);
 
 // Connect push service to debt service for notifications
 DebtService.setPushService(PushService);
@@ -98,4 +102,12 @@ export function createEmailVerificationService(customDb: typeof db) {
 
 export function createPasswordResetService(customDb: typeof db) {
   return new PasswordResetServiceClass(customDb);
+}
+
+export function createSpreadsheetService() {
+  return new SpreadsheetServiceClass();
+}
+
+export function createImportLoggerService(customDb: typeof db) {
+  return new ImportLoggerServiceClass(customDb);
 }

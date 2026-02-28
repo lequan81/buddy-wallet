@@ -6,7 +6,7 @@
  * Implements IAuthService interface for LSP compliance.
  */
 import { randomUUIDv7 } from 'bun';
-import { users, sessions, debts, eq, and, or, isNull, ne } from '@repo/db';
+import { users, sessions, debts, eq, and, or, isNull, ne, type NewUser } from '@repo/db';
 import { DEFAULT_USER_PERMISSIONS } from '@repo/permissions';
 import { configs } from '../configs';
 import {
@@ -23,6 +23,7 @@ import type { DbClient } from '../types';
 import type { RegisterInput, LoginInput, AuthResult } from '../types';
 import type { IAuthService } from '../types';
 import { EmailService, EmailVerificationService } from './index';
+import { dbCircuitBreaker, DatabaseError as _DatabaseError } from '../utils/database';
 
 // Dummy hash for timing attack mitigation (pre-calculated at startup)
 let DUMMY_HASH = '';
@@ -37,12 +38,7 @@ function generateRefreshToken(): string {
   return Buffer.from(bytes).toString('base64url');
 }
 
-interface JwtPayload {
-  id: string;
-  phoneNumber: string;
-  sessionVersion: number;
-  exp: number;
-}
+// JWTPayload type imported from '../types' via index.d.ts
 
 /**
  * AuthService class with dependency injection
@@ -55,95 +51,117 @@ export class AuthService implements IAuthService {
    * Link existing debts to a newly registered user based on phone number
    */
   private async linkDebtsToUser(userId: string, phoneNumber: string) {
-    await this.db
-      .update(debts)
-      .set({ debtorId: userId, updatedAt: new Date() })
-      .where(and(eq(debts.debtorPhone, phoneNumber), isNull(debts.debtorId)));
+    await dbCircuitBreaker.execute(async () =>
+      this.db
+        .update(debts)
+        .set({ debtorId: userId, updatedAt: new Date() })
+        .where(and(eq(debts.debtorPhone, phoneNumber), isNull(debts.debtorId)))
+    );
 
-    await this.db
-      .update(debts)
-      .set({ creditorId: userId, updatedAt: new Date() })
-      .where(and(eq(debts.creditorPhone, phoneNumber), isNull(debts.creditorId)));
+    await dbCircuitBreaker.execute(async () =>
+      this.db
+        .update(debts)
+        .set({ creditorId: userId, updatedAt: new Date() })
+        .where(and(eq(debts.creditorPhone, phoneNumber), isNull(debts.creditorId)))
+    );
   }
 
   /**
    * Register a new user
    */
   async register(input: RegisterInput): Promise<AuthResult> {
-    const { name, email, password, phoneNumber } = input;
+    try {
+      const { name, email, password, phoneNumber } = input;
 
-    const normalizedPhone = normalizePhoneNumber(phoneNumber);
-    if (!normalizedPhone) {
-      return { success: false, error: 'Invalid phone number format' };
-    }
-
-    // SECURITY: Validate password complexity
-    const passwordValidation = validatePasswordComplexity(password);
-    if (!passwordValidation.isValid) {
-      return {
-        success: false,
-        error: passwordValidation.errors.join('. ')
-      };
-    }
-
-    // SECURITY: Check against common passwords
-    if (isCommonPassword(password)) {
-      return {
-        success: false,
-        error: 'Password is too common. Please choose a stronger password.'
-      };
-    }
-
-    // Check phone uniqueness
-    const existingPhone = this.db
-      .select()
-      .from(users)
-      .where(eq(users.phoneNumber, normalizedPhone))
-      .get();
-    if (existingPhone) {
-      return { success: false, error: 'Phone number already registered' };
-    }
-
-    // Check email uniqueness if provided
-    if (email) {
-      const existingEmail = this.db.select().from(users).where(eq(users.email, email)).get();
-      if (existingEmail) {
-        return { success: false, error: 'Email already registered' };
+      const normalizedPhone = normalizePhoneNumber(phoneNumber);
+      if (!normalizedPhone) {
+        return { success: false, error: 'Invalid phone number format' };
       }
-    }
 
-    const hashedPassword = await Bun.password.hash(password, configs.AUTH.ARGON2_OPTIONS);
-    const userId = randomUUIDv7('base64url');
-
-    const [newUser] = await this.db
-      .insert(users)
-      .values({
-        id: userId,
-        name,
-        email: email || null,
-        phoneNumber: normalizedPhone,
-        password: hashedPassword,
-        role: 'user',
-        permissions: DEFAULT_USER_PERMISSIONS,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      })
-      .returning();
-
-    await this.linkDebtsToUser(userId, normalizedPhone);
-
-    // Send verification OTP email if user has email
-    if (newUser.email) {
-      const result = await EmailVerificationService.createOtp(newUser.id, newUser.email);
-      if (result.success && result.otp) {
-        await EmailService.sendOtp(newUser.email, result.otp, newUser.name);
+      // SECURITY: Validate password complexity
+      const passwordValidation = validatePasswordComplexity(password);
+      if (!passwordValidation.isValid) {
+        return {
+          success: false,
+          error: passwordValidation.errors.join('. ')
+        };
       }
-    }
 
-    return {
-      success: true,
-      user: toSafeUser(newUser)
-    };
+      // SECURITY: Check against common passwords
+      if (isCommonPassword(password)) {
+        return {
+          success: false,
+          error: 'Password is too common. Please choose a stronger password.'
+        };
+      }
+
+      // Check phone uniqueness
+      const existingPhone = this.db
+        .select()
+        .from(users)
+        .where(eq(users.phoneNumber, normalizedPhone))
+        .get();
+      if (existingPhone) {
+        return { success: false, error: 'Phone number already registered' };
+      }
+
+      // Check email uniqueness if provided
+      if (email) {
+        const existingEmail = await dbCircuitBreaker.execute(async () =>
+          this.db.select().from(users).where(eq(users.email, email)).get()
+        );
+        if (existingEmail) {
+          return { success: false, error: 'Email already registered' };
+        }
+      }
+
+      const hashedPassword = await Bun.password.hash(password, configs.AUTH.ARGON2_OPTIONS);
+      const userId = randomUUIDv7('base64url');
+
+      let newUser: typeof users.$inferSelect;
+      try {
+        const result = await dbCircuitBreaker.execute(async () =>
+          this.db
+            .insert(users)
+            .values({
+              name,
+              email: email || null,
+              phoneNumber: normalizedPhone,
+              password: hashedPassword,
+              permissions: DEFAULT_USER_PERMISSIONS,
+              temporaryPasswordUsed: false
+            } as NewUser)
+            .returning()
+        );
+        newUser = result[0];
+      } catch (error) {
+        if (error instanceof _DatabaseError) {
+          return {
+            success: false,
+            error: 'Database temporarily unavailable. Please try again later.'
+          };
+        }
+        throw error;
+      }
+
+      await this.linkDebtsToUser(userId, normalizedPhone);
+
+      // Send verification OTP email if user has email
+      if (newUser?.email) {
+        const result = await EmailVerificationService.createOtp(newUser.id, newUser.email);
+        if (result.success && result.otp) {
+          await EmailService.sendOtp(newUser.email, result.otp, newUser.name);
+        }
+      }
+
+      return {
+        success: true,
+        user: toSafeUser(newUser)
+      };
+    } catch (error: unknown) {
+      logger.error('Database error during register', { error: String(error) });
+      return { success: false, error: 'DATABASE_ERROR' };
+    }
   }
 
   /**
@@ -151,154 +169,137 @@ export class AuthService implements IAuthService {
    */
   async login(
     input: LoginInput,
-    jwt: { sign: (payload: JwtPayload) => Promise<string> }
+    jwt: {
+      sign: (
+        payload: Record<string, string | number | boolean | null | undefined>
+      ) => Promise<string>;
+    }
   ): Promise<AuthResult & { sessionId?: string }> {
-    const { identifier, password, userAgent, clientIP } = input;
-    logger.auth(`Login attempt`, { identifier });
+    try {
+      const { identifier, password, userAgent, clientIP } = input;
+      logger.auth(`Login attempt`, { identifier });
 
-    // Find user by email OR phone number
-    const user = this.db
-      .select()
-      .from(users)
-      .where(or(eq(users.email, identifier), eq(users.phoneNumber, identifier)))
-      .get();
+      // Find user by email OR phone number
+      const user = this.db
+        .select()
+        .from(users)
+        .where(or(eq(users.email, identifier), eq(users.phoneNumber, identifier)))
+        .get();
 
-    // Check lockout status
-    if (user && user.isLocked && user.lockoutUntil && user.lockoutUntil > new Date()) {
-      const remaining = Math.ceil((user.lockoutUntil.getTime() - Date.now()) / 60000);
-      logger.auth(`Login blocked - account locked`, { userId: user.id });
-      return { success: false, error: `Account locked. Try again in ${remaining} minutes.` };
-    }
+      // Check lockout status
+      if (user && user.isLocked && user.lockoutUntil && user.lockoutUntil > new Date()) {
+        const remaining = Math.ceil((user.lockoutUntil.getTime() - Date.now()) / 60000);
+        logger.auth(`Login blocked - account locked`, { userId: user.id });
+        return { success: false, error: `Account locked. Try again in ${remaining} minutes.` };
+      }
 
-    if (!user) {
-      logger.auth(`User not found`, { identifier });
-      if (DUMMY_HASH) await Bun.password.verify(password || '', DUMMY_HASH);
-      return { success: false, error: 'Invalid credentials' };
-    }
+      if (!user) {
+        logger.auth(`User not found`, { identifier });
+        if (DUMMY_HASH) await Bun.password.verify(password || '', DUMMY_HASH);
+        return { success: false, error: 'Invalid credentials' };
+      }
 
-    if (!user.isActive) {
-      logger.auth(`Login blocked - account deactivated`, { userId: user.id });
-      if (DUMMY_HASH) await Bun.password.verify(password || '', DUMMY_HASH);
-      return { success: false, error: 'Invalid credentials' };
-    }
+      if (!user.isActive) {
+        logger.auth(`Login blocked - account deactivated`, { userId: user.id });
+        if (DUMMY_HASH) await Bun.password.verify(password || '', DUMMY_HASH);
+        return { success: false, error: 'Invalid credentials' };
+      }
 
-    let validPassword = await Bun.password.verify(password || '', user.password);
-    let usedTempPassword = false;
+      const validPassword = await Bun.password.verify(password || '', user.password);
 
-    // If regular password fails, try temporary password
-    if (!validPassword && user.temporaryPassword && user.temporaryPasswordExpires) {
-      const tempExpiry = new Date(user.temporaryPasswordExpires);
-      if (tempExpiry > new Date() && !user.temporaryPasswordUsed) {
-        const validTempPassword = await Bun.password.verify(password || '', user.temporaryPassword);
-        if (validTempPassword) {
-          validPassword = true;
-          usedTempPassword = true;
-          logger.auth(`Login with temporary password`, { userId: user.id });
+      if (!validPassword) {
+        logger.auth(`Invalid password`, { userId: user.id });
+
+        const attempts = (user.failedLoginAttempts || 0) + 1;
+        const shouldLock = attempts >= 5;
+
+        await this.db
+          .update(users)
+          .set({
+            failedLoginAttempts: attempts,
+            lastFailedLoginAt: new Date(),
+            isLocked: shouldLock,
+            lockoutUntil: shouldLock ? new Date(Date.now() + 15 * 60 * 1000) : null
+          })
+          .where(eq(users.id, user.id));
+
+        if (shouldLock) {
+          logger.security(`Account locked due to too many failed attempts`, { userId: user.id });
         }
-      }
-    }
 
-    if (!validPassword) {
-      logger.auth(`Invalid password`, { userId: user.id });
-
-      const attempts = (user.failedLoginAttempts || 0) + 1;
-      const shouldLock = attempts >= 5;
-
-      await this.db
-        .update(users)
-        .set({
-          failedLoginAttempts: attempts,
-          lastFailedLoginAt: new Date(),
-          isLocked: shouldLock,
-          lockoutUntil: shouldLock ? new Date(Date.now() + 15 * 60 * 1000) : null
-        })
-        .where(eq(users.id, user.id));
-
-      if (shouldLock) {
-        logger.security(`Account locked due to too many failed attempts`, { userId: user.id });
+        return { success: false, error: 'Invalid credentials' };
       }
 
-      return { success: false, error: 'Invalid credentials' };
+      logger.auth(`Login successful`, { userId: user.id });
+
+      // Reset failed attempts on success
+      if (user.failedLoginAttempts > 0 || user.isLocked) {
+        await this.db
+          .update(users)
+          .set({
+            failedLoginAttempts: 0,
+            isLocked: false,
+            lockoutUntil: null
+          })
+          .where(eq(users.id, user.id));
+      }
+
+      // Parse device info (use client hints if provided for more accuracy)
+      const deviceInfo = parseUserAgent(userAgent || null, input.clientHints);
+      const location = await getLocationFromIP(
+        clientIP || null,
+        input.clientLocation,
+        input.coordinates
+      );
+
+      // Generate tokens
+      const now = Date.now();
+      const accessTokenExpiresAt = new Date(now + configs.AUTH.ACCESS_TOKEN_LIFETIME);
+      const refreshTokenExpiresAt = new Date(now + configs.AUTH.REFRESH_TOKEN_LIFETIME);
+
+      const accessToken = await jwt.sign({
+        id: user.id,
+        phoneNumber: user.phoneNumber,
+        sessionVersion: user.sessionVersion || 1,
+        exp: Math.floor(accessTokenExpiresAt.getTime() / 1000)
+      });
+      const refreshToken = generateRefreshToken();
+      const refreshTokenHash = await hashToken(refreshToken);
+      const accessTokenHash = await hashToken(accessToken); // SECURITY: Hash access token
+      const sessionId = randomUUIDv7('base64url');
+
+      // Store session
+      await this.db.insert(sessions).values({
+        id: sessionId,
+        userId: user.id,
+        accessToken: null, // DEPRECATED: No longer store plaintext token
+        accessTokenHash, // Store hashed token for secure lookup
+        accessTokenExpiresAt,
+        refreshToken: refreshTokenHash,
+        refreshTokenExpiresAt,
+        status: 'active',
+        deviceName: deviceInfo.deviceName,
+        deviceType: deviceInfo.deviceType,
+        location: location,
+        userAgent: userAgent || null,
+        ipAddress: clientIP || null,
+        lastActiveAt: new Date(),
+        createdAt: new Date()
+      });
+
+      return {
+        success: true,
+        user: toSafeUser(user),
+        accessToken,
+        refreshToken,
+        sessionId,
+        expiresIn: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000,
+        mustChangePassword: user.mustChangePassword
+      };
+    } catch (error: unknown) {
+      logger.error('Database error during login', { error: String(error) });
+      return { success: false, error: 'DATABASE_ERROR' };
     }
-
-    // If temp password was used, mark it and require password change
-    if (usedTempPassword) {
-      await this.db
-        .update(users)
-        .set({
-          temporaryPasswordUsed: true,
-          mustChangePassword: true,
-          updatedAt: new Date()
-        })
-        .where(eq(users.id, user.id));
-    }
-
-    logger.auth(`Login successful`, { userId: user.id });
-
-    // Reset failed attempts on success
-    if (user.failedLoginAttempts > 0 || user.isLocked) {
-      await this.db
-        .update(users)
-        .set({
-          failedLoginAttempts: 0,
-          isLocked: false,
-          lockoutUntil: null
-        })
-        .where(eq(users.id, user.id));
-    }
-
-    // Parse device info (use client hints if provided for more accuracy)
-    const deviceInfo = parseUserAgent(userAgent || null, input.clientHints);
-    const location = await getLocationFromIP(
-      clientIP || null,
-      input.clientLocation,
-      input.coordinates
-    );
-
-    // Generate tokens
-    const now = Date.now();
-    const accessTokenExpiresAt = new Date(now + configs.AUTH.ACCESS_TOKEN_LIFETIME);
-    const refreshTokenExpiresAt = new Date(now + configs.AUTH.REFRESH_TOKEN_LIFETIME);
-
-    const accessToken = await jwt.sign({
-      id: user.id,
-      phoneNumber: user.phoneNumber,
-      sessionVersion: user.sessionVersion || 1,
-      exp: Math.floor(accessTokenExpiresAt.getTime() / 1000)
-    });
-    const refreshToken = generateRefreshToken();
-    const refreshTokenHash = await hashToken(refreshToken);
-    const accessTokenHash = await hashToken(accessToken); // SECURITY: Hash access token
-    const sessionId = randomUUIDv7('base64url');
-
-    // Store session
-    await this.db.insert(sessions).values({
-      id: sessionId,
-      userId: user.id,
-      accessToken: null, // DEPRECATED: No longer store plaintext token
-      accessTokenHash, // Store hashed token for secure lookup
-      accessTokenExpiresAt,
-      refreshToken: refreshTokenHash,
-      refreshTokenExpiresAt,
-      status: 'active',
-      deviceName: deviceInfo.deviceName,
-      deviceType: deviceInfo.deviceType,
-      location: location,
-      userAgent: userAgent || null,
-      ipAddress: clientIP || null,
-      lastActiveAt: new Date(),
-      createdAt: new Date()
-    });
-
-    return {
-      success: true,
-      user: toSafeUser(user),
-      accessToken,
-      refreshToken,
-      sessionId,
-      expiresIn: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000,
-      mustChangePassword: usedTempPassword || user.mustChangePassword
-    };
   }
 
   /**

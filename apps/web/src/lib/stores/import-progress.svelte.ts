@@ -40,6 +40,7 @@ class ImportProgressStore {
 	}
 
 	addJob(jobId: string, type: 'preview' | 'import', fileName: string) {
+		console.log('[JOB STORE] Adding job:', jobId, type, fileName);
 		this.activeJobs.set(jobId, {
 			jobId,
 			type,
@@ -47,14 +48,17 @@ class ImportProgressStore {
 			status: 'pending',
 			progress: { current: 0, total: 0, percentage: 0 }
 		});
-		// No need to start individual polling anymore
+		console.log('[JOB STORE] Active jobs count:', this.activeJobs.size);
 	}
 
 	private startGlobalPoller() {
 		// Poll every 4s for ALL active jobs
 		// This reduces N requests to 1 request
 		this.pollingTimer = setInterval(async () => {
-			if (this.activeJobs.size === 0) return;
+			if (this.activeJobs.size === 0) {
+				console.log('[JOB STORE] No active jobs to poll');
+				return;
+			}
 
 			// Filter only pending/processing jobs
 			const jobsToPoll: string[] = [];
@@ -63,6 +67,8 @@ class ImportProgressStore {
 					jobsToPoll.push(id);
 				}
 			}
+
+			console.log('[JOB STORE] Polling jobs:', jobsToPoll);
 
 			if (jobsToPoll.length === 0) return;
 
@@ -74,6 +80,8 @@ class ImportProgressStore {
 						body: JSON.stringify({ logIds: jobsToPoll })
 					}
 				);
+
+				console.log('[JOB STORE] Poll response:', data);
 
 				if (!data) return;
 
@@ -90,11 +98,19 @@ class ImportProgressStore {
 
 						if (result.status === 'success') {
 							job.result = result.result;
+							// Don't auto-remove - let the component handle cleanup
+							// Only remove preview jobs after longer delay (30s)
+							if (job.type === 'preview') {
+								setTimeout(() => {
+									this.activeJobs.delete(id);
+								}, 30000);
+							}
 						} else if (result.status === 'failed') {
-							job.error = result.errors ? JSON.stringify(result.errors) : 'Unknown error';
+							job.error = result.errors ? result.errors.join('; ') : 'Unknown error';
 						}
 
-						this.activeJobs.set(id, job);
+						// Trigger reactivity for Svelte 5 $derived by setting a new object reference
+						this.activeJobs.set(id, { ...job });
 					}
 				}
 			} catch (err) {

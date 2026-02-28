@@ -32,6 +32,7 @@
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
+	import QuickActions from '$lib/components/dashboard/QuickActions.svelte';
 	import FinancialSummary from '$lib/components/dashboard/FinancialSummary.svelte';
 	import { cn } from '$lib/utils';
 	import type { Debt } from '@repo/types';
@@ -223,6 +224,9 @@
 			</div>
 		{/snippet}
 	</PageHeader>
+
+	<!-- Quick Actions -->
+	<QuickActions />
 
 	<div class="space-y-6">
 		<!-- Financial Summary & Stats -->

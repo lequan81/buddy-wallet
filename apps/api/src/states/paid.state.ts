@@ -29,8 +29,28 @@ export class PaidState implements IDebtState {
       previousStatus: context.previousStatus
     });
 
-    // TODO: Send payment confirmation to both parties
-    // await notificationService.sendPaymentConfirmation(debt);
+    // Send notification to the counterparty
+    const notifyUserId = context.userId === debt.creditorId ? debt.debtorId : debt.creditorId;
+    if (notifyUserId) {
+      import('../services').then(({ PushService, UserService }) => {
+        UserService.getUserById(notifyUserId).then((result) => {
+          if (result.user?.pushNotificationsEnabled) {
+            const amount = new Intl.NumberFormat('vi-VN', {
+              style: 'currency',
+              currency: 'VND',
+              maximumFractionDigits: 0
+            }).format(debt.amount);
+
+            PushService.sendToUser(notifyUserId, {
+              title: 'Debt Paid',
+              body: `A debt of ${amount} for "${debt.description}" has been marked as paid.`,
+              url: `/debts/${debt.id}`,
+              tag: `debt-paid-${debt.id}`
+            }).catch(() => {});
+          }
+        });
+      });
+    }
   }
 
   // No onExit - terminal state cannot be exited

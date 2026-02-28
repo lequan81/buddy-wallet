@@ -5,7 +5,7 @@
  * Uses constructor injection for testability.
  */
 import { debts, users, eq, or } from '@repo/db';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import type { DbClient } from '../types';
 import type { ExportFormat, ExportResult } from '../types';
 
@@ -20,7 +20,7 @@ function maskPhoneNumber(phone: string | null): string {
   const visible = 3;
   const start = phone.slice(0, visible);
   const end = phone.slice(-visible);
-  const maskedLength = phone.length - (visible * 2);
+  const maskedLength = phone.length - visible * 2;
   const masked = '*'.repeat(Math.max(maskedLength, 4));
 
   return `${start}${masked}${end}`;
@@ -30,7 +30,7 @@ function maskPhoneNumber(phone: string | null): string {
  * ExportService class with dependency injection
  */
 export class ExportService {
-  constructor(private db: DbClient) { }
+  constructor(private db: DbClient) {}
 
   /**
    * Export user's own debts
@@ -116,41 +116,55 @@ export class ExportService {
   /**
    * Generate export file (xlsx or csv)
    */
-  private generateExportFile(
-    data: any[],
+  private async generateExportFile(
+    data: Record<string, unknown>[],
     sheetName: string,
     filename: string,
     format: ExportFormat
-  ): ExportResult {
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-
-    // Auto-width columns
-    const colWidths = Object.keys(data[0] || {}).map((key) => ({
-      wch: Math.max(key.length, ...data.map((row) => String(row[key] || '').length))
-    }));
-    worksheet['!cols'] = colWidths;
-
-    let buffer: Buffer;
-    let contentType: string;
-    let extension: string;
-
+  ): Promise<ExportResult> {
     if (format === 'csv') {
-      buffer = Buffer.from(XLSX.utils.sheet_to_csv(worksheet), 'utf-8');
-      contentType = 'text/csv';
-      extension = 'csv';
-    } else {
-      buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
-      contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      extension = 'xlsx';
+      // CSV: manual generation (no library needed)
+      const keys = Object.keys(data[0] || {});
+      const header = keys.map((k) => `"${k}"`).join(',');
+      const rows = data.map((row) =>
+        keys.map((k) => `"${String(row[k] || '').replace(/"/g, '""')}"`).join(',')
+      );
+      const csvContent = [header, ...rows].join('\n');
+      const buffer = Buffer.from(csvContent, 'utf-8');
+
+      return {
+        success: true,
+        buffer,
+        contentType: 'text/csv',
+        filename: `${filename}.csv`
+      };
     }
+
+    // XLSX: ExcelJS
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet(sheetName);
+
+    // Set columns with headers and auto-width
+    const keys = Object.keys(data[0] || {});
+    worksheet.columns = keys.map((key) => ({
+      header: key,
+      key,
+      width: Math.max(key.length + 2, ...data.map((row) => String(row[key] || '').length + 2))
+    }));
+
+    // Add data rows
+    worksheet.addRows(data);
+
+    // Style header row
+    worksheet.getRow(1).font = { bold: true };
+
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
 
     return {
       success: true,
       buffer,
-      contentType,
-      filename: `${filename}.${extension}`
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      filename: `${filename}.xlsx`
     };
   }
 

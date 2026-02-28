@@ -40,7 +40,7 @@ export interface SecurityEvent {
   userAgent?: string;
   resource?: string;
   method?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   timestamp?: Date;
 }
 
@@ -96,14 +96,8 @@ export function logSecurityEvent(event: SecurityEvent): void {
     logger.info(`[SECURITY] ${event.type}`, logData);
   }
 
-  // TODO: In production, send to security monitoring service
-  // TODO: In production, send to security monitoring service
-  /*
-  if (config.APP.IS_PROD) {
-    await sendToSentryOrDatadog(event);
-    await sendToSecurityTeamSlack(event);
-  }
-  */
+  // FUTURE: Integrate with Sentry/Datadog for production security monitoring
+  // See: https://docs.sentry.io/platforms/javascript/guides/bun/
 }
 
 /**

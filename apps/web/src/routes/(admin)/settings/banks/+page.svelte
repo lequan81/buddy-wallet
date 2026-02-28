@@ -257,8 +257,7 @@
 							error={accountNameValidation === 'error' ? accountNameMessage : undefined}
 							success={accountNameValidation === 'success' ? accountNameMessage : undefined}
 							warning={accountNameValidation === 'warning' ? accountNameMessage : undefined}
-							helpText="Name registered with the bank (uppercase, no accents recommended)."
-							required
+							helpText="Optional — verify in your banking app. Uppercase, no accents recommended."
 						/>
 					</div>
 
@@ -279,8 +278,7 @@
 								!selectedBankCode ||
 								accountNumberValidation === 'error' ||
 								accountNameValidation === 'error' ||
-								accountNumber === '' ||
-								accountName === ''}
+								accountNumber === ''}
 						>
 							{isSubmitting
 								? isEditing
@@ -347,7 +345,7 @@
 
 							<AlertDialog.Root
 								open={deleteId === account.id}
-								onOpenChange={(open) => {
+								onOpenChange={(open: boolean) => {
 									if (!open) deleteId = '';
 								}}
 							>

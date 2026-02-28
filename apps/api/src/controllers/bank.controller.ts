@@ -4,10 +4,12 @@
  * Handles bank account management and VietQR integration.
  */
 import { Elysia, t } from 'elysia';
+import { BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { permissionPlugin } from '../plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
-import { BankAccountService, VietqrService, DebtService } from '../services';
+import { BankAccountService, VietqrService, DebtService, ActivityService } from '../services';
 import { insertBankAccountSchema } from '@repo/db';
+import { getClientIP } from '../utils';
 
 export const BankController = new Elysia({ prefix: '/banks' })
   .use(permissionPlugin)
@@ -42,7 +44,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
   // ==================== ADD ACCOUNT ====================
   .post(
     '/me',
-    async ({ user, body, set }) => {
+    async ({ user, body, set, request, server }) => {
       const result = await BankAccountService.addBankAccount({
         ...body,
         userId: user!.id
@@ -52,6 +54,16 @@ export const BankController = new Elysia({ prefix: '/banks' })
         set.status = 400;
         return result;
       }
+
+      await ActivityService.log({
+        userId: user!.id,
+        action: 'create',
+        resource: 'bank_account',
+        resourceId: result.account?.id,
+        metadata: { bankCode: body.bankCode, bankName: body.bankName },
+        ipAddress: getClientIP(request, server) || undefined,
+        userAgent: request.headers.get('user-agent') || undefined
+      });
 
       return { success: true, account: result.account };
     },
@@ -98,7 +110,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
       const debt = await DebtService.getDebtById(debtId);
       if (!debt) {
         set.status = 404;
-        return { success: false, error: 'Debt not found' };
+        return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
       }
 
       // 2. Security check: User must be involved in the debt
@@ -114,21 +126,21 @@ export const BankController = new Elysia({ prefix: '/banks' })
       // 3. Get creditor's default bank account
       if (!debt.creditorId) {
         set.status = 400;
-        return { success: false, error: 'Debt has no creditor assigned' };
+        return errorResponse(BE_ERRORS.DEBT_NOT_FOUND, 'Debt has no creditor assigned');
       }
       const accounts = await BankAccountService.getUserBankAccounts(debt.creditorId);
       const defaultAccount = accounts.find((a) => a.isDefault) || accounts[0];
 
       if (!defaultAccount) {
         set.status = 400;
-        return { success: false, error: 'Creditor has no bank account linked' };
+        return errorResponse(BE_ERRORS.BANK_ACCOUNT_NOT_FOUND, 'Creditor has no bank account linked');
       }
 
       // 4. Generate QR
       const qrUrl = VietqrService.generateDebtPaymentQR({
         bankBin: defaultAccount.bankBin,
         accountNumber: defaultAccount.accountNumber,
-        accountName: defaultAccount.accountName,
+        accountName: defaultAccount.accountName || '',
         amount: debt.amount,
         debtId: debt.id
       });
@@ -144,13 +156,22 @@ export const BankController = new Elysia({ prefix: '/banks' })
   // ==================== DELETE ACCOUNT ====================
   .delete(
     '/:id',
-    async ({ user, params: { id }, set }) => {
+    async ({ user, params: { id }, set, request, server }) => {
       const result = await BankAccountService.deleteBankAccount(id, user!.id);
 
       if (!result.success) {
         set.status = 404;
         return result;
       }
+
+      await ActivityService.log({
+        userId: user!.id,
+        action: 'delete',
+        resource: 'bank_account',
+        resourceId: id,
+        ipAddress: getClientIP(request, server) || undefined,
+        userAgent: request.headers.get('user-agent') || undefined
+      });
 
       return { success: true, message: 'Bank account deleted' };
     },

@@ -6,38 +6,23 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env*", "bun.lockb"],
       "outputs": [".svelte-kit/**", "dist/**", "build/**"],
-      "env": ["VITE_API_URL", "VITE_WEB_URL", "PORT"]
+      "env": ["VITE_API_URL", "VITE_WEB_URL", "PORT"],
+      "cache": true
     },
     "dev": {
       "cache": false,
       "persistent": true,
-      "outputLogs": "new-only"
+      "outputLogs": "new-only",
+      "passThroughEnv": ["NODE_ENV", "PORT", "VITE_API_URL", "VITE_WEB_URL"]
     },
-    "lint": {
-      "dependsOn": ["^lint"]
-    },
-    "check": {
-      "dependsOn": ["^check"]
-    },
-    "check-types": {
-      "dependsOn": ["^check-types"]
-    },
-    "test": {
-      "dependsOn": ["^build"],
-      "cache": true
-    },
-    "generate": {
-      "cache": false
-    },
-    "start": {
-      "dependsOn": ["build"],
-      "cache": false,
-      "persistent": true
-    },
-    "clean": {
-      "cache": false
-    }
+    "lint": { "dependsOn": ["^lint"], "cache": true },
+    "check": { "dependsOn": ["^check"], "cache": true },
+    "check-types": { "dependsOn": ["^check-types"], "cache": true },
+    "test": { "dependsOn": ["^build"], "cache": true },
+    "generate": { "cache": false },
+    "start": { "dependsOn": ["build"], "cache": false, "persistent": true },
+    "clean": { "cache": false }
   }
 }

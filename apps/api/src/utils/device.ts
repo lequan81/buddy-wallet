@@ -3,22 +3,12 @@
  * Parses user agent to extract device information for session management
  */
 import type { Server } from 'bun';
+import { logger } from '@repo/logger';
+import type { DeviceInfo, ClientHints } from '../types/device';
 
-interface DeviceInfo {
-  deviceName: string;
-  deviceType: 'desktop' | 'mobile' | 'tablet' | 'unknown';
-  browser: string;
-  os: string;
-}
-
-/**
- * Client hints from navigator.userAgentData (sent from frontend)
- */
-interface ClientHints {
-  browser?: string;
-  os?: string;
-  mobile?: boolean;
-}
+// In-memory cache for IP/coordinate lookups (avoids redundant external calls)
+const locationCache = new Map<string, { value: string; expires: number }>();
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 /**
  * Private IP ranges for RFC 1918
@@ -68,31 +58,42 @@ export function parseUserAgent(userAgent: string | null, clientHints?: ClientHin
 
   const ua = userAgent.toLowerCase();
 
-  // Detect OS first - more patterns for better coverage
-  let os = 'Unknown OS';
-  if (ua.includes('windows nt 10') || ua.includes('windows nt 11')) os = 'Windows';
-  else if (ua.includes('windows')) os = 'Windows';
-  else if (ua.includes('macintosh') || ua.includes('mac os x')) os = 'macOS';
-  else if (ua.includes('iphone')) os = 'iOS';
-  else if (ua.includes('ipad')) os = 'iPadOS';
-  else if (ua.includes('android')) os = 'Android';
-  else if (ua.includes('linux') && !ua.includes('android')) os = 'Linux';
-  else if (ua.includes('cros')) os = 'Chrome OS';
-  else if (ua.includes('x11')) os = 'Unix';
+  // Data-driven OS detection
+  const osPatterns = [
+    { patterns: ['windows nt 10', 'windows nt 11'], name: 'Windows' },
+    { patterns: ['windows'], name: 'Windows' },
+    { patterns: ['macintosh', 'mac os x'], name: 'macOS' },
+    { patterns: ['iphone'], name: 'iOS' },
+    { patterns: ['ipad'], name: 'iPadOS' },
+    { patterns: ['android'], name: 'Android' },
+    { patterns: ['linux'], name: 'Linux', exclude: ['android'] },
+    { patterns: ['cros'], name: 'Chrome OS' },
+    { patterns: ['x11'], name: 'Unix' }
+  ];
 
-  // Detect Browser - more patterns and prioritize specific over generic
-  let browser = 'Unknown Browser';
-  if (ua.includes('edg/') || ua.includes('edge/')) browser = 'Edge';
-  else if (ua.includes('opr/') || ua.includes('opera')) browser = 'Opera';
-  else if (ua.includes('firefox') || ua.includes('fxios')) browser = 'Firefox';
-  else if (ua.includes('crios'))
-    browser = 'Chrome'; // Chrome on iOS
-  else if (ua.includes('chrome') && !ua.includes('chromium') && !ua.includes('edg'))
-    browser = 'Chrome';
-  else if (ua.includes('safari') && !ua.includes('chrome') && !ua.includes('android'))
-    browser = 'Safari';
-  else if (ua.includes('msie') || ua.includes('trident')) browser = 'Internet Explorer';
-  else if (ua.includes('chromium')) browser = 'Chromium';
+  const os = osPatterns.find(({ patterns, exclude }) => {
+    const hasPattern = patterns.some(pattern => ua.includes(pattern));
+    const hasExclusion = exclude?.some(pattern => ua.includes(pattern));
+    return hasPattern && !hasExclusion;
+  })?.name || 'Unknown OS';
+
+  // Data-driven browser detection
+  const browserPatterns = [
+    { patterns: ['edg/', 'edge/'], name: 'Edge' },
+    { patterns: ['opr/', 'opera'], name: 'Opera' },
+    { patterns: ['firefox', 'fxios'], name: 'Firefox' },
+    { patterns: ['crios'], name: 'Chrome' }, // Chrome on iOS
+    { patterns: ['chrome'], name: 'Chrome', exclude: ['chromium', 'edg'] },
+    { patterns: ['safari'], name: 'Safari', exclude: ['chrome', 'android'] },
+    { patterns: ['msie', 'trident'], name: 'Internet Explorer' },
+    { patterns: ['chromium'], name: 'Chromium' }
+  ];
+
+  const browser = browserPatterns.find(({ patterns, exclude }) => {
+    const hasPattern = patterns.some(pattern => ua.includes(pattern));
+    const hasExclusion = exclude?.some(pattern => ua.includes(pattern));
+    return hasPattern && !hasExclusion;
+  })?.name || 'Unknown Browser';
 
   // Detect Device Type
   let deviceType: DeviceInfo['deviceType'] = 'desktop';
@@ -131,6 +132,29 @@ export function parseUserAgent(userAgent: string | null, clientHints?: ClientHin
 }
 
 /**
+ * Get public IP location using free API service
+ */
+async function getPublicIPLocation(ip: string): Promise<{ city: string; country: string } | null> {
+  try {
+    const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,city`, {
+      signal: AbortSignal.timeout(3000)
+    });
+    const data = await response.json();
+    
+    if (data.status === 'success' && data.country) {
+      return {
+        city: data.city || 'Unknown',
+        country: data.country
+      };
+    }
+  } catch (error: unknown) {
+    logger.warn('[Device] Public IP geolocation failed', { ip, error: String(error) });
+  }
+  
+  return null;
+}
+
+/**
  * Get location - prefer client-provided text location, fallback to IP lookup
  * Client location should already be reverse geocoded (e.g., "Ho Chi Minh City, Vietnam")
  */
@@ -146,6 +170,10 @@ export async function getLocationFromIP(
 
   // 2. Reverse geocode from coordinates (OpenStreetMap Nominatim - free)
   if (coordinates?.lat && coordinates?.lon) {
+    const coordKey = `geo:${coordinates.lat.toFixed(2)},${coordinates.lon.toFixed(2)}`;
+    const cached = locationCache.get(coordKey);
+    if (cached && cached.expires > Date.now()) return cached.value;
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
@@ -157,15 +185,25 @@ export async function getLocationFromIP(
         }
       );
       clearTimeout(timeoutId);
+
       if (res.ok) {
         const data = await res.json();
-        const city = data.address?.city || data.address?.town || data.address?.state;
-        const country = data.address?.country_code?.toUpperCase();
-        if (city && country) return `${city}, ${country}`;
-        if (city) return city;
+        if (data?.address) {
+          const city = data.address.city || data.address.town || data.address.village;
+          const country = data.address.country;
+          if (city && country) {
+            const result = `${city}, ${country}`;
+            locationCache.set(coordKey, { value: result, expires: Date.now() + CACHE_TTL });
+            return result;
+          }
+          if (country) {
+            locationCache.set(coordKey, { value: country, expires: Date.now() + CACHE_TTL });
+            return country;
+          }
+        }
       }
     } catch {
-      console.warn('[Device] Nominatim reverse geocode failed');
+      logger.warn('[Device] Nominatim reverse geocode failed');
     }
   }
 
@@ -179,37 +217,34 @@ export async function getLocationFromIP(
 
   // Check for localhost
   if (isLocalhost(cleanIP)) {
-    return 'Local Development';
+    return 'Unknown Location';
   }
 
   // Check for private network
   if (isPrivateIP(cleanIP)) {
-    return 'Local Network';
+    return 'Unknown Location';
   }
 
-  // 5. Try IP geolocation as last resort
+  // 3. Try public IP geolocation first (more accurate for public IPs)
+  const ipCacheKey = `ip:${cleanIP}`;
+  const cachedIP = locationCache.get(ipCacheKey);
+  if (cachedIP && cachedIP.expires > Date.now()) return cachedIP.value;
+
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
-
-    const response = await fetch(`http://ip-api.com/json/${cleanIP}?fields=city,country,status`, {
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data.status === 'success') {
-        if (data.city && data.country) return `${data.city}, ${data.country}`;
-        if (data.country) return data.country;
-      }
+    const publicLocation = await getPublicIPLocation(cleanIP);
+    if (publicLocation) {
+      const result = publicLocation.city !== 'Unknown' 
+        ? `${publicLocation.city}, ${publicLocation.country}`
+        : publicLocation.country;
+      locationCache.set(ipCacheKey, { value: result, expires: Date.now() + CACHE_TTL });
+      return result;
     }
   } catch {
-    console.warn('[Device] IP geolocation failed:', cleanIP);
+    logger.warn('[Device] Public IP geolocation failed', { ip: cleanIP });
   }
 
-  // 6. Final fallback - show partial IP
-  return `IP: ${cleanIP.substring(0, 8)}...`;
+  // If all geolocation attempts fail, return Unknown Location
+  return 'Unknown Location';
 }
 
 /**
@@ -219,7 +254,7 @@ export async function getLocationFromIP(
 export function getClientIP(request: Request, server?: Server<unknown> | null): string | null {
   // Check common proxy headers (in order of preference)
   const headers = [
-    'cf-connecting-ip', // Cloudflare
+    'cf-connecting-ip', // Cloudflare (most reliable for public IP)
     'x-real-ip', // Nginx
     'x-forwarded-for', // Standard proxy header
     'x-client-ip', // Apache
@@ -229,13 +264,31 @@ export function getClientIP(request: Request, server?: Server<unknown> | null): 
   for (const header of headers) {
     const value = request.headers.get(header);
     if (value) {
-      // x-forwarded-for can contain multiple IPs, take the first one
+      // Get the first IP in the chain (original client)
+      const ip = value.split(',')[0].trim();
+      if (ip && !isPrivateIP(ip)) {
+        return ip; // Return public IP immediately
+      }
+    }
+  }
+
+  // Fallback to socket IP if server instance is passed
+  if (server?.requestIP) {
+    const socketIP = server.requestIP(request)?.address;
+    if (socketIP && !isPrivateIP(socketIP)) {
+      return socketIP;
+    }
+  }
+
+  // If no public IP found, check for private IPs (for local development)
+  for (const header of headers) {
+    const value = request.headers.get(header);
+    if (value) {
       const ip = value.split(',')[0].trim();
       if (ip) return ip;
     }
   }
 
-  // Fallback to socket IP if server instance is passed
   if (server?.requestIP) {
     const socketIP = server.requestIP(request)?.address;
     if (socketIP) return socketIP;

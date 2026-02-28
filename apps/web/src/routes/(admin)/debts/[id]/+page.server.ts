@@ -45,10 +45,10 @@ export const load: PageServerLoad = async ({ locals, fetch, params }) => {
 	// if I am just viewing, maybe not.
 	// Actually, if I am the creditor, I want to see pending proofs.
 	if (isCreditor) {
-		const proofsRes = await fetch(`${API_URL}/v1/upload/pending-proofs/${debt.id}`, { headers });
+		const proofsRes = await fetch(`${API_URL}/v1/proofs/debt/${debt.id}`, { headers });
 		if (proofsRes.ok) {
 			const proofsData = await proofsRes.json();
-			pendingProofs = proofsData.files || [];
+			pendingProofs = proofsData.data?.proofs || [];
 		}
 	}
 

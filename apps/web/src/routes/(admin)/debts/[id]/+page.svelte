@@ -123,10 +123,12 @@
 	// Get valid status transitions based on current status
 	const getValidTransitions = (
 		status: string
-	): { status: string; label: string; icon: typeof IconLucideCheck }[] => {
+	): { status: string; label: string; icon: typeof IconLucideCheck; disabled?: boolean }[] => {
+		const hasProofs = data.pendingProofs && data.pendingProofs.length > 0;
+		
 		const transitions: Record<
 			string,
-			{ status: string; label: string; icon: typeof IconLucideCheck }[]
+			{ status: string; label: string; icon: typeof IconLucideCheck; disabled?: boolean }[]
 		> = {
 			pending: [
 				{ status: 'confirmed', label: 'Confirm', icon: IconLucideCheck },
@@ -134,7 +136,7 @@
 				{ status: 'cancelled', label: 'Cancel', icon: IconLucideX }
 			],
 			confirmed: [
-				{ status: 'paid', label: 'Mark as Paid', icon: IconLucideCheck },
+				{ status: 'paid', label: 'Mark as Paid', icon: IconLucideCheck, disabled: !hasProofs },
 				{ status: 'disputed', label: 'Dispute', icon: IconLucideAlertTriangle }
 			],
 			disputed: [],
@@ -177,7 +179,7 @@
 		const formData = new FormData();
 		formData.append('file', uploadFile[0]);
 
-		const res = await apiFetch(`/v1/upload/payment-proof/${data.debt.id}`, {
+		const res = await apiFetch(`/v1/proofs/debt/${data.debt.id}`, {
 			method: 'POST',
 			body: formData
 			// Don't set Content-Type header, browser sets it with boundary
@@ -195,7 +197,10 @@
 	}
 
 	async function approveProof(proofId: string) {
-		const res = await apiFetch(`/v1/upload/proof/${proofId}/approve`, { method: 'POST' });
+		const res = await apiFetch(`/v1/proofs/${proofId}/review`, {
+			method: 'PATCH',
+			body: JSON.stringify({ action: 'approved' })
+		});
 		if (!res.error) {
 			invalidateAll();
 			// Show "Mark as Paid" modal if all proofs are now approved
@@ -211,9 +216,9 @@
 		const reason = prompt('Enter rejection reason:');
 		if (reason === null) return;
 
-		const res = await apiFetch(`/v1/upload/proof/${proofId}/reject`, {
-			method: 'POST',
-			body: JSON.stringify({ reason })
+		const res = await apiFetch(`/v1/proofs/${proofId}/review`, {
+			method: 'PATCH',
+			body: JSON.stringify({ action: 'rejected', reason })
 		});
 		if (!res.error) {
 			invalidateAll();
@@ -760,12 +765,13 @@
 											<input type="hidden" name="status" value={transition.status} />
 											<Button
 												type="submit"
-												disabled={isSubmitting}
+												disabled={isSubmitting || transition.disabled}
 												size="sm"
 												variant={transition.status === 'cancelled' ||
 												transition.status === 'disputed'
 													? 'destructive'
 													: 'default'}
+												title={transition.disabled ? 'Upload proof of payment first' : ''}
 											>
 												{@const Icon = transition.icon}
 												<Icon class="mr-2 h-4 w-4" />

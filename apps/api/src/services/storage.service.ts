@@ -1,4 +1,4 @@
-import { join, resolve } from 'path';
+import { resolve } from 'path';
 import { unlink } from 'node:fs/promises';
 
 export interface IStorageService {
@@ -34,7 +34,15 @@ export class DiskStorageService implements IStorageService {
 
   async save(relativePath: string, buffer: Buffer | Blob): Promise<string> {
     const fullPath = this.resolvePath(relativePath);
-    await Bun.write(fullPath, buffer);
+
+    // FIX EXDEV & OOM: Force reading stream safely
+    // If Bun internally tries an fs.rename for Blob types across drives, it fails.
+    // Streaming it chunks the copy, dodging out-of-memory crashes for small servers.
+    if (buffer instanceof Blob) {
+      await Bun.write(fullPath, new Response(buffer.stream()));
+    } else {
+      await Bun.write(fullPath, buffer);
+    }
     return relativePath; // Return relative path for DB storage
   }
 

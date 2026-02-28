@@ -30,8 +30,25 @@ export class ConfirmedState implements IDebtState {
       previousStatus: context.previousStatus
     });
 
-    // TODO: Send notification to both parties
-    // await notificationService.sendDebtConfirmed(debt);
+    // Send notification to the creator (or counterparty based on who confirmed)
+    const notifyUserId = context.userId === debt.creditorId ? debt.debtorId : debt.creditorId;
+    if (notifyUserId) {
+      import('../services').then(({ PushService, UserService }) => {
+        UserService.getUserById(context.userId).then((confirmer) => {
+          UserService.getUserById(notifyUserId).then((target) => {
+            if (confirmer.user && target.user?.pushNotificationsEnabled) {
+              PushService.sendDebtConfirmedNotification({
+                userId: notifyUserId,
+                confirmerName: confirmer.user.name,
+                amount: debt.amount,
+                description: debt.description || '',
+                debtId: debt.id
+              }).catch(() => {});
+            }
+          });
+        });
+      });
+    }
   }
 
   async onExit(debt: Debt, context: TransitionContext): Promise<void> {

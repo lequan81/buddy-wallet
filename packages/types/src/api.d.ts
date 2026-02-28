@@ -28,6 +28,16 @@ export interface User {
   id: string;
   name: string;
   email: string | null;
+  phoneNumber?: string;
+  role?: string;
+  permissions?: string[];
+  isActive?: boolean;
+  isLocked?: boolean;
+  lockoutUntil?: string | null;
+  emailVerified?: boolean;
+  mustChangePassword?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Debt {

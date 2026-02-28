@@ -9,7 +9,8 @@ import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/err
 import { accessControlPlugin } from '../plugins';
 import { permissionPlugin } from '../plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
-import { UserService } from '../services';
+import { UserService, ActivityService } from '../services';
+import { getClientIP } from '../utils';
 
 export const UsersController = new Elysia({ prefix: '/users' })
   .use(accessControlPlugin)
@@ -28,7 +29,7 @@ export const UsersController = new Elysia({ prefix: '/users' })
   // Update current user profile
   .patch(
     '/me',
-    async ({ user, body, set }) => {
+    async ({ user, body, set, request, server }) => {
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
@@ -46,6 +47,16 @@ export const UsersController = new Elysia({ prefix: '/users' })
         set.status = 400;
         return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
+
+      await ActivityService.log({
+        userId: user.id,
+        action: 'update',
+        resource: 'user',
+        resourceId: user.id,
+        changes: { after: body },
+        ipAddress: getClientIP(request, server) || undefined,
+        userAgent: request.headers.get('user-agent') || undefined
+      });
 
       return successResponse({ user: result.user, message: result.message });
     },
@@ -109,13 +120,23 @@ export const UsersController = new Elysia({ prefix: '/users' })
   // Toggle user status (admin)
   .patch(
     '/:id/status',
-    async ({ params: { id }, set }) => {
+    async ({ user, params: { id }, set, request, server }) => {
       const result = await UserService.toggleUserStatus(id);
 
       if (!result.success) {
         set.status = 404;
         return errorResponse(BE_ERRORS.USER_NOT_FOUND);
       }
+
+      await ActivityService.log({
+        userId: user!.id,
+        action: 'status_change',
+        resource: 'user',
+        resourceId: id,
+        metadata: { targetUserId: id, newStatus: result.user?.isActive ? 'active' : 'inactive' },
+        ipAddress: getClientIP(request, server) || undefined,
+        userAgent: request.headers.get('user-agent') || undefined
+      });
 
       return successResponse({ user: result.user, message: result.message });
     },

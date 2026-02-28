@@ -22,6 +22,7 @@ export interface LogActivityInput {
   metadata?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
+  location?: string;
 }
 
 export interface ActivityFilters {
@@ -62,6 +63,7 @@ export class ActivityService {
       metadata: input.metadata || null,
       ipAddress: input.ipAddress || null,
       userAgent: input.userAgent || null,
+      location: input.location || null,
       createdAt: new Date()
     });
   }

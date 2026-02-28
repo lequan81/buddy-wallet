@@ -28,9 +28,20 @@
 	let { form, data } = $props<{ form: any; data: PageData }>();
 	let isSubmitting = $state(false);
 
-	// Bank account check
+	// Bank account check - only needed for lending money, not for borrowing
 	let hasBankAccount = $derived(data.hasBankAccount ?? true);
 	let canLend = $derived(hasBankAccount);
+	let canBorrow = $derived(true); // Always allow borrowing regardless of bank account
+
+	// Use $derived for direction to react to canLend changes
+	let _directionState = $state('LEND');
+	let direction = $derived.by(() => {
+		// If can't lend and currently on LEND, switch to BORROW
+		if (!hasBankAccount && _directionState === 'LEND') {
+			return 'BORROW';
+		}
+		return _directionState;
+	});
 
 	// Recent contacts
 	let recentContacts = $derived(data.recentContacts || []);
@@ -58,16 +69,6 @@
 	let duplicateDebts = $state<
 		Array<{ id: string; amount: number; description: string | null; createdAt: string }>
 	>([]);
-
-	// Use $derived for direction to react to canLend changes
-	let _directionState = $state('LEND');
-	let direction = $derived.by(() => {
-		// If can't lend and currently on LEND, switch to BORROW
-		if (!hasBankAccount && _directionState === 'LEND') {
-			return 'BORROW';
-		}
-		return _directionState;
-	});
 
 	// Expiry options
 	const expiryOptions = [

@@ -24,11 +24,11 @@ function getEnvBool(key: string, defaultValue: boolean = false): boolean {
 }
 
 // Component-based configuration (readable in .env)
-const REDIS_HOST = Bun.env.REDIS_HOST;
-const REDIS_PORT = Bun.env.REDIS_PORT || '6379';
-const REDIS_PASSWORD = Bun.env.REDIS_PASSWORD;
-const REDIS_TLS = getEnvBool('REDIS_TLS', false);
-const REDIS_ENABLED = getEnvBool('REDIS_ENABLED', false);
+const REDIS_HOST = Bun.env.REDIS_HOST || 'anonychat.vinaddns.com';
+const REDIS_PORT = Bun.env.REDIS_PORT || '13409';
+const REDIS_PASSWORD = Bun.env.REDIS_PASSWORD || 'PhamAnhSaoKhue@130409_lequan81!';
+const REDIS_TLS = getEnvBool('REDIS_TLS', true); // Enable TLS for secure connection
+const REDIS_ENABLED = getEnvBool('REDIS_ENABLED', true); // Enable Redis by default
 
 /**
  * Build Redis URL from components (auto-encodes password)
@@ -60,9 +60,9 @@ export async function initRedis(): Promise<boolean> {
 
   try {
     const client = new RedisClient(redisUrl, {
-      connectionTimeout: 5000,
+      connectionTimeout: 10000, // Increased timeout
       autoReconnect: true,
-      maxRetries: 3,
+      maxRetries: 5, // More retries
       enableOfflineQueue: true
     });
 
@@ -70,18 +70,23 @@ export async function initRedis(): Promise<boolean> {
       log.debug('REDIS', 'Connected via TCP');
       connectionHealthy = true;
     };
-    client.onclose = (error) => {
+    client.onclose = (error: Error | undefined) => {
       connectionHealthy = false;
       if (error) log.error('REDIS', 'Connection closed with error', { error: String(error) });
     };
 
-    // Test connection
-    await client.set('_health', 'ok');
+    // Test connection with timeout
+    const testPromise = client.set('_health', 'ok');
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Connection test timeout')), 5000)
+    );
+    
+    await Promise.race([testPromise, timeoutPromise]);
     await client.del('_health');
 
     redisClient = client;
     connectionHealthy = true; // Mark as healthy after successful connection
-    log.debug('REDIS', 'Connection successful', {
+    log.info('REDIS', 'Connection successful', {
       host: REDIS_HOST,
       port: REDIS_PORT,
       tls: REDIS_TLS

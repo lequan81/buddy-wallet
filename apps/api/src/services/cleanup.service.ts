@@ -10,6 +10,7 @@ import {
   sessions,
   debts,
   users,
+  emailVerifications,
   eq,
   and,
   or,
@@ -32,11 +33,12 @@ export const CleanupService = {
     try {
       const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
 
+      // 1. Mark zombie jobs (processing/pending > 3 hours) as failed
       await db
         .update(importLogs)
         .set({
           status: 'failed',
-          errors: JSON.stringify(['System: Job timed out (zombie worker > 3 hours)']),
+          errors: JSON.stringify(['Job timed out (zombie worker > 3 hours)']),
           completedAt: new Date()
         })
         .where(
@@ -46,8 +48,25 @@ export const CleanupService = {
           )
         );
 
-      log.info('CLEANUP', 'Marked stale processing logs as failed');
-      return { updated: 0 };
+      // 2. Mark stalled jobs (processing > 1 hour without completing) as failed
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      await db
+        .update(importLogs)
+        .set({
+          status: 'failed',
+          errors: JSON.stringify(['Job progress stalled (processing > 1 hour without completing)']),
+          completedAt: new Date()
+        })
+        .where(
+          and(
+            eq(importLogs.status, 'processing'),
+            lte(importLogs.createdAt, oneHourAgo),
+            isNull(importLogs.completedAt)
+          )
+        );
+
+      log.info('CLEANUP', 'Marked stale/stalled processing logs as failed');
+      return { updated: 0 }; // SQLite doesn't return affected rows easily
     } catch (err) {
       log.error('CLEANUP', 'Failed to clean processing logs', { error: String(err) });
       return { updated: 0 };
@@ -95,7 +114,17 @@ export const CleanupService = {
         .delete(sessions)
         .where(and(eq(sessions.status, 'expired'), lte(sessions.refreshTokenExpiresAt, oneDayAgo)));
 
-      log.info('CLEANUP', 'Removed expired/revoked sessions (>24h)');
+      // Mark active sessions older than 90 days as expired
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+      await db
+        .update(sessions)
+        .set({ status: 'expired' })
+        .where(and(eq(sessions.status, 'active'), lte(sessions.createdAt, ninetyDaysAgo)));
+
+      log.info(
+        'CLEANUP',
+        'Removed expired/revoked sessions (>24h), marked stale active sessions as expired'
+      );
       return { deleted: 0 };
     } catch (err) {
       log.error('CLEANUP', 'Failed to clean sessions', { error: String(err) });
@@ -177,6 +206,22 @@ export const CleanupService = {
   },
 
   /**
+   * Cleanup expired OTP records (email verifications past expiresAt)
+   */
+  async cleanupExpiredOTPs(): Promise<{ deleted: number }> {
+    try {
+      const now = new Date();
+      await db.delete(emailVerifications).where(lte(emailVerifications.expiresAt, now));
+
+      log.info('CLEANUP', 'Removed expired OTP records');
+      return { deleted: 0 };
+    } catch (err) {
+      log.error('CLEANUP', 'Failed to clean OTPs', { error: String(err) });
+      return { deleted: 0 };
+    }
+  },
+
+  /**
    * Run all cleanup tasks
    */
   async runAll(): Promise<void> {
@@ -184,6 +229,7 @@ export const CleanupService = {
     await this.cleanupStaleProcessingLogs();
     await this.cleanupStalePendingLogs();
     await this.cleanupExpiredSessions();
+    await this.cleanupExpiredOTPs();
     await this.expireUnconfirmedDebts();
     log.info('CLEANUP', 'Cleanup tasks completed.');
   }

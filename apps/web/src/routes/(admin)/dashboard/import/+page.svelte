@@ -1,6 +1,7 @@
 ﻿<script lang="ts">
-	// @ts-nocheck
+	// @ts-nocheck — TODO: fix 21 pre-existing TS errors (null safety, type mismatches) in a dedicated refactor
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -15,7 +16,13 @@
 	import { Progress } from '@repo/ui/components/ui/progress';
 	import { apiFetch } from '$lib/api';
 	import { importProgress } from '$lib/stores/import-progress.svelte';
+	import ConnectionFallback from '$lib/components/shared/ConnectionFallback.svelte';
 	import { cn } from '$lib/utils';
+	import { browser } from '$app/environment';
+	import type { UploadState } from '$lib/types/import';
+	import { importUpload } from '$lib/stores/import-upload.svelte';
+	import { IMPORT_DB_FIELDS } from '@repo/config';
+	import * as m from '$lib/paraglide/messages';
 
 	import IconLucideArrowLeft from '~icons/lucide/arrow-left';
 	import IconLucideSettings2 from '~icons/lucide/settings-2';
@@ -33,25 +40,76 @@
 	import IconLucideEye from '~icons/lucide/eye';
 	import IconLucideTrash2 from '~icons/lucide/trash-2';
 
-	let { form } = $props();
+	// i18n field label resolver
+	const fieldLabels: Record<string, () => string> = {
+		name: m.import_field_name,
+		amount: m.import_field_amount,
+		phone: m.import_field_phone,
+		email: m.import_field_email,
+		description: m.import_field_description,
+		dueDate: m.import_field_dueDate
+	};
+
+	let { data, form } = $props();
+
+	// === ENHANCED UPLOAD STATE ===
+	let uploadState = $state<UploadState>({
+		file: null,
+		uploadId: null,
+		previewData: [],
+		columnHeaders: [],
+		fileName: '',
+		totalRows: 0,
+		status: 'idle',
+		error: null,
+		uploadProgress: 0
+	});
+
+	// === STATE RESET ===
+	const resetUploadState = () => {
+		uploadState = {
+			file: null,
+			uploadId: null,
+			previewData: [],
+			columnHeaders: [],
+			fileName: '',
+			totalRows: 0,
+			status: 'idle',
+			error: null,
+			uploadProgress: 0
+		};
+		importUpload.reset();
+	};
+
+	// === DATABASE FIELDS (i18n resolved) ===
+	const dbFields = IMPORT_DB_FIELDS.map((f) => ({
+		...f,
+		label: fieldLabels[f.key]?.() ?? f.key
+	}));
+
+	let missingRequired = $derived(
+		dbFields.filter((f) => f.required && !columnMapping[f.key]).map((f) => f.label)
+	);
+	let hasPreview = $derived(uploadState.previewData.length > 0);
 
 	// === IMPORT FORM STATE ===
 	let isSubmitting = $state(false);
-	let isAnalyzing = $state(false);
-	let lastLogId = $state('');
-	let previewLogId = $state('');
-	let fileInput = $state<HTMLInputElement>();
-
-	let previewData = $state<string[][]>([]);
-	let columnHeaders = $state<string[]>([]);
-	let fileName = $state('');
-	let totalRows = $state(0);
-	let startRow = $state(2);
-	let selectedFiles = $state<FileList>();
-	let storedFile: File | null = null;
 	let currentJobId = $state('');
 	let currentJob = $derived(importProgress.getJob(currentJobId));
+	let startRow = $state(2);
+	let fileInput: HTMLInputElement | undefined = $state(undefined);
 
+	// === HISTORY STATE ===
+	let loadingHistory = $state(true);
+	let logs = $state<any[]>([]);
+	let historyPage = $state(1);
+	let historyTotalPages = $state(1);
+	let selectedLog = $state<any | null>(null);
+	let showDetails = $state(false);
+	let showConnectionFallback = $state(false);
+	let connectionError = $state('');
+
+	// === COLUMN MAPPING ===
 	let columnMapping = $state<Record<string, string>>({
 		name: '',
 		amount: '',
@@ -61,32 +119,22 @@
 		dueDate: ''
 	});
 
-	const dbFields = [
-		{ key: 'name', label: 'Name/Tên', required: true, description: 'Person who owes' },
-		{ key: 'amount', label: 'Amount/Số nợ', required: true, description: 'Debt amount' },
-		{ key: 'phone', label: 'Phone', required: true, description: 'For user linking' },
-		{ key: 'email', label: 'Email', required: false, description: 'For user linking' },
-		{ key: 'description', label: 'Description', required: false, description: 'Notes' },
-		{ key: 'dueDate', label: 'Due Date', required: false, description: 'Deadline' }
-	];
-
-	let missingRequired = $derived(
-		dbFields.filter((f) => f.required && !columnMapping[f.key]).map((f) => f.label)
-	);
-	let hasPreview = $derived(previewData.length > 0);
-
-	// === HISTORY STATE ===
-	let loadingHistory = $state(true);
-	let logs = $state<any[]>([]);
-	let historyPage = $state(1);
-	let historyTotalPages = $state(1);
-	let selectedLog = $state<any | null>(null);
-	let showDetails = $state(false);
-
+	// === FUNCTIONS ===
 	async function fetchLogs(p: number = 1) {
 		loadingHistory = true;
+		showConnectionFallback = false;
+
+		// Add timeout for Redis connection
+		const timeoutPromise = new Promise((_, reject) =>
+			setTimeout(() => reject(new Error('Request timeout')), 15000)
+		);
+
 		try {
-			const res = await apiFetch<any>(`/v1/import/logs?page=${p}&limit=10`);
+			const res = await Promise.race([
+				apiFetch<any>(`/v1/import/logs?page=${p}&limit=10`),
+				timeoutPromise
+			]);
+
 			if (!res.error && res.data) {
 				const payload = res.data;
 				logs = payload.logs ?? [];
@@ -106,13 +154,150 @@
 				}
 			}
 		} catch (err) {
+			connectionError = err instanceof Error ? err.message : 'Failed to load import history';
+			showConnectionFallback = true;
 		} finally {
 			loadingHistory = false;
 		}
 	}
 
+	const handleFileUpload = async (file: File) => {
+		if (!file) return;
+
+		// Reset state for new upload
+		resetUploadState();
+		uploadState.file = file;
+		uploadState.fileName = file.name;
+		uploadState.status = 'uploading';
+		saveUploadState();
+
+		const formData = new FormData();
+		formData.append('file', file);
+
+		try {
+			// Generate preview directly (no separate upload step)
+			const previewResponse = await apiFetch('/v1/import/preview', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (previewResponse.data) {
+				currentJobId = previewResponse.data.jobId;
+				// Add job to progress store for polling
+				importProgress.addJob(currentJobId, 'preview', file.name);
+				uploadState.status = 'preview-loading';
+				saveUploadState();
+				toast.success('File uploaded and preview generation started!');
+			} else {
+				uploadState.status = 'error';
+				uploadState.error = previewResponse.error || 'Upload failed';
+			}
+		} catch (error) {
+			uploadState.status = 'error';
+			uploadState.error = error instanceof Error ? error.message : 'Upload failed';
+		}
+	};
+
+	const handleImport = async () => {
+		if (!currentJobId || missingRequired.length > 0) {
+			toast.error('Please map all required columns');
+			return;
+		}
+
+		isSubmitting = true;
+
+		try {
+			const formData = new FormData();
+			formData.append('file', uploadState.file!);
+			formData.append(
+				'config',
+				JSON.stringify({
+					mapping: columnMapping,
+					startRow
+				})
+			);
+
+			const response = await apiFetch('/v1/import/debts', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (response.data) {
+				toast.success(`Import started! Job ID: ${response.data.jobId}`);
+				currentJobId = response.data.jobId;
+
+				// Reset state after successful import
+				resetUploadState();
+
+				// Refresh history
+				fetchLogs();
+			} else {
+				toast.error(response.error || 'Import failed');
+			}
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : 'Import failed');
+		} finally {
+			isSubmitting = false;
+		}
+	};
+
+	const formatFileSize = (bytes: number) => {
+		if (bytes === 0) return '0 Bytes';
+		const k = 1024;
+		const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+	};
+
+	const getStatusColor = (status: string) => {
+		switch (status) {
+			case 'success':
+				return 'text-green-600';
+			case 'processing':
+				return 'text-blue-600';
+			case 'failed':
+				return 'text-red-600';
+			case 'pending':
+				return 'text-yellow-600';
+			default:
+				return 'text-gray-600';
+		}
+	};
+
+	function viewDetails(log: any) {
+		selectedLog = log;
+		showDetails = true;
+	}
+
+	function formatDate(dateStr: string) {
+		return new Date(dateStr).toLocaleString();
+	}
+
+	function copyErrorCode(code: string) {
+		navigator.clipboard.writeText(code);
+		toast.success('Error code copied to clipboard');
+	}
+
+	// === LIFECYCLE ===
 	onMount(() => {
+		// Restore state from importUpload store (survives SPA navigation)
+		if (importUpload.state.status !== 'idle') {
+			uploadState = { ...importUpload.state };
+			columnMapping = { ...importUpload.columnMapping };
+			startRow = importUpload.startRow;
+		}
+
+		// Always fetch history
 		fetchLogs();
+	});
+
+	// Sync state to importUpload store (survives SPA navigation)
+	$effect(() => {
+		if (uploadState.status !== 'idle') {
+			importUpload.state = { ...uploadState };
+			importUpload.columnMapping = { ...columnMapping };
+			importUpload.startRow = startRow;
+		}
 	});
 
 	$effect(() => {
@@ -133,83 +318,58 @@
 		if (currentJob?.status === 'success' && currentJob.result) {
 			const res = currentJob.result;
 			if (currentJob.type === 'preview') {
-				isAnalyzing = false;
-				fileName = res.fileName || fileName;
-				totalRows = res.totalRows || 0;
-				columnHeaders = res.columnHeaders || [];
-				previewData = res.previewData || [];
-				lastLogId = res.logId;
-				previewLogId = res.logId || '';
+				uploadState.status = 'preview-ready';
+				uploadState.fileName = res.fileName || uploadState.fileName;
+				uploadState.totalRows = res.totalRows || 0;
+				uploadState.columnHeaders = res.columnHeaders || [];
+				uploadState.previewData = res.previewData || [];
+
 				if (res.autoMapping) {
 					const current = untrack(() => columnMapping);
 					columnMapping = { ...current, ...res.autoMapping };
 				}
 			} else if (currentJob.type === 'import') {
 				isSubmitting = false;
-				// The history will natively handle showing progress and completion.
 				fetchLogs(1); // Refresh history
-				resetForm();
+				resetUploadState();
 			}
 		} else if (currentJob?.status === 'failed') {
-			isAnalyzing = false;
+			uploadState.status = 'error';
+			uploadState.error = currentJob.error || 'Preview generation failed';
 			isSubmitting = false;
 			toast.error(currentJob.error || 'Operation failed');
 		}
 	});
 
-	function handleFileSelect(e: Event & { currentTarget: HTMLInputElement }) {
-		if (e.currentTarget.files && e.currentTarget.files.length > 0) {
-			selectedFiles = e.currentTarget.files;
-			storedFile = e.currentTarget.files[0];
-			fileName = storedFile.name;
-			e.currentTarget.form?.requestSubmit(); // Auto-submit preview
+	// Auto-reset if preview is stuck for too long (2 minutes)
+	$effect(() => {
+		if (uploadState.status === 'preview-loading') {
+			const timeout = setTimeout(
+				() => {
+					uploadState.status = 'error';
+					uploadState.error = 'Preview generation timed out. Please try again.';
+					toast.error('Preview generation timed out');
+				},
+				2 * 60 * 1000
+			); // 2 minutes
+
+			return () => clearTimeout(timeout);
 		}
-	}
-
-	function resetForm() {
-		fileName = '';
-		totalRows = 0;
-		columnHeaders = [];
-		previewData = [];
-		lastLogId = '';
-		previewLogId = '';
-		selectedFiles = undefined;
-		storedFile = null;
-		columnMapping = { name: '', amount: '', phone: '', email: '', description: '', dueDate: '' };
-		if (fileInput) fileInput.value = '';
-		currentJobId = '';
-	}
-
-	function copyErrorCode(code: string) {
-		navigator.clipboard.writeText(code);
-		toast.success('Error code copied to clipboard');
-	}
-
-	function formatDate(dateStr: string) {
-		return new Date(dateStr).toLocaleString();
-	}
-	function getStatusColor(status: string) {
-		switch (status) {
-			case 'success':
-				return 'bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20';
-			case 'failed':
-				return 'bg-destructive/10 text-destructive hover:bg-destructive/20';
-			case 'processing':
-				return 'bg-blue-500/10 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20';
-			default:
-				return 'bg-muted text-muted-foreground hover:bg-muted/80';
-		}
-	}
-	function viewDetails(log: any) {
-		selectedLog = log;
-		showDetails = true;
-	}
+	});
 </script>
 
 <div class="container max-w-6xl space-y-6 py-10">
-	<Button variant="ghost" href="/dashboard" class="-mb-2 pl-0 hover:bg-transparent">
-		<IconLucideArrowLeft class="mr-2 h-4 w-4" /> Back to Dashboard
-	</Button>
+	<!-- Page Header -->
+	<div class="mb-4 flex items-center justify-between">
+		<div>
+			<h1 class="text-2xl font-bold">Import Debts</h1>
+			<p class="text-muted-foreground">Bulk import debts from spreadsheet files</p>
+		</div>
+		<Button href="/dashboard" variant="ghost">
+			<IconLucideArrowLeft class="mr-2 h-4 w-4" />
+			Back to Dashboard
+		</Button>
+	</div>
 
 	<div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1.2fr_1fr]">
 		<!-- Left Side: Import Form -->
@@ -221,191 +381,205 @@
 				<Card.Description>Upload an Excel file to bulk import debts.</Card.Description>
 			</Card.Header>
 			<Card.Content>
-				<form
-					method="POST"
-					action="?/preview"
-					enctype="multipart/form-data"
-					use:enhance={({ action, formData, cancel }) => {
-						const isImport = action.search.includes('import');
-						if (isImport) {
-							if (missingRequired.length > 0) {
-								toast.error(`Missing required fields: ${missingRequired.join(', ')}`);
-								cancel();
-								return;
+				<!-- NEW STATE-BASED UPLOAD -->
+				{#if uploadState.status === 'idle'}
+					<div
+						role="button"
+						tabindex="0"
+						aria-label="Drag and drop your file here, or click to browse"
+						class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center"
+						ondragover={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+						}}
+						ondragenter={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+						}}
+						ondrop={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							const file = e.dataTransfer.files[0];
+							if (file) handleFileUpload(file);
+						}}
+						onclick={() => fileInput?.click()}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								fileInput?.click();
 							}
-							isSubmitting = true;
-							return async ({ result }) => {
-								if (result.type === 'success' && result.data?.success) {
-									const d = result.data as any;
-									importProgress.addJob(d.jobId, 'import', fileName);
-									toast.info('Import started');
-									resetForm();
-									fetchLogs(1);
-								} else {
-									isSubmitting = false;
-									toast.error(result.data?.message || 'Failed to start import');
-								}
-							};
-						} else {
-							const fileInput = formData.get('file') as File;
-							if (!fileInput || fileInput.size === 0) {
-								toast.error('Please select a valid Excel file.');
-								cancel();
-								return;
-							}
-							isAnalyzing = true;
-							return async ({ result }) => {
-								if (result.type === 'success' && result.data?.success) {
-									const d = result.data as any;
-									currentJobId = d.jobId;
-									importProgress.addJob(d.jobId, 'preview', fileInput.name);
-								} else {
-									isAnalyzing = false;
-									toast.error(result.data?.message || 'Failed to start analysis');
-								}
-							};
-						}
-					}}
-				>
-					<!-- Step 1: Upload -->
-					{#if !hasPreview}
-						<div class="space-y-4" transition:slide={{ duration: 300 }}>
-							<div
-								class="rounded-lg border-2 border-dashed bg-muted/30 p-8 text-center transition-colors hover:bg-muted/50"
-							>
-								<Label for="file" class="flex cursor-pointer flex-col items-center">
-									{#if isAnalyzing}
-										<IconLucideLoader2 class="mb-3 h-10 w-10 animate-spin text-primary" />
-										<span class="font-medium text-primary">Analyzing file...</span>
-									{:else if selectedFiles && selectedFiles.length > 0}
-										<IconLucideFileSpreadsheet class="mb-3 h-10 w-10 text-primary" />
-										<span class="font-medium text-primary">{selectedFiles[0].name}</span>
-										<span class="mt-1 text-sm text-muted-foreground">Click to change</span>
-									{:else}
-										<IconLucideUpload class="mb-3 h-10 w-10 text-muted-foreground" />
-										<span class="font-medium">Click to select file</span>
-										<span class="mt-1 text-sm text-muted-foreground">.xlsx or .csv files</span>
-									{/if}
-								</Label>
-							</div>
-						</div>
-					{/if}
+						}}
+					>
+						<IconLucideFileSpreadsheet class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+						<p class="mb-4 text-gray-600">Drag and drop your file here, or click to browse</p>
+						<p class="mb-4 text-sm text-gray-500">
+							Supported formats: .xlsx, .xls, .csv (Max 10MB)
+						</p>
 
-					<Input
-						id="file"
-						name="file"
-						type="file"
-						accept=".xlsx,.csv"
-						class="hidden"
-						onchange={handleFileSelect}
-						bind:this={fileInput as any}
-					/>
+						<input
+							bind:this={fileInput}
+							type="file"
+							accept=".xlsx,.xls,.csv"
+							onchange={(e) => {
+								const file = (e.target as HTMLInputElement).files?.[0];
+								if (file) handleFileUpload(file);
+							}}
+							class="hidden"
+						/>
 
-					<!-- Step 2: Mapping -->
-					{#if hasPreview}
-						<div transition:slide={{ duration: 300 }} class="mt-2 text-sm">
-							<div
-								class="mb-4 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 p-3"
-							>
-								<div class="flex items-center gap-3">
-									<IconLucideCheckCircle class="h-5 w-5 text-primary" />
+						<Button
+							onclick={(e) => {
+								e.stopPropagation();
+								fileInput?.click();
+							}}
+						>
+							<IconLucideUpload class="mr-2 h-4 w-4" />
+							Choose File
+						</Button>
+					</div>
+				{:else if uploadState.status === 'uploading'}
+					<div class="py-8 text-center">
+						<IconLucideLoader2 class="mx-auto mb-4 h-8 w-8 animate-spin text-blue-600" />
+						<p class="mb-2 text-lg font-medium">Uploading file...</p>
+						<p class="text-gray-600">{uploadState.fileName}</p>
+						<Progress value={uploadState.uploadProgress} class="mx-auto mt-4 max-w-md" />
+					</div>
+				{:else if uploadState.status === 'uploaded'}
+					<div class="py-8 text-center">
+						<IconLucideCheckCircle class="mx-auto mb-4 h-8 w-8 text-green-600" />
+						<p class="mb-2 text-lg font-medium">File uploaded successfully!</p>
+						<p class="text-gray-600">{uploadState.fileName}</p>
+						<p class="mb-4 text-sm text-gray-500">Generating preview...</p>
+					</div>
+				{:else if uploadState.status === 'preview-loading'}
+					<div class="py-8 text-center">
+						<IconLucideLoader2 class="mx-auto mb-4 h-8 w-8 animate-spin text-blue-600" />
+						<p class="mb-2 text-lg font-medium">Generating preview...</p>
+						<p class="mb-4 text-gray-600">{uploadState.fileName}</p>
+						<Button
+							onclick={() => {
+								resetUploadState();
+								if (currentJobId) {
+									importProgress.removeJob(currentJobId);
+								}
+								currentJobId = '';
+								toast.info('Upload cancelled. You can try again.');
+							}}
+							variant="outline"
+							size="sm"
+						>
+							<IconLucideX class="mr-2 h-4 w-4" />
+							Cancel / Start Over
+						</Button>
+					</div>
+				{:else if uploadState.status === 'preview-ready' && hasPreview}
+					<div class="space-y-6">
+						<!-- Preview Section -->
+						<Card.Root>
+							<Card.Header>
+								<Card.Title class="flex items-center gap-2">
+									<IconLucideSettings2 class="h-5 w-5" /> Preview & Mapping
+								</Card.Title>
+								<Card.Description>
+									{uploadState.totalRows} rows found. Map columns to database fields.
+								</Card.Description>
+							</Card.Header>
+							<Card.Content>
+								<div class="space-y-4">
+									<!-- Preview Table -->
+									<div class="overflow-hidden rounded-lg border">
+										<Table.Root>
+											<Table.Header>
+												<Table.Row>
+													{#each uploadState.columnHeaders as header, i}
+														<Table.Head class="font-medium">{header}</Table.Head>
+													{/each}
+												</Table.Row>
+											</Table.Header>
+											<Table.Body>
+												{#each uploadState.previewData.slice(0, 10) as row, rowIndex}
+													<Table.Row class="hover:bg-muted/50">
+														{#each row as cell, cellIndex}
+															<Table.Cell class="px-3 py-2 text-sm">
+																{cell}
+															</Table.Cell>
+														{/each}
+													</Table.Row>
+												{/each}
+											</Table.Body>
+										</Table.Root>
+									</div>
+
+									<!-- Column Mapping -->
 									<div>
-										<p class="font-medium">{fileName}</p>
-										<p class="text-xs text-muted-foreground">{totalRows} rows</p>
+										<h3 class="mb-4 text-lg font-semibold">Map Columns</h3>
+										<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+											{#each dbFields as field}
+												<div class="space-y-2">
+													<Label for={field.key} class="text-sm font-medium">
+														{field.label}
+														{#if field.required}
+															<span class="text-red-500">*</span>
+														{/if}
+													</Label>
+													<select
+														bind:value={columnMapping[field.key]}
+														class="w-full rounded-md border p-2 text-sm"
+													>
+														<option value="">-- Select --</option>
+														{#each uploadState.columnHeaders as header}
+															<option value={header}>{header}</option>
+														{/each}
+													</select>
+													{#if field.description}
+														<p class="text-xs text-gray-500">{field.description}</p>
+													{/if}
+												</div>
+											{/each}
+										</div>
+
+										{#if missingRequired.length > 0}
+											<div class="mt-4 rounded-md border border-yellow-200 bg-yellow-50 p-3">
+												<p class="text-sm text-yellow-800">
+													<strong>Required fields missing:</strong>
+													{missingRequired.join(', ')}
+												</p>
+											</div>
+										{/if}
+									</div>
+
+									<!-- IMPORT ACTIONS -->
+									<div class="flex items-center justify-between border-t pt-4">
+										<div class="text-sm text-gray-600">
+											Starting from row <Input
+												type="number"
+												bind:value={startRow}
+												class="w-16 p-1"
+											/>
+										</div>
+										<div class="flex gap-2">
+											<Button variant="outline" onclick={() => resetUploadState()}>Cancel</Button>
+											<Button
+												onclick={handleImport}
+												disabled={missingRequired.length > 0 || isSubmitting}
+											>
+												{#if isSubmitting}
+													<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
+												{/if}
+												Import Debts
+											</Button>
+										</div>
 									</div>
 								</div>
-								<Button type="button" variant="outline" size="sm" onclick={resetForm}
-									>Change File</Button
-								>
-							</div>
-
-							<!-- Mapping -->
-							<div class="mb-6 flex flex-col space-y-3">
-								<Label class="flex items-center gap-2 font-semibold">
-									<IconLucideSettings2 class="h-4 w-4" /> Column Mapping
-								</Label>
-								<div class="grid grid-cols-1 gap-2">
-									{#each dbFields as field}
-										<div
-											class={cn(
-												'flex items-center justify-between gap-2 rounded border bg-card p-2',
-												field.required &&
-													!columnMapping[field.key] &&
-													'border-destructive/50 bg-destructive/5'
-											)}
-										>
-											<div>
-												<span class="text-xs font-medium whitespace-nowrap"
-													>{field.label} {field.required ? '*' : ''}</span
-												>
-											</div>
-											<select
-												bind:value={columnMapping[field.key]}
-												class="w-45 overflow-hidden rounded border bg-background p-1 text-xs text-ellipsis"
-											>
-												<option value="">— Skip —</option>
-												{#each columnHeaders as col}<option value={col}>{col}</option>{/each}
-											</select>
-										</div>
-									{/each}
-								</div>
-							</div>
-
-							<div class="mb-6 flex items-center justify-between gap-2 border-t pt-4">
-								<Label for="startRow" class="whitespace-nowrap">Start at row:</Label>
-								<Input type="number" bind:value={startRow} class="h-8 w-16" />
-							</div>
-
-							<Button
-								type="submit"
-								formaction="?/import"
-								class="mt-4 w-full"
-								disabled={isSubmitting || missingRequired.length > 0}
-							>
-								{#if isSubmitting}
-									<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" /> Importing...
-								{:else}
-									<IconLucideSend class="mr-2 h-4 w-4" /> Start Import
-								{/if}
-							</Button>
-						</div>
-					{/if}
-				</form>
-
-				<!-- Error Display -->
-				{#if form?.code && !form?.preview}
-					<div
-						class="mt-4 rounded-md border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive"
-						transition:fade
-					>
-						<div class="mb-2 flex items-center justify-between">
-							<div class="flex items-center gap-2 font-semibold">
-								<IconLucideXCircle class="h-4 w-4" /> Error
-							</div>
-							<button
-								type="button"
-								onclick={() => copyErrorCode(form?.code || '')}
-								class="flex items-center gap-1 rounded bg-destructive/20 px-2 py-1 text-xs hover:bg-destructive/30"
-							>
-								<IconLucideCopy class="h-3 w-3" />
-								{form.code}
-							</button>
-						</div>
-						<p>{form.message}</p>
+							</Card.Content>
+						</Card.Root>
 					</div>
-				{/if}
-
-				<!-- Warnings -->
-				{#if form?.errors && form.errors.length > 0}
-					<div
-						class="mt-4 rounded-md border border-yellow-500/20 bg-yellow-500/10 p-4 text-sm text-yellow-700 dark:text-yellow-400"
-					>
-						<div class="mb-2 flex items-center gap-2 font-semibold">
-							<IconLucideAlertTriangle class="h-4 w-4" /> Warnings ({form.errors.length})
-						</div>
-						<ul class="max-h-32 list-none space-y-1 overflow-y-auto font-mono text-xs">
-							{#each form.errors as err, i}<li>#{i + 1} {err}</li>{/each}
-						</ul>
+				{:else if uploadState.status === 'error'}
+					<div class="py-8 text-center">
+						<IconLucideAlertTriangle class="mx-auto mb-4 h-8 w-8 text-red-600" />
+						<p class="mb-2 text-lg font-medium">Upload failed</p>
+						<p class="mb-4 text-gray-600">{uploadState.error}</p>
+						<Button onclick={() => resetUploadState()} class="mt-4">Try Again</Button>
 					</div>
 				{/if}
 			</Card.Content>
@@ -421,7 +595,19 @@
 			<Card.Content class="p-0">
 				<Table.Root>
 					<Table.Body>
-						{#if loadingHistory}
+						{#if showConnectionFallback}
+							<Table.Row>
+								<Table.Cell colspan="3" class="p-4">
+									<ConnectionFallback
+										onRetry={() => fetchLogs(historyPage)}
+										onUseOffline={() => (showConnectionFallback = false)}
+										isRetrying={false}
+										errorMessage={connectionError}
+										timeoutSeconds={15}
+									/>
+								</Table.Cell>
+							</Table.Row>
+						{:else if loadingHistory}
 							<Table.Row>
 								<Table.Cell class="h-24 text-center">
 									<IconLucideLoader2 class="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
@@ -435,20 +621,22 @@
 							</Table.Row>
 						{:else}
 							{#each logs as log}
-								{@const activeJob = importProgress.activeJobs.get(log.id)}
-								<Table.Row class="group">
+								{@const activeJob = importProgress.getJob(log.id)}
+								<Table.Row class="group transition-colors hover:bg-muted/50">
 									<Table.Cell class="py-3 align-top">
 										<div class="flex w-full flex-col gap-1.5 pr-1">
 											<div class="flex items-start justify-between gap-2">
-												<div
-													class="max-w-35 truncate text-xs leading-tight font-medium"
+												<button
+													type="button"
+													class="max-w-35 cursor-pointer truncate border-0 bg-transparent p-0 text-left text-xs leading-tight font-medium hover:text-primary"
 													title={log.fileName}
+													onclick={() => viewDetails(log)}
 												>
 													{log.fileName}
 													<div class="mt-0.5 text-[10px] font-normal text-muted-foreground">
 														{formatDate(log.createdAt)}
 													</div>
-												</div>
+												</button>
 												<div class="flex items-start gap-2">
 													<Badge
 														variant="outline"
@@ -459,45 +647,52 @@
 													>
 														{log.status === 'success' ? 'done' : log.status}
 													</Badge>
-													<Button
-														variant="ghost"
-														size="icon"
-														class="-mt-0.5 h-5 w-5 opacity-0 transition-opacity group-hover:opacity-100"
-														onclick={() => viewDetails(log)}
-													>
-														<IconLucideEye class="h-3.5 w-3.5" />
-													</Button>
+
+													<!-- Enhanced Action Buttons -->
+													<div class="ml-2 flex gap-1">
+														{#if log.status === 'success' && log.previewLogId}
+															<Button
+																variant="ghost"
+																size="icon"
+																class="h-5 w-5 opacity-0 transition-opacity group-hover:opacity-100"
+																title="View Import Results"
+																onclick={() =>
+																	(window as any).open(`/dashboard/import?log=${log.id}`, '_blank')}
+															>
+																<IconLucideEye class="h-3.5 w-3.5" />
+															</Button>
+														{/if}
+
+														{#if log.importedCount > 0}
+															<Button
+																variant="ghost"
+																size="icon"
+																class="h-5 w-5 opacity-0 transition-opacity group-hover:opacity-100"
+																title="View Imported Debts"
+																onclick={() =>
+																	(window as any).open(
+																		`/debts?import=${log.previewLogId}`,
+																		'_blank'
+																	)}
+															>
+																<IconLucideFileSpreadsheet class="h-3.5 w-3.5" />
+															</Button>
+														{/if}
+													</div>
 												</div>
 											</div>
 
 											{#if activeJob && (activeJob.status === 'processing' || activeJob.status === 'pending')}
 												<div class="w-full space-y-1">
-													<Progress
-														value={activeJob.progress.percentage || 0}
-														max={100}
-														class="h-1.5 bg-muted-foreground/20"
-													/>
-													<div class="flex justify-between text-[9px] text-muted-foreground">
-														<span class="max-w-32.5 truncate"
-															>{activeJob.message || 'working...'}</span
-														>
-														<span>{Math.round(activeJob.progress.percentage || 0)}%</span>
-													</div>
-												</div>
-											{:else if log.status === 'success'}
-												<div class="flex justify-between text-[10px] text-muted-foreground">
-													<span>
-														<span class="font-medium text-green-600 dark:text-green-500"
-															>{log.importedCount}</span
-														>
-														/ {log.totalRows} <span class="opacity-70">imported</span>
-													</span>
-													{#if log.errorCount > 0}
-														<span class="flex items-center gap-1 font-medium text-destructive">
-															<IconLucideAlertTriangle class="h-3 w-3" />
-															{log.errorCount} skips
+													<div class="flex items-center justify-between">
+														<span class="text-xs text-muted-foreground">
+															{activeJob.status === 'processing' ? 'Processing' : 'Pending'}
 														</span>
-													{/if}
+														<span class="text-xs text-muted-foreground">
+															{formatDate(log.createdAt)}
+														</span>
+													</div>
+													<Progress value={activeJob.progress || 0} class="w-full" />
 												</div>
 											{/if}
 										</div>
@@ -507,72 +702,121 @@
 						{/if}
 					</Table.Body>
 				</Table.Root>
-
-				{#if historyTotalPages > 1}
-					<div class="flex items-center justify-between border-t bg-muted/10 p-2">
-						<Button
-							variant="outline"
-							size="sm"
-							class="h-6 px-2 text-[10px]"
-							onclick={() => fetchLogs(historyPage - 1)}
-							disabled={historyPage <= 1 || loadingHistory}
-						>
-							<IconLucideChevronLeft class="mr-1 h-3 w-3" /> Prev
-						</Button>
-						<span class="text-[10px] text-muted-foreground"
-							>Pg {historyPage} of {historyTotalPages}</span
-						>
-						<Button
-							variant="outline"
-							size="sm"
-							class="h-6 px-2 text-[10px]"
-							onclick={() => fetchLogs(historyPage + 1)}
-							disabled={historyPage >= historyTotalPages || loadingHistory}
-						>
-							Next <IconLucideChevronRight class="ml-1 h-3 w-3" />
-						</Button>
-					</div>
-				{/if}
 			</Card.Content>
 		</Card.Root>
 	</div>
 </div>
 
+<!-- Enhanced Details Dialog -->
 <Dialog.Root bind:open={showDetails}>
-	<Dialog.Content class="max-w-xl">
+	<Dialog.Content class="max-w-4xl">
 		<Dialog.Header>
-			<Dialog.Title>Import Details</Dialog.Title>
+			<Dialog.Title class="flex items-center gap-2">
+				Import Details: {selectedLog?.fileName}
+				{#if selectedLog?.status === 'success' && selectedLog?.previewLogId}
+					<Button
+						variant="ghost"
+						size="icon"
+						onclick={() =>
+							(window as any).open(`/dashboard/import?log=${selectedLog.id}`, '_blank')}
+						class="ml-auto"
+					>
+						<IconLucideFileSpreadsheet class="h-4 w-4" />
+					</Button>
+				{/if}
+			</Dialog.Title>
 		</Dialog.Header>
 		{#if selectedLog}
-			<div class="mt-2 grid grid-cols-2 gap-4 text-sm">
-				<div>
-					<span class="text-muted-foreground">File:</span>
-					<p class="truncate font-medium" title={selectedLog.fileName}>{selectedLog.fileName}</p>
+			<div class="mt-4 grid grid-cols-2 gap-4 text-sm lg:grid-cols-3">
+				<div class="space-y-1">
+					<p class="text-xs text-muted-foreground">Status</p>
+					<p class="font-medium">{selectedLog.status}</p>
 				</div>
-				<div>
-					<span class="text-muted-foreground">Status:</span>
-					<p class="font-medium capitalize">{selectedLog.status}</p>
-				</div>
-				<div>
-					<span class="text-muted-foreground">Date:</span>
+				<div class="space-y-1">
+					<p class="text-xs text-muted-foreground">Created</p>
 					<p class="font-medium">{formatDate(selectedLog.createdAt)}</p>
 				</div>
-				<div>
-					<span class="text-muted-foreground">Imported Rows:</span>
-					<p class="font-medium">{selectedLog.importedCount} / {selectedLog.totalRows}</p>
+				<div class="space-y-1">
+					<p class="text-xs text-muted-foreground">Total Rows</p>
+					<p class="font-medium">{selectedLog.totalRows || 0}</p>
+				</div>
+				<div class="space-y-1">
+					<p class="text-xs text-muted-foreground">Imported</p>
+					<p class="font-medium">{selectedLog.importedCount || 0}</p>
+				</div>
+				<div class="space-y-1">
+					<p class="text-xs text-muted-foreground">Errors</p>
+					<p class="font-medium">{selectedLog.errorCount || 0}</p>
 				</div>
 			</div>
+
 			{#if selectedLog.errors && selectedLog.errorCount > 0}
 				{@const errors = JSON.parse(selectedLog.errors)}
-				<div class="mt-4 rounded-md border border-destructive/20 bg-destructive/10 p-4">
-					<h4 class="mb-2 flex items-center gap-2 text-sm font-semibold text-destructive">
-						<IconLucideAlertTriangle class="h-4 w-4" /> Warnings ({errors.length})
-					</h4>
-					<ul
-						class="max-h-40 list-inside list-disc overflow-y-auto font-mono text-xs text-destructive/80"
+				<div class="mt-4">
+					<h3 class="mb-2 text-lg font-semibold">Error Details</h3>
+					<div class="max-h-40 overflow-y-auto rounded-lg border p-4 text-sm">
+						{#each errors as error}
+							<div class="mb-2 rounded border border-red-200 bg-red-50 p-2">
+								<div class="font-medium text-red-800">Row {error.row}: {error.error}</div>
+								{#if error.details}
+									<div class="mt-1 text-xs text-red-600">{error.details}</div>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Enhanced Actions -->
+			{#if selectedLog.status === 'success'}
+				<div class="col-span-full mt-4 flex gap-2 lg:col-span-3">
+					<Button
+						variant="outline"
+						class="flex-1"
+						onclick={() => goto(`/dashboard/preview/${selectedLog.id}`)}
 					>
-						{#each Array.isArray(errors) ? errors : [errors] as error}<li>{error}</li>{/each}
-					</ul>
+						<IconLucideSettings2 class="mr-2 h-4 w-4" />
+						View Preview / Mapping
+					</Button>
+					{#if selectedLog.previewLogId}
+						<Button
+							variant="outline"
+							class="flex-1"
+							onclick={() =>
+								(window as any).open(`/debts?import=${selectedLog.previewLogId}`, '_blank')}
+						>
+							<IconLucideEye class="mr-2 h-4 w-4" />
+							View Imported Debts
+						</Button>
+					{/if}
+				</div>
+			{:else if selectedLog.status === 'pending' || selectedLog.status === 'processing'}
+				<div class="col-span-full mt-4 flex gap-2">
+					<Button
+						variant="default"
+						class="flex-1"
+						onclick={() => {
+							showDetails = false;
+							goto(`/dashboard/preview/${selectedLog.id}`);
+						}}
+					>
+						<IconLucideSettings2 class="mr-2 h-4 w-4" />
+						Continue / Check Progress
+					</Button>
+				</div>
+			{:else if selectedLog.status === 'preview'}
+				<div class="col-span-full mt-4 flex gap-2">
+					<Button
+						variant="default"
+						class="flex-1"
+						onclick={() => {
+							showDetails = false;
+							goto(`/dashboard/preview/${selectedLog.id}`);
+						}}
+					>
+						<IconLucideSettings2 class="mr-2 h-4 w-4" />
+						Continue Mapping
+					</Button>
 				</div>
 			{/if}
 		{/if}

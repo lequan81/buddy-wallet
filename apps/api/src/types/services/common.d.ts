@@ -12,8 +12,7 @@ export type DbClient = typeof db;
  * JWT interface for token signing
  */
 export interface JwtService {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sign: (payload: any) => Promise<string>;
+  sign: (payload: Record<string, string | number | boolean | undefined>) => Promise<string>;
 }
 
 /**
@@ -23,4 +22,76 @@ export interface CacheService {
   get: (key: string) => Promise<string | null>;
   set: (key: string, value: string, ttl?: number) => Promise<void>;
   del: (key: string) => Promise<void>;
+}
+
+/**
+ * Status update result interface
+ */
+export interface StatusUpdateResult {
+  success: boolean;
+  error?: string;
+  code?: string;
+  debt?: {
+    id: string;
+    status: string;
+    amount: number;
+    description?: string;
+  } | null;
+  previousStatus?: string;
+  newStatus?: string;
+  validTransitions?: string[];
+}
+
+/**
+ * Web-push module declaration
+ */
+declare module 'web-push' {
+  interface VapidDetails {
+    subject: string;
+    publicKey: string;
+    privateKey: string;
+  }
+
+  interface PushSubscription {
+    endpoint: string;
+    keys: {
+      p256dh: string;
+      auth: string;
+    };
+  }
+
+  interface RequestOptions {
+    gcmAPIKey?: string;
+    vapidDetails?: VapidDetails;
+    TTL?: number;
+    headers?: Record<string, string>;
+    contentEncoding?: 'aes128gcm' | 'aesgcm';
+    proxy?: string;
+    agent?: unknown;
+  }
+
+  interface SendResult {
+    statusCode: number;
+    body: string;
+    headers: Record<string, string>;
+  }
+
+  const webpush: {
+    setVapidDetails: (subject: string, publicKey: string, privateKey: string) => void;
+    setGCMAPIKey: (apiKey: string) => void;
+    sendNotification: (
+      pushSubscription: PushSubscription,
+      payload?: string | null,
+      options?: RequestOptions
+    ) => Promise<SendResult>;
+    generateVAPIDKeys: () => { publicKey: string; privateKey: string };
+    encrypt: (
+      userPublicKey: string,
+      userAuth: string,
+      payload: string,
+      contentEncoding?: 'aes128gcm' | 'aesgcm'
+    ) => { localPublicKey: string; salt: string; cipherText: Buffer };
+  };
+
+  export = webpush;
 }

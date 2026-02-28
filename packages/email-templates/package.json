@@ -24,7 +24,7 @@
     "better-svelte-email": "^1.4.0"
   },
   "peerDependencies": {
-    "svelte": "^5.0.0"
+    "svelte": "^5.45.6"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

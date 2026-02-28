@@ -9,10 +9,6 @@
       "path": "apps/api"
     },
     {
-      "name": "worker",
-      "path": "apps/worker"
-    },
-    {
       "name": "ui",
       "path": "packages/ui"
     },
@@ -35,6 +31,10 @@
     {
       "name": "utils",
       "path": "packages/utils"
+    },
+    {
+      "name": "logger",
+      "path": "packages/logger"
     },
     {
       "name": "errors",

@@ -67,47 +67,8 @@ export async function safeJsonParse<T>(response: Response): Promise<T | null> {
 	}
 }
 
-// Track ongoing refresh to prevent multiple simultaneous refreshes
-let refreshPromise: Promise<boolean> | null = null;
-
-/**
- * Refresh the access token using the refresh token
- * Returns true if refresh succeeded, false otherwise
- */
-async function refreshAccessToken(): Promise<boolean> {
-	// If a refresh is already in progress, wait for it
-	if (refreshPromise) {
-		return refreshPromise;
-	}
-
-	refreshPromise = (async () => {
-		try {
-			const response = await fetch(`${API_URL}/v1/auth/refresh`, {
-				method: 'POST',
-				credentials: 'include', // Send refresh_token cookie
-				headers: getDefaultHeaders()
-			});
-
-			if (response.ok) {
-				// Refresh successful - new cookies are automatically set by browser
-				console.log('[Auth] Token refreshed successfully');
-				return true;
-			}
-
-			// Refresh failed - probably expired refresh token
-			console.warn('[Auth] Token refresh failed:', response.status);
-			return false;
-		} catch (error) {
-			console.error('[Auth] Refresh error:', error);
-			return false;
-		} finally {
-			// Clear the promise so future refreshes can proceed
-			refreshPromise = null;
-		}
-	})();
-
-	return refreshPromise;
-}
+// Shared refresh logic — single source of truth (prevents dual refresh races)
+import { refreshAccessToken } from './auth-refresh';
 
 /**
  * Fetch wrapper with default configuration and auto-refresh
@@ -135,13 +96,17 @@ export async function apiFetch<T>(
 	const isRetry = (options as unknown as { _isRetry?: boolean })._isRetry === true;
 
 	try {
+		// Check if body is FormData - if so, don't set Content-Type
+		// The browser will set it automatically with the correct boundary
+		const isFormData = options.body instanceof FormData;
+		const headers = isFormData
+			? { Origin: WEB_URL, Referer: `${WEB_URL}/`, ...options.headers }
+			: { ...getDefaultHeaders(), ...options.headers };
+
 		const response = await fetch(url, {
 			...defaultFetchOptions,
 			...options,
-			headers: {
-				...getDefaultHeaders(),
-				...options.headers
-			}
+			headers
 		});
 
 		// SECURITY: Auto-refresh on 401 Unauthorized (token expired)

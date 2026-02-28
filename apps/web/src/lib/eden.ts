@@ -2,42 +2,8 @@ import { treaty } from '@elysiajs/eden';
 import type { App } from '@repo/api';
 import { API_URL, getDefaultHeaders } from './api';
 
-// Track ongoing refresh to prevent multiple simultaneous refreshes
-let edenRefreshPromise: Promise<boolean> | null = null;
-
-/**
- * Refresh access token for Eden client
- */
-async function refreshForEden(): Promise<boolean> {
-	if (edenRefreshPromise) {
-		return edenRefreshPromise;
-	}
-
-	edenRefreshPromise = (async () => {
-		try {
-			const response = await fetch(`${API_URL}/v1/auth/refresh`, {
-				method: 'POST',
-				credentials: 'include',
-				headers: getDefaultHeaders()
-			});
-
-			if (response.ok) {
-				console.log('[Eden] Token refreshed successfully');
-				return true;
-			}
-
-			console.warn('[Eden] Token refresh failed:', response.status);
-			return false;
-		} catch (error) {
-			console.error('[Eden] Refresh error:', error);
-			return false;
-		} finally {
-			edenRefreshPromise = null;
-		}
-	})();
-
-	return edenRefreshPromise;
-}
+// Shared refresh logic — same singleton as apiFetch (prevents dual refresh races)
+import { refreshAccessToken } from './auth-refresh';
 
 /**
  * Create a Treaty client with auto-refresh support
@@ -61,7 +27,7 @@ export const createTreatyClient = (fetcher?: typeof fetch, token?: string) => {
 		if (response.status === 401 && !isRefreshEndpoint) {
 			console.log('[Eden] 401 detected, attempting token refresh...');
 
-			const refreshSuccess = await refreshForEden();
+			const refreshSuccess = await refreshAccessToken(originalFetcher);
 
 			if (refreshSuccess) {
 				// Retry the original request

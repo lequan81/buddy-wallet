@@ -8,26 +8,6 @@
 	import { Separator } from '@repo/ui/components/ui/separator';
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
 	import { Badge } from '@repo/ui/components/ui/badge';
-	// import {
-	// 	Monitor,
-	// 	Smartphone,
-	// 	Tablet,
-	// 	MapPin,
-	// 	Clock,
-	// 	Shield,
-	// 	LogOut,
-	// 	AlertTriangle,
-	// 	Key,
-	// 	Bell,
-	// 	BellOff
-	import {
-		pushState,
-		initializePushState,
-		subscribeToPush,
-		unsubscribeFromPush,
-		sendTestNotification,
-		isPushSupported
-	} from '$lib/push.svelte';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
 	let { data, form } = $props();
@@ -45,9 +25,6 @@
 	let isLoggingOutAll = $state(false);
 	let showLogoutAllDialog = $state(false);
 	let isChangingPassword = $state(false);
-	let isTogglingPush = $state(false);
-	let isSendingTest = $state(false);
-	let pushSupported = $state(false);
 
 	// Password form state
 	let currentPassword = $state('');
@@ -122,29 +99,6 @@
 		confirmPasswordValidation = 'success';
 		confirmPasswordMessage = 'Passwords match';
 	});
-
-	onMount(async () => {
-		pushSupported = isPushSupported();
-		if (pushSupported) {
-			await initializePushState();
-		}
-	});
-
-	async function handleTogglePush() {
-		isTogglingPush = true;
-		if (pushState.isSubscribed) {
-			await unsubscribeFromPush();
-		} else {
-			await subscribeToPush();
-		}
-		isTogglingPush = false;
-	}
-
-	async function handleTestNotification() {
-		isSendingTest = true;
-		await sendTestNotification();
-		isSendingTest = false;
-	}
 
 	// Format date to relative time
 	function formatRelativeTime(dateStr: string | null): string {
@@ -353,87 +307,6 @@
 			{/if}
 		</Card.Content>
 	</Card.Root>
-
-	<!-- Push Notifications -->
-	{#if pushSupported}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title class="flex items-center gap-2">
-					{#if pushState.isSubscribed}
-						<IconLucideBell class="h-5 w-5 text-primary" />
-					{:else}
-						<IconLucideBellOff class="h-5 w-5" />
-					{/if}
-					Push Notifications
-				</Card.Title>
-				<Card.Description>
-					Receive notifications about debt reminders, payment updates, and important alerts.
-				</Card.Description>
-			</Card.Header>
-			<Card.Content class="space-y-4">
-				<div class="flex items-center justify-between">
-					<div class="space-y-1">
-						<p class="font-medium">
-							{#if pushState.isSubscribed}
-								Notifications enabled
-							{:else if pushState.permission === 'denied'}
-								Notifications blocked
-							{:else}
-								Notifications disabled
-							{/if}
-						</p>
-						<p class="text-sm text-muted-foreground">
-							{#if pushState.isSubscribed}
-								You'll receive push notifications on this device.
-							{:else if pushState.permission === 'denied'}
-								You've blocked notifications. Enable them in your browser settings.
-							{:else}
-								Enable to receive push notifications on this device.
-							{/if}
-						</p>
-					</div>
-					<div class="flex gap-2">
-						{#if pushState.isSubscribed}
-							<Button
-								variant="outline"
-								size="sm"
-								onclick={handleTestNotification}
-								disabled={isSendingTest}
-							>
-								{#if isSendingTest}
-									Sending...
-								{:else}
-									Test
-								{/if}
-							</Button>
-						{/if}
-						<Button
-							variant={pushState.isSubscribed ? 'destructive' : 'default'}
-							size="sm"
-							onclick={handleTogglePush}
-							disabled={isTogglingPush || pushState.permission === 'denied'}
-						>
-							{#if isTogglingPush}
-								{pushState.isSubscribed ? 'Disabling...' : 'Enabling...'}
-							{:else if pushState.isSubscribed}
-								Disable
-							{:else}
-								Enable
-							{/if}
-						</Button>
-					</div>
-				</div>
-
-				{#if pushState.error}
-					<div
-						class="rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950 dark:text-red-400"
-					>
-						{pushState.error}
-					</div>
-				{/if}
-			</Card.Content>
-		</Card.Root>
-	{/if}
 
 	<!-- Security Tips -->
 	<Card.Root>

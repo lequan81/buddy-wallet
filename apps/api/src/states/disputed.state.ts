@@ -31,8 +31,30 @@ export class DisputedState implements IDebtState {
       previousStatus: context.previousStatus
     });
 
-    // TODO: Send notification to both parties about dispute
-    // await notificationService.sendDebtDisputed(debt, context.reason);
+    // Send notification to the counterparty about dispute
+    const notifyUserId = context.userId === debt.creditorId ? debt.debtorId : debt.creditorId;
+    if (notifyUserId) {
+      import('../services').then(({ PushService, UserService }) => {
+        UserService.getUserById(context.userId).then((disputer) => {
+          UserService.getUserById(notifyUserId).then((target) => {
+            if (disputer.user && target.user?.pushNotificationsEnabled) {
+              const amount = new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND',
+                maximumFractionDigits: 0
+              }).format(debt.amount);
+
+              PushService.sendToUser(notifyUserId, {
+                title: 'Debt Disputed',
+                body: `${disputer.user.name} has disputed the debt of ${amount} for "${debt.description}". Reason: ${context.reason || 'No reason provided'}`,
+                url: `/debts/${debt.id}`,
+                tag: `debt-disputed-${debt.id}`
+              }).catch(() => {});
+            }
+          });
+        });
+      });
+    }
   }
 
   async onExit(debt: Debt, context: TransitionContext): Promise<void> {

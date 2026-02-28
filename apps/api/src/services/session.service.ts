@@ -8,10 +8,10 @@
 import { users, sessions, eq, and, gte } from '@repo/db';
 import { configs } from '../configs';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from '../plugins/redis';
-import { hashToken, generateSecureToken } from '../utils';
+import { hashToken, generateSecureToken, toSafeUser } from '../utils';
 import type { DbClient, JwtService } from '../types';
 import type { SessionInfo } from '../types';
-import type { ISessionService, RequestInfo, RefreshSessionResult } from '../types';
+import type { ISessionService, RequestInfo as _RequestInfo, RefreshSessionResult } from '../types';
 
 /**
  * SessionService class with dependency injection
@@ -32,14 +32,7 @@ export class SessionService implements ISessionService {
     refreshToken: string,
     jwt: JwtService,
     requestInfo: { userAgent: string | null; clientIP: string | null }
-  ): Promise<{
-    success: boolean;
-    error?: string;
-    user?: { id: string; email: string | null; phoneNumber: string; role: string };
-    accessToken?: string;
-    refreshToken?: string; // NEW: Return rotated refresh token
-    expiresIn?: number;
-  }> {
+  ): Promise<RefreshSessionResult> {
     if (!refreshToken) {
       return { success: false, error: 'No refresh token provided' };
     }
@@ -112,7 +105,7 @@ export class SessionService implements ISessionService {
 
     return {
       success: true,
-      user: { id: user.id, email: user.email, phoneNumber: user.phoneNumber, role: user.role },
+      user: toSafeUser(user),
       accessToken: newAccessToken,
       refreshToken: newRefreshToken, // NEW: Return new token to client
       expiresIn: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000

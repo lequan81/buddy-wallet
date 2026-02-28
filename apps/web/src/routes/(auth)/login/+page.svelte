@@ -33,7 +33,10 @@
 	$effect(() => {
 		if (data.registered) {
 			toast.success('Account created successfully! Please sign in.');
-			// Clean up URL without reload
+			goto('/login', { replaceState: true });
+		}
+		if (data.verified) {
+			toast.success('Email verified! You can now sign in.');
 			goto('/login', { replaceState: true });
 		}
 	});

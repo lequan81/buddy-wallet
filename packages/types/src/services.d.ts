@@ -46,7 +46,7 @@ export interface JwtService {
 export interface RefreshSessionResult {
   success: boolean;
   error?: string;
-  user?: { id: string; email: string | null; role: string };
+  user?: SafeUser;
   accessToken?: string;
   refreshToken?: string;
   expiresIn?: number;

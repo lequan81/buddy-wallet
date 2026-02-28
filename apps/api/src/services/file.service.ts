@@ -1,57 +1,33 @@
 import { fileMetadata, debts, eq, and } from '@repo/db';
 import { cache } from '../plugins/redis';
 import { log } from '@repo/logger';
+import {
+  MAX_IMAGE_FILE_SIZE,
+  ACCEPTED_IMAGE_MIME_TYPES,
+  UPLOAD_TMP_DIR,
+  PROOF_TMP_DIR
+} from '@repo/config';
+import { isValidImageBytes } from '@repo/utils';
 import type { DbClient } from '../types';
 import type { FileType, FileStatus, FileMetadata } from '@repo/db';
 import { DiskStorageService, type IStorageService } from './storage.service';
 import { ImageService } from './image.service';
 
-// Configuration
-const UPLOAD_DIR = Bun.env.UPLOAD_DIR || './uploads';
-const MAX_FILE_SIZE = parseInt(Bun.env.MAX_FILE_SIZE_MB || '4') * 1024 * 1024;
-const ALLOWED_MIME_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'image/heic',
-  'image/heif'
-];
 const IMAGE_CACHE_TTL = 3600; // 1 hour
 
-// Magic bytes for validation
-const MAGIC_BYTES: Record<string, number[]> = {
-  jpeg: [0xff, 0xd8, 0xff],
-  png: [0x89, 0x50, 0x4e, 0x47],
-  gif: [0x47, 0x49, 0x46],
-  webp: [0x52, 0x49, 0x46, 0x46],
-  heic: [0x00, 0x00, 0x00]
-};
-
-function isValidImageMagicBytes(buffer: Buffer): boolean {
-  if (buffer.length < 12) return false;
-  for (const [format, bytes] of Object.entries(MAGIC_BYTES)) {
-    if (format === 'heic') continue;
-    if (bytes.every((b, i) => buffer[i] === b)) return true;
-  }
-  const ftypMarker = buffer.slice(4, 8).toString('ascii');
-  if (ftypMarker === 'ftyp') {
-    const brand = buffer.slice(8, 12).toString('ascii');
-    if (['heic', 'heif', 'mif1', 'heix'].includes(brand)) return true;
-  }
-  return false;
-}
-
 export class FileService {
-  private storage: IStorageService;
+  private uploadStorage: IStorageService;
+  private proofStorage: IStorageService;
   private imageService: ImageService;
 
   constructor(
     private db: DbClient,
-    storage?: IStorageService,
+    uploadStorage?: IStorageService,
+    proofStorage?: IStorageService,
     imageService?: ImageService
   ) {
-    this.storage = storage || new DiskStorageService(UPLOAD_DIR);
+    this.uploadStorage = uploadStorage || new DiskStorageService(UPLOAD_TMP_DIR);
+    this.proofStorage = proofStorage || new DiskStorageService(PROOF_TMP_DIR);
     this.imageService = imageService || new ImageService();
     this.ensureDirs();
   }
@@ -71,19 +47,21 @@ export class FileService {
       const buffer = Buffer.from(await file.arrayBuffer());
 
       // Validation
-      if (file.size > MAX_FILE_SIZE) {
+      if (file.size > MAX_IMAGE_FILE_SIZE) {
         return {
           success: false,
-          error: `File too large. Max size: ${MAX_FILE_SIZE / 1024 / 1024}MB`
+          error: `File too large. Max size: ${MAX_IMAGE_FILE_SIZE / 1024 / 1024}MB`
         };
       }
-      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      if (
+        !ACCEPTED_IMAGE_MIME_TYPES.includes(file.type as (typeof ACCEPTED_IMAGE_MIME_TYPES)[number])
+      ) {
         return {
           success: false,
-          error: `Invalid file type. Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`
+          error: `Invalid file type. Allowed: ${ACCEPTED_IMAGE_MIME_TYPES.join(', ')}`
         };
       }
-      if (!isValidImageMagicBytes(buffer)) {
+      if (!isValidImageBytes(new Uint8Array(buffer))) {
         return { success: false, error: 'Invalid image format' };
       }
 
@@ -93,10 +71,10 @@ export class FileService {
       // Save
       const id = Bun.randomUUIDv7();
       const filename = `${id}.webp`;
-      const subdir = type === 'qr_code' ? 'qr' : 'proofs';
-      const relativePath = `${subdir}/${filename}`;
+      const relativePath = `${filename}`; // Storage handles the base directory now
 
-      await this.storage.save(relativePath, processedBuffer);
+      const targetStorage = type === 'payment_proof' ? this.proofStorage : this.uploadStorage;
+      await targetStorage.save(relativePath, processedBuffer);
 
       // Metadata
       const now = new Date();
@@ -121,7 +99,8 @@ export class FileService {
         if (type === 'payment_proof' && relatedDebtId) {
           const debt = this.db.select().from(debts).where(eq(debts.id, relatedDebtId)).get();
           if (debt) {
-            this.db.update(debts)
+            this.db
+              .update(debts)
               .set({
                 hasPendingProof: true,
                 proofCount: (debt.proofCount || 0) + 1,
@@ -134,7 +113,8 @@ export class FileService {
           }
         }
       } catch (dbError) {
-        await this.storage.delete(relativePath);
+        const targetStorage = type === 'payment_proof' ? this.proofStorage : this.uploadStorage;
+        await targetStorage.delete(relativePath);
         throw dbError;
       }
 
@@ -146,7 +126,11 @@ export class FileService {
     }
   }
 
-  async getFile(fileId: string): Promise<{
+  async getFile(
+    fileId: string,
+    requestingUserId: string,
+    isAdmin = false
+  ): Promise<{
     success: boolean;
     error?: string;
     data?: Buffer;
@@ -155,6 +139,24 @@ export class FileService {
   }> {
     const metadata = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
     if (!metadata) return { success: false, error: 'File not found' };
+
+    // Ownership / relationship check
+    if (!isAdmin && metadata.uploadedById !== requestingUserId) {
+      if (metadata.relatedDebtId) {
+        const debt = this.db.select().from(debts).where(eq(debts.id, metadata.relatedDebtId)).get();
+        if (!debt || (debt.debtorId !== requestingUserId && debt.creditorId !== requestingUserId)) {
+          return { success: false, error: 'Access denied' };
+        }
+      } else {
+        // No related debt and not the uploader — deny
+        return { success: false, error: 'Access denied' };
+      }
+    }
+
+    // QR codes are viewable by owner only (not debt parties)
+    if (metadata.fileType === 'qr_code' && metadata.uploadedById !== requestingUserId && !isAdmin) {
+      return { success: false, error: 'Access denied' };
+    }
 
     const cacheKey = `file:${fileId}`;
     const cached = await cache.get<string>(cacheKey);
@@ -168,8 +170,10 @@ export class FileService {
     }
 
     try {
-      // Use storage provider's read() method (no more type casting!)
-      const data = await this.storage.read(metadata.storagePath);
+      // Use storage provider's read() method
+      const targetStorage =
+        metadata.fileType === 'payment_proof' ? this.proofStorage : this.uploadStorage;
+      const data = await targetStorage.read(metadata.storagePath);
       await cache.set(cacheKey, data.toString('base64'), IMAGE_CACHE_TTL);
 
       return { success: true, data, mimeType: metadata.mimeType, metadata };
@@ -200,10 +204,27 @@ export class FileService {
       .all();
   }
 
+  async getProofsForDebt(debtId: string): Promise<FileMetadata[]> {
+    return this.db
+      .select()
+      .from(fileMetadata)
+      .where(
+        and(eq(fileMetadata.relatedDebtId, debtId), eq(fileMetadata.fileType, 'payment_proof'))
+      )
+      .orderBy(fileMetadata.createdAt)
+      .all();
+  }
+
   async approveProof(
     fileId: string,
     reviewerId: string
-  ): Promise<{ success: boolean; error?: string; allProofsApproved?: boolean; debtId?: string; uploaderId?: string }> {
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    allProofsApproved?: boolean;
+    debtId?: string;
+    uploaderId?: string;
+  }> {
     const file = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
 
     if (!file) return { success: false, error: 'File not found' };
@@ -255,11 +276,11 @@ export class FileService {
     }
 
     log.debug('FILE', 'Proof approved', { fileId, reviewerId, allProofsApproved });
-    return { 
-      success: true, 
-      allProofsApproved, 
+    return {
+      success: true,
+      allProofsApproved,
       debtId: file.relatedDebtId,
-      uploaderId: file.uploadedById 
+      uploaderId: file.uploadedById
     };
   }
 
@@ -294,10 +315,10 @@ export class FileService {
       .run();
 
     log.debug('FILE', 'Proof rejected', { fileId, reviewerId, reason });
-    return { 
-      success: true, 
+    return {
+      success: true,
       debtId: file.relatedDebtId,
-      uploaderId: file.uploadedById 
+      uploaderId: file.uploadedById
     };
   }
 
@@ -306,7 +327,9 @@ export class FileService {
     if (!file) return { success: false, error: 'File not found' };
     if (file.uploadedById !== userId) return { success: false, error: 'Not authorized' };
 
-    await this.storage.delete(file.storagePath);
+    const targetStorage =
+      file.fileType === 'payment_proof' ? this.proofStorage : this.uploadStorage;
+    await targetStorage.delete(file.storagePath);
     this.db.delete(fileMetadata).where(eq(fileMetadata.id, fileId)).run();
     await cache.del(`file:${fileId}`);
 

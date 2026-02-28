@@ -59,6 +59,10 @@
       "types": "./src/lib/components/ui/separator/index.ts",
       "default": "./src/lib/components/ui/separator/index.ts"
     },
+    "./components/ui/switch": {
+      "types": "./src/lib/components/ui/switch/index.ts",
+      "default": "./src/lib/components/ui/switch/index.ts"
+    },
     "./components/ui/sheet": {
       "types": "./src/lib/components/ui/sheet/index.ts",
       "default": "./src/lib/components/ui/sheet/index.ts"
@@ -94,11 +98,14 @@
     "@repo/typescript-config": "workspace:*",
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "eslint": "^9.0.0",
+    "svelte": "^5.45.6",
     "svelte-check": "^4.3.4",
+    "tailwindcss": "^4.1.17",
     "typescript": "^5.9.3",
     "vite": "^7.2.6"
   },
   "peerDependencies": {
-    "svelte": "^5.45.6"
+    "svelte": "^5.45.6",
+    "tailwindcss": "^4.1.17"
   }
 }

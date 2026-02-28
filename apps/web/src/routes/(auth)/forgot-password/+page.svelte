@@ -50,7 +50,7 @@
 	$effect(() => {
 		if (form?.success) {
 			isSuccess = true;
-			toast.success('Check your email for the temporary password');
+			toast.success('Check your email for the secure reset link');
 		}
 		if (form?.message && !form?.success) {
 			toast.error(form.message);
@@ -63,7 +63,7 @@
 		<Card.Header class="space-y-1 text-center">
 			<Card.Title class="text-2xl font-bold">Forgot Password</Card.Title>
 			<Card.Description>
-				Enter your email and phone number to receive a temporary password
+				Enter your email and phone number to receive a secure reset link
 			</Card.Description>
 		</Card.Header>
 
@@ -76,11 +76,11 @@
 					<div class="text-center">
 						<h3 class="font-semibold">Check Your Email</h3>
 						<p class="mt-2 text-sm text-muted-foreground">
-							If the email and phone number match our records, you'll receive a temporary password
+							If the email and phone number match our records, you'll receive a secure reset link
 							shortly.
 						</p>
 						<p class="mt-4 text-sm text-muted-foreground">
-							The temporary password expires in 24 hours and can only be used once.
+							The secure reset link expires in 24 hours and can only be used once.
 						</p>
 					</div>
 					<Button href="/login" class="mt-4">Return to Login</Button>
@@ -139,7 +139,7 @@
 								<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
 								Sending...
 							{:else}
-								Send Temporary Password
+								Send Reset Link
 							{/if}
 						</span>
 					</Button>

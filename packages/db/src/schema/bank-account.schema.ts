@@ -18,7 +18,7 @@ export const bankAccounts = sqliteTable(
 
     // User account details
     accountNumber: text('account_number').notNull(),
-    accountName: text('account_name').notNull(), // Name registered with bank
+    accountName: text('account_name'), // Name registered with bank (optional, may not be available)
 
     isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
 
@@ -44,7 +44,7 @@ export const insertBankAccountSchema = v.omit(
       v.string('Số tài khoản là bắt buộc'),
       v.minLength(4, 'Số tài khoản quá ngắn')
     ),
-    accountName: v.string('Tên chủ tài khoản là bắt buộc')
+    accountName: v.optional(v.string('Tên chủ tài khoản'))
   }),
   ['id', 'createdAt', 'updatedAt', 'userId']
 );

@@ -1,4 +1,10 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"hello_world": "Hello, {name} from vi!"
+	"hello_world": "Hello, {name} from vi!",
+	"import_field_name": "Tên",
+	"import_field_amount": "Số nợ",
+	"import_field_phone": "Số điện thoại",
+	"import_field_email": "Email",
+	"import_field_description": "Mô tả",
+	"import_field_dueDate": "Hạn trả"
 }

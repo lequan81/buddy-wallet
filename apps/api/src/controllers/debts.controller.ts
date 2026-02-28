@@ -55,6 +55,32 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     }
   )
 
+  // Get recent debts for quick actions
+  .get(
+    '/recent',
+    async ({ user, permissions }) => {
+      const hasViewAll = hasPermission(permissions, PERMISSIONS.DEBT_VIEW_ALL);
+      const result = await DebtService.getDebtsForUser(user!.id, hasViewAll, {
+        limit: 5,
+        offset: 0
+      });
+
+      // Return simplified recent debt data
+      const recentDebts = result.data.map(debt => ({
+        id: debt.id,
+        description: debt.description,
+        amount: debt.amount.toString(),
+        phone: debt.debtorPhone || debt.creditorPhone || '',
+        createdAt: debt.createdAt
+      }));
+
+      return successResponse({ debts: recentDebts });
+    },
+    {
+      checkPermission: PERMISSIONS.DEBT_VIEW_OWN
+    }
+  )
+
   // Admin: Get specific user's debts with pagination
   .get(
     '/user/:userId',
@@ -269,7 +295,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Batch delete debts (must be before /:id to avoid route conflict)
   .delete(
     '/batch',
-    async ({ user, body, set, request }) => {
+    async ({ user, body, set, request, server }) => {
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
@@ -296,7 +322,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
           action: 'delete',
           resource: 'debt',
           metadata: { deletedCount: result.deleted, ids: body.ids },
-          ipAddress: getClientIP(request) || undefined,
+          ipAddress: getClientIP(request, server) || undefined,
           userAgent: request.headers.get('user-agent') || undefined
         });
       }
@@ -317,7 +343,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Delete all user's debts (must be before /:id to avoid route conflict)
   .delete(
     '/all',
-    async ({ user, query, set, request }) => {
+    async ({ user, query, set, request, server }) => {
       if (query.confirm !== 'true') {
         set.status = 400;
         return errorResponse(GEN_ERRORS.INVALID_INPUT, 'Must confirm deletion with ?confirm=true');
@@ -332,7 +358,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
           action: 'delete_all',
           resource: 'debt',
           metadata: { deletedCount: result.deleted },
-          ipAddress: getClientIP(request) || undefined,
+          ipAddress: getClientIP(request, server) || undefined,
           userAgent: request.headers.get('user-agent') || undefined
         });
       }
@@ -431,7 +457,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Suggest edit to a debt (counterparty only)
   .post(
     '/:id/suggest',
-    async ({ user, params: { id }, body, set, request }) => {
+    async ({ user, params: { id }, body, set, request, server }) => {
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
@@ -472,7 +498,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         resource: 'debt',
         resourceId: id,
         changes: { after: body },
-        ipAddress: getClientIP(request) || undefined,
+        ipAddress: getClientIP(request, server) || undefined,
         userAgent: request.headers.get('user-agent') || undefined
       });
 
@@ -491,7 +517,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Respond to suggested edit (creator only)
   .post(
     '/:id/suggestion/respond',
-    async ({ user, params: { id }, body, set, request }) => {
+    async ({ user, params: { id }, body, set, request, server }) => {
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
@@ -528,7 +554,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         action: body.accept ? 'accept_suggestion' : 'reject_suggestion',
         resource: 'debt',
         resourceId: id,
-        ipAddress: getClientIP(request) || undefined,
+        ipAddress: getClientIP(request, server) || undefined,
         userAgent: request.headers.get('user-agent') || undefined
       });
 

@@ -9,6 +9,9 @@ import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { accessControlPlugin } from '../plugins';
 import { deleteRateLimiter } from '../plugins/middleware';
 import { ImportService, JobsService } from '../services';
+import { logger } from '@repo/logger';
+import { MAX_IMPORT_FILE_SIZE, ACCEPTED_IMPORT_MIME_TYPES } from '@repo/config';
+import { isValidSpreadsheetBytes } from '@repo/utils';
 import type { ImportConfig } from '../types';
 import type { User } from '@repo/db';
 
@@ -46,13 +49,6 @@ const ImportConfigSchema = t.Object({
 
 export const ImportController = new Elysia({ prefix: '/import' })
   .use(accessControlPlugin)
-  .onBeforeHandle((ctx) => {
-    const { user, set } = ctx as typeof ctx & { user: User | null };
-    if (!user) {
-      set.status = 401;
-      return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'Authentication required');
-    }
-  })
 
   // Preview endpoint
   // Preview endpoint (Async)
@@ -61,6 +57,33 @@ export const ImportController = new Elysia({ prefix: '/import' })
     async (ctx) => {
       const { user, body, set } = ctx as typeof ctx & { user: User };
       const { file } = body;
+
+      // File validation
+      if (file.size > MAX_IMPORT_FILE_SIZE) {
+        set.status = 400;
+        return errorResponse(
+          GEN_ERRORS.INVALID_INPUT,
+          `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max: ${MAX_IMPORT_FILE_SIZE / 1024 / 1024}MB`
+        );
+      }
+
+      if (!ACCEPTED_IMPORT_MIME_TYPES.includes(file.type as (typeof ACCEPTED_IMPORT_MIME_TYPES)[number])) {
+        set.status = 400;
+        return errorResponse(
+          GEN_ERRORS.INVALID_INPUT,
+          `Invalid file type '${file.type}'. Allowed: .xlsx, .xls, .csv`
+        );
+      }
+
+      const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+      
+      if (!isValidSpreadsheetBytes(header)) {
+        set.status = 400;
+        return errorResponse(
+          GEN_ERRORS.INVALID_INPUT,
+          'File content does not match XLSX or CSV format'
+        );
+      }
 
       try {
         const jobId = await JobsService.addJob('preview', {
@@ -78,7 +101,14 @@ export const ImportController = new Elysia({ prefix: '/import' })
         return errorResponse(GEN_ERRORS.UNKNOWN, String(err));
       }
     },
-    { body: t.Object({ file: t.File() }) }
+    { 
+      body: t.Object({ 
+        file: t.File({
+          type: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', 'text/csv', 'application/csv'],
+          maxSize: '5m'
+        })
+      })
+    }
   )
 
   // Import debts endpoint (Async)
@@ -87,6 +117,33 @@ export const ImportController = new Elysia({ prefix: '/import' })
     async (ctx) => {
       const { user, body, set } = ctx as typeof ctx & { user: User };
       const { file, config, previewLogId } = body;
+
+      // File validation
+      if (file.size > MAX_IMPORT_FILE_SIZE) {
+        set.status = 400;
+        return errorResponse(
+          GEN_ERRORS.INVALID_INPUT,
+          `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max: ${MAX_IMPORT_FILE_SIZE / 1024 / 1024}MB`
+        );
+      }
+
+      if (!ACCEPTED_IMPORT_MIME_TYPES.includes(file.type as (typeof ACCEPTED_IMPORT_MIME_TYPES)[number])) {
+        set.status = 400;
+        return errorResponse(
+          GEN_ERRORS.INVALID_INPUT,
+          `Invalid file type '${file.type}'. Allowed: .xlsx, .xls, .csv`
+        );
+      }
+
+      const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+      
+      if (!isValidSpreadsheetBytes(header)) {
+        set.status = 400;
+        return errorResponse(
+          GEN_ERRORS.INVALID_INPUT,
+          'File content does not match XLSX or CSV format'
+        );
+      }
 
       try {
         const jobId = await JobsService.addJob('import', {
@@ -102,14 +159,17 @@ export const ImportController = new Elysia({ prefix: '/import' })
           message: 'Import started in background'
         });
       } catch (err) {
-        console.error('[Import] Failed to start job:', err);
+        logger.error('[Import] Failed to start job', { error: String(err) });
         set.status = 503;
         return errorResponse(GEN_ERRORS.UNKNOWN, String(err));
       }
     },
     {
       body: t.Object({
-        file: t.File(),
+        file: t.File({
+          type: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', 'text/csv', 'application/csv'],
+          maxSize: '5m'
+        }),
         // Automatically parse JSON string from FormData and validate against schema
         config: StringToJSON(ImportConfigSchema),
         previewLogId: t.Optional(t.String())
@@ -179,14 +239,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
       const page = parseInt(query.page || '1');
       const limit = parseInt(query.limit || '10');
 
-      // OPTIMIZATION: Auto-cleanup of stale processing logs (zombies)
-      // This ensures the user always sees clean data without needing manual action
-      // We run this async without awaiting to not slow down the response
-      import('../services/cleanup.service').then(({ CleanupService }) => {
-        CleanupService.cleanupStaleProcessingLogs().catch((err) =>
-          console.error('[AutoCleanup] Failed to clean stale logs during fetch:', err)
-        );
-      });
+      // Cleanup is handled by 15-minute cron in index.ts
 
       // Let's call the service method we just added
       const result = await ImportService.getLogs(user.id, page, limit);
@@ -199,4 +252,40 @@ export const ImportController = new Elysia({ prefix: '/import' })
         limit: t.Optional(t.String())
       })
     }
+  )
+
+  // Get single import log by ID
+  .get(
+    '/logs/:id',
+    async (ctx) => {
+      const {
+        user,
+        params: { id }
+      } = ctx as typeof ctx & { user: User };
+      const result = await ImportService.getLogById(id, user.id);
+      if (!result) {
+        return errorResponse(GEN_ERRORS.NOT_FOUND, 'Import log not found');
+      }
+      return successResponse(result);
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  // Cancel a pending import job
+  .delete(
+    '/jobs/:jobId',
+    async (ctx) => {
+      const {
+        user,
+        params: { jobId },
+        set
+      } = ctx as typeof ctx & { user: User };
+      const result = await JobsService.cancelJob(jobId, user.id);
+      if (!result.success) {
+        set.status = 400;
+        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+      }
+      return successResponse({ message: 'Job cancelled', jobId });
+    },
+    { params: t.Object({ jobId: t.String() }) }
   );

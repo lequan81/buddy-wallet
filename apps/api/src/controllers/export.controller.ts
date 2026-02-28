@@ -8,7 +8,8 @@ import { Elysia } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse } from '@repo/errors';
 import { sessionAuthPlugin } from '../plugins/auth';
 import { accessControlPlugin } from '../plugins';
-import { ExportService } from '../services';
+import { ExportService, ActivityService } from '../services';
+import { getClientIP } from '../utils';
 import type { ExportFormat } from '../types';
 
 export const ExportController = new Elysia({ prefix: '/export' })
@@ -16,7 +17,7 @@ export const ExportController = new Elysia({ prefix: '/export' })
   .use(accessControlPlugin)
 
   // Export user's own debts
-  .get('/debts', async ({ user, set, query }) => {
+  .get('/debts', async ({ user, set, query, request, server }) => {
     const format = ((query as Record<string, unknown>)?.format || 'xlsx') as ExportFormat;
 
     const result = await ExportService.exportUserDebts(user!.id, format);
@@ -26,6 +27,15 @@ export const ExportController = new Elysia({ prefix: '/export' })
       return errorResponse(BE_ERRORS.EXPORT_NO_DATA);
     }
 
+    await ActivityService.log({
+      userId: user!.id,
+      action: 'export',
+      resource: 'export',
+      metadata: { format, filename: result.filename },
+      ipAddress: getClientIP(request, server) || undefined,
+      userAgent: request.headers.get('user-agent') || undefined
+    });
+
     set.headers['Content-Type'] = result.contentType!;
     set.headers['Content-Disposition'] = `attachment; filename="${result.filename}"`;
 
@@ -33,7 +43,7 @@ export const ExportController = new Elysia({ prefix: '/export' })
   })
 
   // Admin: Export all debts
-  .get('/admin/debts', async ({ user, set, query }) => {
+  .get('/admin/debts', async ({ user, set, query, request, server }) => {
     if (user?.role !== 'admin') {
       set.status = 403;
       return errorResponse(GEN_ERRORS.FORBIDDEN, 'Admin access required');
@@ -47,6 +57,15 @@ export const ExportController = new Elysia({ prefix: '/export' })
       set.status = 404;
       return errorResponse(BE_ERRORS.EXPORT_NO_DATA);
     }
+
+    await ActivityService.log({
+      userId: user.id,
+      action: 'export',
+      resource: 'export',
+      metadata: { format, filename: result.filename, scope: 'admin_all' },
+      ipAddress: getClientIP(request, server) || undefined,
+      userAgent: request.headers.get('user-agent') || undefined
+    });
 
     set.headers['Content-Type'] = result.contentType!;
     set.headers['Content-Disposition'] = `attachment; filename="${result.filename}"`;

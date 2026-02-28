@@ -51,6 +51,8 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		/^\/[a-z]{2}\/?$/.test(pathname) ||
 		pathname.includes('/login') ||
 		pathname.includes('/signup') ||
+		pathname.includes('/forgot-password') ||
+		pathname.includes('/reset-password') ||
 		pathname.includes('/check-debt') ||
 		pathname.includes('/public') ||
 		pathname.includes('/about') ||
@@ -68,18 +70,27 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		// - Optionally do a very fast /me (timeout) if we already have a session token.
 		// This prevents slow landing->login navigations when refresh_token is stale or API is slow.
 
-		// In hooks.server.ts, modify this logic:
-		// Allow /me + refresh on landing page for session persistence
-		// But skip on other public routes (login, signup, etc.) to keep them fast
-		const shouldAttemptMe = Boolean(currentToken) && (!isPublic || pathname === '/');
-		const shouldAttemptRefresh = Boolean(refreshToken) && (!isPublic || pathname === '/');
+		// Allow /me + refresh on: protected routes, landing page, AND login/signup
+		// Login/signup: so users with valid refresh tokens get auto-logged in
+		const isLoginOrSignup =
+			pathname.includes('/login') ||
+			pathname.includes('/signup') ||
+			pathname.includes('/forgot-password') ||
+			pathname.includes('/reset-password');
+		const shouldAttemptMe =
+			Boolean(currentToken) && (!isPublic || pathname === '/' || isLoginOrSignup);
+		const shouldAttemptRefresh =
+			Boolean(refreshToken) && (!isPublic || pathname === '/' || isLoginOrSignup);
+
+		// Declare rawRes outside the if block for broader scope
+		let rawRes: Response | undefined;
 
 		// Only try /me if we have a session token (and this route benefits from it)
 		if (shouldAttemptMe && currentToken) {
 			const controller = new AbortController();
 			const timeout = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS);
 
-			const rawRes = await event.fetch(`${API_URL}/v1/auth/me`, {
+			rawRes = await event.fetch(`${API_URL}/v1/auth/me`, {
 				method: 'GET',
 				signal: controller.signal,
 				headers: {
@@ -92,15 +103,43 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 
 			const rawData = await rawRes.json().catch(() => null);
 
+			// If user is found but account is locked, redirect to locked page
+			if (rawRes.ok && rawData?.data?.user?.isLocked) {
+				// Check if there's a lockoutUntil date (temporary lock)
+				const lockoutUntil = rawData.data.user.lockoutUntil;
+				const isTemporaryLock = lockoutUntil && new Date(lockoutUntil) > new Date();
+
+				if (isTemporaryLock || !lockoutUntil) {
+					// Clear auth cookies to force logout
+					event.cookies.delete('session', { path: '/' });
+					event.cookies.delete('refresh_token', { path: '/' });
+
+					// Redirect to locked account page with details
+					const params = new URLSearchParams();
+					if (lockoutUntil) {
+						params.set('until', lockoutUntil);
+					}
+					params.set('email', rawData.data.user.email || '');
+					throw redirect(303, `/account-locked?${params.toString()}`);
+				}
+			}
+
 			if (rawRes.ok && rawData?.data?.user) {
 				user = rawData.data.user;
+			} else if (rawRes.status === 401) {
+				// Token expired - will trigger refresh below
+				console.log('[HOOKS] /me returned 401, token expired, will attempt refresh');
 			}
 		}
 
-		// If user is not found and we have a refresh token, try to refresh
-		if (!user && shouldAttemptRefresh && refreshToken) {
+		// If user is not found OR token expired (401) and we have a refresh token, try to refresh
+		if ((!user || rawRes?.status === 401) && shouldAttemptRefresh && refreshToken) {
 			const controller = new AbortController();
 			const timeout = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS);
+
+			// DEBUG: Log the API URL being used
+			console.log('[HOOKS] Attempting refresh with API_URL:', API_URL);
+			console.log('[HOOKS] Refresh token exists:', !!refreshToken);
 
 			const refreshRes = await event.fetch(`${API_URL}/v1/auth/refresh`, {
 				method: 'POST',
@@ -114,19 +153,28 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 
 			clearTimeout(timeout);
 
+			// DEBUG: Log response status
+			console.log('[HOOKS] Refresh response status:', refreshRes.status);
+			console.log('[HOOKS] Refresh response ok:', refreshRes.ok);
+
 			if (refreshRes.ok) {
 				const refreshData = await refreshRes.json().catch(() => null);
+				console.log('[HOOKS] Refresh data:', refreshData);
 				if (refreshData.success && refreshData.data?.user) {
 					user = refreshData.data.user;
+					console.log('[HOOKS] User refreshed successfully:', user.id);
 
 					// Forward the new cookies to the browser and capture new token
-					const setCookieHeaders = refreshRes.headers.getSetCookie?.() || [];
-					if (setCookieHeaders.length === 0) {
-						// Fallback for older environments
-						const setCookie = refreshRes.headers.get('set-cookie');
-						if (setCookie) setCookieHeaders.push(setCookie);
+					let setCookieHeaders: string[] = [];
+					try {
+						setCookieHeaders = refreshRes.headers.getSetCookie?.() ?? [];
+					} catch {
+						// Fallback: split combined set-cookie header for runtimes that don't support getSetCookie
+						const raw = refreshRes.headers.get('set-cookie');
+						if (raw) {
+							setCookieHeaders = raw.split(/,(?=\s*\w+=)/).map((s) => s.trim());
+						}
 					}
-
 					for (const cookieHeader of setCookieHeaders) {
 						const sessionMatch = cookieHeader.match(/session=([^;]+)/);
 						if (sessionMatch) {
@@ -152,6 +200,17 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 							});
 						}
 					}
+				} else {
+					console.log('[HOOKS] Refresh data invalid:', refreshData);
+				}
+			} else {
+				console.log('[HOOKS] Refresh failed with status:', refreshRes.status);
+				// Try to get error response
+				try {
+					const errorText = await refreshRes.text();
+					console.log('[HOOKS] Refresh error response:', errorText);
+				} catch (e) {
+					console.log('[HOOKS] Could not read error response:', e);
 				}
 			}
 		}
@@ -182,6 +241,13 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	if (!isPublic && !event.locals.user) {
 		const redirectTo = encodeURIComponent(pathname);
 		throw redirect(303, `/login?redirectTo=${redirectTo}`);
+	}
+
+	// Auto-redirect authenticated users away from login/signup
+	if (user && (pathname.includes('/login') || pathname.includes('/signup'))) {
+		// Respect any redirectTo param if present
+		const redirectTo = event.url.searchParams.get('redirectTo');
+		throw redirect(303, redirectTo ? decodeURIComponent(redirectTo) : '/dashboard');
 	}
 
 	// Check permission for admin routes

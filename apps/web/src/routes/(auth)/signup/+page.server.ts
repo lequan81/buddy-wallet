@@ -14,12 +14,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, fetch }) => {
+	default: async ({ request, fetch, cookies }) => {
 		const form = await superValidate(request, valibot(signupSchema));
-
-		console.log('[Signup] Form valid:', form.valid);
-		console.log('[Signup] Form errors:', form.errors);
-		console.log('[Signup] Form data:', form.data);
 
 		if (!form.valid) {
 			return fail(400, { form });
@@ -35,7 +31,6 @@ export const actions: Actions = {
 			});
 
 			if (error) {
-				console.log('[Signup] API Error:', error.value);
 				const errorData = error.value as { error?: { message: string } };
 				let errorMessage = errorData?.error?.message || 'Registration failed';
 
@@ -51,7 +46,10 @@ export const actions: Actions = {
 				return message(form, errorMessage, { status: 400 });
 			}
 		} catch (err) {
-			console.error('[Signup] Connection Error:', err);
+			if (err && typeof err === 'object' && 'status' in err) {
+				throw err; // Re-throw redirect
+			}
+			console.error('[Signup] Connection Error:', String(err));
 			const errorMessage =
 				err instanceof Error && err.message.includes('fetch failed')
 					? 'Unable to connect to API server. Please ensure the API is running on port 3000.'
@@ -59,6 +57,17 @@ export const actions: Actions = {
 			return message(form, errorMessage, { status: 503 });
 		}
 
-		throw redirect(303, '/login?registered=true');
+		// If email provided, set cookie and redirect to verify-email
+		if (form.data.email) {
+			cookies.set('pending_verification_email', form.data.email, {
+				path: '/',
+				httpOnly: true,
+				maxAge: 600 // 10 minutes
+			});
+			throw redirect(303, '/verify-email');
+		}
+
+		// No email (phone-only signup) — go straight to login
+		throw redirect(303, '/login');
 	}
 };

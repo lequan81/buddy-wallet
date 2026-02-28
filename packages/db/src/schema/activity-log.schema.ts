@@ -34,6 +34,7 @@ export const activityLogs = sqliteTable(
     // Request context
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
+    location: text('location'),
 
     // Timestamp
     createdAt: integer('created_at', { mode: 'timestamp' }).notNull()
@@ -74,11 +75,23 @@ export type ActivityAction =
   | 'logout_all'
   | 'delete_all'
   | 'login_failed'
+  // Auth actions
+  | 'register'
+  | 'verify_email'
+  | 'revoke_session'
   // Debt confirmation and suggestions
   | 'confirm'
   | 'suggest_edit'
   | 'accept_suggestion'
   | 'reject_suggestion'
+  // File/proof actions
+  | 'upload'
+  | 'approve'
+  | 'reject'
+  // Push subscription actions
+  | 'subscribe'
+  | 'unsubscribe'
+  | 'broadcast'
   // Debt statuses as actions
   | 'pending'
   | 'confirmed'
@@ -87,4 +100,4 @@ export type ActivityAction =
   | 'cancelled';
 
 // Type-safe resource types
-export type ActivityResource = 'debt' | 'user' | 'session' | 'import' | 'export';
+export type ActivityResource = 'debt' | 'user' | 'session' | 'import' | 'export' | 'bank_account' | 'file' | 'push_subscription';

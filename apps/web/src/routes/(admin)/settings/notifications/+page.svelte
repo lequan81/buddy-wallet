@@ -5,6 +5,7 @@
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Separator } from '@repo/ui/components/ui/separator';
+	import { Switch } from '@repo/ui/components/ui/switch';
 
 	let { data, form } = $props();
 
@@ -22,6 +23,13 @@
 
 	// Track if user can enable push (requires email verification)
 	let canEnablePush = $derived(data.preferences?.emailVerified === true);
+
+	// DEBUG: Log the values to trace the issue
+	$effect(() => {
+		console.log('[SETTINGS] preferences:', data.preferences);
+		console.log('[SETTINGS] emailVerified:', data.preferences?.emailVerified);
+		console.log('[SETTINGS] canEnablePush:', canEnablePush);
+	});
 
 	// Show toast on form result
 	$effect(() => {
@@ -99,17 +107,11 @@
 							</p>
 						</div>
 					</div>
-					<label class="relative inline-flex cursor-pointer items-center">
-						<input
-							type="checkbox"
-							id="emailNotifications"
-							class="peer sr-only"
-							bind:checked={emailEnabled}
-						/>
-						<div
-							class="h-6 w-11 rounded-full bg-input peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-background after:transition-all peer-checked:after:translate-x-5"
-						></div>
-					</label>
+					<Switch
+						bind:checked={emailEnabled}
+						disabled={!canEnablePush}
+						aria-label="Toggle email notifications"
+					/>
 				</div>
 
 				<Separator />
@@ -136,19 +138,18 @@
 							</p>
 						</div>
 					</div>
-					<label class="relative inline-flex cursor-pointer items-center">
-						<input
-							type="checkbox"
-							id="pushNotifications"
-							class="peer sr-only"
-							checked={pushEnabled}
-							onchange={handlePushToggle}
-							disabled={!canEnablePush}
-						/>
-						<div
-							class="h-6 w-11 rounded-full bg-input peer-checked:bg-primary peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-background after:transition-all peer-checked:after:translate-x-5"
-						></div>
-					</label>
+					<Switch
+						checked={pushEnabled}
+						onCheckedChange={(v: boolean) => {
+							if (v && !canEnablePush) {
+								toast.error('Please verify your email first to enable push notifications');
+								return;
+							}
+							pushEnabled = v;
+						}}
+						disabled={!canEnablePush}
+						aria-label="Toggle push notifications"
+					/>
 				</div>
 
 				<!-- Hidden inputs for form submission -->

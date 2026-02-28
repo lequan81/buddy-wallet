@@ -11,7 +11,9 @@ import {
   fileDownloadRateLimiter
 } from '../plugins/middleware';
 import { PERMISSIONS } from '@repo/permissions';
-import { FileService, DebtService, PushService, UserService } from '../services';
+import { BE_ERRORS, errorResponse } from '@repo/errors';
+import { FileService, DebtService, PushService, UserService, ActivityService } from '../services';
+import { getClientIP } from '../utils';
 
 import { formatVND } from '@repo/utils';
 
@@ -65,12 +67,12 @@ export const UploadController = new Elysia({ prefix: '/upload' })
       )
       .post(
         '/payment-proof/:debtId',
-        async ({ user, params: { debtId }, body, set }) => {
+        async ({ user, params: { debtId }, body, set, request, server }) => {
           // Verify debt exists and user is related to it
           const debt = await DebtService.getDebtById(debtId);
           if (!debt) {
             set.status = 404;
-            return { success: false, error: 'Debt not found' };
+            return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
           }
 
           // SECURITY FIX 1: Use user ID for authorization (not phoneNumber)
@@ -80,7 +82,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
 
           if (!isDebtor && !isCreditor) {
             set.status = 403;
-            return { success: false, error: 'Not authorized for this debt' };
+            return errorResponse(BE_ERRORS.DEBT_PERMISSION_DENIED);
           }
 
           const file = body.file;
@@ -100,9 +102,19 @@ export const UploadController = new Elysia({ prefix: '/upload' })
                 body: `Someone uploaded payment proof for ${formatVND(debt.amount)}`,
                 url: `/debts/${debtId}`,
                 tag: `proof-upload-${debtId}`
-              }).catch(() => {}); // Don't fail request if notification fails
+              }).catch(() => { }); // Don't fail request if notification fails
             }
           }
+
+          await ActivityService.log({
+            userId: user!.id,
+            action: 'upload',
+            resource: 'file',
+            resourceId: result.file!.id,
+            metadata: { debtId, fileType: 'payment_proof', filename: result.file!.filename },
+            ipAddress: getClientIP(request, server) || undefined,
+            userAgent: request.headers.get('user-agent') || undefined
+          });
 
           return {
             success: true,
@@ -136,36 +148,14 @@ export const UploadController = new Elysia({ prefix: '/upload' })
       .get(
         '/file/:id',
         async ({ user, params: { id }, set }) => {
-          const result = await FileService.getFile(id);
+          const isAdmin = user?.role === 'admin';
+          const result = await FileService.getFile(id, user!.id, isAdmin);
 
           if (!result.success) {
-            set.status = 404;
-            return { success: false, error: result.error };
-          }
-
-          // Access control: owner OR related debt party
-          const meta = result.metadata!;
-          const isOwner = meta.uploadedById === user?.id;
-
-          let hasAccess = isOwner;
-          if (!hasAccess && meta.relatedDebtId) {
-            const debt = await DebtService.getDebtById(meta.relatedDebtId);
-            if (debt) {
-              // SECURITY FIX 1: Use user ID for authorization (not phoneNumber)
-              hasAccess = debt.debtorId === user?.id || debt.creditorId === user?.id;
-            }
-          }
-
-          // QR codes are viewable by owner only
-          if (meta.fileType === 'qr_code' && !isOwner) {
-            set.status = 403;
-            return { success: false, error: 'Not authorized' };
-          }
-
-          // Payment proofs need relationship check
-          if (meta.fileType === 'payment_proof' && !hasAccess) {
-            set.status = 403;
-            return { success: false, error: 'Not authorized' };
+            set.status = result.error === 'Access denied' ? 403 : 404;
+            return errorResponse(
+              result.error === 'Access denied' ? BE_ERRORS.FILE_PERMISSION_DENIED : BE_ERRORS.FILE_NOT_FOUND
+            );
           }
 
           set.headers['Content-Type'] = result.mimeType!;
@@ -177,6 +167,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
           checkPermission: PERMISSIONS.DEBT_VIEW_OWN
         }
       )
+
       .get(
         '/my-qr',
         async ({ user }) => {
@@ -201,14 +192,14 @@ export const UploadController = new Elysia({ prefix: '/upload' })
           const debt = await DebtService.getDebtById(debtId);
           if (!debt) {
             set.status = 404;
-            return { success: false, error: 'Debt not found' };
+            return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
           }
 
           // SECURITY FIX 1: Use user ID for authorization (not phoneNumber)
           const isCreditor = debt.creditorId === user!.id;
           if (!isCreditor) {
             set.status = 403;
-            return { success: false, error: 'Only creditor can view pending proofs' };
+            return errorResponse(BE_ERRORS.FILE_PERMISSION_DENIED, 'Only creditor can view pending proofs');
           }
 
           const proofs = await FileService.getPendingProofs(debtId);
@@ -239,7 +230,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
       .use(deleteRateLimiter)
       .post(
         '/proof/:id/approve',
-        async ({ user, params: { id }, set }) => {
+        async ({ user, params: { id }, set, request, server }) => {
           const result = await FileService.approveProof(id, user!.id);
 
           if (!result.success) {
@@ -256,9 +247,19 @@ export const UploadController = new Elysia({ prefix: '/upload' })
                 body: 'Your payment proof has been approved by the creditor',
                 url: `/debts/${result.debtId}`,
                 tag: `proof-approved-${result.debtId}`
-              }).catch(() => {});
+              }).catch(() => { });
             }
           }
+
+          await ActivityService.log({
+            userId: user!.id,
+            action: 'approve',
+            resource: 'file',
+            resourceId: id,
+            metadata: { debtId: result.debtId, allProofsApproved: result.allProofsApproved },
+            ipAddress: getClientIP(request, server) || undefined,
+            userAgent: request.headers.get('user-agent') || undefined
+          });
 
           return {
             success: true,
@@ -274,7 +275,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
       )
       .post(
         '/proof/:id/reject',
-        async ({ user, params: { id }, body, set }) => {
+        async ({ user, params: { id }, body, set, request, server }) => {
           const result = await FileService.rejectProof(id, user!.id, body.reason);
 
           if (!result.success) {
@@ -292,9 +293,19 @@ export const UploadController = new Elysia({ prefix: '/upload' })
                 body: `Your payment proof was rejected${reasonText}`,
                 url: `/debts/${result.debtId}`,
                 tag: `proof-rejected-${result.debtId}`
-              }).catch(() => {});
+              }).catch(() => { });
             }
           }
+
+          await ActivityService.log({
+            userId: user!.id,
+            action: 'reject',
+            resource: 'file',
+            resourceId: id,
+            metadata: { debtId: result.debtId, reason: body.reason },
+            ipAddress: getClientIP(request, server) || undefined,
+            userAgent: request.headers.get('user-agent') || undefined
+          });
 
           return { success: true, message: 'Proof rejected' };
         },
@@ -308,13 +319,25 @@ export const UploadController = new Elysia({ prefix: '/upload' })
       )
       .delete(
         '/file/:id',
-        async ({ user, params: { id }, set }) => {
+        async ({ user, params: { id }, set, request, server }) => {
           const result = await FileService.deleteFile(id, user!.id);
 
           if (!result.success) {
             set.status = result.error === 'Not authorized' ? 403 : 400;
-            return result;
+            return errorResponse(
+              result.error === 'Not authorized' ? BE_ERRORS.FILE_PERMISSION_DENIED : BE_ERRORS.FILE_NOT_FOUND,
+              result.error
+            );
           }
+
+          await ActivityService.log({
+            userId: user!.id,
+            action: 'delete',
+            resource: 'file',
+            resourceId: id,
+            ipAddress: getClientIP(request, server) || undefined,
+            userAgent: request.headers.get('user-agent') || undefined
+          });
 
           return { success: true, message: 'File deleted' };
         },

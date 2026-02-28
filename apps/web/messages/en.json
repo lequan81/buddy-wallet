@@ -1,4 +1,10 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"hello_world": "Hello, {name} from en!"
+	"hello_world": "Hello, {name} from en!",
+	"import_field_name": "Name",
+	"import_field_amount": "Amount",
+	"import_field_phone": "Phone",
+	"import_field_email": "Email",
+	"import_field_description": "Description",
+	"import_field_dueDate": "Due Date"
 }
