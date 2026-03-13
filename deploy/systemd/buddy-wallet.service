@@ -1,0 +1,41 @@
+[Unit]
+Description=Buddy Wallet Unified Server (API + Web)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=buddy
+WorkingDirectory=/opt/buddy-wallet
+ExecStart=/usr/local/bin/bun run start.ts
+
+# ── Memory Protection ──
+# Layer 1: Bun/JSC heap limit (400MB) - makes GC aggressive before hitting limit
+Environment=BUN_JSC_gcMaxHeapSize=419430400
+Environment=NODE_ENV=production
+
+# Layer 2: systemd soft limit - kernel slows allocations, triggers page reclaim
+MemoryHigh=400M
+
+# Layer 3: systemd hard cap - includes native buffers (Sharp, SQLite mmap, etc.)
+MemoryMax=512M
+
+# Layer 4: Auto-restart on failure (OOM or crash)
+Restart=on-failure
+RestartSec=5
+OOMPolicy=stop
+
+# ── Security Hardening (matches buddy-wallet-cleanup.service) ──
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/buddy-wallet
+
+# ── Logging ──
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=buddy-wallet
+
+[Install]
+WantedBy=multi-user.target

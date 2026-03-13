@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { createTreatyClient } from '$lib/eden';
+import { createTreatyClient } from '$lib/services/api';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const required = url.searchParams.get('required') === 'true';

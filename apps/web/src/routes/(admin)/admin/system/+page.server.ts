@@ -1,19 +1,33 @@
 import type { PageServerLoad } from './$types';
-import { API_URL } from '$lib/api';
 
-export const load: PageServerLoad = async ({ fetch }) => {
+interface HealthData {
+	status: string;
+	version: string;
+	uptime: number;
+	activeSessions?: { count: number };
+	memory?: { heapUsed: number; rss: number };
+	otel?: { enabled: boolean };
+}
+
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		const res = await fetch(`${API_URL}/health`);
-		const healthData = await res.json();
+		const { data, error } = await locals.api.health.get();
+
+		if (error) {
+			return {
+				health: null as HealthData | null,
+				error: 'Failed to fetch system stats'
+			};
+		}
 
 		return {
-			health: healthData,
+			health: data as unknown as HealthData,
 			lastUpdated: new Date().toISOString()
 		};
 	} catch (err) {
 		console.error('Failed to fetch system stats', err);
 		return {
-			health: null,
+			health: null as HealthData | null,
 			error: 'Failed to fetch system stats'
 		};
 	}

@@ -7,7 +7,7 @@
  * - VAPID key retrieval
  */
 
-import { apiFetch, API_URL, getDefaultHeaders } from './api';
+import { api } from '$lib/services/api';
 import { getDeviceInfo } from '$lib/utils/device';
 import { getCookie, setCookie, deleteCookie } from '$lib/utils/cookie-utils';
 
@@ -17,7 +17,7 @@ const COOKIE_KEYS = {
 } as const;
 
 // Push notification state
-import type { PushPermissionState, PushState } from '$lib/interfaces/push';
+import type { PushPermissionState, PushState } from '$lib/types';
 
 export type { PushPermissionState, PushState };
 
@@ -79,16 +79,17 @@ export async function fetchVapidKey(): Promise<string | null> {
 	}
 
 	try {
-		const { data, error } = await apiFetch<{ publicKey: string }>('/v1/push/vapid-key');
+		const { data, error } = await api.v1.push['vapid-key'].get();
+		const vapidData = (data as { data?: { publicKey?: string }; publicKey?: string })?.data || data;
 
-		if (error || !data?.publicKey) {
-			pushState.error = error || 'Failed to fetch VAPID key';
+		if (error || !vapidData?.publicKey) {
+			pushState.error = error ? ((error.value as { message?: string })?.message || 'Failed to fetch VAPID key') : 'Failed to fetch VAPID key';
 			return null;
 		}
 
-		pushState.vapidPublicKey = data.publicKey;
+		pushState.vapidPublicKey = vapidData.publicKey;
 		pushState.error = null;
-		return data.publicKey;
+		return vapidData.publicKey as string;
 	} catch (err) {
 		const errorMsg = err instanceof Error ? err.message : 'Failed to fetch VAPID key';
 		pushState.error = errorMsg;
@@ -189,23 +190,18 @@ export async function subscribeToPush(): Promise<boolean> {
 		const { deviceName, deviceType } = getDeviceInfo();
 
 		// Send subscription to server
-		const response = await fetch(`${API_URL}/v1/push/subscribe`, {
-			method: 'POST',
-			headers: getDefaultHeaders(),
-			credentials: 'include',
-			body: JSON.stringify({
+		const { error } = await (api.v1.push.subscribe as any).post({
 				endpoint: subscription.endpoint,
 				keys: {
 					p256dh: arrayBufferToBase64Url(p256dhKey),
 					auth: arrayBufferToBase64Url(authKey)
 				},
-				expirationTime: subscription.expirationTime,
+				expirationTime: subscription.expirationTime?.toString() || null,
 				deviceName,
 				deviceType
-			})
-		});
+			});
 
-		if (!response.ok) {
+		if (error) {
 			throw new Error('Failed to save subscription on server');
 		}
 
@@ -243,14 +239,7 @@ export async function unsubscribeFromPush(): Promise<boolean> {
 		await subscription.unsubscribe();
 
 		// Remove from server
-		await fetch(`${API_URL}/v1/push/unsubscribe`, {
-			method: 'POST',
-			headers: getDefaultHeaders(),
-			credentials: 'include',
-			body: JSON.stringify({
-				endpoint: subscription.endpoint
-			})
-		});
+		await api.v1.push.unsubscribe.post({ endpoint: subscription.endpoint });
 
 		pushState.isSubscribed = false;
 		pushState.isLoading = false;
@@ -268,13 +257,8 @@ export async function unsubscribeFromPush(): Promise<boolean> {
 // Send test notification
 export async function sendTestNotification(): Promise<boolean> {
 	try {
-		const response = await fetch(`${API_URL}/v1/push/test`, {
-			method: 'POST',
-			headers: getDefaultHeaders(),
-			credentials: 'include'
-		});
-
-		return response.ok;
+		const { error } = await api.v1.push.test.post();
+		return !error;
 	} catch {
 		return false;
 	}

@@ -1,4 +1,5 @@
-﻿<script lang="ts">
+<script lang="ts">
+	import { Bell, Loader2, X } from '@repo/icons';
 	import { onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
 	import {
@@ -8,7 +9,6 @@
 		dismissBanner,
 		shouldShowBanner
 	} from '$lib/push.svelte';
-	import IconLucideLoader2 from '~icons/lucide/loader-2';
 
 	let visible = $state(false);
 	let isSubscribing = $state(false);
@@ -63,7 +63,7 @@
 				class="absolute top-2 right-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 				aria-label="Dismiss"
 			>
-				<IconLucideX class="h-4 w-4" />
+				<X class="h-4 w-4" />
 			</button>
 
 			<div class="flex items-start gap-3">
@@ -71,7 +71,7 @@
 				<div
 					class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
 				>
-					<IconLucideBell class="h-5 w-5" />
+					<Bell class="h-5 w-5" />
 				</div>
 
 				<!-- Content -->
@@ -90,7 +90,7 @@
 							class="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							{#if isSubscribing || pushState.isLoading}
-								<IconLucideLoader2 class="mr-2 h-3 w-3 animate-spin" />
+								<Loader2 class="mr-2 h-3 w-3 animate-spin" />
 								Enabling...
 							{:else}
 								Enable
@@ -131,7 +131,7 @@
 				class="absolute top-2 right-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 				aria-label="Dismiss"
 			>
-				<IconLucideX class="h-4 w-4" />
+				<X class="h-4 w-4" />
 			</button>
 
 			<div class="flex items-start gap-3">
@@ -139,7 +139,7 @@
 				<div
 					class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
 				>
-					<IconLucideBell class="h-5 w-5" />
+					<Bell class="h-5 w-5" />
 				</div>
 
 				<!-- Content -->
@@ -158,7 +158,7 @@
 							class="inline-flex items-center justify-center rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							{#if isSubscribing || pushState.isLoading}
-								<IconLucideLoader2 class="mr-2 h-3 w-3 animate-spin" />
+								<Loader2 class="mr-2 h-3 w-3 animate-spin" />
 								Enabling...
 							{:else}
 								Enable

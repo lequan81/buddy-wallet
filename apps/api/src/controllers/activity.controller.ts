@@ -4,7 +4,7 @@
  * Provides endpoints for viewing user activity logs.
  */
 import { Elysia, t } from 'elysia';
-import { successResponse } from '@repo/errors';
+import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { permissionPlugin } from '../plugins/guards';
 import { ActivityService } from '../services';
 
@@ -14,7 +14,11 @@ export const ActivityController = new Elysia({ prefix: '/activity' })
   // Get current user's activity logs
   .get(
     '/',
-    async ({ user, query }) => {
+    async ({ user, query, set }) => {
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
       const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
       const offset = query.offset ? parseInt(query.offset) : 0;
 
@@ -38,7 +42,11 @@ export const ActivityController = new Elysia({ prefix: '/activity' })
   )
 
   // Get recent activity summary
-  .get('/recent', async ({ user }) => {
-    const logs = await ActivityService.getRecentActivity(user!.id, 10);
+  .get('/recent', async ({ user, set }) => {
+    if (!user) {
+      set.status = 401;
+      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+    }
+    const logs = await ActivityService.getRecentActivity(user.id, 10);
     return successResponse({ logs });
   });

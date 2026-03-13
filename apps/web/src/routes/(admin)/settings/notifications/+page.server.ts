@@ -1,17 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { API_URL, getAuthHeaders } from '$lib/api';
-
-interface UserWithNotifications {
-	id: string;
-	email: string;
-	role: string;
-	permissions: string[];
-	phoneNumber?: string | null;
-	emailVerified?: boolean;
-	emailNotificationsEnabled?: boolean;
-	pushNotificationsEnabled?: boolean;
-}
+import type { UserWithNotifications } from '@repo/types';
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { user } = (await parent()) as { user: UserWithNotifications | null };
@@ -25,36 +14,26 @@ export const load: PageServerLoad = async ({ parent }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, fetch, locals }) => {
+	default: async ({ request, locals }) => {
 		if (!locals.user) return fail(401, { message: 'Unauthorized' });
 
 		const formData = await request.formData();
 		const emailNotificationsEnabled = formData.get('emailNotificationsEnabled') === 'true';
 		const pushNotificationsEnabled = formData.get('pushNotificationsEnabled') === 'true';
 
-		const headers = getAuthHeaders(locals.accessToken);
+		const { api } = locals;
 
-		try {
-			const res = await fetch(`${API_URL}/v1/users/me`, {
-				method: 'PATCH',
-				body: JSON.stringify({
-					emailNotificationsEnabled,
-					pushNotificationsEnabled
-				}),
-				headers
+		const { error, status } = await api.v1.users.me.patch({
+			emailNotificationsEnabled,
+			pushNotificationsEnabled
+		});
+
+		if (!error) {
+			return { success: true };
+		} else {
+			return fail(status, {
+				message: error?.value?.message || 'Failed to update notification preferences'
 			});
-
-			const data = await res.json();
-
-			if (res.ok) {
-				return { success: true };
-			} else {
-				return fail(400, {
-					message: data?.error || 'Failed to update notification preferences'
-				});
-			}
-		} catch (_e) {
-			return fail(500, { message: 'Server error' });
 		}
 	}
 };

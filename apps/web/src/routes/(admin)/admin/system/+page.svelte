@@ -1,17 +1,10 @@
 ﻿<script lang="ts">
+	import { AlertCircle, CheckCircle2, Clock, Cpu, Users } from '@repo/icons';
 	import { invalidateAll } from '$app/navigation';
 	import { onDestroy, onMount } from 'svelte';
-	// import {
-	// 	Activity,
-	// 	Server,
-	// 	Database,
-	// 	Cpu,
-	// 	Clock,
-	// 	Users,
-	// 	AlertCircle,
-	// 	CheckCircle2
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Progress } from '@repo/ui/components/ui/progress';
+	import { cn } from '$lib/utils';
 
 	let { data } = $props();
 
@@ -58,9 +51,9 @@
 				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<Card.Title class="text-sm font-medium">API Status</Card.Title>
 					{#if data.health.status === 'ok'}
-						<IconLucideCheckCircle2 class="h-4 w-4 text-green-500" />
+						<CheckCircle2 class="h-4 w-4 text-green-500" />
 					{:else}
-						<IconLucideAlertCircle class="h-4 w-4 text-red-500" />
+						<AlertCircle class="h-4 w-4 text-red-500" />
 					{/if}
 				</Card.Header>
 				<Card.Content>
@@ -73,7 +66,7 @@
 			<Card.Root>
 				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<Card.Title class="text-sm font-medium">Uptime</Card.Title>
-					<IconLucideClock class="h-4 w-4 text-muted-foreground" />
+					<Clock class="h-4 w-4 text-muted-foreground" />
 				</Card.Header>
 				<Card.Content>
 					<div class="text-2xl font-bold">{formatUptime(data.health.uptime || 0)}</div>
@@ -85,7 +78,7 @@
 			<Card.Root>
 				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<Card.Title class="text-sm font-medium">Active Sessions</Card.Title>
-					<IconLucideUsers class="h-4 w-4 text-muted-foreground" />
+					<Users class="h-4 w-4 text-muted-foreground" />
 				</Card.Header>
 				<Card.Content>
 					<div class="text-2xl font-bold">{data.health.activeSessions?.count || '-'}</div>
@@ -97,14 +90,14 @@
 			<Card.Root>
 				<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 					<Card.Title class="text-sm font-medium">Memory Usage</Card.Title>
-					<IconLucideCpu class="h-4 w-4 text-muted-foreground" />
+					<Cpu class="h-4 w-4 text-muted-foreground" />
 				</Card.Header>
 				<Card.Content>
 					<div class="text-2xl font-bold">
 						{formatBytes(data.health.memory?.heapUsed || 0)}
 					</div>
 					<Progress
-						value={(data.health.memory?.heapUsed / data.health.memory?.rss) * 100}
+						value={data.health.memory?.heapUsed && data.health.memory?.rss ? (data.health.memory.heapUsed / data.health.memory.rss) * 100 : 0}
 						class="mt-2"
 					/>
 					<p class="mt-1 text-xs text-muted-foreground">
@@ -124,11 +117,12 @@
 						<div class="flex items-center justify-between">
 							<span class="text-sm font-medium">Tracing Enabled</span>
 							<span
-								class={`rounded-full px-2 py-1 text-xs ${
+								class={cn(
+									'rounded-full px-2 py-1 text-xs',
 									data.health.otel?.enabled
 										? 'bg-green-100 text-green-800'
 										: 'bg-yellow-100 text-yellow-800'
-								}`}
+								)}
 							>
 								{data.health.otel?.enabled ? 'Active' : 'Disabled'}
 							</span>
@@ -140,7 +134,7 @@
 	{:else}
 		<div class="flex h-100 items-center justify-center rounded-lg border border-dashed">
 			<div class="flex flex-col items-center gap-2 text-muted-foreground">
-				<IconLucideAlertCircle class="h-8 w-8" />
+				<AlertCircle class="h-8 w-8" />
 				<p>System metrics unavailable</p>
 			</div>
 		</div>

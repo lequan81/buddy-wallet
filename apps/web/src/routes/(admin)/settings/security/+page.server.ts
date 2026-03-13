@@ -1,47 +1,27 @@
 import type { PageServerLoad, Actions } from './$types';
-import { serverFetch, API_URL, getDefaultHeaders } from '$lib/api';
+import type { SessionsResponse } from '@repo/types';
 import { fail, redirect } from '@sveltejs/kit';
+import { changePasswordSchema, v } from '@repo/validation/client';
 
-interface Session {
-	id: string;
-	deviceName: string | null;
-	deviceType: string | null;
-	location: string | null;
-	ipAddress: string | null;
-	lastActiveAt: string | null;
-	createdAt: string;
-	isCurrent: boolean;
-}
-
-interface SessionsResponse {
-	sessions: Session[];
-	currentSessionId: string;
-}
-
-export const load: PageServerLoad = async ({ cookies, locals }) => {
+export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
 		throw redirect(302, '/login');
 	}
 
-	const cookieHeader = cookies
-		.getAll()
-		.map((c) => `${c.name}=${c.value}`)
-		.join('; ');
+	const { api } = locals;
+	const { data, error } = await api.v1.auth.sessions.get();
 
-	const { data, error } = await serverFetch<SessionsResponse>('/v1/auth/sessions', {
-		cookies: cookieHeader
-	});
+	const sessionData = data as SessionsResponse | undefined;
 
-	// serverFetch already unwraps { success, data } to just data
 	return {
-		sessions: data?.sessions || [],
-		currentSessionId: data?.currentSessionId || '',
-		error
+		sessions: sessionData?.sessions || [],
+		currentSessionId: sessionData?.currentSessionId || '',
+		error: error ? error.value : null
 	};
 };
 
 export const actions: Actions = {
-	revokeSession: async ({ request, cookies }) => {
+	revokeSession: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const sessionId = formData.get('sessionId') as string;
 
@@ -49,53 +29,24 @@ export const actions: Actions = {
 			return fail(400, { message: 'Session ID is required' });
 		}
 
-		const cookieHeader = cookies
-			.getAll()
-			.map((c) => `${c.name}=${c.value}`)
-			.join('; ');
+		const { api } = locals;
+		const { error, status } = await api.v1.auth.sessions({ sessionId }).revoke.post();
 
-		const response = await fetch(`${API_URL}/v1/auth/sessions/${sessionId}/revoke`, {
-			method: 'POST',
-			headers: {
-				...getDefaultHeaders(),
-				Cookie: cookieHeader
-			}
-		});
-
-		const data = await response.json().catch(() => ({}));
-
-		if (!response.ok) {
-			const errorMsg =
-				data.error?.message || data.error?.details || data.message || 'Failed to revoke session';
-			return fail(response.status, { message: errorMsg });
+		if (error) {
+			const errorMsg = error.value?.message || (error.value as any)?.details || 'Failed to revoke session';
+			return fail(status, { message: errorMsg });
 		}
 
 		return { success: true, message: 'Session revoked successfully' };
 	},
 
-	logoutAll: async ({ cookies }) => {
-		const cookieHeader = cookies
-			.getAll()
-			.map((c) => `${c.name}=${c.value}`)
-			.join('; ');
+	logoutAll: async ({ cookies, locals }) => {
+		const { api } = locals;
+		const { error, status } = await api.v1.auth['logout-all'].post();
 
-		const response = await fetch(`${API_URL}/v1/auth/logout-all`, {
-			method: 'POST',
-			headers: {
-				...getDefaultHeaders(),
-				Cookie: cookieHeader
-			}
-		});
-
-		const data = await response.json().catch(() => ({}));
-
-		if (!response.ok) {
-			const errorMsg =
-				data.error?.message ||
-				data.error?.details ||
-				data.message ||
-				'Failed to logout all devices';
-			return fail(response.status, { message: errorMsg });
+		if (error) {
+			const errorMsg = (error.value as any)?.message || (error.value as any)?.details || 'Failed to logout all devices';
+			return fail(status, { message: errorMsg });
 		}
 
 		// Clear cookies and redirect to login
@@ -105,50 +56,37 @@ export const actions: Actions = {
 		throw redirect(302, '/login?reason=logout_all');
 	},
 
-	changePassword: async ({ request, cookies }) => {
+	changePassword: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const currentPassword = formData.get('currentPassword') as string;
 		const newPassword = formData.get('newPassword') as string;
 		const confirmPassword = formData.get('confirmPassword') as string;
 
-		if (!currentPassword || !newPassword || !confirmPassword) {
-			return fail(400, { message: 'All fields are required' });
-		}
-
-		if (newPassword !== confirmPassword) {
-			return fail(400, { message: 'New passwords do not match' });
-		}
-
-		if (newPassword.length < 8) {
-			return fail(400, { message: 'Password must be at least 8 characters' });
-		}
-
-		const cookieHeader = cookies
-			.getAll()
-			.map((c) => `${c.name}=${c.value}`)
-			.join('; ');
-
-		const response = await fetch(`${API_URL}/v1/auth/change-password`, {
-			method: 'POST',
-			headers: {
-				...getDefaultHeaders(),
-				'Content-Type': 'application/json',
-				Cookie: cookieHeader
-			},
-			body: JSON.stringify({ currentPassword, newPassword })
+		const result = v.safeParse(changePasswordSchema, {
+			currentPassword,
+			newPassword,
+			confirmPassword
 		});
 
-		const data = await response.json().catch(() => ({}));
+		if (!result.success) {
+			return fail(400, { message: result.issues[0].message });
+		}
 
-		if (!response.ok) {
-			const errorMsg =
-				data.error?.message || data.error?.details || data.message || 'Failed to change password';
-			return fail(response.status, { message: errorMsg });
+		const { api } = locals;
+		const { data, error, status } = await api.v1.auth['change-password'].post({
+			currentPassword,
+			newPassword
+		});
+
+		if (error) {
+			const errorMsg = error.value?.message || (error.value as any)?.details || 'Failed to change password';
+			return fail(status, { message: errorMsg });
 		}
 
 		return {
 			success: true,
-			message: data.data?.message || data.message || 'Password changed successfully'
+			// @ts-expect-error Value parsing
+			message: data?.message || 'Password changed successfully'
 		};
 	}
 };

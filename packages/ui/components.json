@@ -5,8 +5,8 @@
   "tsx": false,
   "tailwind": {
     "config": "tailwind.config.ts",
-    "css": "src/app.css",
-    "baseColor": "slate",
+    "css": "layout.css",
+    "baseColor": "zinc",
     "cssVariables": true,
     "prefix": ""
   },
@@ -15,5 +15,11 @@
     "utils": "$lib/utils",
     "ui": "$lib/components/ui",
     "hooks": "$lib/hooks"
+  },
+  "registries": {
+    "@default": "https://shadcn-svelte.com/registry/{name}.json",
+    "@ss-components": "https://shadcnstudio.com/r/components/{name}.json",
+    "@ss-themes": "https://shadcnstudio.com/r/themes/{name}.json",
+    "@ss-blocks": "https://shadcnstudio.com/r/blocks/{name}.json"
   }
 }

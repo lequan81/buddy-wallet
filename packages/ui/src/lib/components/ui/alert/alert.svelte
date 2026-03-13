@@ -20,7 +20,7 @@
 
 <script lang="ts">
 	import type { HTMLAttributes } from "svelte/elements";
-	import { cn, type WithElementRef } from "@repo/ui/lib/utils.js";
+	import { cn, type WithElementRef } from "$lib/utils";
 
 	let {
 		ref = $bindable(null),
@@ -36,9 +36,9 @@
 <div
 	bind:this={ref}
 	data-slot="alert"
+	role="alert"
 	class={cn(alertVariants({ variant }), className)}
 	{...restProps}
-	role="alert"
 >
 	{@render children?.()}
 </div>

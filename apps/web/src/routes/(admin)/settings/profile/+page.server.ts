@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { API_URL, getAuthHeaders } from '$lib/api';
+import { profileSchema, v } from '@repo/validation/client';
 
 export const load: PageServerLoad = async ({ parent }) => {
 	// Auth is handled by layout - just get user from parent
@@ -9,28 +9,29 @@ export const load: PageServerLoad = async ({ parent }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, fetch, locals }) => {
+	default: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const phoneNumber = formData.get('phoneNumber') as string;
 
 		// Double-check auth for mutations (defense in depth)
 		if (!locals.user) return fail(401, { message: 'Unauthorized' });
 
-		const headers = getAuthHeaders(locals.accessToken);
+		const result = v.safeParse(profileSchema, { phoneNumber });
+		if (!result.success) {
+			return fail(400, { message: result.issues[0].message });
+		}
+
+		const { api } = locals;
 
 		try {
-			const res = await fetch(`${API_URL}/v1/users/${locals.user.id}`, {
-				method: 'PATCH',
-				body: JSON.stringify({ phoneNumber }),
-				headers
-			});
+			const { error, status } = await api.v1.users.me.patch({ phoneNumber });
 
-			if (res.ok) {
+			if (!error) {
 				return { success: true };
 			} else {
-				return fail(400, { message: 'Failed to update profile' });
+				return fail(status, { message: error?.value?.message || 'Failed to update profile' });
 			}
-		} catch (e) {
+		} catch (_e) {
 			return fail(500, { message: 'Server error' });
 		}
 	}

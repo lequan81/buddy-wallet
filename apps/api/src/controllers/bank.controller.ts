@@ -4,7 +4,7 @@
  * Handles bank account management and VietQR integration.
  */
 import { Elysia, t } from 'elysia';
-import { BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
+import { BE_ERRORS, GEN_ERRORS, errorResponse } from '@repo/errors';
 import { permissionPlugin } from '../plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
 import { BankAccountService, VietqrService, DebtService, ActivityService } from '../services';
@@ -32,8 +32,12 @@ export const BankController = new Elysia({ prefix: '/banks' })
   // ==================== LIST MY ACCOUNTS ====================
   .get(
     '/me',
-    async ({ user }) => {
-      const accounts = await BankAccountService.getUserBankAccounts(user!.id);
+    async ({ user, set }) => {
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
+      const accounts = await BankAccountService.getUserBankAccounts(user.id);
       return { success: true, accounts };
     },
     {
@@ -45,6 +49,10 @@ export const BankController = new Elysia({ prefix: '/banks' })
   .post(
     '/me',
     async ({ user, body, set, request, server }) => {
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
       const result = await BankAccountService.addBankAccount({
         ...body,
         userId: user!.id
@@ -69,6 +77,48 @@ export const BankController = new Elysia({ prefix: '/banks' })
     },
     {
       body: insertBankAccountSchema,
+      checkPermission: PERMISSIONS.DEBT_CREATE
+    }
+  )
+
+  // ==================== UPDATE ACCOUNT ====================
+  .patch(
+    '/:id',
+    async ({ user, params: { id }, body, set, request, server }) => {
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
+
+      const result = await BankAccountService.updateBankAccount(id, user.id, body as Record<string, unknown>);
+
+      if (!result.success) {
+        set.status = 400;
+        return result;
+      }
+
+      await ActivityService.log({
+        userId: user.id,
+        action: 'update',
+        resource: 'bank_account',
+        resourceId: id,
+        metadata: { updates: body },
+        ipAddress: getClientIP(request, server) || undefined,
+        userAgent: request.headers.get('user-agent') || undefined
+      });
+
+      return { success: true, account: result.account };
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body: t.Object({
+        bankCode: t.Optional(t.String()),
+        bankName: t.Optional(t.String()),
+        bankBin: t.Optional(t.String()),
+        accountNumber: t.Optional(t.String()),
+        accountName: t.Optional(t.String()),
+        isDefault: t.Optional(t.Boolean())
+      }),
       checkPermission: PERMISSIONS.DEBT_CREATE
     }
   )
@@ -157,7 +207,11 @@ export const BankController = new Elysia({ prefix: '/banks' })
   .delete(
     '/:id',
     async ({ user, params: { id }, set, request, server }) => {
-      const result = await BankAccountService.deleteBankAccount(id, user!.id);
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
+      const result = await BankAccountService.deleteBankAccount(id, user.id);
 
       if (!result.success) {
         set.status = 404;

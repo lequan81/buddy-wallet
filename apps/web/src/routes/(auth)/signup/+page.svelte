@@ -1,4 +1,5 @@
-﻿<script lang="ts">
+<script lang="ts">
+	import { Check, Circle, Loader2 } from '@repo/icons';
 	import { toast } from 'svelte-sonner';
 	import { superForm } from 'sveltekit-superforms';
 	import { Button } from '@repo/ui/components/ui/button';
@@ -7,7 +8,7 @@
 
 	import type { Infer } from 'sveltekit-superforms';
 	import type { PageData } from './$types';
-	import { signupSchema } from '$lib/schemas/auth';
+	import { signupSchema } from '@repo/validation/client';
 
 	const { data }: { data: PageData } = $props();
 
@@ -151,10 +152,10 @@
 						{#each passwordRules as rule}
 							<div class="flex items-center gap-1.5 text-xs">
 								{#if rule.valid}
-									<IconLucideCheck class="h-3 w-3 shrink-0 text-success" />
+									<Check class="h-3 w-3 shrink-0 text-success" />
 									<span class="text-success">{rule.label}</span>
 								{:else}
-									<IconLucideCircle class="h-3 w-3 shrink-0 text-muted-foreground/50" />
+									<Circle class="h-3 w-3 shrink-0 text-muted-foreground/50" />
 									<span class="text-muted-foreground">{rule.label}</span>
 								{/if}
 							</div>
@@ -180,7 +181,7 @@
 				<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>
 					<span class="inline-flex items-center justify-center">
 						{#if $delayed}
-							<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
+							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 							Creating account...
 						{:else}
 							Create account

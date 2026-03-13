@@ -14,6 +14,88 @@ import { PERMISSIONS, hasPermission } from '@repo/permissions';
 import { DebtService, ActivityService } from '../services';
 import { getClientIP } from '../utils';
 
+const DebtStatusSchema = t.Union([
+  t.Literal('pending'),
+  t.Literal('confirmed'),
+  t.Literal('paid'),
+  t.Literal('disputed'),
+  t.Literal('cancelled')
+]);
+
+const NullableString = t.Union([t.String(), t.Literal(null)]);
+const NullableNumber = t.Union([t.Number(), t.Literal(null)]);
+const NullableDateString = t.Union([t.String(), t.Literal(null)]);
+
+const DebtSchema = t.Object({
+  id: t.String(),
+  debtorPhone: t.String(),
+  creditorPhone: t.String(),
+  debtorId: NullableString,
+  creditorId: NullableString,
+  uploadedById: t.String(),
+  amount: t.Number(),
+  description: NullableString,
+  status: DebtStatusSchema,
+  confirmedByCreditor: t.Boolean(),
+  confirmedByDebtor: t.Boolean(),
+  needsConfirmation: t.Boolean(),
+  creditorConfirmedAt: NullableDateString,
+  debtorConfirmedAt: NullableDateString,
+  hasPendingProof: t.Boolean(),
+  proofCount: t.Number(),
+  lastProofUploadedAt: NullableDateString,
+  expiresAt: NullableDateString,
+  suggestedAmount: NullableNumber,
+  suggestedDescription: NullableString,
+  suggestedById: NullableString,
+  suggestedAt: NullableDateString,
+  createdAt: t.String(),
+  updatedAt: t.String(),
+  deletedAt: NullableDateString
+});
+
+const PaginationSchema = t.Object({
+  total: t.Number(),
+  limit: t.Number(),
+  offset: t.Number(),
+  hasMore: t.Boolean()
+});
+
+const DebtListResponseSchema = t.Object({
+  success: t.Literal(true),
+  debts: t.Array(DebtSchema),
+  pagination: PaginationSchema
+});
+
+const RecentDebtSchema = t.Object({
+  id: t.String(),
+  description: NullableString,
+  amount: t.String(),
+  phone: t.String(),
+  createdAt: t.String()
+});
+
+const RecentDebtsResponseSchema = t.Object({
+  success: t.Literal(true),
+  debts: t.Array(RecentDebtSchema)
+});
+
+const DebtResponseSchema = t.Object({
+  success: t.Literal(true),
+  debt: DebtSchema
+});
+
+const RecentContactsResponseSchema = t.Object({
+  success: t.Literal(true),
+  contacts: t.Array(t.String())
+});
+
+const DeleteAllResponseSchema = t.Object({
+  success: t.Literal(true),
+  message: t.String(),
+  deleted: t.Number()
+});
+
 export const DebtsController = new Elysia({ prefix: '/debts' })
   .use(permissionPlugin)
   .use(accessControlPlugin)
@@ -23,7 +105,11 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // List debts (own or all for admin) with pagination
   .get(
     '/',
-    async ({ user, permissions, query }) => {
+    async ({ user, permissions, query, set }) => {
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
       const hasViewAll = hasPermission(permissions, PERMISSIONS.DEBT_VIEW_ALL);
       const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
       const offset = query.offset ? parseInt(query.offset) : 0;
@@ -51,14 +137,19 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         limit: t.Optional(t.String()),
         offset: t.Optional(t.String()),
         status: t.Optional(t.String())
-      })
+      }),
+      response: { 200: DebtListResponseSchema }
     }
   )
 
   // Get recent debts for quick actions
   .get(
     '/recent',
-    async ({ user, permissions }) => {
+    async ({ user, permissions, set }) => {
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
       const hasViewAll = hasPermission(permissions, PERMISSIONS.DEBT_VIEW_ALL);
       const result = await DebtService.getDebtsForUser(user!.id, hasViewAll, {
         limit: 5,
@@ -77,7 +168,8 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       return successResponse({ debts: recentDebts });
     },
     {
-      checkPermission: PERMISSIONS.DEBT_VIEW_OWN
+      checkPermission: PERMISSIONS.DEBT_VIEW_OWN,
+      response: { 200: RecentDebtsResponseSchema }
     }
   )
 
@@ -112,18 +204,23 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         offset: t.Optional(t.String()),
         status: t.Optional(t.String())
       }),
-      checkPermission: PERMISSIONS.DEBT_VIEW_ALL
+      checkPermission: PERMISSIONS.DEBT_VIEW_ALL,
+      response: { 200: DebtListResponseSchema }
     }
   )
 
   // Get recent contacts (phone numbers user has interacted with)
   .get(
     '/recent-contacts',
-    async ({ user }) => {
-      const contacts = await DebtService.getRecentContacts(user!.id, 10);
+    async ({ user, set }) => {
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
+      const contacts = await DebtService.getRecentContacts(user.id, 10);
       return successResponse({ contacts });
     },
-    { checkPermission: PERMISSIONS.DEBT_VIEW_OWN }
+    { checkPermission: PERMISSIONS.DEBT_VIEW_OWN, response: { 200: RecentContactsResponseSchema } }
   )
 
   // Get single debt by ID
@@ -139,7 +236,8 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     },
     {
       params: t.Object({ id: t.String() }),
-      ensureRelatedDebt: 'id'
+      ensureRelatedDebt: 'id',
+      response: { 200: DebtResponseSchema }
     }
   )
 
@@ -344,12 +442,16 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   .delete(
     '/all',
     async ({ user, query, set, request, server }) => {
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
       if (query.confirm !== 'true') {
         set.status = 400;
         return errorResponse(GEN_ERRORS.INVALID_INPUT, 'Must confirm deletion with ?confirm=true');
       }
 
-      const result = await DebtService.deleteAllDebts(user!.id);
+      const result = await DebtService.deleteAllDebts(user.id);
 
       // Log the delete all activity
       if (result.deleted > 0) {
@@ -372,7 +474,8 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       query: t.Object({
         confirm: t.String()
       }),
-      checkPermission: PERMISSIONS.DEBT_DELETE_OWN
+      checkPermission: PERMISSIONS.DEBT_DELETE_OWN,
+      response: { 200: DeleteAllResponseSchema }
     }
   )
 

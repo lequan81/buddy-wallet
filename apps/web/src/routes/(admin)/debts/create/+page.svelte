@@ -1,24 +1,24 @@
-﻿<script lang="ts">
+<script lang="ts">
+	import { AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, Landmark, Plus, User } from '@repo/icons';
 	import { enhance } from '$app/forms';
+	import { untrack } from 'svelte';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
 	import { Badge } from '@repo/ui/components/ui/badge';
-	// import {
-	// 	ArrowLeft,
-	// 	ArrowUp,
-	// 	ArrowDown,
-	// 	Landmark,
-	// 	Plus,
-	// 	Clock,
-	// 	AlertTriangle,
-	// 	User
+
 	import { toast } from 'svelte-sonner';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import { cn } from '$lib/utils';
+	import {
+		phoneSchema,
+		amountClientSchema,
+		descriptionSchema,
+		validateField
+	} from '@repo/validation/client';
 
 	// Props with type annotation to include hasBankAccount
 	interface PageData {
@@ -47,9 +47,11 @@
 	let recentContacts = $derived(data.recentContacts || []);
 
 	// Form state
-	let phoneNumber = $state('');
-	let amount = $state('');
-	let description = $state('');
+	const prefill = untrack(() => data.prefill);
+	let phoneNumber = $state(prefill?.phone || '');
+	let amount = $state(prefill?.amount || '');
+	let description = $state(prefill?.description || '');
+
 	let expiryOption = $state('never');
 	let confirmDuplicate = $state(false);
 
@@ -82,61 +84,10 @@
 		{ value: '90d', label: '90 days', description: 'Auto-cancel if not confirmed in 3 months' }
 	];
 
-	// Validation states
-	let phoneValidation = $state<'default' | 'success' | 'error' | 'warning'>('default');
-	let phoneMessage = $state('');
-	let amountValidation = $state<'default' | 'success' | 'error' | 'warning'>('default');
-	let amountMessage = $state('');
-	let descriptionValidation = $state<'default' | 'success' | 'error' | 'warning'>('default');
-	let descriptionMessage = $state('');
-
-	// Validation logic
-	$effect(() => {
-		// Phone validation
-		if (phoneNumber.length === 0) {
-			phoneValidation = 'default';
-			phoneMessage = '';
-		} else if (phoneNumber.length < 10) {
-			phoneValidation = 'error';
-			phoneMessage = 'Phone number must be at least 10 digits';
-		} else if (!/^0\d{9}$/.test(phoneNumber)) {
-			phoneValidation = 'warning';
-			phoneMessage = 'Phone should start with 0 and be 10 digits';
-		} else {
-			phoneValidation = 'success';
-			phoneMessage = 'Phone number looks good';
-		}
-
-		// Amount validation
-		if (amount === '') {
-			amountValidation = 'default';
-			amountMessage = '';
-		} else {
-			const numAmount = parseFloat(amount);
-			if (isNaN(numAmount) || numAmount <= 0) {
-				amountValidation = 'error';
-				amountMessage = 'Amount must be greater than 0';
-			} else if (numAmount < 1000) {
-				amountValidation = 'warning';
-				amountMessage = 'Very small amount';
-			} else {
-				amountValidation = 'success';
-				amountMessage = 'Amount confirmed';
-			}
-		}
-
-		// Description validation
-		if (description.length === 0) {
-			descriptionValidation = 'default';
-			descriptionMessage = '';
-		} else if (description.length < 3) {
-			descriptionValidation = 'error';
-			descriptionMessage = 'Description must be at least 3 characters';
-		} else {
-			descriptionValidation = 'success';
-			descriptionMessage = 'Description looks good';
-		}
-	});
+	// Validation states driven by shared schemas
+	let phoneResult = $derived(validateField(phoneSchema, phoneNumber));
+	let amountResult = $derived(validateField(amountClientSchema, amount));
+	let descriptionResult = $derived(validateField(descriptionSchema, description));
 
 	$effect(() => {
 		if (form?.message) {
@@ -190,7 +141,7 @@
 		href="/dashboard"
 		class="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
 	>
-		<IconLucideArrowLeft class="h-4 w-4" />
+		<ArrowLeft class="h-4 w-4" />
 		Back to Dashboard
 	</a>
 
@@ -203,7 +154,7 @@
 				<div
 					class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10"
 				>
-					<IconLucideLandmark class="h-8 w-8 text-destructive" />
+					<Landmark class="h-8 w-8 text-destructive" />
 				</div>
 				<h3 class="mb-2 text-lg font-semibold text-destructive">Bank Account Required</h3>
 				<p class="mb-4 text-sm text-muted-foreground">
@@ -211,7 +162,7 @@
 					money. Without a bank account, debtors cannot scan QR codes to pay you.
 				</p>
 				<Button href="/settings/banks" size="lg">
-					<IconLucidePlus class="mr-2 h-4 w-4" />
+					<Plus class="mr-2 h-4 w-4" />
 					Add Bank Account Now
 				</Button>
 				<p class="mt-4 text-xs text-muted-foreground">
@@ -249,10 +200,10 @@
 							required
 							class={cn(
 								'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-								phoneValidation === 'error' &&
+								phoneResult.state === 'error' &&
 									'ring-2 ring-destructive focus-visible:ring-destructive',
-								phoneValidation === 'success' && 'ring-2 ring-success focus-visible:ring-success',
-								phoneValidation === 'warning' && 'ring-2 ring-warning focus-visible:ring-warning'
+								phoneResult.state === 'success' && 'ring-2 ring-success focus-visible:ring-success',
+								phoneResult.state === 'warning' && 'ring-2 ring-warning focus-visible:ring-warning'
 							)}
 						/>
 
@@ -270,7 +221,7 @@
 												showAutocomplete = false;
 											}}
 										>
-											<IconLucideUser class="h-4 w-4 text-muted-foreground" />
+											<User class="h-4 w-4 text-muted-foreground" />
 											{contact}
 										</button>
 									{/each}
@@ -278,12 +229,10 @@
 							</div>
 						{/if}
 					</div>
-					{#if phoneValidation === 'error'}
-						<p class="text-xs text-destructive">{phoneMessage}</p>
-					{:else if phoneValidation === 'success'}
-						<p class="text-xs text-success">{phoneMessage}</p>
-					{:else if phoneValidation === 'warning'}
-						<p class="text-xs text-warning">{phoneMessage}</p>
+					{#if phoneResult.state !== 'default'}
+						<p class={cn("text-xs", phoneResult.state === 'error' ? "text-destructive" : phoneResult.state === 'success' ? "text-success" : "text-warning")}>
+							{phoneResult.message}
+						</p>
 					{/if}
 				</div>
 				<p class="-mt-3 text-xs text-muted-foreground">
@@ -315,7 +264,7 @@
 										: 'border-muted hover:bg-muted/50'
 								)}
 							>
-								<IconLucideArrowUp
+								<ArrowUp
 									class={cn('h-6 w-6', canLend ? 'text-success' : 'text-muted-foreground')}
 								/>
 								<span class="text-sm font-semibold">I Lent</span>
@@ -345,7 +294,7 @@
 										: 'border-muted hover:bg-muted/50'
 								)}
 							>
-								<IconLucideArrowDown class="h-6 w-6 text-destructive" />
+								<ArrowDown class="h-6 w-6 text-destructive" />
 								<span class="text-sm font-semibold">I Borrowed</span>
 								<span class="text-xs text-muted-foreground">I owe them</span>
 							</Label>
@@ -359,10 +308,10 @@
 					type="number"
 					placeholder="100000"
 					bind:value={amount}
-					validationState={amountValidation}
-					success={amountValidation === 'success' ? amountMessage : undefined}
-					error={amountValidation === 'error' ? amountMessage : undefined}
-					warning={amountValidation === 'warning' ? amountMessage : undefined}
+					validationState={amountResult.state}
+					success={amountResult.state === 'success' ? amountResult.message : undefined}
+					error={amountResult.state === 'error' ? amountResult.message : undefined}
+					warning={amountResult.state === 'warning' ? amountResult.message : undefined}
 					min="1000"
 					step="1000"
 					required
@@ -374,9 +323,9 @@
 					type="text"
 					placeholder="Lunch, movie tickets, etc."
 					bind:value={description}
-					validationState={descriptionValidation}
-					success={descriptionValidation === 'success' ? descriptionMessage : undefined}
-					error={descriptionValidation === 'error' ? descriptionMessage : undefined}
+					validationState={descriptionResult.state}
+					success={descriptionResult.state === 'success' ? descriptionResult.message : undefined}
+					error={descriptionResult.state === 'error' ? descriptionResult.message : undefined}
 					required
 				/>
 
@@ -405,9 +354,9 @@
 						variant="outline"
 						class="flex-1"
 						disabled={isSubmitting ||
-							phoneValidation === 'error' ||
-							amountValidation === 'error' ||
-							descriptionValidation === 'error' ||
+							phoneResult.state === 'error' ||
+							amountResult.state === 'error' ||
+							descriptionResult.state === 'error' ||
 							!phoneNumber ||
 							!amount ||
 							!description}
@@ -419,9 +368,9 @@
 						type="submit"
 						class="flex-1"
 						disabled={isSubmitting ||
-							phoneValidation === 'error' ||
-							amountValidation === 'error' ||
-							descriptionValidation === 'error'}
+							phoneResult.state === 'error' ||
+							amountResult.state === 'error' ||
+							descriptionResult.state === 'error'}
 					>
 						{isSubmitting ? 'Creating...' : 'Create Debt'}
 					</Button>
@@ -446,10 +395,10 @@
 						<span class="text-sm text-muted-foreground">Direction</span>
 						<Badge variant={direction === 'LEND' ? 'default' : 'secondary'}>
 							{#if direction === 'LEND'}
-								<IconLucideArrowUp class="mr-1 h-3 w-3" />
+								<ArrowUp class="mr-1 h-3 w-3" />
 								They Owe You
 							{:else}
-								<IconLucideArrowDown class="mr-1 h-3 w-3" />
+								<ArrowDown class="mr-1 h-3 w-3" />
 								You Owe Them
 							{/if}
 						</Badge>
@@ -506,7 +455,7 @@
 		<AlertDialog.Content>
 			<AlertDialog.Header>
 				<AlertDialog.Title class="flex items-center gap-2">
-					<IconLucideAlertTriangle class="h-5 w-5 text-amber-500" />
+					<AlertTriangle class="h-5 w-5 text-amber-500" />
 					Potential Duplicate Found
 				</AlertDialog.Title>
 				<AlertDialog.Description>

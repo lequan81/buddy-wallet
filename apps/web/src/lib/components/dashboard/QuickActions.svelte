@@ -1,57 +1,32 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
-	import { Badge } from '@repo/ui/components/ui/badge';
-	import { cn } from '$lib/utils';
-	import IconLucidePlus from '~icons/lucide/plus';
-	import IconLucideUsers from '~icons/lucide/users';
-	import IconLucideClock from '~icons/lucide/clock';
-	import IconLucideFileSpreadsheet from '~icons/lucide/file-spreadsheet';
+	import { Plus, Clock, FileSpreadsheet } from '@repo/icons';
 
-	interface QuickDebt {
+	interface RecentDebtItem {
+		id: string;
+		description: string | null;
+		amount: number | string;
+		createdAt: string;
+		phone?: string;
+		counterpartyPhone?: string;
+		counterpartyName?: string;
+	}
+
+	interface QuickDebtTemplate {
 		description: string;
 		amount: string;
 		phone?: string;
 		email?: string;
-		createdAt?: string;
 	}
 
-	let recentDebts = $state<QuickDebt[]>([]);
-	let isLoading = $state(true);
-	let hasChecked = $state(false);
+	let { onOpenModal, recentDebts = [] } = $props<{
+		onOpenModal: (data: Partial<QuickDebtTemplate>) => void;
+		recentDebts?: RecentDebtItem[];
+	}>();
 
-	onMount(() => {
-		loadRecentDebts();
-	});
-
-	async function loadRecentDebts() {
-		if (hasChecked) return;
-		hasChecked = true;
-		
-		isLoading = true;
-		try {
-			const response = await fetch('/v1/debts/recent');
-			if (response.ok) {
-				const data = await response.json();
-				recentDebts = data.debts || [];
-			}
-		} catch (error) {
-			console.error('Failed to load recent debts:', error);
-		} finally {
-			isLoading = false;
-		}
-	}
-
-	function createQuickDebt(debt: QuickDebt) {
-		// Navigate to create debt page with pre-filled data
-		const params = new URLSearchParams();
-		if (debt.description) params.set('description', debt.description);
-		if (debt.amount) params.set('amount', debt.amount);
-		if (debt.phone) params.set('phone', debt.phone);
-		if (debt.email) params.set('email', debt.email);
-		
-		window.location.href = `/debts/create?${params.toString()}`;
+	function createQuickDebt(debt: QuickDebtTemplate) {
+		onOpenModal(debt);
 	}
 
 	function formatDate(dateStr: string) {
@@ -63,7 +38,7 @@
 <Card.Root class="mb-6">
 	<Card.Header>
 		<Card.Title class="flex items-center gap-2">
-			<IconLucidePlus class="h-5 w-5" />
+			<Plus class="h-5 w-5" />
 			Quick Actions
 		</Card.Title>
 		<Card.Description>
@@ -126,12 +101,12 @@
 			<div>
 				<h3 class="font-medium mb-3">Quick Links</h3>
 				<div class="space-y-2">
-					<Button href="/debts/create" class="w-full justify-start" variant="outline">
-						<IconLucidePlus class="h-4 w-4 mr-2" />
+					<Button onclick={() => onOpenModal({})} class="w-full justify-start" variant="outline">
+						<Plus class="h-4 w-4 mr-2" />
 						Create New Debt
 					</Button>
 					<Button href="/dashboard/import" class="w-full justify-start" variant="outline">
-						<IconLucideFileSpreadsheet class="h-4 w-4 mr-2" />
+						<FileSpreadsheet class="h-4 w-4 mr-2" />
 						Import Debts
 					</Button>
 				</div>
@@ -144,7 +119,7 @@
 <Card.Root>
 	<Card.Header>
 		<Card.Title class="flex items-center gap-2">
-			<IconLucideClock class="h-5 w-5" />
+			<Clock class="h-5 w-5" />
 			Recent Debt Activity
 		</Card.Title>
 		<Card.Description>
@@ -165,15 +140,19 @@
 					<button
 						type="button"
 						class="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors w-full text-left"
-						onclick={() => window.location.href = `/debts/create?description=${encodeURIComponent(debt.description)}&amount=${debt.amount}${debt.phone ? `&phone=${debt.phone}` : ''}${debt.email ? `&email=${debt.email}` : ''}`}
+						onclick={() => onOpenModal({
+							description: debt.description || '',
+							amount: debt.amount.toString(),
+							phone: debt.phone || debt.counterpartyPhone || undefined
+						})}
 					>
 						<div class="flex-1">
-							<div class="font-medium">{debt.description}</div>
+							<div class="font-medium">{debt.description || 'No description'}</div>
 							<div class="text-sm text-muted-foreground">
-								{#if debt.phone}
-									Phone: {debt.phone}
-								{:else if debt.email}
-									Email: {debt.email}
+								{#if debt.phone || debt.counterpartyPhone}
+									Phone: {debt.phone || debt.counterpartyPhone}
+								{:else if debt.counterpartyName}
+									{debt.counterpartyName}
 								{/if}
 							</div>
 						</div>
@@ -182,7 +161,7 @@
 								{new Intl.NumberFormat('vi-VN', {
 									style: 'currency',
 									currency: 'VND'
-								}).format(parseInt(debt.amount))}
+								}).format(Number(debt.amount))}
 							</div>
 							<div class="text-sm text-muted-foreground">
 								{#if debt.createdAt}

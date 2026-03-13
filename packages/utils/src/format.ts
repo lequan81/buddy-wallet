@@ -78,3 +78,47 @@ export function maskPhone(phone: string): string {
 
   return normalized.slice(0, visibleStart) + masked + normalized.slice(-visibleEnd);
 }
+
+/**
+ * Format amount as currency with configurable currency code.
+ * Default: Vietnamese Dong (VND).
+ */
+export function formatCurrency(amount: number, currency = 'VND'): string {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0
+  }).format(amount);
+}
+
+/**
+ * Format date string or Date object to localized display string.
+ * - 'short': "Mar 4, 2026"
+ * - 'long':  "Mar 4, 2026, 02:30 PM"
+ * - 'datetime': full locale string
+ */
+export function formatDate(
+  date: string | Date | null | undefined,
+  style: 'short' | 'long' | 'datetime' = 'short'
+): string {
+  if (!date) return '\u2014';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  switch (style) {
+    case 'short':
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    case 'long':
+      return d.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    case 'datetime':
+      return d.toLocaleString();
+  }
+}

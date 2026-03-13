@@ -1,9 +1,6 @@
-﻿<script lang="ts">
+<script lang="ts">
+	import { Check, ChevronDown } from '@repo/icons';
 	import { useLanguage } from '$lib/hooks';
-	// @ts-ignore
-	import IconLucideChevronDown from '~icons/lucide/chevron-down';
-	// @ts-ignore
-	import IconLucideCheck from '~icons/lucide/check';
 	import { onMount } from 'svelte';
 	import { cn } from '$lib/utils';
 
@@ -11,12 +8,12 @@
 
 	// Performance-optimized flag emoji mapping
 	const FLAG_MAP: Record<string, string> = {
-		en: 'ðŸ‡¬ðŸ‡§',
-		vi: 'ðŸ‡»ðŸ‡³'
+		en: '🇬🇧',
+		vi: '🇻🇳'
 	};
 
 	function getFlag(locale: string): string {
-		return FLAG_MAP[locale] || 'ðŸŒ';
+		return FLAG_MAP[locale] || '🌐';
 	}
 
 	let detailsRef: HTMLDetailsElement | null = $state(null);
@@ -45,7 +42,7 @@
 	>
 		<span class="text-base leading-none">{getFlag(lang.current)}</span>
 		<span class="capitalize">{lang.current}</span>
-		<IconLucideChevronDown
+		<ChevronDown
 			class="size-4 transition-transform duration-150 ease-in-out group-open:rotate-180"
 		/>
 	</summary>
@@ -68,7 +65,7 @@
 				</span>
 
 				{#if item === lang.current}
-					<IconLucideCheck class="size-4" />
+					<Check class="size-4" />
 				{/if}
 			</button>
 		{/each}

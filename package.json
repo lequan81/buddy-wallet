@@ -10,14 +10,13 @@
     "format": "prettier --write .",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
-    "start": "turbo run start",
-    "clean": "turbo run clean",
-    "start:unified": "bun run start.ts"
+    "start": "bun run start.ts",
+    "clean": "turbo run clean"
   },
   "devDependencies": {
     "prettier": "^3.8.1",
     "prettier-plugin-svelte": "^3.5.0",
-    "turbo": "^2.8.11"
+    "turbo": "^2.8.12"
   },
   "engines": {
     "node": ">=18"

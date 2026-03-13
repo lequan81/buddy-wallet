@@ -1,7 +1,6 @@
 <script>
+	import { Wallet } from '@repo/icons';
 	import { page } from '$app/state';
-	// @ts-ignore
-	import IconLucideWallet from '~icons/lucide/wallet';
 
 	let { children } = $props();
 </script>
@@ -11,7 +10,7 @@
 >
 	<!-- Logo -->
 	<a href="/" class="mb-8 flex items-center space-x-2 text-foreground">
-		<IconLucideWallet class="h-8 w-8 text-primary" />
+		<Wallet class="h-8 w-8 text-primary" />
 		<span class="text-2xl font-bold">Buddy Wallet</span>
 	</a>
 

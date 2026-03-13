@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+	import { AlertCircle, AlertTriangle, CheckCircle2 } from '@repo/icons';
 	import { Textarea } from '@repo/ui/components/ui/textarea';
 	import { Label } from '@repo/ui/components/ui/label';
 	import { cn } from '$lib/utils';
@@ -30,21 +31,21 @@
 	const stateConfig = $derived.by(() => {
 		const configs = {
 			error: {
-				icon: IconLucideAlertCircle,
+				icon: AlertCircle,
 				ringClass: 'ring-2 ring-destructive focus-visible:ring-destructive',
 				textClass: 'text-destructive',
 				iconClass: 'text-destructive',
 				message: error
 			},
 			success: {
-				icon: IconLucideCheckCircle2,
+				icon: CheckCircle2,
 				ringClass: 'ring-2 ring-success focus-visible:ring-success',
 				textClass: 'text-success',
 				iconClass: 'text-success',
 				message: success
 			},
 			warning: {
-				icon: IconLucideAlertTriangle,
+				icon: AlertTriangle,
 				ringClass: 'ring-2 ring-warning focus-visible:ring-warning',
 				textClass: 'text-warning',
 				iconClass: 'text-warning',
@@ -86,7 +87,7 @@
 	</div>
 
 	{#if stateConfig.message}
-		<p class="text-sm {stateConfig.textClass} flex items-start gap-1.5">
+		<p class={cn('flex items-start gap-1.5 text-sm', stateConfig.textClass)}>
 			{#if StateIcon}
 				<StateIcon class="mt-0.5 h-4 w-4 shrink-0" />
 			{/if}

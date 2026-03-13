@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+	import { Loader2 } from '@repo/icons';
 	import { cn } from '$lib/utils';
 
 	let {
@@ -17,5 +18,5 @@
 </script>
 
 <div class={cn('flex items-center justify-center', className)}>
-	<IconLucideLoader2 class={cn('animate-spin text-muted-foreground', sizeClasses[size])} />
+	<Loader2 class={cn('animate-spin text-muted-foreground', sizeClasses[size])} />
 </div>

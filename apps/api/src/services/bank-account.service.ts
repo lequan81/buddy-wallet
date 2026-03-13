@@ -3,7 +3,7 @@
  *
  * Handles CRUD operations for user bank accounts.
  */
-import { bankAccounts, eq, and, desc } from '@repo/db';
+import { bankAccounts, eq, desc } from '@repo/db';
 import { log } from '@repo/logger';
 import type { DbClient } from '../types';
 import type { BankAccount, NewBankAccount } from '@repo/db';
@@ -52,6 +52,64 @@ export class BankAccountService {
     } catch (err) {
       log.error('BANK', 'Failed to add account', { error: String(err) });
       return { success: false, error: 'Failed to add bank account' };
+    }
+  }
+
+  /**
+   * Update a bank account
+   * If set as default, unsets other default accounts for the user.
+   */
+  async updateBankAccount(
+    id: string,
+    userId: string,
+    data: Partial<Omit<NewBankAccount, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    account?: BankAccount;
+  }> {
+    try {
+      const account = this.db.select().from(bankAccounts).where(eq(bankAccounts.id, id)).get();
+
+      if (!account) {
+        return { success: false, error: 'Account not found' };
+      }
+
+      if (account.userId !== userId) {
+        return { success: false, error: 'Not authorized' };
+      }
+
+      // If updating to default, unset existing default
+      if (data.isDefault) {
+        await this.db
+          .update(bankAccounts)
+          .set({ isDefault: false })
+          .where(eq(bankAccounts.userId, userId))
+          .run();
+      }
+
+      const updateData = {
+        ...data,
+        updatedAt: new Date()
+      };
+
+      this.db
+        .update(bankAccounts)
+        .set(updateData)
+        .where(eq(bankAccounts.id, id))
+        .run();
+
+      const updatedAccount = this.db.select().from(bankAccounts).where(eq(bankAccounts.id, id)).get();
+
+      log.debug('BANK', 'Account updated', { id, userId });
+
+      return {
+        success: true,
+        account: updatedAccount as BankAccount
+      };
+    } catch (err) {
+      log.error('BANK', 'Failed to update account', { error: String(err) });
+      return { success: false, error: 'Failed to update bank account' };
     }
   }
 

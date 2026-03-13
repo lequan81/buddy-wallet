@@ -1,18 +1,12 @@
-﻿<script lang="ts">
+<script lang="ts">
+	import { CheckCircle, Loader2, Mail, Phone } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	// @ts-ignore
-	import IconLucideLoader2 from '~icons/lucide/loader2';
-	// @ts-ignore
-	import IconLucideCheckCircle from '~icons/lucide/check-circle';
-	// @ts-ignore
-	import IconLucideMail from '~icons/lucide/mail';
-	// @ts-ignore
-	import IconLucidePhone from '~icons/lucide/phone';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
+	import { emailSchema, phoneSchema, validateField } from '@repo/validation/client';
 	let { form } = $props();
 
 	let email = $state('');
@@ -20,31 +14,13 @@
 	let isSubmitting = $state(false);
 	let isSuccess = $state(false);
 
-	// Validation states
-	let emailError = $state('');
-	let phoneError = $state('');
+	// Validation driven by shared schema
+	const emailValidation = $derived(validateField(emailSchema, email));
+	const phoneValidation = $derived(validateField(phoneSchema, phoneNumber));
 
-	// Validation
-	const isValidEmail = $derived(email.length > 0 && email.includes('@'));
-	const isValidPhone = $derived(phoneNumber.length >= 10);
+	const isValidEmail = $derived(emailValidation.state !== 'error' && email !== '');
+	const isValidPhone = $derived(phoneValidation.state !== 'error' && phoneNumber !== '');
 	const canSubmit = $derived(isValidEmail && isValidPhone && !isSubmitting && !isSuccess);
-
-	// Validate as user types
-	$effect(() => {
-		if (email.length > 0 && !email.includes('@')) {
-			emailError = 'Please enter a valid email address';
-		} else {
-			emailError = '';
-		}
-	});
-
-	$effect(() => {
-		if (phoneNumber.length > 0 && phoneNumber.length < 10) {
-			phoneError = 'Phone number must be at least 10 digits';
-		} else {
-			phoneError = '';
-		}
-	});
 
 	// Show toast on form result
 	$effect(() => {
@@ -71,7 +47,7 @@
 			{#if isSuccess}
 				<div class="flex flex-col items-center space-y-4 py-8">
 					<div class="rounded-full bg-green-100 p-3 dark:bg-green-900/30">
-						<IconLucideCheckCircle class="h-8 w-8 text-green-600 dark:text-green-400" />
+						<CheckCircle class="h-8 w-8 text-green-600 dark:text-green-400" />
 					</div>
 					<div class="text-center">
 						<h3 class="font-semibold">Check Your Email</h3>
@@ -113,10 +89,10 @@
 						type="email"
 						placeholder="your@email.com"
 						bind:value={email}
-						validationState={emailError ? 'error' : 'default'}
-						error={emailError}
+						validationState={emailValidation.state}
+						error={emailValidation.message}
 						required
-						icon={IconLucideMail}
+						icon={Mail}
 					/>
 
 					<!-- Phone Field -->
@@ -126,17 +102,17 @@
 						type="tel"
 						placeholder="0901234567"
 						bind:value={phoneNumber}
-						validationState={phoneError ? 'error' : 'default'}
-						error={phoneError}
+						validationState={phoneValidation.state}
+						error={phoneValidation.message}
 						required
-						icon={IconLucidePhone}
+						icon={Phone}
 					/>
 
 					<!-- Submit Button -->
 					<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>
 						<span class="inline-flex items-center justify-center">
 							{#if isSubmitting}
-								<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
+								<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 								Sending...
 							{:else}
 								Send Reset Link

@@ -1,20 +1,12 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
-import { API_URL, getDefaultHeaders } from '$lib/api';
 
 export const actions: Actions = {
 	default: async ({ locals, cookies }) => {
 		// Call backend to invalidate session
 		if (locals.user) {
 			try {
-				const cookieHeader = cookies
-					.getAll()
-					.map((c) => `${c.name}=${c.value}`)
-					.join('; ');
-				await fetch(`${API_URL}/v1/auth/logout`, {
-					method: 'POST',
-					headers: { ...getDefaultHeaders(), Cookie: cookieHeader }
-				});
+				await locals.api.v1.auth.logout.post();
 			} catch (error) {
 				console.error('[AUTH] Logout error:', error);
 			}

@@ -1,45 +1,23 @@
 <script lang="ts">
+	import { Loader2, Lock } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	// @ts-ignore
-	import IconLucideLoader2 from '~icons/lucide/loader-2';
-	// @ts-ignore
-	import IconLucideLock from '~icons/lucide/lock';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
+	import { passwordSchema, validateField } from '@repo/validation/client';
 	let { form, data } = $props();
 
 	let newPassword = $state('');
 	let confirmPassword = $state('');
 	let isSubmitting = $state(false);
 
-	// Validation states
-	let passwordError = $state('');
-	let confirmError = $state('');
-
-	// Validation
-	const isValidPassword = $derived(newPassword.length >= 8);
+	// Validation driven by shared schema
+	const passwordValidation = $derived(validateField(passwordSchema, newPassword));
 	const isMatching = $derived(newPassword === confirmPassword);
+	const isValidPassword = $derived(passwordValidation.state !== 'error' && newPassword !== '');
 	const canSubmit = $derived(isValidPassword && isMatching && !isSubmitting);
-
-	// Validate as user types
-	$effect(() => {
-		if (newPassword.length > 0 && newPassword.length < 8) {
-			passwordError = 'Password must be at least 8 characters';
-		} else {
-			passwordError = '';
-		}
-	});
-
-	$effect(() => {
-		if (confirmPassword.length > 0 && newPassword !== confirmPassword) {
-			confirmError = 'Passwords do not match';
-		} else {
-			confirmError = '';
-		}
-	});
 
 	$effect(() => {
 		if (form?.message) {
@@ -78,10 +56,10 @@
 					type="password"
 					placeholder="••••••••"
 					bind:value={newPassword}
-					validationState={passwordError ? 'error' : 'default'}
-					error={passwordError}
+					validationState={passwordValidation.state}
+					error={passwordValidation.message}
 					required
-					icon={IconLucideLock}
+					icon={Lock}
 				/>
 
 				<!-- Confirm Password Field -->
@@ -91,17 +69,17 @@
 					type="password"
 					placeholder="••••••••"
 					bind:value={confirmPassword}
-					validationState={confirmError ? 'error' : 'default'}
-					error={confirmError}
+					validationState={confirmPassword === '' ? 'default' : isMatching ? 'success' : 'error'}
+					error={confirmPassword !== '' && !isMatching ? 'Passwords do not match' : undefined}
 					required
-					icon={IconLucideLock}
+					icon={Lock}
 				/>
 
 				<!-- Submit Button -->
 				<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>
 					<span class="inline-flex items-center justify-center">
 						{#if isSubmitting}
-							<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
+							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 							Resetting Password...
 						{:else}
 							Reset Password

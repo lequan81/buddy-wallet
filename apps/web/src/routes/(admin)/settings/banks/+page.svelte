@@ -1,4 +1,5 @@
-﻿<script lang="ts">
+<script lang="ts">
+	import { Landmark, Pencil, Plus, Trash2 } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '@repo/ui/components/ui/button';
@@ -9,10 +10,6 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 	// Icons
-	import IconLucidePlus from '~icons/lucide/plus';
-	import IconLucideLandmark from '~icons/lucide/landmark';
-	import IconLucideTrash2 from '~icons/lucide/trash-2';
-	import IconLucidePencil from '~icons/lucide/pencil';
 
 	let { data, form } = $props();
 
@@ -102,7 +99,7 @@
 		}
 
 		if (
-			/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(accountName)
+			/[��??��?????a?????��???�?????��??i��??��?????o?????��??uu??????�???d]/i.test(accountName)
 		) {
 			accountNameValidation = 'warning';
 			accountNameMessage = 'Remove Vietnamese accents for better compatibility';
@@ -164,7 +161,7 @@
 			<p class="text-sm text-muted-foreground">Manage your bank accounts for receiving payments.</p>
 		</div>
 		<Button size="sm" onclick={() => (isAdding = true)}>
-			<IconLucidePlus class="mr-2 h-4 w-4" />
+			<Plus class="mr-2 h-4 w-4" />
 			Add Account
 		</Button>
 
@@ -257,7 +254,7 @@
 							error={accountNameValidation === 'error' ? accountNameMessage : undefined}
 							success={accountNameValidation === 'success' ? accountNameMessage : undefined}
 							warning={accountNameValidation === 'warning' ? accountNameMessage : undefined}
-							helpText="Optional — verify in your banking app. Uppercase, no accents recommended."
+							helpText="Optional � verify in your banking app. Uppercase, no accents recommended."
 						/>
 					</div>
 
@@ -306,7 +303,7 @@
 			<div
 				class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center text-muted-foreground"
 			>
-				<IconLucideLandmark class="mb-4 h-8 w-8 opacity-50" />
+				<Landmark class="mb-4 h-8 w-8 opacity-50" />
 				<p>No bank accounts added yet.</p>
 				<p class="text-sm">Add an account to easier receive payments.</p>
 			</div>
@@ -316,7 +313,7 @@
 					<div class="flex items-center justify-between p-6">
 						<div class="flex items-center gap-4">
 							<div class="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-								<IconLucideLandmark class="h-5 w-5 text-muted-foreground" />
+								<Landmark class="h-5 w-5 text-muted-foreground" />
 							</div>
 							<div>
 								<div class="flex items-center gap-2">
@@ -329,7 +326,7 @@
 									{/if}
 								</div>
 								<p class="text-sm text-muted-foreground">
-									{account.accountNumber} • {account.accountName}
+									{account.accountNumber} � {account.accountName}
 								</p>
 							</div>
 						</div>
@@ -340,7 +337,7 @@
 								class="text-muted-foreground hover:text-foreground"
 								onclick={() => startEdit(account)}
 							>
-								<IconLucidePencil class="h-4 w-4" />
+								<Pencil class="h-4 w-4" />
 							</Button>
 
 							<AlertDialog.Root
@@ -358,7 +355,7 @@
 											onclick={() => (deleteId = account.id)}
 											{...props}
 										>
-											<IconLucideTrash2 class="h-4 w-4" />
+											<Trash2 class="h-4 w-4" />
 										</Button>
 									{/snippet}
 								</AlertDialog.Trigger>

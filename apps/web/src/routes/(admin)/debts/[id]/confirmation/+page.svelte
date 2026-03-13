@@ -1,26 +1,24 @@
 <script lang="ts">
+	import { ArrowRight, CheckCircle, Home, PartyPopper, TrendingDown, TrendingUp } from '@repo/icons';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { cn } from '$lib/utils';
+	import { formatCurrency } from '@repo/utils';
 
 	let { data } = $props();
-
-	const formatCurrency = (amount: number) => {
-		return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
-	};
 
 	const getStatusMessage = () => {
 		if (data.status === 'paid') {
 			return {
 				title: 'Debt Marked as Paid!',
 				subtitle: 'This debt has been successfully settled.',
-				icon: IconLucidePartyPopper,
+				icon: PartyPopper,
 				color: 'text-green-600'
 			};
 		}
 		return {
 			title: 'Debt Confirmed!',
 			subtitle: 'Both parties have acknowledged this debt.',
-			icon: IconLucideCheckCircle,
+			icon: CheckCircle,
 			color: 'text-blue-600'
 		};
 	};
@@ -42,7 +40,7 @@
 			<h1 class="mb-2 text-xl font-semibold">Debt not found</h1>
 			<p class="mb-6 text-muted-foreground">{data.error || 'Unable to load debt information'}</p>
 			<Button href="/dashboard">
-				<IconLucideHome class="mr-2 h-4 w-4" />
+				<Home class="mr-2 h-4 w-4" />
 				Go to Dashboard
 			</Button>
 		</div>
@@ -58,11 +56,11 @@
 						: 'bg-blue-100 dark:bg-blue-900/30'
 				)}
 			>
-				<StatusIcon class="h-12 w-12 {statusInfo.color}" />
+				<StatusIcon class={cn('h-12 w-12', statusInfo.color)} />
 			</div>
 
 			<!-- Title -->
-			<h1 class="mb-2 text-2xl font-bold {statusInfo.color}">{statusInfo.title}</h1>
+			<h1 class={cn('mb-2 text-2xl font-bold', statusInfo.color)}>{statusInfo.title}</h1>
 			<p class="mb-8 text-muted-foreground">{statusInfo.subtitle}</p>
 
 			<!-- Debt Summary Card -->
@@ -77,9 +75,9 @@
 						)}
 					>
 						{#if data.isCreditor}
-							<IconLucideTrendingUp class="h-6 w-6 text-green-600" />
+							<TrendingUp class="h-6 w-6 text-green-600" />
 						{:else}
-							<IconLucideTrendingDown class="h-6 w-6 text-red-600" />
+							<TrendingDown class="h-6 w-6 text-red-600" />
 						{/if}
 					</div>
 					<div class="text-left">
@@ -115,10 +113,10 @@
 			<div class="flex flex-col gap-3 sm:flex-row sm:justify-center">
 				<Button href="/debts/{data.debt.id}" variant="outline">
 					View Debt Details
-					<IconLucideArrowRight class="ml-2 h-4 w-4" />
+					<ArrowRight class="ml-2 h-4 w-4" />
 				</Button>
 				<Button href="/dashboard">
-					<IconLucideHome class="mr-2 h-4 w-4" />
+					<Home class="mr-2 h-4 w-4" />
 					Back to Dashboard
 				</Button>
 			</div>

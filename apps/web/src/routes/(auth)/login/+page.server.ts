@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { createTreatyClient } from '$lib/eden';
+import { createTreatyClient } from '$lib/services/api';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const redirectTo = url.searchParams.get('redirectTo') || '/';
@@ -44,8 +44,7 @@ export const actions: Actions = {
 
 			if (data?.success) {
 				// Check if user must change password first
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				if ((data.data as any)?.mustChangePassword) {
+				if ((data as { mustChangePassword?: boolean })?.mustChangePassword) {
 					// Store a flag in session/URL and redirect to change password page
 					throw redirect(303, '/change-password?required=true');
 				}
@@ -68,7 +67,7 @@ export const actions: Actions = {
 						cookies.set('session', sessionMatch[1], {
 							path: '/',
 							httpOnly: true,
-							secure: process.env.NODE_ENV === 'production',
+							secure: import.meta.env.PROD,
 							sameSite: 'lax',
 							maxAge: 15 * 60 // 15 minutes
 						});
@@ -79,7 +78,7 @@ export const actions: Actions = {
 						cookies.set('refresh_token', refreshMatch[1], {
 							path: '/',
 							httpOnly: true,
-							secure: process.env.NODE_ENV === 'production',
+							secure: import.meta.env.PROD,
 							sameSite: 'lax',
 							maxAge: 90 * 24 * 60 * 60 // 90 days
 						});

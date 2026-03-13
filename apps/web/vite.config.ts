@@ -5,13 +5,11 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vite';
 import Icons from 'unplugin-icons/vite';
-import AutoImport from 'unplugin-auto-import/vite';
-import IconsResolver from 'unplugin-icons/resolver';
 
 export default defineConfig({
 	// PERFORMANCE: Explicitly disable features that slow startup in dev
 	envPrefix: 'VITE_',
-	
+
 	// PERFORMANCE: Skip preprocessing for faster cold starts
 	css: {
 		devSourcemap: false
@@ -22,24 +20,18 @@ export default defineConfig({
 		// Only used for production, but set explicitly to avoid any overhead
 		reportCompressedSize: false,
 		// Disable sourcemaps in dev entirely
-		sourcemap: false
+		sourcemap: false,
+		rollupOptions: {
+			external: ['bun']
+		}
 	},
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
 		paraglideVitePlugin({ project: './project.inlang', outdir: './src/lib/paraglide' }),
-		AutoImport({
-			resolvers: [
-				IconsResolver({
-					prefix: 'Icon', // Viết <IconMdiAlarm /> để tự import mdi:alarm
-					extension: 'svelte'
-				})
-			],
-			dts: 'src/auto-imports.d.ts'
-		}),
 		Icons({
 			compiler: 'svelte',
-			autoInstall: true // Tự động tải bộ icon khi bạn gọi tên nó
+			autoInstall: false
 		}),
 		VitePWA({
 			strategies: 'injectManifest',
@@ -118,7 +110,11 @@ export default defineConfig({
 			injectManifest: {
 				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
 				// Increase the max file size for precaching (default is 2MB)
-				maximumFileSizeToCacheInBytes: 3 * 1024 * 1024 // 3MB
+				maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3MB
+				rollupFormat: 'iife',
+				rollupOptions: {
+					external: ['@repo/api', 'bun'] // Absolutely prevent Rollup from traversing and bundling server backend modules into the service worker
+				}
 			},
 			devOptions: {
 				enabled: false,
@@ -143,16 +139,11 @@ export default defineConfig({
 			'@internationalized/date',
 			'@inlang/paraglide-js'
 		],
-		exclude: ['@repo/ui', '@repo/config', '@repo/errors', '@repo/permissions'],
-		// PERFORMANCE: Force pre-bundling of these deps on startup
-		force: true,
-		// PERFORMANCE: Don't hold up the server while optimizing
-		// This is the default, but explicit for clarity
-		holdUntilCrawlEnd: false
+		exclude: ['@repo/ui', '@repo/config', '@repo/errors', '@repo/permissions']
 	},
 	ssr: {
 		noExternal: ['@repo/ui'],
-		external: ['async_hooks']
+		external: ['async_hooks', 'bun'] // Extends Node's async_hooks with Bun to prevent rollup crash on API imports
 	},
 	resolve: {
 		dedupe: ['svelte'],
@@ -163,6 +154,20 @@ export default defineConfig({
 	cacheDir: '.vite',
 	server: {
 		fs: { strict: false },
+		// Proxy API requests to the separate Elysia dev server (bun --watch)
+		// This replaces the old elysia-middleware plugin.
+		// Benefits: full header forwarding (cookies!), streaming bodies, multipart uploads,
+		// no API deps in Vite's module graph, proper process isolation.
+		proxy: {
+			'/v1': {
+				target: 'http://localhost:3000',
+				changeOrigin: true
+			},
+			'/health': {
+				target: 'http://localhost:3000',
+				changeOrigin: true
+			}
+		},
 		// PERFORMANCE: Increase HMR performance
 		hmr: {
 			// Use overlay but don't block on errors
@@ -173,9 +178,7 @@ export default defineConfig({
 			clientFiles: [
 				'src/routes/(app)/+page.svelte',
 				'src/routes/(auth)/login/+page.svelte',
-				'src/routes/(admin)/+layout.svelte',
-				'src/lib/components/**/*.svelte',
-				'src/lib/components/ui/**/*.svelte'
+				'src/routes/(admin)/+layout.svelte'
 			]
 		}
 	}

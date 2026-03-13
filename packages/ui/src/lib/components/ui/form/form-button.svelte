@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button, type ButtonProps } from "@repo/ui/components/ui/button";
+	import { Button, type ButtonProps } from "../button/index";
 
 	let { ref = $bindable(null), ...restProps }: ButtonProps = $props();
 </script>

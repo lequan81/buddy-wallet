@@ -1,15 +1,10 @@
 <script lang="ts">
+	import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ExternalLink, FileSpreadsheet, Loader2, X } from '@repo/icons';
 	import { goto } from '$app/navigation';
 	import { importProgress } from '$lib/stores/import-progress.svelte';
 	import { slide } from 'svelte/transition';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
-	// @ts-ignore
-	import IconChevronDown from '~icons/lucide/chevron-down';
-	// @ts-ignore
-	import IconChevronUp from '~icons/lucide/chevron-up';
-	// @ts-ignore
-	import IconExternalLink from '~icons/lucide/external-link';
 
 	let expanded = $state(true);
 
@@ -28,15 +23,15 @@
 			<div class="flex items-center justify-between border-b border-border/50 bg-muted/50 p-3">
 				<div class="flex items-center gap-2">
 					{#if processingCount > 0}
-						<IconLucideLoader2 class="h-4 w-4 animate-spin text-primary" />
+						<Loader2 class="h-4 w-4 animate-spin text-primary" />
 						<span class="text-sm font-medium"
 							>Processing {processingCount} {processingCount === 1 ? 'job' : 'jobs'}</span
 						>
 					{:else if failedCount > 0 && completedCount === 0}
-						<IconLucideAlertCircle class="h-4 w-4 text-destructive" />
+						<AlertCircle class="h-4 w-4 text-destructive" />
 						<span class="text-sm font-medium text-destructive">Import Failed</span>
 					{:else}
-						<IconLucideCheckCircle class="h-4 w-4 text-green-500" />
+						<CheckCircle class="h-4 w-4 text-green-500" />
 						<span class="text-sm font-medium text-green-600 dark:text-green-400"
 							>Import Complete</span
 						>
@@ -50,9 +45,9 @@
 						onclick={() => (expanded = !expanded)}
 					>
 						{#if expanded}
-							<IconChevronDown class="h-4 w-4" />
+							<ChevronDown class="h-4 w-4" />
 						{:else}
-							<IconChevronUp class="h-4 w-4" />
+							<ChevronUp class="h-4 w-4" />
 						{/if}
 					</Button>
 					{#if processingCount === 0}
@@ -64,7 +59,7 @@
 								for (const job of jobs) importProgress.removeJob(job.jobId);
 							}}
 						>
-							<IconLucideX class="h-4 w-4" />
+							<X class="h-4 w-4" />
 						</Button>
 					{/if}
 				</div>
@@ -86,13 +81,13 @@
 						>
 							<div class="mt-1">
 								{#if job.status === 'processing' || job.status === 'pending'}
-									<IconLucideLoader2 class="h-4 w-4 animate-spin text-primary" />
+									<Loader2 class="h-4 w-4 animate-spin text-primary" />
 								{:else if job.status === 'success'}
-									<IconLucideCheckCircle class="h-4 w-4 text-green-500" />
+									<CheckCircle class="h-4 w-4 text-green-500" />
 								{:else if job.status === 'failed'}
-									<IconLucideAlertCircle class="h-4 w-4 text-destructive" />
+									<AlertCircle class="h-4 w-4 text-destructive" />
 								{:else}
-									<IconLucideFileSpreadsheet class="h-4 w-4 text-muted-foreground" />
+									<FileSpreadsheet class="h-4 w-4 text-muted-foreground" />
 								{/if}
 							</div>
 							<div class="min-w-0 flex-1">
@@ -139,7 +134,7 @@
 											onclick={(e) => e.stopPropagation()}
 										>
 											View Details
-											<IconExternalLink class="h-3 w-3" />
+											<ExternalLink class="h-3 w-3" />
 										</a>
 									</div>
 								{/if}
@@ -156,7 +151,7 @@
 										importProgress.removeJob(job.jobId);
 									}}
 								>
-									<IconLucideX class="h-3 w-3" />
+									<X class="h-3 w-3" />
 								</Button>
 							</div>
 						</div>

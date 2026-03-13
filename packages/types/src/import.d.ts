@@ -39,5 +39,48 @@ export interface ProgressResult {
   status?: string;
   errors?: string[];
   percentage?: number;
-  result?: unknown;
+  result?: PreviewResult | ImportResult;
+  message?: string;
+}
+
+export interface ImportJob {
+  jobId: string;
+  type: string;
+  fileName: string;
+  status: string;
+  progress: {
+    current: number;
+    total: number;
+    percentage: number;
+  };
+  result?: PreviewResult | ImportResult;
+  error?: string;
+  message?: string;
+}
+
+export interface ImportLog {
+  id: string;
+  fileName: string;
+  status: string;
+  totalRows: number;
+  importedCount: number;
+  errorCount: number;
+  errors?: string[];
+  createdAt: string;
+  completedAt?: string;
+  previewLogId?: string;
+}
+
+export interface ImportDetailResult {
+  importedDebts: Array<{
+    id: string;
+    description: string;
+    amount: number;
+    debtorName?: string;
+    creditorName?: string;
+  }>;
+  skippedRows: Array<{
+    rowNumber: number;
+    reason: string;
+  }>;
 }

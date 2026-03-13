@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia';
-import { db, debts, fileMetadata, users, eq } from '@repo/db';
+import { db, debts, eq } from '@repo/db';
 import { FileService } from '../services/file.service';
 import { ActivityService } from '../services/activity.service';
 import { UPLOAD_TMP_DIR, PROOF_TMP_DIR } from '@repo/config';
@@ -20,6 +20,10 @@ export const ProofController = new Elysia({ prefix: '/proofs' })
     '/debt/:debtId',
     async (ctx) => {
       const { user, params, body, request, set } = ctx as typeof ctx & { user: User };
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
       const { debtId } = params;
       const { file } = body;
 
@@ -69,6 +73,10 @@ export const ProofController = new Elysia({ prefix: '/proofs' })
     '/debt/:debtId',
     async (ctx) => {
       const { user, params, set } = ctx as typeof ctx & { user: User };
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
       const { debtId } = params;
 
       const debt = db.select().from(debts).where(eq(debts.id, debtId)).get();
@@ -97,6 +105,10 @@ export const ProofController = new Elysia({ prefix: '/proofs' })
     '/:proofId/review',
     async (ctx) => {
       const { user, params, body, request, set } = ctx as typeof ctx & { user: User };
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
       const { proofId } = params;
       const { action, reason } = body;
 

@@ -1,15 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { API_URL, getAuthHeaders } from '$lib/api';
+import type { Pagination } from '@repo/types';
 
-interface Pagination {
-	total: number;
-	limit: number;
-	offset: number;
-	hasMore: boolean;
-}
-
-export const load: PageServerLoad = async ({ locals, fetch, parent, url }) => {
+export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	// Get server-computed permissions from layout
 	const { permissions } = await parent();
 
@@ -22,15 +15,14 @@ export const load: PageServerLoad = async ({ locals, fetch, parent, url }) => {
 	const pageSize = parseInt(url.searchParams.get('pageSize') || '10');
 	const offset = (page - 1) * pageSize;
 
-	const headers = getAuthHeaders(locals.accessToken);
-	const params = new URLSearchParams({
-		limit: pageSize.toString(),
-		offset: offset.toString()
+	const { data, error } = await locals.api.v1.users.get({
+		query: {
+			limit: pageSize.toString(),
+			offset: offset.toString()
+		}
 	});
 
-	const response = await fetch(`${API_URL}/v1/users?${params}`, { headers });
-
-	if (!response.ok) {
+	if (error) {
 		return {
 			users: [],
 			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } as Pagination,
@@ -40,13 +32,11 @@ export const load: PageServerLoad = async ({ locals, fetch, parent, url }) => {
 		};
 	}
 
-	const data = await response.json();
-
 	// API returns { success: true, data: { users: [...], pagination: {...} } }
 	return {
-		users: data.data?.users || [],
+		users: (data as any)?.data?.users || [],
 		pagination:
-			data.data?.pagination ||
+			(data as any)?.data?.pagination ||
 			({ total: 0, limit: pageSize, offset: 0, hasMore: false } as Pagination),
 		page,
 		pageSize

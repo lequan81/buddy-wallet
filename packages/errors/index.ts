@@ -131,19 +131,24 @@ export interface AppError {
   details?: string;
 }
 
-/**
- * Standardized API Response format
- * All API responses should follow this structure for consistency
- */
-export interface ApiResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: {
+export type ErrorResponse = {
+  success: false;
+  error: {
     code: string;
     message: string;
     details?: string;
   };
-}
+};
+
+export type SuccessResponse<T = void> = T extends void
+  ? { success: true }
+  : { success: true } & T;
+
+/**
+ * Standardized API Response format
+ * All API responses should follow this structure for consistency
+ */
+export type ApiResponse<T = void> = ErrorResponse | SuccessResponse<T>;
 
 // ============================================
 // UTILITIES
@@ -184,7 +189,7 @@ export const createError = (
 export const errorResponse = (
   error: { code: string; message: string },
   details?: string
-): ApiResponse => ({
+): ErrorResponse => ({
   success: false,
   error: {
     code: error.code,
@@ -195,10 +200,10 @@ export const errorResponse = (
 
 /**
  * Create a standardized success response for API endpoints
- * @param data - The response data
+ * @param data - The response data (must be an object to spread)
  */
-export const successResponse = <T>(data?: T): ApiResponse<T> => ({
+export const successResponse = <T extends object>(data?: T): SuccessResponse<T> => ({
   success: true,
-  ...(data !== undefined && { data })
-});
+  ...(data as T)
+} as SuccessResponse<T>);
 

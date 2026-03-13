@@ -1,7 +1,7 @@
 import type { Debt } from '@repo/db';
 import type { SafeUser, UserResult } from './user';
 import type { SessionInfo } from './session';
-import type { DebtResult, DebtStatus } from './debt';
+import type { CreateDebtInput, DebtResult, DebtStatus, StatusUpdateResult } from './debt';
 
 // Auth Types
 export interface RegisterInput {
@@ -11,17 +11,28 @@ export interface RegisterInput {
   email?: string;
 }
 
+export interface ClientHints {
+  brands?: Array<{ brand: string; version: string }>;
+  mobile?: boolean;
+  platform?: string;
+}
+
+export interface ClientLocation {
+  city?: string;
+  region?: string;
+  country?: string;
+  timezone?: string;
+}
+
 export interface LoginInput {
   identifier: string;
   password?: string;
   otp?: string;
   userAgent?: string | null;
   clientIP?: string | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  clientHints?: any;
+  clientHints?: ClientHints;
   coordinates?: { lat: number; lon: number } | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  clientLocation?: any;
+  clientLocation?: ClientLocation;
 }
 
 export interface AuthResult {
@@ -111,10 +122,8 @@ export interface IDebtService {
   getDebtsByUserId(userId: string, options?: PaginationOptions): Promise<PaginatedResult<Debt>>;
   countActiveDebtsForPhone(phone: string): Promise<number>;
   getDebtById(debtId: string): Promise<Debt | undefined>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createDebt(input: any, currentUser: any): Promise<DebtResult>; // Typed as any to avoid circular deps for now, or need to verify input types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updateDebtStatus(debtId: string, newStatus: DebtStatus, currentUser: any): Promise<any>;
+  createDebt(input: CreateDebtInput & { expiryOption?: string; confirmDuplicate?: boolean }, currentUser: SafeUser): Promise<DebtResult>;
+  updateDebtStatus(debtId: string, newStatus: DebtStatus, currentUser: SafeUser): Promise<StatusUpdateResult>;
 }
 
 export interface IUserService {

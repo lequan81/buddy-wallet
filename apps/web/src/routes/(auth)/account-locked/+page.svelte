@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui/components/ui/card';
 	import { Button } from '@repo/ui/components/ui/button';
-	import { AlertTriangle, Clock, Mail } from '@lucide/svelte';
+	import { AlertTriangle, Clock, Mail } from '@repo/icons';
 
 	const lockoutUntil = $derived(page.url.searchParams.get('until'));
 	const email = $derived(page.url.searchParams.get('email'));

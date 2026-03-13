@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+	import { AlertCircle, AlertTriangle, CheckCircle2, Eye, EyeOff } from '@repo/icons';
 	import { Input } from '@repo/ui/components/ui/input';
 	import { Label } from '@repo/ui/components/ui/label';
 	import { cn } from '$lib/utils';
@@ -42,21 +43,21 @@
 	const stateConfig = $derived.by(() => {
 		const configs = {
 			error: {
-				icon: IconLucideAlertCircle,
+				icon: AlertCircle,
 				ringClass: 'ring-2 ring-destructive focus-visible:ring-destructive',
 				textClass: 'text-destructive',
 				iconClass: 'text-destructive',
 				message: error
 			},
 			success: {
-				icon: IconLucideCheckCircle2,
+				icon: CheckCircle2,
 				ringClass: 'ring-2 ring-success focus-visible:ring-success',
 				textClass: 'text-success',
 				iconClass: 'text-success',
 				message: success
 			},
 			warning: {
-				icon: IconLucideAlertTriangle,
+				icon: AlertTriangle,
 				ringClass: 'ring-2 ring-warning focus-visible:ring-warning',
 				textClass: 'text-warning',
 				iconClass: 'text-warning',
@@ -117,20 +118,20 @@
 				tabindex="-1"
 			>
 				{#if showPassword}
-					<IconLucideEyeOff class="h-4 w-4" />
+					<EyeOff class="h-4 w-4" />
 				{:else}
-					<IconLucideEye class="h-4 w-4" />
+					<Eye class="h-4 w-4" />
 				{/if}
 			</button>
 		{:else if StateIcon}
 			<div class="pointer-events-none absolute top-2.5 right-3">
-				<StateIcon class="h-4 w-4 {stateConfig.iconClass}" />
+				<StateIcon class={cn('h-4 w-4', stateConfig.iconClass)} />
 			</div>
 		{/if}
 	</div>
 
 	{#if stateConfig.message}
-		<p class="text-sm {stateConfig.textClass} flex items-start gap-1.5">
+		<p class={cn('flex items-start gap-1.5 text-sm', stateConfig.textClass)}>
 			{#if StateIcon}
 				<StateIcon class="mt-0.5 h-4 w-4 shrink-0" />
 			{/if}

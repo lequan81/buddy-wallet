@@ -12,6 +12,43 @@ import { PERMISSIONS } from '@repo/permissions';
 import { UserService, ActivityService } from '../services';
 import { getClientIP } from '../utils';
 
+const NullableString = t.Union([t.String(), t.Literal(null)]);
+const NullableDateString = t.Union([t.String(), t.Literal(null)]);
+
+const UserSchema = t.Object({
+  id: t.String(),
+  name: t.String(),
+  email: NullableString,
+  phoneNumber: NullableString,
+  role: t.String(),
+  permissions: t.Array(t.String()),
+  isActive: t.Boolean(),
+  emailVerified: t.Optional(t.Boolean()),
+  emailNotificationsEnabled: t.Optional(t.Boolean()),
+  pushNotificationsEnabled: t.Optional(t.Boolean()),
+  mustChangePassword: t.Optional(t.Boolean()),
+  createdAt: NullableDateString,
+  updatedAt: NullableDateString
+});
+
+const PaginationSchema = t.Object({
+  total: t.Number(),
+  limit: t.Number(),
+  offset: t.Number(),
+  hasMore: t.Boolean()
+});
+
+const UsersListResponseSchema = t.Object({
+  success: t.Literal(true),
+  users: t.Array(UserSchema),
+  pagination: PaginationSchema
+});
+
+const UserResponseSchema = t.Object({
+  success: t.Literal(true),
+  user: UserSchema
+});
+
 export const UsersController = new Elysia({ prefix: '/users' })
   .use(accessControlPlugin)
   .use(permissionPlugin)
@@ -94,7 +131,8 @@ export const UsersController = new Elysia({ prefix: '/users' })
       query: t.Object({
         limit: t.Optional(t.String()),
         offset: t.Optional(t.String())
-      })
+      }),
+      response: { 200: UsersListResponseSchema }
     }
   )
 
@@ -113,7 +151,8 @@ export const UsersController = new Elysia({ prefix: '/users' })
     },
     {
       params: t.Object({ id: t.String() }),
-      ensureRelatedUser: 'id'
+      ensureRelatedUser: 'id',
+      response: { 200: UserResponseSchema }
     }
   )
 

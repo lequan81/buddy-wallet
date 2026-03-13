@@ -1,19 +1,45 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { preloadData } from '$app/navigation';
-	import { onMount } from 'svelte';
-	import { Button, buttonVariants } from '@repo/ui/components/ui/button';
+	import { onMount, type Snippet } from 'svelte';
+	
 	import * as DropdownMenu from '@repo/ui/components/ui/dropdown-menu';
 	import * as Avatar from '@repo/ui/components/ui/avatar';
+	import * as Sheet from '@repo/ui/components/ui/sheet';
+	import { Button } from '@repo/ui/components/ui/button';
+	
 	import PushPermissionBanner from '$lib/components/shared/PushPermissionBanner.svelte';
 	import PwaInstall from '$lib/components/PwaInstall.svelte';
 	import { cn } from '$lib/utils';
 	import { getCookie, setCookie } from '$lib/utils/cookie-utils';
 
-	let { children, data } = $props();
+	// Icons
+	import {
+		LayoutDashboard,
+		Server,
+		Activity,
+		Users,
+		FileText,
+		User as UserIcon,
+		Shield,
+		Bell,
+		Wallet,
+		Menu,
+		LogOut,
+		X
+	} from '@repo/icons';
+
+	let { children, data } = $props<{ children: Snippet; data: Record<string, unknown> }>();
+	
 	let user = $derived(data.user);
 	let permissions = $derived(data.permissions);
+	
+	let displayName = $derived(user?.name || user?.email || user?.phoneNumber || 'User');
+	let avatarInitial = $derived(
+		(user?.name?.[0] || user?.email?.[0] || user?.phoneNumber?.[0] || 'U').toUpperCase()
+	);
+	
 	let sidebarOpen = $state(false);
 	let isLoggingOut = $state(false);
 	let bannerDismissed = $state(true); // Start true to avoid flash
@@ -21,25 +47,18 @@
 	const showVerificationBanner = $derived(user && user.emailVerified === false && !bannerDismissed);
 
 	onMount(() => {
-		// Check cookie for banner dismissal
 		bannerDismissed = getCookie('bw-email-banner-dismissed') === 'true';
 	});
 
-	// Preload frequently accessed pages after dashboard loads
 	onMount(() => {
 		const preloadPages = () => {
-			// Preload settings and import pages in parallel
 			const pagesToPreload = ['/settings/profile', '/settings/security'];
-
-			// Add import page if user has permission
-			if (permissions.canImportData) {
+			if (permissions?.canImportData) {
 				pagesToPreload.push('/dashboard/import');
 			}
-
 			Promise.all(pagesToPreload.map((path) => preloadData(path).catch(() => {})));
 		};
 
-		// Use requestIdleCallback if available for better performance
 		if ('requestIdleCallback' in window) {
 			requestIdleCallback(preloadPages, { timeout: 3000 });
 		} else {
@@ -47,260 +66,228 @@
 		}
 	});
 
-	// Build nav items based on server-computed permissions
 	const navItems = $derived(() => {
-		const items = [{ href: '/dashboard', label: 'Dashboard', icon: IconLucideLayoutDashboard }];
+		const items = [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }];
 
-		if (permissions.isAdmin) {
-			items.push({ href: '/admin/system', label: 'System', icon: IconLucideServer });
-			items.push({ href: '/admin/traces', label: 'Traces', icon: IconLucideActivity });
-			items.push({ href: '/admin/users', label: 'Users', icon: IconLucideUsers });
+		if (permissions?.isAdmin) {
+			items.push({ href: '/admin/system', label: 'System', icon: Server });
+			items.push({ href: '/admin/traces', label: 'Traces', icon: Activity });
+			items.push({ href: '/admin/users', label: 'Users', icon: Users });
 		}
 
-		if (permissions.canImportData) {
-			items.push({ href: '/dashboard/import', label: 'Import', icon: IconLucideFileText });
+		if (permissions?.canImportData) {
+			items.push({ href: '/dashboard/import', label: 'Import', icon: FileText });
 		}
 
 		return items;
 	});
 
 	const settingsItems = [
-		{ href: '/settings/profile', label: 'Profile', icon: IconLucideUser },
-		{ href: '/settings/security', label: 'Security', icon: IconLucideShield },
-		{ href: '/settings/notifications', label: 'Notifications', icon: IconLucideBell },
-		{ href: '/settings/activity', label: 'Activity', icon: IconLucideActivity },
-		{ href: '/settings/banks', label: 'Banks', icon: IconLucideWallet }
+		{ href: '/settings/profile', label: 'Profile', icon: UserIcon },
+		{ href: '/settings/security', label: 'Security', icon: Shield },
+		{ href: '/settings/notifications', label: 'Notifications', icon: Bell },
+		{ href: '/settings/activity', label: 'Activity', icon: Activity },
+		{ href: '/settings/banks', label: 'Banks', icon: Wallet }
 	];
+
+	function handleNavigate() {
+		sidebarOpen = false;
+	}
 </script>
 
-<div class="flex min-h-dvh bg-muted/30">
-	<!-- Desktop Sidebar -->
-	<aside class="hidden border-r bg-background lg:fixed lg:inset-y-0 lg:flex lg:w-56 lg:flex-col">
-		<!-- Logo -->
-		<div class="flex h-14 items-center border-b px-4">
-			<a href="/" class="flex items-center space-x-2">
-				<IconLucideWallet class="h-5 w-5 text-muted-foreground" />
-				<span class="font-semibold">Buddy Wallet</span>
+{#snippet navigationLinks()}
+	<nav class="flex-1 space-y-1 py-4">
+		{#each navItems() as item}
+			<a
+				href={item.href}
+				onclick={handleNavigate}
+				data-sveltekit-preload-data="hover"
+				class={cn(
+					'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+					page.url.pathname === item.href
+						? 'bg-secondary text-secondary-foreground font-semibold'
+						: 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
+				)}
+			>
+				<item.icon class="h-[18px] w-[18px]" />
+				{item.label}
 			</a>
-		</div>
+		{/each}
 
-		<!-- Navigation -->
-		<nav class="flex-1 space-y-1 px-3 py-4">
-			{#each navItems() as item}
+		<div class="pt-6">
+			<p class="mb-2 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase opacity-70">
+				Settings
+			</p>
+			{#each settingsItems as item}
 				<a
 					href={item.href}
+					onclick={handleNavigate}
 					data-sveltekit-preload-data="hover"
 					class={cn(
-						'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-						page.url.pathname === item.href || page.url.pathname.startsWith(item.href + '/')
-							? 'bg-muted text-foreground'
-							: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+						'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+						page.url.pathname === item.href
+							? 'bg-secondary text-secondary-foreground font-semibold'
+							: 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
 					)}
 				>
-					<item.icon class="h-4 w-4" />
+					<item.icon class="h-[18px] w-[18px]" />
 					{item.label}
 				</a>
 			{/each}
+		</div>
+	</nav>
+{/snippet}
 
-			<div class="pt-4">
-				<p class="mb-2 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-					Settings
-				</p>
-				{#each settingsItems as item}
-					<a
-						href={item.href}
-						data-sveltekit-preload-data="hover"
-						class={cn(
-							'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-							page.url.pathname === item.href
-								? 'bg-muted text-foreground'
-								: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-						)}
-					>
-						<item.icon class="h-4 w-4" />
-						{item.label}
-					</a>
-				{/each}
-			</div>
-		</nav>
+<div class="flex min-h-dvh bg-muted/20">
+	<!-- Desktop Sidebar -->
+	<aside class="hidden border-r border-border/60 bg-background lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+		<div class="flex h-16 items-center border-b border-border/60 px-6">
+			<a href="/" class="flex items-center space-x-2.5 transition-opacity hover:opacity-90">
+				<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+					<Wallet class="h-5 w-5 text-primary" />
+				</div>
+				<span class="text-lg font-semibold tracking-tight">Buddy Wallet</span>
+			</a>
+		</div>
 
-		<!-- User -->
-		<div class="border-t p-4">
-			<div class="flex items-center gap-3">
-				<Avatar.Root class="h-9 w-9">
-					<Avatar.Fallback class="text-xs">{user?.email?.[0]?.toUpperCase() || 'U'}</Avatar.Fallback
-					>
+		<div class="flex-1 px-4 overflow-y-auto">
+			{@render navigationLinks()}
+		</div>
+
+		<!-- User Section -->
+		<div class="border-t border-border/60 p-4">
+			<div class="flex items-center gap-3 rounded-xl border border-transparent p-2 transition-colors hover:bg-secondary/50">
+				<Avatar.Root class="h-9 w-9 border border-border/50 shadow-sm">
+					<Avatar.Fallback class="text-xs bg-muted font-medium">{avatarInitial}</Avatar.Fallback>
 				</Avatar.Root>
-				<div class="flex-1 truncate">
-					<p class="truncate text-sm font-medium">{user?.email}</p>
-					<p class="text-xs text-muted-foreground capitalize">{user?.role}</p>
+				<div class="flex-1 overflow-hidden">
+					<p class="truncate text-sm font-medium leading-none">{displayName}</p>
+					<p class="mt-1 truncate text-xs text-muted-foreground capitalize">{user?.role}</p>
 				</div>
 			</div>
 		</div>
 	</aside>
 
-	<!-- Mobile sidebar -->
-	{#if sidebarOpen}
-		<div class="fixed inset-0 z-50 lg:hidden">
-			<div
-				class="fixed inset-0 bg-black/50"
-				role="button"
-				tabindex="-1"
-				onclick={() => (sidebarOpen = false)}
-				onkeydown={(e) => {
-					if (e.key === 'Escape') sidebarOpen = false;
-				}}
-			></div>
-			<aside class="fixed inset-y-0 left-0 w-64 border-r bg-background">
-				<div class="flex h-14 items-center justify-between border-b px-4">
-					<a href="/" class="flex items-center space-x-2">
-						<IconLucideWallet class="h-5 w-5 text-muted-foreground" />
-						<span class="font-semibold">Buddy Wallet</span>
-					</a>
-					<button onclick={() => (sidebarOpen = false)} class="rounded p-1 hover:bg-muted">
-						<IconLucideX class="h-5 w-5" />
-					</button>
-				</div>
-				<nav class="flex-1 space-y-1 px-3 py-4">
-					{#each navItems() as item}
-						<a
-							href={item.href}
-							onclick={() => (sidebarOpen = false)}
-							class={cn(
-								'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-								page.url.pathname === item.href
-									? 'bg-muted text-foreground'
-									: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-							)}
-						>
-							<item.icon class="h-4 w-4" />
-							{item.label}
-						</a>
-					{/each}
-
-					<div class="pt-4">
-						<p
-							class="mb-2 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
-						>
-							Settings
-						</p>
-						{#each settingsItems as item}
-							<a
-								href={item.href}
-								onclick={() => (sidebarOpen = false)}
-								class={cn(
-									'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-									page.url.pathname === item.href
-										? 'bg-muted text-foreground'
-										: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-								)}
-							>
-								<item.icon class="h-4 w-4" />
-								{item.label}
-							</a>
-						{/each}
+	<!-- Mobile Sidebar (Sheet) -->
+	<Sheet.Root bind:open={sidebarOpen}>
+		<Sheet.Content side="left" class="w-72 p-0 flex flex-col">
+			<Sheet.Header class="h-16 border-b border-border/60 px-6 flex flex-row items-center justify-start text-left">
+				<a href="/" class="flex items-center space-x-2.5" onclick={handleNavigate}>
+					<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+						<Wallet class="h-5 w-5 text-primary" />
 					</div>
-				</nav>
-			</aside>
-		</div>
-	{/if}
+					<Sheet.Title class="text-lg font-semibold tracking-tight m-0">Buddy Wallet</Sheet.Title>
+				</a>
+			</Sheet.Header>
+			<div class="flex-1 px-4 overflow-y-auto">
+				{@render navigationLinks()}
+			</div>
+		</Sheet.Content>
+	</Sheet.Root>
 
-	<!-- Main content -->
-	<div class="flex flex-1 flex-col lg:pl-56">
+	<!-- Main Content Wrapper -->
+	<div class="flex flex-1 flex-col lg:pl-64">
 		<!-- Top header -->
-		<header class="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4">
-			<button onclick={() => (sidebarOpen = true)} class="rounded p-2 hover:bg-muted lg:hidden">
-				<IconLucideMenu class="h-5 w-5" />
-			</button>
-
-			<div class="flex-1"></div>
-
-			<!-- PWA install inline button -->
-			<PwaInstall />
-
-			<!-- User dropdown -->
-			<DropdownMenu.Root>
-				<DropdownMenu.Trigger
-					class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-muted"
+		<header class="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/95 backdrop-blur px-4 sm:px-6">
+			<div class="flex items-center">
+				<Button 
+					variant="ghost" 
+					size="icon" 
+					class="lg:hidden mr-2 -ml-2" 
+					onclick={() => (sidebarOpen = true)}
 				>
-					<Avatar.Root class="h-7 w-7">
-						<Avatar.Fallback class="text-xs"
-							>{user?.email?.[0]?.toUpperCase() || 'U'}</Avatar.Fallback
-						>
-					</Avatar.Root>
-					<span class="hidden font-medium sm:block">{user?.email}</span>
-				</DropdownMenu.Trigger>
-				<DropdownMenu.Content align="end" class="w-56">
-					<DropdownMenu.Label>
-						<div class="flex flex-col">
-							<span class="font-medium">{user?.email}</span>
-							<span class="text-xs text-muted-foreground capitalize">{user?.role}</span>
-						</div>
-					</DropdownMenu.Label>
-					<DropdownMenu.Separator />
-					<DropdownMenu.Item>
-						{#snippet child({ props }: { props: Record<string, any> })}
-							<a href="/settings/profile" {...props} class="flex w-full items-center">
-								<IconLucideUser class="mr-2 h-4 w-4 text-muted-foreground" />
-								Profile
-							</a>
-						{/snippet}
-					</DropdownMenu.Item>
-					<DropdownMenu.Item>
-						{#snippet child({ props }: { props: Record<string, any> })}
-							<a href="/settings/security" {...props} class="flex w-full items-center">
-								<IconLucideShield class="mr-2 h-4 w-4 text-muted-foreground" />
-								Security
-							</a>
-						{/snippet}
-					</DropdownMenu.Item>
-					<DropdownMenu.Item>
-						{#snippet child({ props }: { props: Record<string, any> })}
-							<a href="/settings/activity" {...props} class="flex w-full items-center">
-								<IconLucideActivity class="mr-2 h-4 w-4 text-muted-foreground" />
-								Activity
-							</a>
-						{/snippet}
-					</DropdownMenu.Item>
-					<DropdownMenu.Separator />
-					<form
-						method="POST"
-						action="/logout"
-						use:enhance={() => {
-							isLoggingOut = true;
-							return async ({ update }) => {
-								await update();
-								isLoggingOut = false;
-							};
-						}}
+					<Menu class="h-5 w-5" />
+					<span class="sr-only">Toggle Sidebar</span>
+				</Button>
+			</div>
+
+			<div class="flex items-center gap-3">
+				<PwaInstall />
+
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger
+						class="flex items-center gap-2 rounded-full border border-border/50 hover:bg-muted/50 p-1 pl-3 pr-1 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary"
 					>
-						<DropdownMenu.Item disabled={isLoggingOut}>
-							{#snippet child({ props }: { props: Record<string, any> })}
-								<button type="submit" {...props} class="flex w-full items-center text-destructive">
-									<IconLucideLogOut class="mr-2 h-4 w-4" />
-									{isLoggingOut ? 'Logging out...' : 'Log out'}
-								</button>
-							{/snippet}
-						</DropdownMenu.Item>
-					</form>
-				</DropdownMenu.Content>
-			</DropdownMenu.Root>
+						<span class="hidden font-medium sm:block">{displayName}</span>
+						<Avatar.Root class="h-8 w-8 shadow-sm">
+							<Avatar.Fallback class="text-xs bg-primary/10 text-primary font-medium">{avatarInitial}</Avatar.Fallback>
+						</Avatar.Root>
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="end" class="w-60 p-2">
+						<DropdownMenu.Label class="px-2 py-1.5">
+							<div class="flex flex-col space-y-1">
+								<span class="font-medium text-sm leading-none">{displayName}</span>
+								<span class="text-xs text-muted-foreground leading-none">{user?.email || user?.phoneNumber}</span>
+								<span class="text-xs font-semibold text-primary capitalize mt-1.5">{user?.role}</span>
+							</div>
+						</DropdownMenu.Label>
+						<DropdownMenu.Separator class="my-1" />
+						<DropdownMenu.Group>
+							<DropdownMenu.Item class="cursor-pointer rounded-md p-2">
+								{#snippet child({ props }: { props: Record<string, unknown> })}
+									<a href="/settings/profile" {...props} class="flex w-full items-center">
+										<UserIcon class="mr-2 h-4 w-4 text-muted-foreground" />
+										Profile
+									</a>
+								{/snippet}
+							</DropdownMenu.Item>
+							<DropdownMenu.Item class="cursor-pointer rounded-md p-2">
+								{#snippet child({ props }: { props: Record<string, unknown> })}
+									<a href="/settings/security" {...props} class="flex w-full items-center">
+										<Shield class="mr-2 h-4 w-4 text-muted-foreground" />
+										Security
+									</a>
+								{/snippet}
+							</DropdownMenu.Item>
+							<DropdownMenu.Item class="cursor-pointer rounded-md p-2">
+								{#snippet child({ props }: { props: Record<string, unknown> })}
+									<a href="/settings/activity" {...props} class="flex w-full items-center">
+										<Activity class="mr-2 h-4 w-4 text-muted-foreground" />
+										Activity
+									</a>
+								{/snippet}
+							</DropdownMenu.Item>
+						</DropdownMenu.Group>
+						<DropdownMenu.Separator class="my-1" />
+						<form
+							method="POST"
+							action="/logout"
+							use:enhance={() => {
+								isLoggingOut = true;
+								return async ({ update }) => {
+									await update();
+									isLoggingOut = false;
+								};
+							}}
+						>
+							<DropdownMenu.Item disabled={isLoggingOut} class="cursor-pointer rounded-md p-2">
+								{#snippet child({ props }: { props: Record<string, unknown> })}
+									<button type="submit" {...props} class="flex w-full items-center text-destructive focus:text-destructive focus:bg-destructive/10">
+										<LogOut class="mr-2 h-4 w-4" />
+										{isLoggingOut ? 'Logging out...' : 'Log out'}
+									</button>
+								{/snippet}
+							</DropdownMenu.Item>
+						</form>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+			</div>
 		</header>
 
 		<!-- Email Verification Banner -->
 		{#if showVerificationBanner}
 			<div
-				class="border-b border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950/50"
+				class="border-b border-warning/30 bg-warning/5 px-4 py-3"
 			>
-				<div class="flex items-center justify-between gap-3">
-					<div class="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
-						<IconLucideShield class="h-4 w-4 shrink-0" />
+				<div class="flex items-center justify-between gap-4">
+					<div class="flex items-center gap-2.5 text-sm text-warning-foreground font-medium">
+						<Shield class="h-4 w-4 shrink-0 text-warning" />
 						<span>Verify your email to unlock all features</span>
 					</div>
 					<div class="flex items-center gap-2">
 						<a
 							href="/settings/profile"
-							class="rounded-md bg-amber-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-amber-700"
+							class="rounded-md bg-warning px-3 py-1 font-medium text-warning-foreground shadow-sm transition-colors hover:bg-warning/90 text-sm"
 						>
 							Verify Now
 						</a>
@@ -309,10 +296,10 @@
 								bannerDismissed = true;
 								setCookie('bw-email-banner-dismissed', 'true', 30);
 							}}
-							class="rounded p-1 text-amber-600 transition-colors hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900"
+							class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted"
 							aria-label="Dismiss"
 						>
-							<IconLucideX class="h-4 w-4" />
+							<X class="h-4 w-4" />
 						</button>
 					</div>
 				</div>
@@ -320,8 +307,10 @@
 		{/if}
 
 		<!-- Page content -->
-		<main class="flex-1 p-4 lg:p-6">
-			{@render children()}
+		<main class="flex-1 w-full p-4 sm:p-6 lg:p-8">
+			<div class="mx-auto w-full max-w-6xl">
+				{@render children()}
+			</div>
 		</main>
 	</div>
 

@@ -1,0 +1,145 @@
+/* ============================================ */
+/* App-specific styles for Buddy Wallet Web     */
+/* Shared design tokens are in @repo/ui         */
+/* ============================================ */
+@reference "@repo/ui/layout.css";
+
+/* Typography Utilities for Financial Data */
+@layer utilities {
+	.font-tabular {
+		font-feature-settings: 'tnum' 1;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.text-balance {
+		text-wrap: balance;
+	}
+
+	/* Financial amount display */
+	.amount-positive {
+		@apply text-success;
+		font-feature-settings: 'tnum' 1;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.amount-negative {
+		@apply text-destructive;
+		font-feature-settings: 'tnum' 1;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.amount-neutral {
+		@apply text-foreground;
+		font-feature-settings: 'tnum' 1;
+		font-variant-numeric: tabular-nums;
+	}
+}
+
+/* ============================================ */
+/* View Transitions                             */
+/* ============================================ */
+
+/* Default crossfade for page transitions */
+@keyframes fade-in {
+	from {
+		opacity: 0;
+	}
+}
+
+@keyframes fade-out {
+	to {
+		opacity: 0;
+	}
+}
+
+/* Subtle slide + fade for a more polished feel */
+@keyframes slide-from-right {
+	from {
+		opacity: 0;
+		transform: translateX(16px);
+	}
+}
+
+@keyframes slide-to-left {
+	to {
+		opacity: 0;
+		transform: translateX(-16px);
+	}
+}
+
+::view-transition-old(root) {
+	animation: 150ms cubic-bezier(0.4, 0, 1, 1) both fade-out;
+}
+
+::view-transition-new(root) {
+	animation: 210ms cubic-bezier(0, 0, 0.2, 1) 90ms both fade-in;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation: none;
+	}
+}
+
+/* ============================================ */
+/* Slow Network Adaptations                     */
+/* data-slow-network is set by hooks.client.ts  */
+/* ============================================ */
+
+/* Disable non-essential animations on slow connections */
+html[data-slow-network='true'] *,
+html[data-slow-network='true'] *::before,
+html[data-slow-network='true'] *::after {
+	animation-duration: 0.01ms !important;
+	animation-iteration-count: 1 !important;
+	transition-duration: 0.01ms !important;
+}
+
+/* Skip view transitions on slow networks */
+html[data-slow-network='true'] ::view-transition-old(root),
+html[data-slow-network='true'] ::view-transition-new(root) {
+	animation: none;
+}
+
+/* ============================================ */
+/* Content Visibility (Rendering Performance)   */
+/* ============================================ */
+
+/*
+ * content-visibility: auto tells the browser to skip rendering
+ * for off-screen elements. This dramatically improves:
+ * - Initial page load (less work to render)
+ * - Scroll performance (off-screen content not painted)
+ * - Memory usage (off-screen DOM not laid out)
+ *
+ * contain-intrinsic-size gives the browser a size estimate
+ * so scrollbar height stays stable before content renders.
+ *
+ * Usage: add .cv-auto to any large section, card list, or
+ * below-the-fold content block in your Svelte components.
+ *
+ * Example:
+ *   <div class="cv-auto">
+ *     <!-- heavy card list or table -->
+ *   </div>
+ */
+@layer utilities {
+	.cv-auto {
+		content-visibility: auto;
+		contain-intrinsic-size: auto 500px;
+	}
+
+	/* Smaller estimate for cards/list items */
+	.cv-auto-sm {
+		content-visibility: auto;
+		contain-intrinsic-size: auto 200px;
+	}
+
+	/* Larger estimate for full page sections */
+	.cv-auto-lg {
+		content-visibility: auto;
+		contain-intrinsic-size: auto 800px;
+	}
+}

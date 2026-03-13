@@ -1,3 +1,3 @@
 export const ssr = true;
-// Enable prerender for landing page (initial HTML will show logged-out state)
-export const prerender = true;
+// Prerender disabled: page uses form actions and is user-aware
+export const prerender = false;

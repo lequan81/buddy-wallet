@@ -1,12 +1,9 @@
 <script lang="ts">
+	import { Loader2, ShieldCheck } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
-	// @ts-ignore
-	import IconLucideShieldCheck from '~icons/lucide/shield-check';
-	// @ts-ignore
-	import IconLucideLoader2 from '~icons/lucide/loader-2';
 
 	let { data, form } = $props();
 
@@ -67,7 +64,7 @@
 			<div
 				class="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10"
 			>
-				<IconLucideShieldCheck class="h-7 w-7 text-primary" />
+				<ShieldCheck class="h-7 w-7 text-primary" />
 			</div>
 			<Card.Title class="text-2xl font-bold">Verify your email</Card.Title>
 			<Card.Description>
@@ -121,7 +118,7 @@
 				<Button type="submit" class="h-11 w-full text-base" disabled={!canSubmit}>
 					<span class="inline-flex items-center justify-center">
 						{#if isSubmitting}
-							<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
+							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 							Verifying...
 						{:else}
 							Verify Email
@@ -133,7 +130,7 @@
 
 		<Card.Footer class="flex flex-col space-y-3">
 			<!-- Skip -->
-			<form method="POST" action="?/skip" class="w-full">
+			<form method="POST" action="?/skip" class="w-full" use:enhance>
 				<Button variant="ghost" type="submit" class="h-10 w-full text-muted-foreground">
 					Skip for now
 				</Button>

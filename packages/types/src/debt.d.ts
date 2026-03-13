@@ -13,20 +13,27 @@ export interface DebtResult {
   error?: string;
   code?: string;
   message?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  debt?: any;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  debts?: any[];
+  debt?: QuickDebt;
+  debts?: QuickDebt[];
 }
 
 export interface StatusUpdateResult {
   success: boolean;
   error?: string;
   code?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  debt?: any;
+  debt?: QuickDebt;
   previousStatus?: string;
   newStatus?: string;
   validTransitions?: string[];
+}
+
+export interface QuickDebt {
+  id: string;
+  description: string;
+  amount: number;
+  direction: DebtDirection;
+  status: string;
+  counterpartyPhone: string;
+  counterpartyName?: string;
+  createdAt: string;
 }

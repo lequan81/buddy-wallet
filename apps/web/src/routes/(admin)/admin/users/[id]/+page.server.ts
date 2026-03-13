@@ -1,8 +1,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { API_URL, getAuthHeaders } from '$lib/api';
 
-export const load: PageServerLoad = async ({ locals, fetch, params }) => {
+export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) {
 		throw redirect(302, '/login');
 	}
@@ -11,47 +10,39 @@ export const load: PageServerLoad = async ({ locals, fetch, params }) => {
 		throw redirect(302, '/dashboard');
 	}
 
-	const headers = getAuthHeaders(locals.accessToken);
-
 	// Fetch user details
-	const userRes = await fetch(`${API_URL}/v1/users/${params.id}`, { headers });
+	const { data: userData, error: userError } = await locals.api.v1.users({ id: params.id }).get();
 
-	if (!userRes.ok) {
+	if (userError) {
 		return { targetUser: null, debts: [], error: 'User not found' };
 	}
 
-	const userWrapper = await userRes.json();
 	// API returns { success: true, data: { user: {...} } }
-	const user = userWrapper.data?.user || null;
+	const user = userData?.user || null;
 
 	// Fetch user's debts
-	const debtsRes = await fetch(`${API_URL}/v1/debts/user/${params.id}`, { headers });
+	const { data: debtsData } = await locals.api.v1.debts.user({ userId: params.id }).get();
 
-	const debtsWrapper = debtsRes.ok ? await debtsRes.json() : { data: { debts: [] } };
 	// API returns { success: true, data: { debts: [...] } }
-	const debts = debtsWrapper.data?.debts || [];
+	const debts = debtsData?.debts || [];
 
 	return { targetUser: user, debts };
 };
 
 export const actions: Actions = {
-	toggleStatus: async ({ locals, fetch, params }) => {
+	toggleStatus: async ({ locals, params }) => {
 		if (!locals.user || locals.user.role !== 'admin') {
 			return fail(403, { error: 'Access denied' });
 		}
 
-		const headers = getAuthHeaders(locals.accessToken);
+		const { error, status } = await locals.api.v1.users({ id: params.id }).status.patch();
 
-		const response = await fetch(`${API_URL}/v1/users/${params.id}/status`, {
-			method: 'PATCH',
-			headers
-		});
-
-		if (!response.ok) {
-			const data = await response.json().catch(() => ({}));
+		if (error) {
 			const errorMsg =
-				data.error?.message || data.error?.details || data.message || 'Failed to update status';
-			return fail(response.status, { error: errorMsg });
+				(error.value as any)?.message ||
+				(error.value as any)?.details ||
+				'Failed to update status';
+			return fail(typeof status === 'number' ? status : 500, { error: errorMsg });
 		}
 
 		return { success: true };

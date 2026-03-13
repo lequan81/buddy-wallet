@@ -328,10 +328,10 @@ export class DebtService implements IDebtService {
         code: 'VALIDATION_ERROR'
       };
     }
-    const { amount, description, counterpartyPhone, direction } = parseResult.output;
+    const { amount, description, phoneNumber, direction } = parseResult.output;
 
     // Normalize counterparty phone
-    const normalizedCounterpartyPhone = normalizePhoneNumber(counterpartyPhone);
+    const normalizedCounterpartyPhone = normalizePhoneNumber(phoneNumber);
     if (!normalizedCounterpartyPhone) {
       return {
         success: false,

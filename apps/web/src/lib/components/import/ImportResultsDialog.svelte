@@ -1,42 +1,15 @@
 <script lang="ts">
+	import { ExternalLink, FileSpreadsheet } from '@repo/icons';
 	import { createEventDispatcher } from 'svelte';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Badge } from '@repo/ui/components/ui/badge';
-	import { cn } from '$lib/utils';
-	import IconLucideExternalLink from '~icons/lucide/external-link';
-	import IconLucideFileSpreadsheet from '~icons/lucide/file-spreadsheet';
-
-	interface ImportLog {
-		id: string;
-		fileName: string;
-		status: string;
-		totalRows: number;
-		importedCount: number;
-		errorCount: number;
-		createdAt: string;
-		previewLogId?: string;
-		errors?: string;
-	}
-
-	interface ImportResult {
-		importedDebts: Array<{
-			id: string;
-			description: string;
-			amount: number;
-			debtorName?: string;
-			creditorName?: string;
-		}>;
-		skippedRows: Array<{
-			rowNumber: number;
-			reason: string;
-		}>;
-	}
+	import type { ImportLog, ImportDetailResult } from '@repo/types';
 
 	let { log } = $props<{ log: ImportLog }>();
 	let showResults = $state(false);
 	let loadingResults = $state(false);
-	let results: ImportResult | null = $state(null);
+	let results: ImportDetailResult | null = $state(null);
 
 	const dispatch = createEventDispatcher<{
 		viewDebt: void;
@@ -47,7 +20,7 @@
 		
 		loadingResults = true;
 		try {
-			const response = await fetch(`/v1/import/results/${log.previewLogId}`);
+			const response = await fetch(`/dashboard/import/results/${log.previewLogId}`);
 			if (response.ok) {
 				results = await response.json();
 				showResults = true;
@@ -59,7 +32,7 @@
 		}
 	}
 
-	function handleViewDebt(debtId: string) {
+	function handleViewDebt(_debtId: string) {
 		dispatch('viewDebt');
 	}
 
@@ -73,7 +46,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
-				<IconLucideFileSpreadsheet class="h-5 w-5" />
+				<FileSpreadsheet class="h-5 w-5" />
 				Import Results: {log.fileName}
 			</Card.Title>
 			<Card.Description>
@@ -111,7 +84,7 @@
 	<!-- Load Results Button -->
 	{#if log.previewLogId && log.status === 'success' && !showResults}
 		<Button 
-			on:click={loadImportResults}
+			onclick={loadImportResults}
 			disabled={loadingResults}
 			class="w-full"
 		>
@@ -156,9 +129,9 @@
 							<Button
 								size="sm"
 								variant="outline"
-								on:click={() => handleViewDebt(debt.id)}
+								onclick={() => handleViewDebt(debt.id)}
 							>
-								<IconLucideExternalLink class="h-3 w-3 mr-1" />
+								<ExternalLink class="h-3 w-3 mr-1" />
 								View
 							</Button>
 						</div>

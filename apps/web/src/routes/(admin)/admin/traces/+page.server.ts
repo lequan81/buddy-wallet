@@ -1,13 +1,18 @@
 import type { PageServerLoad } from './$types';
-import { API_URL } from '$lib/api';
 
-export const load: PageServerLoad = async ({ fetch }) => {
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		const res = await fetch(`${API_URL}/v1/traces`);
-		const traces = await res.json();
+		const { data, error } = await locals.api.traces.json.get();
+
+		if (error) {
+			return {
+				traces: [],
+				error: 'Failed to fetch traces'
+			};
+		}
 
 		return {
-			traces: traces.data || []
+			traces: (data as any)?.traces || []
 		};
 	} catch (_) {
 		return {

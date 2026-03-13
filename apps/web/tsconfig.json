@@ -2,12 +2,19 @@
 	"extends": ["@repo/typescript-config/svelte.json", "./.svelte-kit/tsconfig.json"],
 	"exclude": ["node_modules", "dist", ".svelte-kit", "build", "package.json"],
 	"compilerOptions": {
+		"lib": ["esnext", "DOM", "DOM.Iterable"],
 		"rewriteRelativeImportExtensions": true,
 		"moduleResolution": "bundler",
 		"strict": true,
 		"types": ["unplugin-icons/types/svelte"]
 	},
-	"include": ["src/**/*.d.ts", "src/**/*.ts", "src/**/*.js", "src/**/*.svelte"]
+	"include": [
+		"src/**/*.d.ts",
+		"src/**/*.ts",
+		"src/**/*.js",
+		"src/**/*.svelte",
+		"src/auto-imports.d.ts"
+	]
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
 	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
 	//

@@ -1,4 +1,5 @@
-﻿<script lang="ts">
+<script lang="ts">
+	import { Loader2 } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
@@ -6,28 +7,17 @@
 	import * as Card from '@repo/ui/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
+	import { loginSchema, validateField } from '@repo/validation/client';
 	let { form, data } = $props();
 
 	let email = $state('');
 	let password = $state('');
 	let isSubmitting = $state(false);
 
-	// Validation states
-	let emailError = $state('');
-	let passwordError = $state('');
-
-	/* Validation now accepts either email format or a phone number of sufficient length */
-	const isValidIdentifier = $derived(email.length >= 3);
+	// Validation driven by shared schema
+	const emailValidation = $derived(validateField(loginSchema.entries.email, email));
+	const isValidIdentifier = $derived(emailValidation.state !== 'error' && email !== '');
 	const canSubmit = $derived(isValidIdentifier && password.length > 0 && !isSubmitting);
-
-	// Validate email/phone  as user types
-	$effect(() => {
-		if (email.length > 0 && email.length < 3) {
-			emailError = 'Must be at least 3 characters';
-		} else {
-			emailError = '';
-		}
-	});
 
 	// Show success toast after registration
 	$effect(() => {
@@ -68,10 +58,9 @@
 					return async ({ result, update }) => {
 						isSubmitting = false;
 
-						// If login successful (redirect), use full page reload to ensure cookies are set
-						// Client-side navigation can race with cookie processing
+						// If login successful (redirect), use SvelteKit navigation to avoid FOUC
 						if (result.type === 'redirect') {
-							window.location.href = result.location;
+							await goto(result.location, { invalidateAll: true });
 						} else {
 							// For errors, just update the form
 							await update();
@@ -87,8 +76,8 @@
 					type="text"
 					placeholder="Email or 0901234567"
 					bind:value={email}
-					validationState={emailError ? 'error' : 'default'}
-					error={emailError}
+					validationState={emailValidation.state}
+					error={emailValidation.message}
 					required
 				/>
 
@@ -99,8 +88,7 @@
 					type="password"
 					placeholder="Enter your password"
 					bind:value={password}
-					validationState={passwordError ? 'error' : 'default'}
-					error={passwordError}
+					validationState="default"
 					showPasswordToggle={true}
 					required
 				/>
@@ -120,7 +108,7 @@
 				<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>
 					<span class="inline-flex items-center justify-center">
 						{#if isSubmitting}
-							<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
+							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 							Signing in...
 						{:else}
 							Sign in

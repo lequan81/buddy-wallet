@@ -1,11 +1,9 @@
 <script lang="ts">
+	import { AlertTriangle, RefreshCw, WifiOff } from '@repo/icons';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Badge } from '@repo/ui/components/ui/badge';
 	import { cn } from '$lib/utils';
-	import IconLucideRefreshCw from '~icons/lucide/refresh-cw';
-	import IconLucideAlertTriangle from '~icons/lucide/alert-triangle';
-	import IconLucideWifiOff from '~icons/lucide/wifi-off';
 
 	interface Props {
 		onRetry: () => void;
@@ -65,7 +63,7 @@
 	<Card.Root>
 		<Card.Header class="text-center">
 			<Card.Title class="flex items-center justify-center gap-2">
-				<IconLucideWifiOff class="h-5 w-5 text-orange-500" />
+				<WifiOff class="h-5 w-5 text-orange-500" />
 				Connection Issues
 			</Card.Title>
 			<Card.Description>
@@ -86,7 +84,7 @@
 			<div class="space-y-4">
 				{#if isRetrying}
 					<div class="flex items-center justify-center p-4">
-						<IconLucideRefreshCw class="h-8 w-8 animate-spin text-primary" />
+						<RefreshCw class="h-8 w-8 animate-spin text-primary" />
 						<span class="ml-3">Retrying connection...</span>
 					</div>
 				{/if}
@@ -97,7 +95,7 @@
 						disabled={isRetrying && countdown > 0}
 						class="w-full"
 					>
-						<IconLucideRefreshCw class="h-4 w-4 mr-2" />
+						<RefreshCw class="h-4 w-4 mr-2" />
 						{isRetrying && countdown > 0 ? `Retry in ${countdown}s` : 'Retry Connection'}
 					</Button>
 
@@ -107,7 +105,7 @@
 							onclick={handleUseOfflineClick}
 							class="w-full"
 						>
-							<IconLucideWifiOff class="h-4 w-4 mr-2" />
+							<WifiOff class="h-4 w-4 mr-2" />
 							Continue Offline
 						</Button>
 					{/if}
@@ -116,7 +114,7 @@
 				{#if errorMessage}
 					<div class="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
 						<div class="flex items-start gap-2">
-							<IconLucideAlertTriangle class="h-4 w-4 text-orange-600 mt-0.5" />
+							<AlertTriangle class="h-4 w-4 text-orange-600 mt-0.5" />
 							<div class="text-sm text-orange-800">
 								<strong>Troubleshooting:</strong>
 								<ul class="mt-1 ml-4 list-disc">

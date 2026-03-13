@@ -1,7 +1,7 @@
-﻿<script lang="ts">
-	// @ts-nocheck — TODO: fix 21 pre-existing TS errors (null safety, type mismatches) in a dedicated refactor
+<script lang="ts">
+	import { AlertTriangle, ArrowLeft, CheckCircle, Clock, Eye, FileSpreadsheet, Loader2, Settings2, Upload, X } from '@repo/icons';
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -14,31 +14,23 @@
 	import * as Table from '@repo/ui/components/ui/table';
 	import * as Dialog from '@repo/ui/components/ui/dialog';
 	import { Progress } from '@repo/ui/components/ui/progress';
-	import { apiFetch } from '$lib/api';
 	import { importProgress } from '$lib/stores/import-progress.svelte';
 	import ConnectionFallback from '$lib/components/shared/ConnectionFallback.svelte';
 	import { cn } from '$lib/utils';
 	import { browser } from '$app/environment';
-	import type { UploadState } from '$lib/types/import';
+	import type { UploadState } from '$lib/types';
 	import { importUpload } from '$lib/stores/import-upload.svelte';
 	import { IMPORT_DB_FIELDS } from '@repo/config';
 	import * as m from '$lib/paraglide/messages';
 
-	import IconLucideArrowLeft from '~icons/lucide/arrow-left';
-	import IconLucideSettings2 from '~icons/lucide/settings-2';
-	import IconLucideSend from '~icons/lucide/send';
-	import IconLucideUpload from '~icons/lucide/upload';
-	import IconLucideFileSpreadsheet from '~icons/lucide/file-spreadsheet';
-	import IconLucideLoader2 from '~icons/lucide/loader-2';
-	import IconLucideCheckCircle from '~icons/lucide/check-circle';
-	import IconLucideAlertTriangle from '~icons/lucide/alert-triangle';
-	import IconLucideCopy from '~icons/lucide/copy';
-	import IconLucideXCircle from '~icons/lucide/x-circle';
-	import IconLucideClock from '~icons/lucide/clock';
-	import IconLucideChevronLeft from '~icons/lucide/chevron-left';
-	import IconLucideChevronRight from '~icons/lucide/chevron-right';
-	import IconLucideEye from '~icons/lucide/eye';
-	import IconLucideTrash2 from '~icons/lucide/trash-2';
+	// Type for import job preview result
+	interface PreviewResult {
+		fileName?: string;
+		totalRows?: number;
+		columnHeaders?: string[];
+		previewData?: string[][];
+		autoMapping?: Record<string, string>;
+	}
 
 	// i18n field label resolver
 	const fieldLabels: Record<string, () => string> = {
@@ -99,11 +91,11 @@
 	let startRow = $state(2);
 	let fileInput: HTMLInputElement | undefined = $state(undefined);
 
-	// === HISTORY STATE ===
-	let loadingHistory = $state(true);
-	let logs = $state<any[]>([]);
-	let historyPage = $state(1);
-	let historyTotalPages = $state(1);
+	// === HISTORY STATE (from server load) ===
+	let loadingHistory = $state(false);
+	let logs = $state<any[]>(data.logs as any[] || []);
+	let historyPage = $state(data.historyPage || 1);
+	let historyTotalPages = $state(data.historyTotalPages || 1);
 	let selectedLog = $state<any | null>(null);
 	let showDetails = $state(false);
 	let showConnectionFallback = $state(false);
@@ -121,43 +113,26 @@
 
 	// === FUNCTIONS ===
 	async function fetchLogs(p: number = 1) {
-		loadingHistory = true;
-		showConnectionFallback = false;
+		// Navigate with historyPage param and invalidate to re-run server load
+		const url = new URL(window.location.href);
+		url.searchParams.set('historyPage', p.toString());
+		await goto(url.toString(), { replaceState: true, invalidateAll: true });
+		// After navigation, data prop will have updated logs
+		logs = data.logs as any[] || [];
+		historyPage = data.historyPage || p;
+		historyTotalPages = data.historyTotalPages || 1;
 
-		// Add timeout for Redis connection
-		const timeoutPromise = new Promise((_, reject) =>
-			setTimeout(() => reject(new Error('Request timeout')), 15000)
-		);
-
-		try {
-			const res = await Promise.race([
-				apiFetch<any>(`/v1/import/logs?page=${p}&limit=10`),
-				timeoutPromise
-			]);
-
-			if (!res.error && res.data) {
-				const payload = res.data;
-				logs = payload.logs ?? [];
-				historyPage = payload.page ?? p;
-				historyTotalPages = payload.totalPages ?? 1;
-
-				const threeHoursAgo = Date.now() - 3 * 60 * 60 * 1000;
-				for (const log of logs) {
-					if (log.status === 'processing' || log.status === 'pending') {
-						const logTime = new Date(log.createdAt).getTime();
-						if (logTime > threeHoursAgo) {
-							if (!importProgress.getJob(log.id)) {
-								importProgress.addJob(log.id, 'import', log.fileName);
-							}
-						}
+		// Track active jobs from history
+		const threeHoursAgo = Date.now() - 3 * 60 * 60 * 1000;
+		for (const log of logs) {
+			if (log.status === 'processing' || log.status === 'pending') {
+				const logTime = new Date(log.createdAt).getTime();
+				if (logTime > threeHoursAgo) {
+					if (!importProgress.getJob(log.id)) {
+						importProgress.addJob(log.id, 'import', log.fileName);
 					}
 				}
 			}
-		} catch (err) {
-			connectionError = err instanceof Error ? err.message : 'Failed to load import history';
-			showConnectionFallback = true;
-		} finally {
-			loadingHistory = false;
 		}
 	}
 
@@ -169,28 +144,39 @@
 		uploadState.file = file;
 		uploadState.fileName = file.name;
 		uploadState.status = 'uploading';
-		saveUploadState();
-
-		const formData = new FormData();
-		formData.append('file', file);
 
 		try {
-			// Generate preview directly (no separate upload step)
-			const previewResponse = await apiFetch('/v1/import/preview', {
+			// Submit via form action (server-side)
+			const formData = new FormData();
+			formData.append('file', file);
+
+			const response = await fetch('?/preview', {
 				method: 'POST',
 				body: formData
 			});
+			const result = await response.json();
+			// SvelteKit form action responses are nested under `data` with a `type` field
+			const actionData = result?.type === 'success' ? result.data : result?.data;
 
-			if (previewResponse.data) {
-				currentJobId = previewResponse.data.jobId;
-				// Add job to progress store for polling
+			if (actionData?.success && actionData?.jobId) {
+				currentJobId = actionData.jobId;
 				importProgress.addJob(currentJobId, 'preview', file.name);
 				uploadState.status = 'preview-loading';
-				saveUploadState();
 				toast.success('File uploaded and preview generation started!');
+
+				// If preview data is already available (synchronous preview)
+				if (actionData.previewData) {
+					uploadState.status = 'preview-ready';
+					uploadState.totalRows = actionData.totalRows || 0;
+					uploadState.columnHeaders = actionData.columnHeaders || [];
+					uploadState.previewData = actionData.previewData || [];
+					if (actionData.autoMapping) {
+						columnMapping = { ...columnMapping, ...actionData.autoMapping };
+					}
+				}
 			} else {
 				uploadState.status = 'error';
-				uploadState.error = previewResponse.error || 'Upload failed';
+				uploadState.error = actionData?.message || 'Upload failed';
 			}
 		} catch (error) {
 			uploadState.status = 'error';
@@ -207,24 +193,27 @@
 		isSubmitting = true;
 
 		try {
+			const config = {
+				mapping: columnMapping,
+				startRow
+			};
+
+			// Submit via form action (server-side)
 			const formData = new FormData();
 			formData.append('file', uploadState.file!);
-			formData.append(
-				'config',
-				JSON.stringify({
-					mapping: columnMapping,
-					startRow
-				})
-			);
+			formData.append('config', JSON.stringify(config));
+			formData.append('previewLogId', currentJobId || '');
 
-			const response = await apiFetch('/v1/import/debts', {
+			const response = await fetch('?/import', {
 				method: 'POST',
 				body: formData
 			});
+			const result = await response.json();
+			const actionData = result?.type === 'success' ? result.data : result?.data;
 
-			if (response.data) {
-				toast.success(`Import started! Job ID: ${response.data.jobId}`);
-				currentJobId = response.data.jobId;
+			if (actionData?.success && actionData?.jobId) {
+				toast.success(`Import started! Job ID: ${actionData.jobId}`);
+				currentJobId = actionData.jobId;
 
 				// Reset state after successful import
 				resetUploadState();
@@ -232,7 +221,7 @@
 				// Refresh history
 				fetchLogs();
 			} else {
-				toast.error(response.error || 'Import failed');
+				toast.error(actionData?.message || 'Import failed');
 			}
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : 'Import failed');
@@ -249,20 +238,13 @@
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 	};
 
-	const getStatusColor = (status: string) => {
-		switch (status) {
-			case 'success':
-				return 'text-green-600';
-			case 'processing':
-				return 'text-blue-600';
-			case 'failed':
-				return 'text-red-600';
-			case 'pending':
-				return 'text-yellow-600';
-			default:
-				return 'text-gray-600';
-		}
+	const STATUS_COLORS: Record<string, string> = {
+		success: 'text-green-600',
+		processing: 'text-blue-600',
+		failed: 'text-red-600',
+		pending: 'text-yellow-600',
 	};
+	const getStatusColor = (status: string) => STATUS_COLORS[status] || 'text-gray-600';
 
 	function viewDetails(log: any) {
 		selectedLog = log;
@@ -287,8 +269,18 @@
 			startRow = importUpload.startRow;
 		}
 
-		// Always fetch history
-		fetchLogs();
+		// Track active jobs from server-loaded history
+		const threeHoursAgo = Date.now() - 3 * 60 * 60 * 1000;
+		for (const log of logs) {
+			if (log.status === 'processing' || log.status === 'pending') {
+				const logTime = new Date(log.createdAt).getTime();
+				if (logTime > threeHoursAgo) {
+					if (!importProgress.getJob(log.id)) {
+						importProgress.addJob(log.id, 'import', log.fileName);
+					}
+				}
+			}
+		}
 	});
 
 	// Sync state to importUpload store (survives SPA navigation)
@@ -316,7 +308,7 @@
 
 	$effect(() => {
 		if (currentJob?.status === 'success' && currentJob.result) {
-			const res = currentJob.result;
+			const res = currentJob.result as PreviewResult;
 			if (currentJob.type === 'preview') {
 				uploadState.status = 'preview-ready';
 				uploadState.fileName = res.fileName || uploadState.fileName;
@@ -366,7 +358,7 @@
 			<p class="text-muted-foreground">Bulk import debts from spreadsheet files</p>
 		</div>
 		<Button href="/dashboard" variant="ghost">
-			<IconLucideArrowLeft class="mr-2 h-4 w-4" />
+			<ArrowLeft class="mr-2 h-4 w-4" />
 			Back to Dashboard
 		</Button>
 	</div>
@@ -376,7 +368,7 @@
 		<Card.Root>
 			<Card.Header>
 				<Card.Title class="flex items-center gap-2">
-					<IconLucideFileSpreadsheet class="h-5 w-5" /> Import Debts
+					<FileSpreadsheet class="h-5 w-5" /> Import Debts
 				</Card.Title>
 				<Card.Description>Upload an Excel file to bulk import debts.</Card.Description>
 			</Card.Header>
@@ -399,7 +391,7 @@
 						ondrop={(e) => {
 							e.preventDefault();
 							e.stopPropagation();
-							const file = e.dataTransfer.files[0];
+							const file = e.dataTransfer?.files[0];
 							if (file) handleFileUpload(file);
 						}}
 						onclick={() => fileInput?.click()}
@@ -410,7 +402,7 @@
 							}
 						}}
 					>
-						<IconLucideFileSpreadsheet class="mx-auto mb-4 h-12 w-12 text-gray-400" />
+						<FileSpreadsheet class="mx-auto mb-4 h-12 w-12 text-gray-400" />
 						<p class="mb-4 text-gray-600">Drag and drop your file here, or click to browse</p>
 						<p class="mb-4 text-sm text-gray-500">
 							Supported formats: .xlsx, .xls, .csv (Max 10MB)
@@ -433,27 +425,27 @@
 								fileInput?.click();
 							}}
 						>
-							<IconLucideUpload class="mr-2 h-4 w-4" />
+							<Upload class="mr-2 h-4 w-4" />
 							Choose File
 						</Button>
 					</div>
 				{:else if uploadState.status === 'uploading'}
 					<div class="py-8 text-center">
-						<IconLucideLoader2 class="mx-auto mb-4 h-8 w-8 animate-spin text-blue-600" />
+						<Loader2 class="mx-auto mb-4 h-8 w-8 animate-spin text-blue-600" />
 						<p class="mb-2 text-lg font-medium">Uploading file...</p>
 						<p class="text-gray-600">{uploadState.fileName}</p>
 						<Progress value={uploadState.uploadProgress} class="mx-auto mt-4 max-w-md" />
 					</div>
 				{:else if uploadState.status === 'uploaded'}
 					<div class="py-8 text-center">
-						<IconLucideCheckCircle class="mx-auto mb-4 h-8 w-8 text-green-600" />
+						<CheckCircle class="mx-auto mb-4 h-8 w-8 text-green-600" />
 						<p class="mb-2 text-lg font-medium">File uploaded successfully!</p>
 						<p class="text-gray-600">{uploadState.fileName}</p>
 						<p class="mb-4 text-sm text-gray-500">Generating preview...</p>
 					</div>
 				{:else if uploadState.status === 'preview-loading'}
 					<div class="py-8 text-center">
-						<IconLucideLoader2 class="mx-auto mb-4 h-8 w-8 animate-spin text-blue-600" />
+						<Loader2 class="mx-auto mb-4 h-8 w-8 animate-spin text-blue-600" />
 						<p class="mb-2 text-lg font-medium">Generating preview...</p>
 						<p class="mb-4 text-gray-600">{uploadState.fileName}</p>
 						<Button
@@ -468,7 +460,7 @@
 							variant="outline"
 							size="sm"
 						>
-							<IconLucideX class="mr-2 h-4 w-4" />
+							<X class="mr-2 h-4 w-4" />
 							Cancel / Start Over
 						</Button>
 					</div>
@@ -478,7 +470,7 @@
 						<Card.Root>
 							<Card.Header>
 								<Card.Title class="flex items-center gap-2">
-									<IconLucideSettings2 class="h-5 w-5" /> Preview & Mapping
+									<Settings2 class="h-5 w-5" /> Preview & Mapping
 								</Card.Title>
 								<Card.Description>
 									{uploadState.totalRows} rows found. Map columns to database fields.
@@ -531,9 +523,6 @@
 															<option value={header}>{header}</option>
 														{/each}
 													</select>
-													{#if field.description}
-														<p class="text-xs text-gray-500">{field.description}</p>
-													{/if}
 												</div>
 											{/each}
 										</div>
@@ -564,7 +553,7 @@
 												disabled={missingRequired.length > 0 || isSubmitting}
 											>
 												{#if isSubmitting}
-													<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
+													<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 												{/if}
 												Import Debts
 											</Button>
@@ -576,7 +565,7 @@
 					</div>
 				{:else if uploadState.status === 'error'}
 					<div class="py-8 text-center">
-						<IconLucideAlertTriangle class="mx-auto mb-4 h-8 w-8 text-red-600" />
+						<AlertTriangle class="mx-auto mb-4 h-8 w-8 text-red-600" />
 						<p class="mb-2 text-lg font-medium">Upload failed</p>
 						<p class="mb-4 text-gray-600">{uploadState.error}</p>
 						<Button onclick={() => resetUploadState()} class="mt-4">Try Again</Button>
@@ -589,7 +578,7 @@
 		<Card.Root class="sticky top-6">
 			<Card.Header class="border-b border-border/40 pb-3">
 				<Card.Title class="flex items-center gap-2 text-base">
-					<IconLucideClock class="h-4 w-4 text-muted-foreground" /> Recent Imports
+					<Clock class="h-4 w-4 text-muted-foreground" /> Recent Imports
 				</Card.Title>
 			</Card.Header>
 			<Card.Content class="p-0">
@@ -597,7 +586,7 @@
 					<Table.Body>
 						{#if showConnectionFallback}
 							<Table.Row>
-								<Table.Cell colspan="3" class="p-4">
+								<Table.Cell colspan={3} class="p-4">
 									<ConnectionFallback
 										onRetry={() => fetchLogs(historyPage)}
 										onUseOffline={() => (showConnectionFallback = false)}
@@ -610,7 +599,7 @@
 						{:else if loadingHistory}
 							<Table.Row>
 								<Table.Cell class="h-24 text-center">
-									<IconLucideLoader2 class="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+									<Loader2 class="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
 								</Table.Cell>
 							</Table.Row>
 						{:else if logs.length === 0}
@@ -659,7 +648,7 @@
 																onclick={() =>
 																	(window as any).open(`/dashboard/import?log=${log.id}`, '_blank')}
 															>
-																<IconLucideEye class="h-3.5 w-3.5" />
+																<Eye class="h-3.5 w-3.5" />
 															</Button>
 														{/if}
 
@@ -675,7 +664,7 @@
 																		'_blank'
 																	)}
 															>
-																<IconLucideFileSpreadsheet class="h-3.5 w-3.5" />
+																<FileSpreadsheet class="h-3.5 w-3.5" />
 															</Button>
 														{/if}
 													</div>
@@ -692,7 +681,7 @@
 															{formatDate(log.createdAt)}
 														</span>
 													</div>
-													<Progress value={activeJob.progress || 0} class="w-full" />
+													<Progress value={activeJob.progress?.percentage || 0} class="w-full" />
 												</div>
 											{/if}
 										</div>
@@ -721,7 +710,7 @@
 							(window as any).open(`/dashboard/import?log=${selectedLog.id}`, '_blank')}
 						class="ml-auto"
 					>
-						<IconLucideFileSpreadsheet class="h-4 w-4" />
+						<FileSpreadsheet class="h-4 w-4" />
 					</Button>
 				{/if}
 			</Dialog.Title>
@@ -775,7 +764,7 @@
 						class="flex-1"
 						onclick={() => goto(`/dashboard/preview/${selectedLog.id}`)}
 					>
-						<IconLucideSettings2 class="mr-2 h-4 w-4" />
+						<Settings2 class="mr-2 h-4 w-4" />
 						View Preview / Mapping
 					</Button>
 					{#if selectedLog.previewLogId}
@@ -785,7 +774,7 @@
 							onclick={() =>
 								(window as any).open(`/debts?import=${selectedLog.previewLogId}`, '_blank')}
 						>
-							<IconLucideEye class="mr-2 h-4 w-4" />
+							<Eye class="mr-2 h-4 w-4" />
 							View Imported Debts
 						</Button>
 					{/if}
@@ -800,7 +789,7 @@
 							goto(`/dashboard/preview/${selectedLog.id}`);
 						}}
 					>
-						<IconLucideSettings2 class="mr-2 h-4 w-4" />
+						<Settings2 class="mr-2 h-4 w-4" />
 						Continue / Check Progress
 					</Button>
 				</div>
@@ -814,7 +803,7 @@
 							goto(`/dashboard/preview/${selectedLog.id}`);
 						}}
 					>
-						<IconLucideSettings2 class="mr-2 h-4 w-4" />
+						<Settings2 class="mr-2 h-4 w-4" />
 						Continue Mapping
 					</Button>
 				</div>

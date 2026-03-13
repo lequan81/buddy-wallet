@@ -1,24 +1,10 @@
 <script lang="ts">
+	import { Download, FileText, Share } from '@repo/icons';
 	import { createEventDispatcher } from 'svelte';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Badge } from '@repo/ui/components/ui/badge';
-	import { cn } from '$lib/utils';
-	import IconLucideDownload from '~icons/lucide/download';
-	import IconLucideShare from '~icons/lucide/share';
-	import IconLucideFileText from '~icons/lucide/file-text';
-
-	interface ImportLog {
-		id: string;
-		fileName: string;
-		status: string;
-		totalRows: number;
-		importedCount: number;
-		errorCount: number;
-		createdAt: string;
-		previewLogId?: string;
-		errors?: string;
-	}
+	import type { ImportLog } from '@repo/types';
 
 	let { log } = $props<{ log: ImportLog }>();
 
@@ -31,7 +17,7 @@
 		if (!log.previewLogId) return;
 		
 		try {
-			const response = await fetch(`/v1/import/export/${log.previewLogId}`);
+			const response = await fetch(`/dashboard/import/export/${log.previewLogId}`);
 			if (response.ok) {
 				const blob = await response.blob();
 				const url = window.URL.createObjectURL(blob);
@@ -54,10 +40,8 @@
 		if (!log.previewLogId) return;
 		
 		try {
-			const response = await fetch(`/v1/import/export/${log.previewLogId}`);
+			const response = await fetch(`/dashboard/import/export/${log.previewLogId}`);
 			if (response.ok) {
-				const results = await response.json();
-				
 				if (navigator.share) {
 					await navigator.share({
 						title: `Import Results: ${log.fileName}`,
@@ -95,7 +79,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
-				<IconLucideFileText class="h-5 w-5" />
+				<FileText class="h-5 w-5" />
 				Import Summary: {log.fileName}
 			</Card.Title>
 			<Card.Description>
@@ -138,20 +122,20 @@
 		<Card.Content>
 			<div class="flex flex-col sm:flex-row gap-3">
 				<Button 
-					on:click={downloadResults}
+					onclick={downloadResults}
 					class="flex-1"
 					variant="outline"
 				>
-					<IconLucideDownload class="h-4 w-4 mr-2" />
+					<Download class="h-4 w-4 mr-2" />
 					Download Results
 				</Button>
 				
 				<Button 
-					on:click={shareResults}
+					onclick={shareResults}
 					class="flex-1"
 					variant="outline"
 				>
-					<IconLucideShare class="h-4 w-4 mr-2" />
+					<Share class="h-4 w-4 mr-2" />
 					Share Results
 				</Button>
 			</div>

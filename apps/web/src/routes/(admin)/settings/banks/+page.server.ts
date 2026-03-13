@@ -1,31 +1,22 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { API_URL, getAuthHeaders, safeJsonParse } from '$lib/api';
-import type { BankResponse, AccountsResponse } from '@repo/types';
+import { accountNumberSchema, accountNameSchema, v } from '@repo/validation/client';
 
 export const load: PageServerLoad = async ({
-	fetch,
 	locals
-}: {
-	fetch: typeof window.fetch;
-	locals: App.Locals;
 }) => {
 	if (!locals.user) return fail(401);
 
-	const headers = getAuthHeaders(locals.accessToken);
+	const { api } = locals;
 
-	// Parallel fetch
+	// Parallel fetch using Eden
 	const [banksRes, myAccountsRes] = await Promise.all([
-		fetch(`${API_URL}/v1/banks/list`, { headers }),
-		fetch(`${API_URL}/v1/banks/me`, { headers })
+		api.v1.banks.list.get(),
+		api.v1.banks.me.get()
 	]);
 
-	// Safe JSON parsing to handle server errors gracefully
-	const banksData = await safeJsonParse<BankResponse>(banksRes);
-	const accountsData = await safeJsonParse<AccountsResponse>(myAccountsRes);
-
-	const banks = banksData?.banks || [];
-	const accounts = accountsData?.accounts || [];
+	const banks = banksRes.data?.success ? banksRes.data.banks : [];
+	const accounts = myAccountsRes.data?.success ? myAccountsRes.data.accounts : [];
 
 	return {
 		banks,
@@ -36,24 +27,29 @@ export const load: PageServerLoad = async ({
 export const actions: Actions = {
 	add: async ({
 		request,
-		fetch,
 		locals
-	}: {
-		request: Request;
-		fetch: typeof window.fetch;
-		locals: App.Locals;
 	}) => {
 		if (!locals.user) return fail(401);
 
 		const formData = await request.formData();
-		const bankCode = formData.get('bankCode');
-		const bankName = formData.get('bankName');
-		const bankBin = formData.get('bankBin');
-		const accountNumber = formData.get('accountNumber');
-		const accountName = formData.get('accountName');
+		const bankCode = formData.get('bankCode') as string;
+		const bankName = formData.get('bankName') as string;
+		const bankBin = formData.get('bankBin') as string;
+		const accountNumber = formData.get('accountNumber') as string;
+		const accountName = formData.get('accountName') as string;
 		const isDefault = formData.get('isDefault') === 'on';
 
-		const headers = getAuthHeaders(locals.accessToken);
+		const accountValidation = v.safeParse(accountNumberSchema, accountNumber);
+		const nameValidation = v.safeParse(accountNameSchema, accountName);
+
+		if (!accountValidation.success) {
+			return fail(400, { message: accountValidation.issues[0].message });
+		}
+		if (!nameValidation.success) {
+			return fail(400, { message: nameValidation.issues[0].message });
+		}
+
+		const { api } = locals;
 
 		const payload = {
 			bankCode,
@@ -64,16 +60,10 @@ export const actions: Actions = {
 			isDefault
 		};
 
-		const res = await fetch(`${API_URL}/v1/banks/me`, {
-			method: 'POST',
-			body: JSON.stringify(payload),
-			headers
-		});
+		const { error, status } = await api.v1.banks.me.post(payload);
 
-		const data = await safeJsonParse<{ message?: string }>(res);
-
-		if (!res.ok) {
-			return fail(res.status, { message: data?.message || 'Failed to add account' });
+		if (error) {
+			return fail(status, { message: error?.value?.message || 'Failed to add account' });
 		}
 
 		return { success: true };
@@ -81,25 +71,30 @@ export const actions: Actions = {
 
 	edit: async ({
 		request,
-		fetch,
 		locals
-	}: {
-		request: Request;
-		fetch: typeof window.fetch;
-		locals: App.Locals;
 	}) => {
 		if (!locals.user) return fail(401);
 
 		const formData = await request.formData();
-		const id = formData.get('id');
-		const bankCode = formData.get('bankCode');
-		const bankName = formData.get('bankName');
-		const bankBin = formData.get('bankBin');
-		const accountNumber = formData.get('accountNumber');
-		const accountName = formData.get('accountName');
+		const id = formData.get('id') as string;
+		const bankCode = formData.get('bankCode') as string;
+		const bankName = formData.get('bankName') as string;
+		const bankBin = formData.get('bankBin') as string;
+		const accountNumber = formData.get('accountNumber') as string;
+		const accountName = formData.get('accountName') as string;
 		const isDefault = formData.get('isDefault') === 'on';
 
-		const headers = getAuthHeaders(locals.accessToken);
+		const accountValidation = v.safeParse(accountNumberSchema, accountNumber);
+		const nameValidation = v.safeParse(accountNameSchema, accountName);
+
+		if (!accountValidation.success) {
+			return fail(400, { message: accountValidation.issues[0].message });
+		}
+		if (!nameValidation.success) {
+			return fail(400, { message: nameValidation.issues[0].message });
+		}
+
+		const { api } = locals;
 
 		const payload = {
 			bankCode,
@@ -110,16 +105,11 @@ export const actions: Actions = {
 			isDefault
 		};
 
-		const res = await fetch(`${API_URL}/v1/banks/${id}`, {
-			method: 'PATCH',
-			body: JSON.stringify(payload),
-			headers
-		});
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const { error, status } = await (api.v1.banks({ id }) as any).patch(payload);
 
-		const data = await safeJsonParse<{ message?: string }>(res);
-
-		if (!res.ok) {
-			return fail(res.status, { message: data?.message || 'Failed to update account' });
+		if (error) {
+			return fail(status, { message: error?.value?.message || 'Failed to update account' });
 		}
 
 		return { success: true };
@@ -127,27 +117,19 @@ export const actions: Actions = {
 
 	delete: async ({
 		request,
-		fetch,
 		locals
-	}: {
-		request: Request;
-		fetch: typeof window.fetch;
-		locals: App.Locals;
 	}) => {
 		if (!locals.user) return fail(401);
 
 		const formData = await request.formData();
-		const id = formData.get('id');
+		const id = formData.get('id') as string;
 
-		const headers = getAuthHeaders(locals.accessToken);
+		const { api } = locals;
 
-		const res = await fetch(`${API_URL}/v1/banks/${id}`, {
-			method: 'DELETE',
-			headers
-		});
+		const { error, status } = await api.v1.banks({ id }).delete();
 
-		if (!res.ok) {
-			return fail(res.status, { message: 'Failed to delete account' });
+		if (error) {
+			return fail(status, { message: 'Failed to delete account' });
 		}
 
 		return { success: true };

@@ -1,4 +1,5 @@
-﻿<script lang="ts">
+<script lang="ts">
+	import { LayoutDashboard, LogOut, Menu, User, Wallet } from '@repo/icons';
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { Button, buttonVariants } from '@repo/ui/components/ui/button';
@@ -17,7 +18,7 @@
 		<!-- Logo -->
 		<div class="mr-4 hidden md:flex">
 			<a href="/" class="flex items-center space-x-2">
-				<IconLucideWallet class="h-5 w-5 text-muted-foreground" />
+				<Wallet class="h-5 w-5 text-muted-foreground" />
 				<span class="font-bold">Buddy Wallet</span>
 			</a>
 		</div>
@@ -25,13 +26,13 @@
 		<!-- Mobile Menu -->
 		<Sheet.Root>
 			<Sheet.Trigger class={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'md:hidden')}>
-				<IconLucideMenu class="h-5 w-5" />
+				<Menu class="h-5 w-5" />
 				<span class="sr-only">Toggle Menu</span>
 			</Sheet.Trigger>
 			<Sheet.Content side="left">
 				<div class="mb-6">
 					<a href="/" class="flex items-center space-x-2">
-						<IconLucideWallet class="h-5 w-5 text-muted-foreground" />
+						<Wallet class="h-5 w-5 text-muted-foreground" />
 						<span class="font-bold">Buddy Wallet</span>
 					</a>
 				</div>
@@ -41,7 +42,7 @@
 							href="/dashboard"
 							class="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
 						>
-							<IconLucideLayoutDashboard class="h-4 w-4" />
+							<LayoutDashboard class="h-4 w-4" />
 							Dashboard
 						</a>
 					{:else}
@@ -58,7 +59,7 @@
 
 		<!-- Mobile logo -->
 		<a href="/" class="flex items-center space-x-2 md:hidden">
-			<IconLucideWallet class="h-5 w-5 text-muted-foreground" />
+			<Wallet class="h-5 w-5 text-muted-foreground" />
 			<span class="font-bold">Buddy Wallet</span>
 		</a>
 
@@ -84,17 +85,17 @@
 						</DropdownMenu.Label>
 						<DropdownMenu.Separator />
 						<DropdownMenu.Item>
-							{#snippet child({ props }: { props: Record<string, any> })}
+							{#snippet child({ props }: { props: Record<string, unknown> })}
 								<a href="/dashboard" {...props} class="flex w-full items-center">
-									<IconLucideLayoutDashboard class="mr-2 h-4 w-4 text-muted-foreground" />
+									<LayoutDashboard class="mr-2 h-4 w-4 text-muted-foreground" />
 									Dashboard
 								</a>
 							{/snippet}
 						</DropdownMenu.Item>
 						<DropdownMenu.Item>
-							{#snippet child({ props }: { props: Record<string, any> })}
+							{#snippet child({ props }: { props: Record<string, unknown> })}
 								<a href="/settings/profile" {...props} class="flex w-full items-center">
-									<IconLucideUser class="mr-2 h-4 w-4 text-muted-foreground" />
+									<User class="mr-2 h-4 w-4 text-muted-foreground" />
 									Settings
 								</a>
 							{/snippet}
@@ -112,13 +113,13 @@
 							}}
 						>
 							<DropdownMenu.Item disabled={isLoggingOut}>
-								{#snippet child({ props }: { props: Record<string, any> })}
+								{#snippet child({ props }: { props: Record<string, unknown> })}
 									<button
 										type="submit"
 										{...props}
 										class="flex w-full items-center text-destructive"
 									>
-										<IconLucideLogOut class="mr-2 h-4 w-4" />
+										<LogOut class="mr-2 h-4 w-4" />
 										{isLoggingOut ? 'Logging out...' : 'Log out'}
 									</button>
 								{/snippet}

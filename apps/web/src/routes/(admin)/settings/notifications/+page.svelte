@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+	import { AlertTriangle, Bell, Mail } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '@repo/ui/components/ui/button';
@@ -66,7 +67,7 @@
 	{#if !canEnablePush}
 		<Card.Root class="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20">
 			<Card.Content class="flex items-start gap-3 pt-6">
-				<IconLucideAlertTriangle class="h-5 w-5 text-amber-600 dark:text-amber-400" />
+				<AlertTriangle class="h-5 w-5 text-amber-600 dark:text-amber-400" />
 				<div>
 					<p class="font-medium text-amber-800 dark:text-amber-200">Email verification required</p>
 					<p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
@@ -96,7 +97,7 @@
 						<div
 							class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30"
 						>
-							<IconLucideMail class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+							<Mail class="h-5 w-5 text-blue-600 dark:text-blue-400" />
 						</div>
 						<div class="space-y-1">
 							<Label for="emailNotifications" class="text-base font-medium">
@@ -122,7 +123,7 @@
 						<div
 							class="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30"
 						>
-							<IconLucideBell class="h-5 w-5 text-purple-600 dark:text-purple-400" />
+							<Bell class="h-5 w-5 text-purple-600 dark:text-purple-400" />
 						</div>
 						<div class="space-y-1">
 							<Label for="pushNotifications" class="text-base font-medium">

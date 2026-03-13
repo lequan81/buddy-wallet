@@ -2,19 +2,12 @@
  * @repo/validation - Shared Validation Logic
  *
  * All schemas are client-safe (browser-compatible).
- *
- * Import specific schemas:
- *   import { signupSchema } from '@repo/validation/auth';
- *
- * Or import everything:
- *   import { signupSchema, CreateDebtInputSchema } from '@repo/validation';
  */
 
-// Auth schemas
 export * from './src/auth';
-
-// Debt schemas
 export * from './src/debt';
-
-// Re-export valibot utilities
+export * from './src/bank';
+export * from './src/profile';
+export * from './src/helpers';
+export * as v from 'valibot';
 export * from 'valibot';

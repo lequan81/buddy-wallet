@@ -1,10 +1,9 @@
 <script lang="ts">
+	import { Download } from '@repo/icons';
 	import { onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { getCookie, setCookie } from '$lib/utils/cookie-utils';
-	// @ts-ignore
-	import IconLucideDownload from '~icons/lucide/download';
 
 	interface BeforeInstallPromptEvent extends Event {
 		prompt: () => Promise<{ outcome: 'accepted' | 'dismissed' }>;
@@ -80,7 +79,7 @@
 		onclick={handleInstall}
 		title="Install Buddy Wallet App"
 	>
-		<IconLucideDownload class="h-4 w-4" />
+		<Download class="h-4 w-4" />
 		Install App
 	</Button>
 
@@ -92,6 +91,6 @@
 		onclick={handleInstall}
 		title="Install Buddy Wallet App"
 	>
-		<IconLucideDownload class="h-5 w-5" />
+		<Download class="h-5 w-5" />
 	</Button>
 {/if}

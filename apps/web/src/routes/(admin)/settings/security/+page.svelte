@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+	import { AlertTriangle, Clock, Key, LogOut, Monitor, Shield, Smartphone, Tablet } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
 	import { toast } from 'svelte-sonner';
@@ -6,6 +7,7 @@
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Separator } from '@repo/ui/components/ui/separator';
+	import { cn } from '$lib/utils';
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
 	import { Badge } from '@repo/ui/components/ui/badge';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
@@ -121,11 +123,11 @@
 	function getDeviceIcon(deviceType: string | null) {
 		switch (deviceType?.toLowerCase()) {
 			case 'mobile':
-				return IconLucideSmartphone;
+				return Smartphone;
 			case 'tablet':
-				return IconLucideTablet;
+				return Tablet;
 			default:
-				return IconLucideMonitor;
+				return Monitor;
 		}
 	}
 </script>
@@ -153,7 +155,7 @@
 		<div
 			class="rounded-md bg-yellow-50 p-4 text-sm text-yellow-600 dark:bg-yellow-950 dark:text-yellow-400"
 		>
-			<IconLucideAlertTriangle class="mr-2 inline-block h-4 w-4" />
+			<AlertTriangle class="mr-2 inline-block h-4 w-4" />
 			Failed to load sessions: {data.error}
 		</div>
 	{/if}
@@ -164,7 +166,7 @@
 			<div class="flex items-center justify-between">
 				<div>
 					<Card.Title class="flex items-center gap-2">
-						<IconLucideShield class="h-5 w-5" />
+						<Shield class="h-5 w-5" />
 						Active Sessions
 					</Card.Title>
 					<Card.Description>
@@ -176,7 +178,7 @@
 						<AlertDialog.Trigger>
 							{#snippet child({ props }: { props: Record<string, any> })}
 								<Button variant="destructive" size="sm" {...props}>
-									<IconLucideLogOut class="mr-2 h-4 w-4" />
+									<LogOut class="mr-2 h-4 w-4" />
 									Logout All Devices
 								</Button>
 							{/snippet}
@@ -225,9 +227,10 @@
 					{@const DeviceIcon = getDeviceIcon(session.deviceType)}
 					{@const isCurrent = session.id === data.currentSessionId}
 					<div
-						class="flex items-start justify-between rounded-lg border p-4 {isCurrent
-							? 'border-primary bg-primary/5'
-							: ''}"
+						class={cn(
+							'flex items-start justify-between rounded-lg border p-4',
+							isCurrent && 'border-primary bg-primary/5'
+						)}
 					>
 						<div class="flex gap-4">
 							<div class="mt-1">
@@ -263,15 +266,15 @@
 									</p>
 								</div>
 								<div class="flex items-center gap-1 text-sm text-muted-foreground">
-									<IconLucideClock class="h-3 w-3" />
+									<Clock class="h-3 w-3" />
 									{#if isCurrent}
 										Active now
 									{:else}
-										Last active: {formatRelativeTime(session.lastActiveAt)}
+										Last active: {formatRelativeTime(session.lastActiveAt?.toString() ?? null)}
 									{/if}
 								</div>
 								<div class="text-xs text-muted-foreground">
-									Signed in: {new Date(session.createdAt).toLocaleDateString()}
+									Signed in: {new Date(session.createdAt ?? Date.now()).toLocaleDateString()}
 								</div>
 							</div>
 						</div>
@@ -297,7 +300,7 @@
 									{#if isRevoking === session.id}
 										Revoking...
 									{:else}
-										<IconLucideLogOut class="h-4 w-4" />
+										<LogOut class="h-4 w-4" />
 									{/if}
 								</Button>
 							</form>
@@ -325,7 +328,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
-				<IconLucideKey class="h-5 w-5" />
+				<Key class="h-5 w-5" />
 				Change Password
 			</Card.Title>
 			<Card.Description>

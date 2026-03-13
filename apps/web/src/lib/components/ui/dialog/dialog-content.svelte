@@ -3,8 +3,7 @@
 	import DialogPortal from './custom-portal.svelte';
 	import { DialogOverlay } from '@repo/ui/components/ui/dialog';
 	import { cn } from '$lib/utils';
-	// @ts-ignore
-	import XIcon from '~icons/lucide/x';
+	import { X as XIcon } from '@repo/icons';
 	import type { Snippet } from 'svelte';
 	import type { ComponentProps } from 'svelte';
 

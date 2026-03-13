@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+	import { Activity } from '@repo/icons';
 	import * as Card from '@repo/ui/components/ui/card';
 	import * as Table from '@repo/ui/components/ui/table';
 	import { Badge } from '@repo/ui/components/ui/badge';
@@ -57,7 +58,7 @@
 				<div
 					class="flex flex-col items-center justify-center p-8 text-center text-muted-foreground"
 				>
-					<IconLucideActivity class="mb-2 h-8 w-8 opacity-50" />
+					<Activity class="mb-2 h-8 w-8 opacity-50" />
 					<p>No traces available or OTLP exporter not configured.</p>
 				</div>
 			{/if}

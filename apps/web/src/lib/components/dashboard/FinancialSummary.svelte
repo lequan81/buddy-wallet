@@ -1,6 +1,8 @@
 ﻿<script lang="ts">
+	import { ArrowDown, ArrowUp, TrendingUp } from '@repo/icons';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { cn } from '$lib/utils';
+	import { formatCurrency } from '@repo/utils';
 
 	type Props = {
 		totalOwedToYou: number;
@@ -12,14 +14,6 @@
 	let { totalOwedToYou, totalYouOwe, currency = 'VND', className }: Props = $props();
 
 	let netBalance = $derived(totalOwedToYou - totalYouOwe);
-
-	const formatCurrency = (amount: number) => {
-		return new Intl.NumberFormat('vi-VN', {
-			style: 'currency',
-			currency: currency,
-			maximumFractionDigits: 0
-		}).format(amount);
-	};
 
 	const getNetBalanceColor = (balance: number) => {
 		if (balance > 0) return 'amount-positive';
@@ -33,7 +27,7 @@
 	<Card.Root>
 		<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 			<Card.Title class="text-sm font-medium text-muted-foreground">Owed to You</Card.Title>
-			<IconLucideArrowUp class="h-4 w-4 text-success" />
+			<ArrowUp class="h-4 w-4 text-success" />
 		</Card.Header>
 		<Card.Content>
 			<div class="space-y-1">
@@ -49,7 +43,7 @@
 	<Card.Root>
 		<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 			<Card.Title class="text-sm font-medium text-muted-foreground">You Owe</Card.Title>
-			<IconLucideArrowDown class="h-4 w-4 text-destructive" />
+			<ArrowDown class="h-4 w-4 text-destructive" />
 		</Card.Header>
 		<Card.Content>
 			<div class="space-y-1">
@@ -65,7 +59,7 @@
 	<Card.Root>
 		<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
 			<Card.Title class="text-sm font-medium text-muted-foreground">Net Balance</Card.Title>
-			<IconLucideTrendingUp class="h-4 w-4 text-muted-foreground" />
+			<TrendingUp class="h-4 w-4 text-muted-foreground" />
 		</Card.Header>
 		<Card.Content>
 			<div class="space-y-1">

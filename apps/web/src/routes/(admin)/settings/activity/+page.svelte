@@ -1,25 +1,11 @@
-﻿<script lang="ts">
+<script lang="ts">
+	import { Activity, AlertTriangle, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, FileText, LogIn, LogOut, Plus, Shield, Trash2, User } from '@repo/icons';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	// import {
-	// 	Activity,
-	// 	LogIn,
-	// 	LogOut,
-	// 	Plus,
-	// 	Edit,
-	// 	Trash2,
-	// 	Check,
-	// 	AlertTriangle,
-	// 	FileText,
-	// 	User,
-	// 	Shield,
-	// 	ChevronLeft,
-	// 	ChevronRight,
-	// 	ChevronsLeft,
-	// 	ChevronsRight
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Separator } from '@repo/ui/components/ui/separator';
+	import { cn } from '$lib/utils';
 
 	let { data } = $props();
 
@@ -33,62 +19,28 @@
 		});
 	};
 
-	const getActionIcon = (action: string) => {
-		switch (action) {
-			case 'login':
-				return IconLucideLogIn;
-			case 'logout':
-				return IconLucideLogOut;
-			case 'create':
-				return IconLucidePlus;
-			case 'update':
-				return IconLucideEdit;
-			case 'delete':
-				return IconLucideTrash2;
-			case 'confirm':
-			case 'paid':
-				return IconLucideCheck;
-			case 'dispute':
-				return IconLucideAlertTriangle;
-			default:
-				return IconLucideActivity;
-		}
+	// Unified action config — replaces 3 separate switch statements
+	const ACTION_CONFIG: Record<string, { icon: typeof Activity; color: string }> = {
+		login:   { icon: LogIn,         color: 'text-green-600 bg-green-100 dark:bg-green-900/30' },
+		logout:  { icon: LogOut,        color: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30' },
+		create:  { icon: Plus,          color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30' },
+		update:  { icon: Edit,          color: 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30' },
+		delete:  { icon: Trash2,        color: 'text-red-600 bg-red-100 dark:bg-red-900/30' },
+		confirm: { icon: Check,         color: 'text-green-600 bg-green-100 dark:bg-green-900/30' },
+		paid:    { icon: Check,         color: 'text-green-600 bg-green-100 dark:bg-green-900/30' },
+		dispute: { icon: AlertTriangle, color: 'text-red-600 bg-red-100 dark:bg-red-900/30' },
 	};
 
-	const getActionColor = (action: string) => {
-		switch (action) {
-			case 'login':
-				return 'text-green-600 bg-green-100 dark:bg-green-900/30';
-			case 'logout':
-				return 'text-orange-600 bg-orange-100 dark:bg-orange-900/30';
-			case 'create':
-				return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30';
-			case 'update':
-				return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30';
-			case 'delete':
-				return 'text-red-600 bg-red-100 dark:bg-red-900/30';
-			case 'confirm':
-			case 'paid':
-				return 'text-green-600 bg-green-100 dark:bg-green-900/30';
-			case 'dispute':
-				return 'text-red-600 bg-red-100 dark:bg-red-900/30';
-			default:
-				return 'text-gray-600 bg-gray-100 dark:bg-gray-900/30';
-		}
+	const DEFAULT_ACTION = { icon: Activity, color: 'text-gray-600 bg-gray-100 dark:bg-gray-900/30' };
+
+	const RESOURCE_ICONS: Record<string, typeof Activity> = {
+		debt: FileText,
+		user: User,
+		session: Shield,
 	};
 
-	const getResourceIcon = (resource: string) => {
-		switch (resource) {
-			case 'debt':
-				return IconLucideFileText;
-			case 'user':
-				return IconLucideUser;
-			case 'session':
-				return IconLucideShield;
-			default:
-				return IconLucideActivity;
-		}
-	};
+	const getActionConfig = (action: string) => ACTION_CONFIG[action] || DEFAULT_ACTION;
+	const getResourceIcon = (resource: string) => RESOURCE_ICONS[resource] || Activity;
 
 	const formatAction = (action: string, resource: string) => {
 		const actionLabels: Record<string, string> = {
@@ -148,7 +100,7 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
-				<IconLucideActivity class="h-5 w-5" />
+				<Activity class="h-5 w-5" />
 				Recent Activity
 			</Card.Title>
 			<Card.Description>Your actions and events from the last 30 days.</Card.Description>
@@ -156,22 +108,24 @@
 		<Card.Content>
 			{#if data.logs.length === 0}
 				<div class="py-12 text-center text-muted-foreground">
-					<IconLucideActivity class="mx-auto mb-4 h-12 w-12 opacity-50" />
+					<Activity class="mx-auto mb-4 h-12 w-12 opacity-50" />
 					<p>No activity recorded yet.</p>
 				</div>
 			{:else}
 				<div class="space-y-4">
 					{#each data.logs as log (log.id)}
-						{@const ActionIcon = getActionIcon(log.action)}
+						{@const actionCfg = getActionConfig(log.action)}
+						{@const ActionIcon = actionCfg.icon}
 						{@const ResourceIcon = getResourceIcon(log.resource)}
 						<div
 							class="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50"
 						>
 							<!-- Action Icon -->
 							<div
-								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full {getActionColor(
-									log.action
-								)}"
+								class={cn(
+									'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
+									getActionConfig(log.action).color
+								)}
 							>
 								<ActionIcon class="h-5 w-5" />
 							</div>
@@ -193,13 +147,14 @@
 
 								<!-- Changes summary -->
 								{#if log.changes}
+									{@const after = log.changes.after as Record<string, any> | undefined}
 									<div class="mt-1 text-sm text-muted-foreground">
-										{#if log.changes.after?.status}
+										{#if after?.status}
 											Status changed to <span class="font-medium capitalize"
-												>{log.changes.after.status}</span
+												>{after.status}</span
 											>
-										{:else if log.changes.after?.amount}
-											Amount: {log.changes.after.amount}
+										{:else if after?.amount}
+											Amount: {after.amount}
 										{/if}
 									</div>
 								{/if}
@@ -249,7 +204,7 @@
 								disabled={currentPage <= 1}
 								onclick={() => navigateWithParams({ page: 1 })}
 							>
-								<IconLucideChevronsLeft class="h-4 w-4" />
+								<ChevronsLeft class="h-4 w-4" />
 							</Button>
 							<Button
 								variant="outline"
@@ -258,7 +213,7 @@
 								disabled={currentPage <= 1}
 								onclick={() => navigateWithParams({ page: currentPage - 1 })}
 							>
-								<IconLucideChevronLeft class="h-4 w-4" />
+								<ChevronLeft class="h-4 w-4" />
 							</Button>
 							<span class="px-3 text-sm">
 								Page {currentPage} of {totalPages}
@@ -270,7 +225,7 @@
 								disabled={currentPage >= totalPages}
 								onclick={() => navigateWithParams({ page: currentPage + 1 })}
 							>
-								<IconLucideChevronRight class="h-4 w-4" />
+								<ChevronRight class="h-4 w-4" />
 							</Button>
 							<Button
 								variant="outline"
@@ -279,7 +234,7 @@
 								disabled={currentPage >= totalPages}
 								onclick={() => navigateWithParams({ page: totalPages })}
 							>
-								<IconLucideChevronsRight class="h-4 w-4" />
+								<ChevronsRight class="h-4 w-4" />
 							</Button>
 						</div>
 					</div>

@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+	import { AlertTriangle, Loader2, Lock } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
@@ -87,7 +88,7 @@
 				<Alert.Root
 					class="mb-4 border-yellow-500 bg-yellow-50 dark:border-yellow-600 dark:bg-yellow-950/20"
 				>
-					<IconLucideAlertTriangle class="h-4 w-4 text-yellow-600" />
+					<AlertTriangle class="h-4 w-4 text-yellow-600" />
 					<Alert.Title class="text-yellow-900 dark:text-yellow-100"
 						>Password Change Required</Alert.Title
 					>
@@ -118,7 +119,7 @@
 					validationState={passwordError ? 'error' : 'default'}
 					error={passwordError}
 					showPasswordToggle={true}
-					icon={IconLucideLock}
+					icon={Lock}
 				/>
 
 				<!-- Password Requirements -->
@@ -173,14 +174,14 @@
 					validationState={confirmError ? 'error' : passwordsMatch ? 'success' : 'default'}
 					error={confirmError}
 					showPasswordToggle={true}
-					icon={IconLucideLock}
+					icon={Lock}
 				/>
 
 				<!-- Submit Button -->
 				<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>
 					<span class="inline-flex items-center justify-center">
 						{#if isSubmitting}
-							<IconLucideLoader2 class="mr-2 h-4 w-4 animate-spin" />
+							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 							Changing Password...
 						{:else}
 							Change Password

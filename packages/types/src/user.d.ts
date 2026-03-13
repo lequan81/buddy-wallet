@@ -31,3 +31,14 @@ export interface UserResult {
   permissions?: string[];
   message?: string;
 }
+
+export interface UserWithNotifications {
+  id: string;
+  email: string | null;
+  role: string;
+  permissions: string[];
+  phoneNumber: string;
+  emailVerified: boolean;
+  emailNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+}

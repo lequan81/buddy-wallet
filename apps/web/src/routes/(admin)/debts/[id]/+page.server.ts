@@ -1,26 +1,34 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { API_URL, getAuthHeaders, serverFetch } from '$lib/api';
+import type { Debt, BankAccount, ApiErrorValue } from '@repo/types';
 
-export const load: PageServerLoad = async ({ locals, fetch, params }) => {
+const extractDebt = (payload: unknown): Debt | null => {
+	if (!payload || typeof payload !== 'object') return null;
+	const directDebt = (payload as { debt?: unknown }).debt;
+	if (directDebt) return directDebt as Debt;
+	const nested = (payload as { data?: unknown }).data;
+	if (nested && typeof nested === 'object') {
+		const nestedDebt = (nested as { debt?: unknown }).debt;
+		return nestedDebt ? (nestedDebt as Debt) : null;
+	}
+	return null;
+};
+
+export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) {
 		throw redirect(302, '/login');
 	}
 
-	const headers = getAuthHeaders(locals.accessToken);
+	const { api } = locals;
 
-	// Fetch single debt by ID (instead of fetching all debts)
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const { data: debtData, error: debtError } = await serverFetch<{ debt: any }>(
-		`/v1/debts/${params.id}`,
-		{ token: locals.accessToken }
-	);
+	// Fetch single debt by ID
+	const { data: debtData, error: debtError } = await api.v1.debts({ id: params.id }).get();
 
-	if (debtError || !debtData?.debt) {
-		return { debt: null, error: debtError || 'Debt not found' };
+	const debt = extractDebt(debtData);
+
+	if (debtError || !debt) {
+		return { debt: null, error: debtError?.value?.message || (debtError?.value as ApiErrorValue)?.error || 'Debt not found' };
 	}
-
-	const debt = debtData.debt;
 
 	// Check if user is related to this debt
 	const isCreditor =
@@ -29,27 +37,19 @@ export const load: PageServerLoad = async ({ locals, fetch, params }) => {
 	const isUploader = debt.uploadedById === locals.user.id;
 
 	// Fetch additional data based on role
-	let creditorBanks = [];
-	let pendingProofs = [];
+	let creditorBanks: BankAccount[] = [];
+	let pendingProofs: Array<{ id: string; url: string; createdAt: string; status: string }> = [];
 
 	// If I am the debtor, I need creditor's bank info to pay
 	if (isDebtor && debt.creditorId) {
-		const bankRes = await fetch(`${API_URL}/v1/banks/user/${debt.creditorId}`, { headers });
-		if (bankRes.ok) {
-			const bankData = await bankRes.json();
-			creditorBanks = bankData.accounts || [];
-		}
+		const { data: bankData } = await api.v1.banks.user({ userId: debt.creditorId }).get();
+		creditorBanks = bankData?.accounts || [];
 	}
 
-	// If I am the creditor, I need bank info too (to see my own details in context) OR
-	// if I am just viewing, maybe not.
-	// Actually, if I am the creditor, I want to see pending proofs.
+	// If I am the creditor, I want to see pending proofs.
 	if (isCreditor) {
-		const proofsRes = await fetch(`${API_URL}/v1/proofs/debt/${debt.id}`, { headers });
-		if (proofsRes.ok) {
-			const proofsData = await proofsRes.json();
-			pendingProofs = proofsData.data?.proofs || [];
-		}
+		const { data: proofsData } = await api.v1.proofs.debt({ debtId: debt.id }).get();
+		pendingProofs = ((proofsData as Record<string, unknown>)?.data as Record<string, unknown>)?.proofs as typeof pendingProofs || [];
 	}
 
 	return {
@@ -64,7 +64,7 @@ export const load: PageServerLoad = async ({ locals, fetch, params }) => {
 };
 
 export const actions: Actions = {
-	updateStatus: async ({ locals, fetch, params, request }) => {
+	updateStatus: async ({ locals, params, request }) => {
 		if (!locals.user) {
 			return fail(401, { error: 'Unauthorized' });
 		}
@@ -76,21 +76,12 @@ export const actions: Actions = {
 			return fail(400, { error: 'Status is required' });
 		}
 
-		const headers = getAuthHeaders(locals.accessToken);
+		const { api } = locals;
+		const { error, status: statusCode } = await api.v1.debts({ id: params.id }).status.patch({ status: status as 'pending' | 'confirmed' | 'paid' | 'disputed' | 'cancelled' });
 
-		const response = await fetch(`${API_URL}/v1/debts/${params.id}/status`, {
-			method: 'PATCH',
-			headers: {
-				...headers,
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ status })
-		});
-
-		if (!response.ok) {
-			const data = await response.json().catch(() => ({}));
-			const errorMsg = data.error?.message || data.error?.details || 'Failed to update status';
-			return fail(response.status, { error: errorMsg });
+		if (error) {
+			const errorMsg = error.value?.message || (error.value as ApiErrorValue)?.details || 'Failed to update status';
+			return fail(statusCode, { error: errorMsg });
 		}
 
 		// Redirect to confirmation page for paid/confirmed status changes
@@ -101,78 +92,158 @@ export const actions: Actions = {
 		return { success: true, status };
 	},
 
-	update: async ({ locals, fetch, params, request }) => {
+	update: async ({ locals, params, request }) => {
 		if (!locals.user) {
 			return fail(401, { error: 'Unauthorized' });
 		}
 
 		const formData = await request.formData();
 		const description = formData.get('description') as string;
-		const amount = formData.get('amount');
+		const amount = formData.get('amount') as string;
 
 		const body: Record<string, unknown> = {};
 		if (description) body.description = description;
 		if (amount) body.amount = Number(amount);
 
-		const headers = getAuthHeaders(locals.accessToken);
+		const { api } = locals;
+		const { error, status: statusCode } = await api.v1.debts({ id: params.id }).put(body);
 
-		const response = await fetch(`${API_URL}/v1/debts/${params.id}`, {
-			method: 'PUT',
-			headers: {
-				...headers,
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(body)
-		});
-
-		if (!response.ok) {
-			const data = await response.json().catch(() => ({}));
-			const errorMsg = data.error?.message || data.error?.details || 'Failed to update debt';
-			return fail(response.status, { error: errorMsg });
+		if (error) {
+			const errorMsg = error.value?.message || (error.value as ApiErrorValue)?.details || 'Failed to update debt';
+			return fail(statusCode, { error: errorMsg });
 		}
 
 		return { success: true, message: 'Debt updated successfully' };
 	},
 
-	delete: async ({ locals, fetch, params }) => {
+	delete: async ({ locals, params }) => {
 		if (!locals.user) {
 			return fail(401, { error: 'Unauthorized' });
 		}
 
-		const headers = getAuthHeaders(locals.accessToken);
+		const { api } = locals;
+		const { error, status: statusCode } = await api.v1.debts({ id: params.id }).delete();
 
-		const response = await fetch(`${API_URL}/v1/debts/${params.id}`, {
-			method: 'DELETE',
-			headers
-		});
-
-		if (!response.ok) {
-			const data = await response.json().catch(() => ({}));
-			const errorMsg = data.error?.message || data.error?.details || 'Failed to delete debt';
-			return fail(response.status, { error: errorMsg });
+		if (error) {
+			const errorMsg = error.value?.message || (error.value as ApiErrorValue)?.details || 'Failed to delete debt';
+			return fail(statusCode, { error: errorMsg });
 		}
 
 		throw redirect(303, '/dashboard?deleted=true');
 	},
 
-	confirmDebt: async ({ locals, fetch, params }) => {
+	confirmDebt: async ({ locals, params }) => {
 		if (!locals.user) {
 			return fail(401, { error: 'Unauthorized' });
 		}
 
-		const headers = getAuthHeaders(locals.accessToken);
+		const { api } = locals;
+		const { error, status: statusCode } = await api.v1.debts({ id: params.id }).confirm.post();
 
-		const response = await fetch(`${API_URL}/v1/debts/${params.id}/confirm`, {
-			method: 'POST',
-			headers
-		});
-
-		if (!response.ok) {
-			const data = await response.json().catch(() => ({}));
-			const errorMsg = data.error?.message || data.error?.details || 'Failed to confirm debt';
-			return fail(response.status, { error: errorMsg });
+		if (error) {
+			const errorMsg = error.value?.message || (error.value as ApiErrorValue)?.details || 'Failed to confirm debt';
+			return fail(statusCode, { error: errorMsg });
 		}
 
 		return { success: true, message: 'Debt confirmed successfully' };
+	},
+
+	approveProof: async ({ locals, request }) => {
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
+		const formData = await request.formData();
+		const proofId = formData.get('proofId') as string;
+
+		if (!proofId) {
+			return fail(400, { error: 'Proof ID is required' });
+		}
+
+		const { api } = locals;
+		const { data, error, status: statusCode } = await api.v1.proofs({ proofId }).review.patch({ action: 'approved' });
+
+		if (error) {
+			const errorMsg = error.value?.message || (error.value as ApiErrorValue)?.details || 'Failed to approve proof';
+			return fail(statusCode, { error: errorMsg });
+		}
+
+		const responseData = data as { allProofsApproved?: boolean; debtId?: string } | null;
+		return {
+			success: true,
+			message: 'Proof approved successfully',
+			allProofsApproved: responseData?.allProofsApproved || false,
+			debtId: responseData?.debtId || null
+		};
+	},
+
+	rejectProof: async ({ locals, request }) => {
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
+		const formData = await request.formData();
+		const proofId = formData.get('proofId') as string;
+		const reason = formData.get('reason') as string;
+
+		if (!proofId) {
+			return fail(400, { error: 'Proof ID is required' });
+		}
+
+		const { api } = locals;
+		const { error, status: statusCode } = await api.v1.proofs({ proofId }).review.patch({ action: 'rejected', reason: reason || undefined });
+
+		if (error) {
+			const errorMsg = error.value?.message || (error.value as ApiErrorValue)?.details || 'Failed to reject proof';
+			return fail(statusCode, { error: errorMsg });
+		}
+
+		return { success: true, message: 'Proof rejected successfully' };
+	},
+
+	suggestEdit: async ({ locals, params, request }) => {
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
+		const formData = await request.formData();
+		const amount = formData.get('amount') as string;
+		const description = formData.get('description') as string;
+
+		if (!amount && !description) {
+			return fail(400, { error: 'Please provide at least amount or description' });
+		}
+
+		const { api } = locals;
+		const { error, status: statusCode } = await api.v1.debts({ id: params.id }).suggest.post({
+			amount: amount ? Number(amount) : undefined,
+			description: description || undefined
+		});
+
+		if (error) {
+			const errorMsg = error.value?.message || (error.value as ApiErrorValue)?.details || 'Failed to submit suggestion';
+			return fail(statusCode, { error: errorMsg });
+		}
+
+		return { success: true, message: 'Edit suggestion sent' };
+	},
+
+	respondSuggestion: async ({ locals, params, request }) => {
+		if (!locals.user) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
+		const formData = await request.formData();
+		const accept = formData.get('accept') === 'true';
+
+		const { api } = locals;
+		const { error, status: statusCode } = await api.v1.debts({ id: params.id }).suggestion.respond.post({ accept });
+
+		if (error) {
+			const errorMsg = error.value?.message || (error.value as ApiErrorValue)?.details || 'Failed to respond to suggestion';
+			return fail(statusCode, { error: errorMsg });
+		}
+
+		return { success: true, message: accept ? 'Suggestion accepted' : 'Suggestion rejected' };
 	}
 };

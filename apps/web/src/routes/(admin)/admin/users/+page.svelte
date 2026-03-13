@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Eye, Phone, Search, User, UserCheck, UserX } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { useDebounce } from '$lib/hooks/use-debounce.svelte';
 	import { Button } from '@repo/ui/components/ui/button';
+	import { cn } from '$lib/utils';
 
 	let { data } = $props();
 
@@ -66,7 +68,7 @@
 <div class="container mx-auto px-4 py-8">
 	<div class="mb-8">
 		<h1 class="flex items-center gap-3 text-3xl font-bold">
-			<IconLucideUser class="h-8 w-8 text-primary" />
+			<User class="h-8 w-8 text-primary" />
 			User Management
 		</h1>
 		<p class="mt-2 text-muted-foreground">View and manage all registered users</p>
@@ -75,7 +77,7 @@
 	<!-- Filters -->
 	<div class="mb-6 flex flex-wrap gap-4">
 		<div class="relative min-w-64 flex-1">
-			<IconLucideSearch
+			<Search
 				class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
 			/>
 			<input
@@ -115,7 +117,7 @@
 								<div>
 									<p class="font-medium">{user.name || 'No name'}</p>
 									<p class="text-sm text-muted-foreground">
-										<IconLucidePhone
+										<Phone
 											class="mr-1 inline-block h-5 w-5 align-middle text-muted-foreground"
 										/>{user.email}
 									</p>
@@ -126,10 +128,12 @@
 							</td>
 							<td class="px-6 py-4">
 								<span
-									class="rounded-full px-2 py-1 text-xs font-medium capitalize
-									{user.role === 'admin'
-										? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
-										: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'}"
+									class={cn(
+										'rounded-full px-2 py-1 text-xs font-medium capitalize',
+										user.role === 'admin'
+											? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+											: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+									)}
 								>
 									{user.role}
 								</span>
@@ -137,12 +141,12 @@
 							<td class="px-6 py-4">
 								{#if user.isActive !== false}
 									<span class="flex items-center gap-1 text-green-600 dark:text-green-400">
-										<IconLucideUserCheck class="h-4 w-4" />
+										<UserCheck class="h-4 w-4" />
 										Active
 									</span>
 								{:else}
 									<span class="flex items-center gap-1 text-red-600 dark:text-red-400">
-										<IconLucideUserX class="h-4 w-4" />
+										<UserX class="h-4 w-4" />
 										Inactive
 									</span>
 								{/if}
@@ -152,7 +156,7 @@
 									href="/admin/users/{user.id}"
 									class="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
 								>
-									<IconLucideEye class="h-4 w-4" />
+									<Eye class="h-4 w-4" />
 									View
 								</a>
 							</td>
@@ -199,7 +203,7 @@
 					disabled={currentPage <= 1}
 					onclick={() => navigateWithParams({ page: 1 })}
 				>
-					<IconLucideChevronsLeft class="h-4 w-4" />
+					<ChevronsLeft class="h-4 w-4" />
 				</Button>
 				<Button
 					variant="outline"
@@ -208,7 +212,7 @@
 					disabled={currentPage <= 1}
 					onclick={() => navigateWithParams({ page: currentPage - 1 })}
 				>
-					<IconLucideChevronLeft class="h-4 w-4" />
+					<ChevronLeft class="h-4 w-4" />
 				</Button>
 				<span class="px-3 text-sm">
 					Page {currentPage} of {totalPages}
@@ -220,7 +224,7 @@
 					disabled={currentPage >= totalPages}
 					onclick={() => navigateWithParams({ page: currentPage + 1 })}
 				>
-					<IconLucideChevronRight class="h-4 w-4" />
+					<ChevronRight class="h-4 w-4" />
 				</Button>
 				<Button
 					variant="outline"
@@ -229,7 +233,7 @@
 					disabled={currentPage >= totalPages}
 					onclick={() => navigateWithParams({ page: totalPages })}
 				>
-					<IconLucideChevronsRight class="h-4 w-4" />
+					<ChevronsRight class="h-4 w-4" />
 				</Button>
 			</div>
 		</div>

@@ -106,38 +106,34 @@ export const app = new Elysia()
     return base;
   })
   // Trace viewer (dev only)
-  .use(TracesController)
-  .onError(({ code, error, set }) => {
-    logger.error(`Global error caught`, { code, error: String(error) });
-    set.status = 500;
-    return {
-      success: false,
-      error: 'Internal Server Error',
-      message: error instanceof Error ? error.message : String(error)
-    };
-  });
+  .use(TracesController);
 
 // Only listen if run directly (not imported)
 if (import.meta.main) {
   app.listen(configs.APP.PORT, () => {
     logger.app(`🦊 API is running at ${app.server?.hostname}:${app.server?.port}`);
 
-    // Start background cleanup cron (every 15 minutes)
+    // Start background cleanup cron (every 15 minutes) with concurrency guard
+    let cleanupRunning = false;
     setInterval(
-      () => {
-        logger.app('🧹 [CRON] Running automated background cleanup tasks...');
-        CleanupService.cleanupStaleProcessingLogs().catch((err) =>
-          logger.error('Cron Error:', { error: String(err) })
-        );
-        CleanupService.cleanupStalePendingLogs().catch((err) =>
-          logger.error('Cron Error:', { error: String(err) })
-        );
-        CleanupService.cleanupExpiredSessions().catch((err) =>
-          logger.error('Cron Error:', { error: String(err) })
-        );
-        CleanupService.cleanupExpiredOTPs().catch((err) =>
-          logger.error('Cron Error:', { error: String(err) })
-        );
+      async () => {
+        if (cleanupRunning) {
+          logger.app('[CRON] Skipping cleanup - previous run still in progress');
+          return;
+        }
+        cleanupRunning = true;
+        try {
+          logger.app('[CRON] Running background cleanup tasks...');
+          await CleanupService.cleanupStaleProcessingLogs();
+          await CleanupService.cleanupStalePendingLogs();
+          await CleanupService.cleanupExpiredSessions();
+          await CleanupService.cleanupExpiredOTPs();
+          logger.app('[CRON] Cleanup complete');
+        } catch (err) {
+          logger.error('[CRON] Cleanup error:', { error: String(err) });
+        } finally {
+          cleanupRunning = false;
+        }
       },
       15 * 60 * 1000
     );

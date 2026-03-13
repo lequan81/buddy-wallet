@@ -5,7 +5,7 @@
  * Replaces localStorage persistence — state survives SPA navigation
  * (module stays loaded), lost on F5 (server fallback via getLogById).
  */
-import type { UploadState } from '$lib/types/import';
+import type { UploadState } from '$lib/types';
 
 class ImportUploadStore {
 	state = $state<UploadState>({

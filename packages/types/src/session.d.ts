@@ -7,3 +7,8 @@ export interface SessionInfo {
   lastActiveAt: Date | string | null;
   createdAt: Date | string | null;
 }
+
+export interface SessionsResponse {
+  sessions: SessionInfo[];
+  currentSessionId: string;
+}

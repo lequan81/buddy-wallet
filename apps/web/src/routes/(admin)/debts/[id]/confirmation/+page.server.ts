@@ -1,25 +1,23 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { API_URL, getAuthHeaders } from '$lib/api';
 
-export const load: PageServerLoad = async ({ locals, fetch, params, url }) => {
+export const load: PageServerLoad = async ({ locals, params, url }) => {
 	if (!locals.user) {
 		throw redirect(302, '/login');
 	}
 
 	const status = url.searchParams.get('status') || 'confirmed';
 
-	const headers = getAuthHeaders(locals.accessToken);
+	const { api } = locals;
 
 	// Fetch all debts and find the one with matching ID
-	const debtsRes = await fetch(`${API_URL}/v1/debts`, { headers });
+	const { data, error } = await api.v1.debts.get();
 
-	if (!debtsRes.ok) {
+	if (error) {
 		return { debt: null, error: 'Unable to fetch debt', status };
 	}
 
-	const debtsWrapper = await debtsRes.json();
-	const debts = debtsWrapper.data?.debts || [];
+	const debts = data?.success ? data.debts : [];
 
 	const debt = debts.find((d: { id: string }) => d.id === params.id);
 

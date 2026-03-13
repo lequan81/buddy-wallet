@@ -1,9 +1,9 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { createTreatyClient } from '$lib/eden';
+import { createTreatyClient } from '$lib/services/api';
 import { superValidate, message } from 'sveltekit-superforms';
 import { valibot } from 'sveltekit-superforms/adapters';
-import { signupSchema } from '$lib/schemas/auth';
+import { signupSchema } from '@repo/validation/client';
 
 export const load: PageServerLoad = async () => {
 	const form = await superValidate(valibot(signupSchema));
