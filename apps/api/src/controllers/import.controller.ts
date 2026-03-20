@@ -15,6 +15,11 @@ import { isValidSpreadsheetBytes } from '@repo/utils';
 import type { ImportConfig } from '../types';
 import type { User } from '@repo/db';
 
+interface WsData {
+  user?: User;
+  interval?: ReturnType<typeof setInterval>;
+}
+
 // Helper to parse JSON string to object
 // useful for handling multipart/form-data where JSON is sent as string
 const StringToJSON = <T extends TSchema>(schema: T) =>
@@ -275,7 +280,8 @@ export const ImportController = new Elysia({ prefix: '/import' })
   .ws('/progress-ws', {
     body: t.Object({ logIds: t.Array(t.String()) }),
     message(ws, { logIds }) {
-      const user = (ws.data as any).user as User | undefined;
+      const wsData = ws.data as WsData;
+      const user = wsData.user;
       if (!user) {
         ws.send({ error: 'Unauthorized' });
         ws.close();
@@ -283,8 +289,8 @@ export const ImportController = new Elysia({ prefix: '/import' })
       }
 
       // If there's an existing interval, clear it
-      if ((ws.data as any).interval) {
-        clearInterval((ws.data as any).interval);
+      if (wsData.interval) {
+        clearInterval(wsData.interval);
       }
 
       // Start polling backend progress and pushing to client
@@ -308,11 +314,12 @@ export const ImportController = new Elysia({ prefix: '/import' })
         }
       }, 2000);
 
-      (ws.data as any).interval = interval;
+      wsData.interval = interval;
     },
     close(ws) {
-      if ((ws.data as any).interval) {
-        clearInterval((ws.data as any).interval);
+      const wsData = ws.data as WsData;
+      if (wsData.interval) {
+        clearInterval(wsData.interval);
       }
     }
   })

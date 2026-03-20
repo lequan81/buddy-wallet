@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { navigating } from '$app/stores';
-	import { onMount } from 'svelte';
 
 	let progress = $state(0);
 	let visible = $derived($navigating !== null);

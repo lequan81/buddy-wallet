@@ -360,7 +360,7 @@ export class ImportService {
             success: true,
             ...progress,
             percentage: Math.round((progress.current / progress.total) * 100),
-            result: progress.result
+            result: progress.result as PreviewResult | ImportResult | undefined
           };
         }
       }
@@ -404,7 +404,7 @@ export class ImportService {
           success: true,
           ...progress,
           percentage: Math.round((progress.current / progress.total) * 100),
-          result: progress.result
+          result: progress.result as PreviewResult | ImportResult | undefined
         };
       }
     }

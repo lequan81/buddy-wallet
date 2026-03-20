@@ -13,14 +13,28 @@ const config = {
 	// for more information about preprocessors
 	preprocess: [vitePreprocess(), mdsvex(mdsvexOptions)],
 
+	compilerOptions: {
+		experimental: {
+			async: true
+		}
+	},
+
 	kit: {
+		experimental: {
+			remoteFunctions: true
+		},
 		// adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
 		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 		adapter: adapter(),
 		alias: {
 			$contents: 'src/contents',
-			'@repo/icons': '../../packages/icons/src'
+			'@repo/icons': '../../packages/icons/src',
+			'@repo/db': '../../packages/db/src',
+			'@repo/config': '../../packages/config/src',
+			'@repo/utils': '../../packages/utils/src',
+			'@repo/validation': '../../packages/validation/src',
+			'@repo/types': '../../packages/types/src'
 			// Keep web aliases client-safe. Avoid aliasing into `apps/api/src/*`
 			// to prevent accidental server-code imports into the SvelteKit bundle.
 		},

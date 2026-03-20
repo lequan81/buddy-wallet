@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { ArrowRight, CheckCircle, Home, PartyPopper, TrendingDown, TrendingUp } from '@repo/icons';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { cn } from '$lib/utils';
@@ -39,7 +40,7 @@
 		<div class="text-center">
 			<h1 class="mb-2 text-xl font-semibold">Debt not found</h1>
 			<p class="mb-6 text-muted-foreground">{data.error || 'Unable to load debt information'}</p>
-			<Button href="/dashboard">
+			<Button href={resolve(`/dashboard`, {})}>
 				<Home class="mr-2 h-4 w-4" />
 				Go to Dashboard
 			</Button>
@@ -111,11 +112,11 @@
 
 			<!-- Actions -->
 			<div class="flex flex-col gap-3 sm:flex-row sm:justify-center">
-				<Button href="/debts/{data.debt.id}" variant="outline">
+				<Button href={resolve(`/debts/${data.debt.id}`, {})} variant="outline">
 					View Debt Details
 					<ArrowRight class="ml-2 h-4 w-4" />
 				</Button>
-				<Button href="/dashboard">
+				<Button href={resolve(`/dashboard`, {})}>
 					<Home class="mr-2 h-4 w-4" />
 					Back to Dashboard
 				</Button>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { AlertTriangle, ArrowLeft, CheckCircle, Clock, Eye, FileSpreadsheet, Loader2, Settings2, Upload, X } from '@repo/icons';
 	import { onMount } from 'svelte';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -93,9 +94,9 @@
 
 	// === HISTORY STATE (from server load) ===
 	let loadingHistory = $state(false);
-	let logs = $state<any[]>(data.logs as any[] || []);
-	let historyPage = $state(data.historyPage || 1);
-	let historyTotalPages = $state(data.historyTotalPages || 1);
+	let logs = $derived.by(() => data.logs as any[] || []);
+	let historyPage = $derived.by(() => data.historyPage || 1);
+	let historyTotalPages = $derived.by(() => data.historyTotalPages || 1);
 	let selectedLog = $state<any | null>(null);
 	let showDetails = $state(false);
 	let showConnectionFallback = $state(false);
@@ -357,7 +358,7 @@
 			<h1 class="text-2xl font-bold">Import Debts</h1>
 			<p class="text-muted-foreground">Bulk import debts from spreadsheet files</p>
 		</div>
-		<Button href="/dashboard" variant="ghost">
+		<Button href={resolve(`/dashboard`, {})} variant="ghost">
 			<ArrowLeft class="mr-2 h-4 w-4" />
 			Back to Dashboard
 		</Button>

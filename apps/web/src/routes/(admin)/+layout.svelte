@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { preloadData } from '$app/navigation';
@@ -54,7 +55,7 @@
 		const preloadPages = () => {
 			const pagesToPreload = ['/settings/profile', '/settings/security'];
 			if (permissions?.canImportData) {
-				pagesToPreload.push('/dashboard/import');
+				pagesToPreload.push(resolve(`/dashboard/import`, {}));
 			}
 			Promise.all(pagesToPreload.map((path) => preloadData(path).catch(() => {})));
 		};
@@ -142,7 +143,7 @@
 	<!-- Desktop Sidebar -->
 	<aside class="hidden border-r border-border/60 bg-background lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
 		<div class="flex h-16 items-center border-b border-border/60 px-6">
-			<a href="/" class="flex items-center space-x-2.5 transition-opacity hover:opacity-90">
+			<a href={resolve(`/`, {})} class="flex items-center space-x-2.5 transition-opacity hover:opacity-90">
 				<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
 					<Wallet class="h-5 w-5 text-primary" />
 				</div>
@@ -172,7 +173,7 @@
 	<Sheet.Root bind:open={sidebarOpen}>
 		<Sheet.Content side="left" class="w-72 p-0 flex flex-col">
 			<Sheet.Header class="h-16 border-b border-border/60 px-6 flex flex-row items-center justify-start text-left">
-				<a href="/" class="flex items-center space-x-2.5" onclick={handleNavigate}>
+				<a href={resolve(`/`, {})} class="flex items-center space-x-2.5" onclick={handleNavigate}>
 					<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
 						<Wallet class="h-5 w-5 text-primary" />
 					</div>
@@ -225,7 +226,7 @@
 						<DropdownMenu.Group>
 							<DropdownMenu.Item class="cursor-pointer rounded-md p-2">
 								{#snippet child({ props }: { props: Record<string, unknown> })}
-									<a href="/settings/profile" {...props} class="flex w-full items-center">
+									<a href={resolve(`/settings/profile`, {})} {...props} class="flex w-full items-center">
 										<UserIcon class="mr-2 h-4 w-4 text-muted-foreground" />
 										Profile
 									</a>
@@ -233,7 +234,7 @@
 							</DropdownMenu.Item>
 							<DropdownMenu.Item class="cursor-pointer rounded-md p-2">
 								{#snippet child({ props }: { props: Record<string, unknown> })}
-									<a href="/settings/security" {...props} class="flex w-full items-center">
+									<a href={resolve(`/settings/security`, {})} {...props} class="flex w-full items-center">
 										<Shield class="mr-2 h-4 w-4 text-muted-foreground" />
 										Security
 									</a>
@@ -241,7 +242,7 @@
 							</DropdownMenu.Item>
 							<DropdownMenu.Item class="cursor-pointer rounded-md p-2">
 								{#snippet child({ props }: { props: Record<string, unknown> })}
-									<a href="/settings/activity" {...props} class="flex w-full items-center">
+									<a href={resolve(`/settings/activity`, {})} {...props} class="flex w-full items-center">
 										<Activity class="mr-2 h-4 w-4 text-muted-foreground" />
 										Activity
 									</a>
@@ -286,7 +287,7 @@
 					</div>
 					<div class="flex items-center gap-2">
 						<a
-							href="/settings/profile"
+							href={resolve(`/settings/profile`, {})}
 							class="rounded-md bg-warning px-3 py-1 font-medium text-warning-foreground shadow-sm transition-colors hover:bg-warning/90 text-sm"
 						>
 							Verify Now

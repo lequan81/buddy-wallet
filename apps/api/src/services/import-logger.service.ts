@@ -1,5 +1,6 @@
 import { importLogs, eq } from '@repo/db';
 import { importCache, isRedisAvailable } from '../plugins/redis';
+import type { ImportProgress } from '../plugins/redis';
 import type { DbClient } from '../types';
 
 export class ImportLoggerService {
@@ -35,7 +36,7 @@ export class ImportLoggerService {
         current: old?.current || 0,
         total: old?.total || 0,
         ...progress
-      } as any);
+      } as ImportProgress);
     }
   }
 }

@@ -2,8 +2,6 @@
 	import { AlertTriangle, RefreshCw, WifiOff } from '@repo/icons';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
-	import { Badge } from '@repo/ui/components/ui/badge';
-	import { cn } from '$lib/utils';
 
 	interface Props {
 		onRetry: () => void;
@@ -13,23 +11,30 @@
 		timeoutSeconds?: number;
 	}
 
-	let props = $props();
 	let { 
 		onRetry, 
 		onUseOffline, 
 		isRetrying, 
 		errorMessage = 'Connection to server failed. Please check your internet connection.',
 		timeoutSeconds = 30 
-	} = props;
+	}: Props = $props();
 
-	let countdown = $state(timeoutSeconds);
+	let countdown = $state(0);
 	let showOfflineOption = $state(false);
+
+	// Reset countdown when retrying starts
+	$effect(() => {
+		if (isRetrying) {
+			countdown = timeoutSeconds;
+			showOfflineOption = false;
+		}
+	});
 
 	// Countdown timer
 	$effect(() => {
 		if (isRetrying && countdown > 0) {
 			const interval = setInterval(() => {
-				countdown = countdown - 1;
+				countdown--;
 				if (countdown <= 0) {
 					clearInterval(interval);
 					showOfflineOption = true;
@@ -41,21 +46,9 @@
 	});
 
 	function handleRetry() {
-		countdown = props.timeoutSeconds;
+		countdown = timeoutSeconds;
 		showOfflineOption = false;
 		onRetry();
-	}
-
-	function handleUseOffline() {
-		onUseOffline();
-	}
-
-	function handleRetryClick() {
-		handleRetry();
-	}
-
-	function handleUseOfflineClick() {
-		handleUseOffline();
 	}
 </script>
 
@@ -91,7 +84,7 @@
 
 				<div class="flex flex-col gap-3">
 					<Button 
-						onclick={handleRetryClick}
+						onclick={handleRetry}
 						disabled={isRetrying && countdown > 0}
 						class="w-full"
 					>
@@ -102,7 +95,7 @@
 					{#if showOfflineOption}
 						<Button 
 							variant="outline"
-							onclick={handleUseOfflineClick}
+							onclick={onUseOffline}
 							class="w-full"
 						>
 							<WifiOff class="h-4 w-4 mr-2" />

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { CheckCircle, Loader2, Mail, Phone } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
@@ -59,7 +60,7 @@
 							The secure reset link expires in 24 hours and can only be used once.
 						</p>
 					</div>
-					<Button href="/login" class="mt-4">Return to Login</Button>
+					<Button href={resolve(`/login`, {})} class="mt-4">Return to Login</Button>
 				</div>
 			{:else}
 				<form
@@ -133,7 +134,7 @@
 						<span class="bg-card px-2 text-muted-foreground">Remember your password?</span>
 					</div>
 				</div>
-				<Button variant="outline" class="h-10 w-full" href="/login">Back to Login</Button>
+				<Button variant="outline" class="h-10 w-full" href={resolve(`/login`, {})}>Back to Login</Button>
 			</Card.Footer>
 		{/if}
 	</Card.Root>

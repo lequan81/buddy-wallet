@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { AlertTriangle, X } from '@repo/icons';
 	import { onMount } from 'svelte';
 	import { onNavigate } from '$app/navigation';
@@ -6,6 +6,7 @@
 	import { useRegisterSW } from 'virtual:pwa-register/svelte';
 	import PageLoadingBar from '$lib/components/shared/PageLoadingBar.svelte';
 	import GlobalProgressToast from '$lib/components/shared/GlobalProgressToast.svelte';
+	import ErrorBoundary from '$lib/components/shared/ErrorBoundary.svelte';
 	import favicon from '$lib/assets/favicon.svg';
 	import '@repo/ui/layout.css';
 	import '../app.css';
@@ -15,12 +16,6 @@
 	onMount(() => {
 		mounted = true;
 
-		// Remove the global hydration loader smoothly
-		const globalLoader = document.getElementById('global-loader');
-		if (globalLoader) {
-			globalLoader.style.opacity = '0';
-			setTimeout(() => globalLoader.remove(), 400);
-		}
 
 		useRegisterSW({
 			onRegisteredSW(swScriptUrl, registration) {
@@ -93,4 +88,14 @@
 {/if}
 
 <!-- Page Content (layouts handled by route groups) -->
-{@render children()}
+<div style="display: contents" {@attach () => {
+	const globalLoader = document.getElementById('global-loader');
+	if (globalLoader) {
+		globalLoader.style.opacity = '0';
+		setTimeout(() => globalLoader.remove(), 400);
+	}
+}}>
+	<ErrorBoundary>
+		{@render children()}
+	</ErrorBoundary>
+</div>

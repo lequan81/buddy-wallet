@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ExternalLink, FileSpreadsheet, Loader2, X } from '@repo/icons';
 	import { goto } from '$app/navigation';
 	import { importProgress } from '$lib/stores/import-progress.svelte';
 	import { slide } from 'svelte/transition';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
+	import { cn } from '$lib/utils';
 
 	let expanded = $state(true);
 
@@ -71,8 +73,10 @@
 						<!-- svelte-ignore a11y_click_events_have_key_events -->
 						<!-- svelte-ignore a11y_no_static_element_interactions -->
 						<div
-							class="flex items-start gap-3 rounded-lg border bg-background/50 p-2 text-sm transition-colors hover:bg-muted/50"
-							class:cursor-pointer={job.status === 'success'}
+							class={cn(
+							'flex items-start gap-3 rounded-lg border bg-background/50 p-2 text-sm transition-colors hover:bg-muted/50',
+							job.status === 'success' && 'cursor-pointer'
+						)}
 							onclick={() => {
 								if (job.status === 'success') {
 									goto('/dashboard/import');
@@ -114,10 +118,12 @@
 
 								<div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
 									<div
-										class="h-full transition-all duration-300"
-										class:bg-primary={job.status === 'processing' || job.status === 'pending'}
-										class:bg-green-500={job.status === 'success'}
-										class:bg-red-500={job.status === 'failed'}
+										class={cn(
+											'h-full transition-all duration-300',
+											(job.status === 'processing' || job.status === 'pending') && 'bg-primary',
+											job.status === 'success' && 'bg-green-500',
+											job.status === 'failed' && 'bg-red-500'
+										)}
 										style="width: {job.status === 'failed' ? 100 : job.progress.percentage}%"
 									></div>
 								</div>
@@ -129,7 +135,7 @@
 								{#if job.status === 'success'}
 									<div class="mt-1.5 flex items-center gap-1">
 										<a
-											href="/dashboard/import"
+											href={resolve(`/dashboard/import`, {})}
 											class="inline-flex items-center gap-1 text-xs font-medium text-green-600 transition-colors hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
 											onclick={(e) => e.stopPropagation()}
 										>

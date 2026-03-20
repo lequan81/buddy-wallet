@@ -1,24 +1,26 @@
 <script lang="ts">
 	import { Landmark, Pencil, Plus, Trash2 } from '@repo/icons';
-	import { enhance } from '$app/forms';
+	import { addBank, editBank, deleteBank } from '$lib/remotes/banks.remote';
 	import { toast } from 'svelte-sonner';
-	import { Button } from '@repo/ui/components/ui/button';
-	import { Label } from '@repo/ui/components/ui/label';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Separator } from '@repo/ui/components/ui/separator';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import * as Card from '@repo/ui/components/ui/card';
+	import { Button } from '@repo/ui/components/ui/button';
+	import { Label } from '@repo/ui/components/ui/label';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
+	import { Separator } from '@repo/ui/components/ui/separator';
+	import PageContainer from '$lib/components/layout/PageContainer.svelte';
+	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	// Icons
 
 	let { data, form } = $props();
 
 	// Toast on form results
 	$effect(() => {
-		if (form?.message) {
-			toast.error(form.message);
+		if (form && typeof form === 'object' && 'error' in form) {
+			toast.error((form as any).error?.message || 'An error occurred');
 		}
-		if (form?.success) {
+		if (form && typeof form === 'object' && 'success' in form) {
 			toast.success('Bank account updated successfully');
 		}
 	});
@@ -34,14 +36,6 @@
 	// Selected bank for new account
 	let selectedBankCode = $state('');
 	let selectedBank = $derived(banks.find((b: any) => b.code === selectedBankCode));
-
-	let filteredBanks = $derived(
-		banks.filter(
-			(b: any) =>
-				b.shortName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				b.name.toLowerCase().includes(searchQuery.toLowerCase())
-		)
-	);
 
 	// Form state
 	let accountNumber = $state('');
@@ -185,20 +179,17 @@
 				</Dialog.Header>
 
 				<form
-					method="POST"
-					action={isEditing ? '?/edit' : '?/add'}
-					use:enhance={() => {
+					{...(isEditing ? editBank : addBank).enhance(async ({ submit }) => {
 						isSubmitting = true;
-						return async ({ update, result }) => {
-							await update();
+						try {
+							await submit();
+							isAdding = false;
+							isEditing = false;
+							selectedBankCode = '';
+						} finally {
 							isSubmitting = false;
-							if (result.type === 'success') {
-								isAdding = false;
-								isEditing = false;
-								selectedBankCode = '';
-							}
-						};
-					}}
+						}
+					})}
 					class="grid gap-4 py-4"
 				>
 					{#if isEditing}
@@ -292,9 +283,9 @@
 	</div>
 	<Separator />
 
-	{#if form?.message}
+	{#if form && typeof form === 'object' && 'error' in form}
 		<div class="rounded-md bg-red-50 p-3 text-sm text-red-500 dark:bg-red-900/10">
-			{form.message}
+			{(form as any).error?.message || 'An error occurred'}
 		</div>
 	{/if}
 
@@ -370,16 +361,15 @@
 									<AlertDialog.Footer>
 										<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 										<form
-											method="POST"
-											action="?/delete"
-											use:enhance={() => {
+											{...deleteBank.enhance(async ({ submit }) => {
 												isDeleting = true;
-												return async ({ update }) => {
-													await update();
+												try {
+													await submit();
+												} finally {
 													isDeleting = false;
 													deleteId = '';
-												};
-											}}
+												}
+											})}
 										>
 											<input type="hidden" name="id" value={account.id} />
 											<AlertDialog.Action

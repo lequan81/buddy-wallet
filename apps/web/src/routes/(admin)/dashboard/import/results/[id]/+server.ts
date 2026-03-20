@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
-	const { data, error } = await locals.api.v1.import.results({ id: params.id }).get();
+	const { data, error } = await (locals.api.v1.import as any).results({ id: params.id }).get();
 
 	if (error) {
 		return json(

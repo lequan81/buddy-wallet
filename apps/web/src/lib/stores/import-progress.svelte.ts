@@ -16,7 +16,6 @@ class ImportProgressStore {
 	}
 
 	addJob(jobId: string, type: 'preview' | 'import', fileName: string) {
-		console.log('[JOB STORE] Adding job:', jobId, type, fileName);
 		this.activeJobs.set(jobId, {
 			jobId,
 			type,
@@ -24,7 +23,6 @@ class ImportProgressStore {
 			status: 'pending',
 			progress: { current: 0, total: 0, percentage: 0 }
 		});
-		console.log('[JOB STORE] Active jobs count:', this.activeJobs.size);
 		this.syncSubscriptions();
 	}
 
@@ -53,7 +51,6 @@ class ImportProgressStore {
 			this.ws = api.v1.import['progress-ws'].subscribe();
 
 			this.ws.on('open', () => {
-				console.log('[JOB STORE] WebSocket connected');
 				this.syncSubscriptions();
 			});
 
@@ -89,7 +86,6 @@ class ImportProgressStore {
 			});
 
 			this.ws.on('close', () => {
-				console.log('[JOB STORE] WebSocket disconnected');
 				this.ws = undefined;
 				// Try reconnecting after a while if there are active jobs
 				this.reconnectTimeout = setTimeout(() => {

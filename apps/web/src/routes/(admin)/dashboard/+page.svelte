@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
+	import { batchDeleteDebts, deleteDebt, deleteAllDebts } from '$lib/remotes/debts.remote';
 
 	import { untrack } from 'svelte';
 	import { invalidateAll, goto } from '$app/navigation';
@@ -59,11 +60,11 @@
 
 	// Toast on form results
 	$effect(() => {
-		if (form?.error) {
-			toast.error(form.error);
+		if (form && typeof form === 'object' && 'error' in form) {
+			toast.error((form as any).error?.message || 'An error occurred');
 		}
-		if (form?.success) {
-			toast.success(`${form.deleted} debt(s) deleted successfully`);
+		if (form && typeof form === 'object' && 'success' in form) {
+			toast.success(`${(form as any).deleted || 1} debt(s) deleted successfully`);
 		}
 	});
 
@@ -72,6 +73,19 @@
 		if ($page.url.searchParams.get('deleted')) {
 			toast.success('Debt deleted successfully');
 			goto('/dashboard', { replaceState: true });
+		}
+	});
+
+	// Toast for remote form results
+	$effect(() => {
+		const forms = [batchDeleteDebts, deleteDebt, deleteAllDebts];
+		for (const form of forms) {
+			if ((form as any).issues?.length > 0) {
+				toast.error((form as any).issues[0].message || 'An error occurred');
+			}
+			if ((form as any).result?.success) {
+				toast.success(`Deleted ${(form as any).result.deleted || 1} debt(s) successfully`);
+			}
 		}
 	});
 
@@ -97,7 +111,7 @@
 					<Plus class="mr-2 h-4 w-4" /> New Debt
 				</Button>
 				{#if permissions.canImportData}
-					<Button variant="outline" href="/dashboard/import" size="sm">
+					<Button variant="outline" href={resolve(`/dashboard/import`, {})} size="sm">
 						<Download class="mr-2 h-4 w-4" /> Import
 					</Button>
 				{/if}
@@ -198,7 +212,7 @@
 						<div class="space-y-2">
 							{#each debtsNeedingMyConfirmation.slice(0, 3) as debt}
 								<a
-									href="/debts/{debt.id}"
+									href={resolve(`/debts/${debt.id}`, {})}
 									class="flex items-center justify-between rounded-lg border border-yellow-200 bg-white p-3 transition-colors hover:bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/30 dark:hover:bg-yellow-900/30"
 								>
 									<div class="flex-1">
@@ -251,7 +265,7 @@
 							<Card.Content>
 								<div class="font-tabular text-4xl font-bold">{users.length}</div>
 								<p class="mt-1 text-xs text-muted-foreground">
-									<a href="/admin/users" class="hover:underline">Manage users →</a>
+									<a href={resolve(`/settings/banks`, {})} class="hover:underline">Manage users →</a>
 								</p>
 							</Card.Content>
 						</Card.Root>
@@ -357,19 +371,18 @@
 										<AlertDialog.Footer>
 											<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 											<form
-												method="POST"
-												action="?/batchDelete"
-												use:enhance={() => {
+												{...batchDeleteDebts.enhance(async ({ submit }) => {
 													dashState.isSubmitting = true;
-													return async ({ update }) => {
-														await update();
+													try {
+														await submit();
+													} finally {
 														dashState.isSubmitting = false;
 														dashState.clearSelection();
 														invalidateAll();
-													};
-												}}
+													}
+												})}
 											>
-												<input type="hidden" name="ids" value={Array.from(dashState.selectedIds).join(',')} />
+												<input type="hidden" name="ids" value={Array.from(dashState.selectedIds)} />
 												<AlertDialog.Action
 													type="submit"
 													class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -404,17 +417,17 @@
 										<AlertDialog.Footer>
 											<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 											<form
-												method="POST"
-												action="?/deleteAll"
-												use:enhance={() => {
+												{...deleteAllDebts.enhance(async ({ submit }) => {
 													dashState.isSubmitting = true;
-													return async ({ update }) => {
-														await update();
+													try {
+														await submit();
+													} finally {
 														dashState.isSubmitting = false;
 														invalidateAll();
-													};
-												}}
+													}
+												})}
 											>
+												<input type="hidden" name="confirm" value="true" />
 												<AlertDialog.Action
 													type="submit"
 													class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -593,7 +606,7 @@
 									</Table.Cell>
 									<Table.Cell class="pr-6 text-right">
 										<div class="flex items-center justify-end gap-1">
-											<Button variant="ghost" size="sm" href="/debts/{debt.id}">
+											<Button variant="ghost" size="sm" href={resolve(`/debts/${debt.id}`, {})}>
 												<Eye class="h-4 w-4 text-muted-foreground" />
 											</Button>
 
@@ -628,17 +641,16 @@
 														<AlertDialog.Footer>
 															<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 															<form
-																method="POST"
-																action="?/delete"
-																use:enhance={() => {
+																{...deleteDebt.enhance(async ({ submit }) => {
 																	dashState.isDeleting = true;
-																	return async ({ update }) => {
-																		await update();
+																	try {
+																		await submit();
+																	} finally {
 																		dashState.isDeleting = false;
 																		dashState.deleteId = '';
 																		invalidateAll();
-																	};
-																}}
+																	}
+																})}
 															>
 																<input type="hidden" name="id" value={debt.id} />
 																<AlertDialog.Action

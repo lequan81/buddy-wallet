@@ -2,71 +2,102 @@ import { api } from '$lib/services/api';
 import type { PageData } from './$types';
 import type { BankAccount } from '@repo/types';
 
-export function createDebtDetailState(
-	debt: NonNullable<PageData['debt']>,
-	creditorBanks: NonNullable<PageData['creditorBanks']>,
-	currentUser: NonNullable<PageData['currentUser']>,
-	isUploader: boolean,
-	isCreditor: boolean,
-	isDebtor: boolean
-) {
-	let debtState = $state(debt);
+export class DebtDetailState {
+	debt = $state<NonNullable<PageData['debt']>>();
+	
+	private creditorBanks: NonNullable<PageData['creditorBanks']>;
+	private currentUser: NonNullable<PageData['currentUser']>;
+	private isUploader: boolean;
+	private isCreditor: boolean;
+	private isDebtor: boolean;
 
 	// Modal state
-	let showPayModal = $state(false);
-	let showMarkAsPaidModal = $state(false);
-	let showSuggestModal = $state(false);
+	showPayModal = $state(false);
+	showMarkAsPaidModal = $state(false);
+	showSuggestModal = $state(false);
 
 	// General state
-	let isSubmitting = $state(false);
-	let isEditing = $state(false);
-	let editDescription = $state(debtState?.description || '');
-	let editAmount = $state(debtState?.amount?.toString() || '');
+	isSubmitting = $state(false);
+	isEditing = $state(false);
+	editDescription = $state('');
+	editAmount = $state('');
 
 	// Bank state
-	let selectedBankId = $state('');
-	if (creditorBanks.length > 0 && !selectedBankId) {
-		const def = creditorBanks.find((b: BankAccount) => b.isDefault);
-		if (def) selectedBankId = def.id;
-		else selectedBankId = creditorBanks[0].id;
-	}
-
-	const selectedBank = $derived(
-		creditorBanks.find((b: BankAccount) => b.id === selectedBankId) ||
-			creditorBanks.find((b: BankAccount) => b.isDefault) ||
-			creditorBanks[0]
-	);
+	selectedBankId = $state('');
 
 	// Upload State
-	let uploadFile = $state<FileList | undefined>(undefined);
-	let isUploading = $state(false);
-	let uploadError = $state('');
-	let uploadSuccess = $state(false);
+	uploadFile = $state<FileList | undefined>(undefined);
+	isUploading = $state(false);
+	uploadError = $state('');
+	uploadSuccess = $state(false);
 
-	let lastApprovedDebtId = $state('');
+	lastApprovedDebtId = $state('');
 
 	// Suggest Edit state
-	let suggestAmount = $state('');
-	let suggestDescription = $state('');
-	let isSuggesting = $state(false);
+	suggestAmount = $state('');
+	suggestDescription = $state('');
+	isSuggesting = $state(false);
 
-	// Extract permission logic (from useDebtPermissions pattern)
-	const status = $derived(debtState?.status?.toLowerCase());
-	const canEdit = $derived(isUploader && status === 'pending');
-	const canDelete = $derived(isUploader && status !== 'paid');
-	const canSuggestEdit = $derived(
-		!isUploader && (isCreditor || isDebtor) && status !== 'paid' && status !== 'cancelled'
-	);
-	const canConfirm = $derived(!isUploader && (isCreditor || isDebtor) && status === 'pending');
+	constructor(
+		debt: NonNullable<PageData['debt']>,
+		creditorBanks: NonNullable<PageData['creditorBanks']>,
+		currentUser: NonNullable<PageData['currentUser']>,
+		isUploader: boolean,
+		isCreditor: boolean,
+		isDebtor: boolean
+	) {
+		this.debt = debt;
+		this.creditorBanks = creditorBanks;
+		this.currentUser = currentUser;
+		this.isUploader = isUploader;
+		this.isCreditor = isCreditor;
+		this.isDebtor = isDebtor;
 
-	const hasPendingSuggestion = $derived(debtState?.suggestedById && isUploader);
+		this.editDescription = debt?.description || '';
+		this.editAmount = debt?.amount?.toString() || '';
 
-	// Get valid status transitions based on current status
-	const getTransitions = (currentStatus: string) => {
-		const transitions: Record<
-			string,
-			{ status: string; label: string; icon: string; disabled?: boolean }[]
-		> = {
+		if (creditorBanks.length > 0) {
+			const def = creditorBanks.find((b: BankAccount) => b.isDefault);
+			this.selectedBankId = def ? def.id : creditorBanks[0].id;
+		}
+	}
+
+	get selectedBank() {
+		return (
+			this.creditorBanks.find((b: BankAccount) => b.id === this.selectedBankId) ||
+			this.creditorBanks.find((b: BankAccount) => b.isDefault) ||
+			this.creditorBanks[0]
+		);
+	}
+
+	get status() {
+		return this.debt?.status?.toLowerCase();
+	}
+
+	get canEdit() {
+		return this.isUploader && this.status === 'pending';
+	}
+
+	get canDelete() {
+		return this.isUploader && this.status !== 'paid';
+	}
+
+	get canSuggestEdit() {
+		return !this.isUploader && (this.isCreditor || this.isDebtor) && this.status !== 'paid' && this.status !== 'cancelled';
+	}
+
+	get canConfirm() {
+		return !this.isUploader && (this.isCreditor || this.isDebtor) && this.status === 'pending';
+	}
+
+	get hasPendingSuggestion() {
+		const d = this.debt as (NonNullable<PageData['debt']> & { suggestedById?: string });
+		return d?.suggestedById && this.isUploader;
+	}
+
+	get validTransitions() {
+		const currentStatus = this.status || '';
+		const transitions: Record<string, { status: string; label: string; icon: string; disabled?: boolean }[]> = {
 			pending: [
 				{ status: 'confirmed', label: 'Confirm', icon: 'Check' },
 				{ status: 'disputed', label: 'Dispute', icon: 'AlertTriangle' },
@@ -77,7 +108,7 @@ export function createDebtDetailState(
 					status: 'paid',
 					label: 'Mark as Paid',
 					icon: 'Check',
-					disabled: !debtState?.hasPendingProof
+					disabled: !(this.debt as (NonNullable<PageData['debt']> & { hasPendingProof?: boolean }))?.hasPendingProof
 				},
 				{ status: 'disputed', label: 'Dispute', icon: 'AlertTriangle' }
 			],
@@ -85,173 +116,31 @@ export function createDebtDetailState(
 			paid: [],
 			cancelled: []
 		};
-		return transitions[currentStatus?.toLowerCase()] || [];
-	};
-
-	const validTransitions = $derived(getTransitions(debtState?.status || ''));
-
-	// Generate QR URL
-	const qrUrl = $derived.by(() => {
-		if (!selectedBank || !debtState) return '';
-		const amount = debtState.amount;
-		const addInfo = `Debt ${debtState.id}`;
-		return `https://img.vietqr.io/image/${selectedBank.bankBin}-${selectedBank.accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent(selectedBank.accountName)}`;
-	});
-
-	async function handleUpload() {
-		if (!uploadFile || !uploadFile[0]) return;
-		if (!debtState) return;
-		isUploading = true;
-		uploadError = '';
-		uploadSuccess = false;
-
-		const res = await api.v1.proofs.debt({ debtId: debtState.id }).post({ file: uploadFile[0] });
-
-		isUploading = false;
-		if (res.error) {
-			uploadError = (res.error?.value as { message?: string })?.message || 'Upload failed';
-		} else {
-			uploadSuccess = true;
-			uploadFile = undefined;
-		}
+		return transitions[currentStatus] || [];
 	}
 
-	return {
-		get debt() {
-			return debtState;
-		},
-		set debt(v) {
-			debtState = v;
-		},
+	get qrUrl() {
+		if (!this.selectedBank || !this.debt) return '';
+		const amount = this.debt.amount;
+		const addInfo = `Debt ${this.debt.id}`;
+		return `https://img.vietqr.io/image/${this.selectedBank.bankBin}-${this.selectedBank.accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent(this.selectedBank.accountName)}`;
+	}
 
-		get showPayModal() {
-			return showPayModal;
-		},
-		set showPayModal(v) {
-			showPayModal = v;
-		},
-		get showMarkAsPaidModal() {
-			return showMarkAsPaidModal;
-		},
-		set showMarkAsPaidModal(v) {
-			showMarkAsPaidModal = v;
-		},
-		get showSuggestModal() {
-			return showSuggestModal;
-		},
-		set showSuggestModal(v) {
-			showSuggestModal = v;
-		},
+	handleUpload = async () => {
+		if (!this.uploadFile || !this.uploadFile[0]) return;
+		if (!this.debt) return;
+		this.isUploading = true;
+		this.uploadError = '';
+		this.uploadSuccess = false;
 
-		get isSubmitting() {
-			return isSubmitting;
-		},
-		set isSubmitting(v) {
-			isSubmitting = v;
-		},
-		get isEditing() {
-			return isEditing;
-		},
-		set isEditing(v) {
-			isEditing = v;
-		},
-		get editDescription() {
-			return editDescription;
-		},
-		set editDescription(v) {
-			editDescription = v;
-		},
-		get editAmount() {
-			return editAmount;
-		},
-		set editAmount(v) {
-			editAmount = v;
-		},
+		const res = await api.v1.proofs.debt({ debtId: this.debt.id }).post({ file: this.uploadFile[0] });
 
-		get selectedBankId() {
-			return selectedBankId;
-		},
-		set selectedBankId(v) {
-			selectedBankId = v;
-		},
-		get selectedBank() {
-			return selectedBank;
-		},
-
-		get uploadFile() {
-			return uploadFile;
-		},
-		set uploadFile(v) {
-			uploadFile = v;
-		},
-		get isUploading() {
-			return isUploading;
-		},
-		set isUploading(v) {
-			isUploading = v;
-		},
-		get uploadError() {
-			return uploadError;
-		},
-		set uploadError(v) {
-			uploadError = v;
-		},
-		get uploadSuccess() {
-			return uploadSuccess;
-		},
-		set uploadSuccess(v) {
-			uploadSuccess = v;
-		},
-
-		get lastApprovedDebtId() {
-			return lastApprovedDebtId;
-		},
-		set lastApprovedDebtId(v) {
-			lastApprovedDebtId = v;
-		},
-
-		get suggestAmount() {
-			return suggestAmount;
-		},
-		set suggestAmount(v) {
-			suggestAmount = v;
-		},
-		get suggestDescription() {
-			return suggestDescription;
-		},
-		set suggestDescription(v) {
-			suggestDescription = v;
-		},
-		get isSuggesting() {
-			return isSuggesting;
-		},
-		set isSuggesting(v) {
-			isSuggesting = v;
-		},
-
-		get canEdit() {
-			return canEdit;
-		},
-		get canDelete() {
-			return canDelete;
-		},
-		get canSuggestEdit() {
-			return canSuggestEdit;
-		},
-		get canConfirm() {
-			return canConfirm;
-		},
-		get hasPendingSuggestion() {
-			return hasPendingSuggestion;
-		},
-
-		get validTransitions() {
-			return validTransitions;
-		},
-		get qrUrl() {
-			return qrUrl;
-		},
-
-		handleUpload
-	};
+		this.isUploading = false;
+		if (res.error) {
+			this.uploadError = (res.error?.value as { message?: string })?.message || 'Upload failed';
+		} else {
+			this.uploadSuccess = true;
+			this.uploadFile = undefined;
+		}
+	}
 }

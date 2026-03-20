@@ -14,6 +14,21 @@ import { PERMISSIONS, hasPermission } from '@repo/permissions';
 import { DebtService, ActivityService } from '../services';
 import { getClientIP } from '../utils';
 
+// Helper functions to convert responses to Response objects for Elysia
+const createErrorResponse = (error: { code: string; message: string }, details?: string, status: number = 400) => {
+  return new Response(JSON.stringify(errorResponse(error, details)), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+};
+
+const createSuccessResponse = <T extends object>(data?: T, status: number = 200) => {
+  return new Response(JSON.stringify(successResponse(data)), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+};
+
 const DebtStatusSchema = t.Union([
   t.Literal('pending'),
   t.Literal('confirmed'),
@@ -22,9 +37,19 @@ const DebtStatusSchema = t.Union([
   t.Literal('cancelled')
 ]);
 
-const NullableString = t.Union([t.String(), t.Literal(null)]);
-const NullableNumber = t.Union([t.Number(), t.Literal(null)]);
-const NullableDateString = t.Union([t.String(), t.Literal(null)]);
+const NullableString = t.Union([t.String(), t.Null()]);
+const NullableNumber = t.Union([t.Number(), t.Null()]);
+const NullableDateString = t.Union([t.String(), t.Null()]);
+
+// Error response schema for Elysia
+const ErrorResponseSchema = t.Object({
+  success: t.Literal(false),
+  error: t.Object({
+    code: t.String(),
+    message: t.String(),
+    details: t.Optional(t.String())
+  })
+});
 
 const DebtSchema = t.Object({
   id: t.String(),
@@ -108,7 +133,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     async ({ user, permissions, query, set }) => {
       if (!user) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+        return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, undefined, 401);
       }
       const hasViewAll = hasPermission(permissions, PERMISSIONS.DEBT_VIEW_ALL);
       const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
@@ -121,7 +146,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         status
       });
 
-      return successResponse({
+      return createSuccessResponse({
         debts: result.data,
         pagination: {
           total: result.total,
@@ -138,7 +163,10 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         offset: t.Optional(t.String()),
         status: t.Optional(t.String())
       }),
-      response: { 200: DebtListResponseSchema }
+      response: {
+        200: DebtListResponseSchema,
+        401: ErrorResponseSchema
+      }
     }
   )
 
@@ -148,7 +176,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     async ({ user, permissions, set }) => {
       if (!user) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+        return createErrorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
       const hasViewAll = hasPermission(permissions, PERMISSIONS.DEBT_VIEW_ALL);
       const result = await DebtService.getDebtsForUser(user!.id, hasViewAll, {
@@ -165,11 +193,11 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         createdAt: debt.createdAt
       }));
 
-      return successResponse({ debts: recentDebts });
+      return createSuccessResponse({ debts: recentDebts });
     },
     {
       checkPermission: PERMISSIONS.DEBT_VIEW_OWN,
-      response: { 200: RecentDebtsResponseSchema }
+      response: { 200: RecentDebtsResponseSchema, 401: ErrorResponseSchema }
     }
   )
 
@@ -187,7 +215,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         status
       });
 
-      return successResponse({
+      return createSuccessResponse({
         debts: result.data,
         pagination: {
           total: result.total,
@@ -205,7 +233,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         status: t.Optional(t.String())
       }),
       checkPermission: PERMISSIONS.DEBT_VIEW_ALL,
-      response: { 200: DebtListResponseSchema }
+      response: { 200: DebtListResponseSchema, 401: ErrorResponseSchema }
     }
   )
 
@@ -215,12 +243,12 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     async ({ user, set }) => {
       if (!user) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+        return createErrorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
       const contacts = await DebtService.getRecentContacts(user.id, 10);
-      return successResponse({ contacts });
+      return createSuccessResponse({ contacts });
     },
-    { checkPermission: PERMISSIONS.DEBT_VIEW_OWN, response: { 200: RecentContactsResponseSchema } }
+    { checkPermission: PERMISSIONS.DEBT_VIEW_OWN, response: { 200: RecentContactsResponseSchema, 401: ErrorResponseSchema } }
   )
 
   // Get single debt by ID
@@ -230,14 +258,14 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       const debt = await DebtService.getDebtById(id);
       if (!debt) {
         set.status = 404;
-        return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+        return createErrorResponse(BE_ERRORS.DEBT_NOT_FOUND);
       }
-      return successResponse({ debt });
+      return createSuccessResponse({ debt });
     },
     {
       params: t.Object({ id: t.String() }),
       ensureRelatedDebt: 'id',
-      response: { 200: DebtResponseSchema }
+      response: { 200: DebtResponseSchema, 401: ErrorResponseSchema, 404: ErrorResponseSchema }
     }
   )
 
@@ -250,7 +278,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
+        return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
       const result = await DebtService.createDebt(
@@ -277,18 +305,16 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         // Return duplicate warning with duplicates info
         if (result.code === 'DUPLICATE_WARNING') {
           set.status = 409; // Conflict
-          return {
-            success: false,
-            error: result.error,
-            code: result.code,
-            duplicates: (result as unknown as { duplicates: unknown[] }).duplicates
-          };
+          return createErrorResponse({
+            code: result.code || 'DUPLICATE_WARNING',
+            message: result.error || 'Duplicate debts detected'
+          }, undefined, 409);
         }
         set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+        return createErrorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
 
-      return successResponse({ debt: result.debt });
+      return createSuccessResponse({ debt: result.debt });
     },
     {
       body: t.Object({
@@ -301,7 +327,8 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         ),
         confirmDuplicate: t.Optional(t.Boolean())
       }),
-      checkPermission: PERMISSIONS.DEBT_CREATE
+      checkPermission: PERMISSIONS.DEBT_CREATE,
+      response: { 200: DebtResponseSchema, 400: ErrorResponseSchema, 401: ErrorResponseSchema, 409: ErrorResponseSchema }
     }
   )
 
@@ -313,7 +340,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
+        return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
       const result = await DebtService.updateDebtStatus(id, body.status, {
@@ -327,13 +354,13 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       if (!result.success) {
         if (result.error === 'Debt not found') {
           set.status = 404;
-          return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+          return createErrorResponse(BE_ERRORS.DEBT_NOT_FOUND);
         }
         set.status = 400;
-        return errorResponse(BE_ERRORS.DEBT_INVALID_STATUS, result.error);
+        return createErrorResponse(BE_ERRORS.DEBT_INVALID_STATUS, result.error);
       }
 
-      return successResponse({ debt: result.debt });
+      return createSuccessResponse({ debt: result.debt });
     },
     {
       params: t.Object({ id: t.String() }),
@@ -357,7 +384,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
+        return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
       const result = await DebtService.updateDebt(id, body, {
@@ -371,13 +398,13 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       if (!result.success) {
         if (result.error === 'Debt not found') {
           set.status = 404;
-          return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+          return createErrorResponse(BE_ERRORS.DEBT_NOT_FOUND);
         }
         set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+        return createErrorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
 
-      return successResponse({ debt: result.debt });
+      return createSuccessResponse({ debt: result.debt });
     },
     {
       params: t.Object({ id: t.String() }),
@@ -386,7 +413,8 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         amount: t.Optional(t.Number({ minimum: 1 }))
       }),
       checkPermission: PERMISSIONS.DEBT_UPDATE_OWN,
-      ensureRelatedDebt: 'id'
+      ensureRelatedDebt: 'id',
+      response: { 200: DebtResponseSchema, 400: ErrorResponseSchema, 401: ErrorResponseSchema, 404: ErrorResponseSchema }
     }
   )
 
@@ -397,12 +425,12 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
+        return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
       if (body.ids.length > 50) {
         set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, 'Cannot delete more than 50 debts at once');
+        return createErrorResponse(GEN_ERRORS.INVALID_INPUT, 'Cannot delete more than 50 debts at once');
       }
 
       const result = await DebtService.deleteDebts(body.ids, {
@@ -425,7 +453,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         });
       }
 
-      return successResponse({
+      return createSuccessResponse({
         deleted: result.deleted,
         errors: result.errors
       });
@@ -444,11 +472,11 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     async ({ user, query, set, request, server }) => {
       if (!user) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+        return createErrorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
       if (query.confirm !== 'true') {
         set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, 'Must confirm deletion with ?confirm=true');
+        return createErrorResponse(GEN_ERRORS.INVALID_INPUT, 'Must confirm deletion with ?confirm=true');
       }
 
       const result = await DebtService.deleteAllDebts(user.id);
@@ -465,7 +493,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         });
       }
 
-      return successResponse({
+      return createSuccessResponse({
         message: 'All debts deleted successfully',
         deleted: result.deleted
       });
@@ -475,7 +503,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         confirm: t.String()
       }),
       checkPermission: PERMISSIONS.DEBT_DELETE_OWN,
-      response: { 200: DeleteAllResponseSchema }
+      response: { 200: DeleteAllResponseSchema, 400: ErrorResponseSchema, 401: ErrorResponseSchema }
     }
   )
 
@@ -486,7 +514,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
+        return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
       const result = await DebtService.deleteDebt(id, {
@@ -500,18 +528,19 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       if (!result.success) {
         if (result.error === 'Debt not found') {
           set.status = 404;
-          return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+          return createErrorResponse(BE_ERRORS.DEBT_NOT_FOUND);
         }
         set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+        return createErrorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
 
-      return successResponse({ message: 'Debt deleted successfully' });
+      return createSuccessResponse({ message: 'Debt deleted successfully' });
     },
     {
       params: t.Object({ id: t.String() }),
       checkPermission: PERMISSIONS.DEBT_DELETE_OWN,
-      ensureRelatedDebt: 'id'
+      ensureRelatedDebt: 'id',
+      response: { 200: t.Object({ success: t.Literal(true), message: t.String() }), 400: ErrorResponseSchema, 401: ErrorResponseSchema, 404: ErrorResponseSchema }
     }
   )
 
@@ -522,7 +551,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
+        return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
       const result = await DebtService.confirmDebt(id, {
@@ -536,24 +565,25 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       if (!result.success) {
         if (result.code === 'NOT_FOUND') {
           set.status = 404;
-          return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+          return createErrorResponse(BE_ERRORS.DEBT_NOT_FOUND);
         }
         if (result.code === 'FORBIDDEN') {
           set.status = 403;
-          return errorResponse(GEN_ERRORS.FORBIDDEN, result.error);
+          return createErrorResponse(GEN_ERRORS.FORBIDDEN, result.error);
         }
         if (result.code === 'ALREADY_CONFIRMED') {
-          return successResponse({ message: result.error });
+          return createSuccessResponse({ message: result.error });
         }
         set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+        return createErrorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
 
-      return successResponse({ debt: result.debt, message: result.message });
+      return createSuccessResponse({ debt: result.debt, message: result.message });
     },
     {
       params: t.Object({ id: t.String() }),
-      ensureRelatedDebt: 'id'
+      ensureRelatedDebt: 'id',
+      response: { 200: DebtResponseSchema, 400: ErrorResponseSchema, 401: ErrorResponseSchema, 403: ErrorResponseSchema, 404: ErrorResponseSchema }
     }
   )
 
@@ -564,7 +594,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
+        return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
       const result = await DebtService.suggestEdit(
@@ -585,14 +615,14 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       if (!result.success) {
         if (result.code === 'NOT_FOUND') {
           set.status = 404;
-          return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+          return createErrorResponse(BE_ERRORS.DEBT_NOT_FOUND);
         }
         if (result.code === 'FORBIDDEN') {
           set.status = 403;
-          return errorResponse(GEN_ERRORS.FORBIDDEN, result.error);
+          return createErrorResponse(GEN_ERRORS.FORBIDDEN, result.error);
         }
         set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+        return createErrorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
 
       await ActivityService.log({
@@ -605,7 +635,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         userAgent: request.headers.get('user-agent') || undefined
       });
 
-      return successResponse({ debt: result.debt, message: result.message });
+      return createSuccessResponse({ debt: result.debt, message: result.message });
     },
     {
       params: t.Object({ id: t.String() }),
@@ -613,7 +643,8 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         amount: t.Optional(t.Number({ minimum: 1 })),
         description: t.Optional(t.String({ maxLength: 500 }))
       }),
-      ensureRelatedDebt: 'id'
+      ensureRelatedDebt: 'id',
+      response: { 200: DebtResponseSchema, 400: ErrorResponseSchema, 401: ErrorResponseSchema, 403: ErrorResponseSchema, 404: ErrorResponseSchema }
     }
   )
 
@@ -624,7 +655,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
+        return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
       const result = await DebtService.respondToSuggestion(
@@ -642,14 +673,14 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       if (!result.success) {
         if (result.code === 'NOT_FOUND') {
           set.status = 404;
-          return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+          return createErrorResponse(BE_ERRORS.DEBT_NOT_FOUND);
         }
         if (result.code === 'FORBIDDEN') {
           set.status = 403;
-          return errorResponse(GEN_ERRORS.FORBIDDEN, result.error);
+          return createErrorResponse(GEN_ERRORS.FORBIDDEN, result.error);
         }
         set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+        return createErrorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
 
       await ActivityService.log({
@@ -661,13 +692,14 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         userAgent: request.headers.get('user-agent') || undefined
       });
 
-      return successResponse({ debt: result.debt, message: result.message });
+      return createSuccessResponse({ debt: result.debt, message: result.message });
     },
     {
       params: t.Object({ id: t.String() }),
       body: t.Object({
         accept: t.Boolean()
       }),
-      ensureRelatedDebt: 'id'
+      ensureRelatedDebt: 'id',
+      response: { 200: DebtResponseSchema, 400: ErrorResponseSchema, 401: ErrorResponseSchema, 403: ErrorResponseSchema, 404: ErrorResponseSchema }
     }
   );

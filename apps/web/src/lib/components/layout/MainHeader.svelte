@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { LayoutDashboard, LogOut, Menu, User, Wallet } from '@repo/icons';
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
@@ -17,7 +18,7 @@
 	<div class="container flex h-14 items-center">
 		<!-- Logo -->
 		<div class="mr-4 hidden md:flex">
-			<a href="/" class="flex items-center space-x-2">
+			<a href={resolve(`/`, {})} class="flex items-center space-x-2">
 				<Wallet class="h-5 w-5 text-muted-foreground" />
 				<span class="font-bold">Buddy Wallet</span>
 			</a>
@@ -31,7 +32,7 @@
 			</Sheet.Trigger>
 			<Sheet.Content side="left">
 				<div class="mb-6">
-					<a href="/" class="flex items-center space-x-2">
+					<a href={resolve(`/`, {})} class="flex items-center space-x-2">
 						<Wallet class="h-5 w-5 text-muted-foreground" />
 						<span class="font-bold">Buddy Wallet</span>
 					</a>
@@ -39,7 +40,7 @@
 				<nav class="flex flex-col space-y-3">
 					{#if user}
 						<a
-							href="/dashboard"
+							href={resolve(`/dashboard`, {})}
 							class="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
 						>
 							<LayoutDashboard class="h-4 w-4" />
@@ -47,7 +48,7 @@
 						</a>
 					{:else}
 						<a
-							href="/"
+							href={resolve(`/`, {})}
 							class="text-sm text-muted-foreground transition-colors hover:text-foreground"
 						>
 							Home
@@ -58,7 +59,7 @@
 		</Sheet.Root>
 
 		<!-- Mobile logo -->
-		<a href="/" class="flex items-center space-x-2 md:hidden">
+		<a href={resolve(`/`, {})} class="flex items-center space-x-2 md:hidden">
 			<Wallet class="h-5 w-5 text-muted-foreground" />
 			<span class="font-bold">Buddy Wallet</span>
 		</a>
@@ -86,7 +87,7 @@
 						<DropdownMenu.Separator />
 						<DropdownMenu.Item>
 							{#snippet child({ props }: { props: Record<string, unknown> })}
-								<a href="/dashboard" {...props} class="flex w-full items-center">
+								<a href={resolve(`/dashboard`, {})} {...props} class="flex w-full items-center">
 									<LayoutDashboard class="mr-2 h-4 w-4 text-muted-foreground" />
 									Dashboard
 								</a>
@@ -94,7 +95,7 @@
 						</DropdownMenu.Item>
 						<DropdownMenu.Item>
 							{#snippet child({ props }: { props: Record<string, unknown> })}
-								<a href="/settings/profile" {...props} class="flex w-full items-center">
+								<a href={resolve(`/settings/profile`, {})} {...props} class="flex w-full items-center">
 									<User class="mr-2 h-4 w-4 text-muted-foreground" />
 									Settings
 								</a>
@@ -128,8 +129,8 @@
 					</DropdownMenu.Content>
 				</DropdownMenu.Root>
 			{:else}
-				<Button href="/login" variant="ghost" size="sm">Login</Button>
-				<Button href="/signup" size="sm">Sign Up</Button>
+				<Button href={resolve(`/login`, {})} variant="ghost" size="sm">Login</Button>
+				<Button href={resolve(`/signup`, {})} size="sm">Sign Up</Button>
 			{/if}
 		</div>
 	</div>

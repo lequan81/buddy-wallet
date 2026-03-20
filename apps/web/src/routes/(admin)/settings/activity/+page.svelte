@@ -147,7 +147,7 @@
 
 								<!-- Changes summary -->
 								{#if log.changes}
-									{@const after = log.changes.after as Record<string, any> | undefined}
+									{@const after = log.changes.after as Record<string, unknown> | undefined}
 									<div class="mt-1 text-sm text-muted-foreground">
 										{#if after?.status}
 											Status changed to <span class="font-medium capitalize"

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { Button } from '@repo/ui/components/ui/button';
@@ -105,7 +106,7 @@
 							You have <span class="text-lg font-bold">{result.count}</span> pending debt{result.count !== 1 ? 's' : ''}
 						</p>
 						<Button
-							href="/login"
+							href={resolve(`/login`, {})}
 							data-sveltekit-preload-data="hover"
 							variant="destructive"
 							class="w-full shadow-sm">View Details</Button
@@ -115,7 +116,7 @@
 							Record is clean. No pending debts found.
 						</p>
 						<Button
-							href="/signup"
+							href={resolve(`/signup`, {})}
 							data-sveltekit-preload-data="hover"
 							variant="outline"
 							class="w-full border-emerald-500/20 hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-300">Create Account</Button
@@ -233,13 +234,13 @@
 <section class="border-t border-border/50 bg-muted/10 px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
 	<div class="mx-auto max-w-5xl">
 		<div class="flex flex-wrap justify-center gap-x-8 gap-y-4 text-sm">
-			<a href="/about" class="font-medium text-muted-foreground transition-colors hover:text-foreground">
+			<a href={resolve(`/about`, {})} class="font-medium text-muted-foreground transition-colors hover:text-foreground">
 				About Us
 			</a>
-			<a href="/faq" class="font-medium text-muted-foreground transition-colors hover:text-foreground">
+			<a href={resolve(`/faq`, {})} class="font-medium text-muted-foreground transition-colors hover:text-foreground">
 				FAQ
 			</a>
-			<a href="/terms" class="font-medium text-muted-foreground transition-colors hover:text-foreground">
+			<a href={resolve(`/terms`, {})} class="font-medium text-muted-foreground transition-colors hover:text-foreground">
 				Terms & Conditions
 			</a>
 		</div>

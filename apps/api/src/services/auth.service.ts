@@ -246,9 +246,15 @@ export class AuthService implements IAuthService {
 
       // Parse device info (use client hints if provided for more accuracy)
       const deviceInfo = parseUserAgent(userAgent || null, input.clientHints);
+      // Convert ClientLocation object to string format expected by getLocationFromIP
+      const clientLocationStr = input.clientLocation
+        ? [input.clientLocation.city, input.clientLocation.country]
+            .filter(Boolean)
+            .join(', ') || null
+        : null;
       const location = await getLocationFromIP(
         clientIP || null,
-        input.clientLocation,
+        clientLocationStr,
         input.coordinates
       );
 

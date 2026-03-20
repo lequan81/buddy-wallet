@@ -1,13 +1,15 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Eye, Phone, Search, User, UserCheck, UserX } from '@repo/icons';
-	import { enhance } from '$app/forms';
+
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { useDebounce } from '$lib/hooks/use-debounce.svelte';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { cn } from '$lib/utils';
 
-	let { data } = $props();
+	import { type PageData } from './$types';
+	let { data } = $props<{ data: PageData }>();
 
 	let searchQuery = $state('');
 	let filterStatus = $state<'all' | 'active' | 'inactive'>('all');
@@ -38,13 +40,14 @@
 	const debouncedSearch = useDebounce(() => searchQuery, 300);
 
 	// Client-side filtering (on top of server-paginated data)
+	type UserItem = NonNullable<typeof data.users>[number];
 	const filteredUsers = $derived(() => {
 		let users = data.users ?? [];
 
 		if (debouncedSearch.debounced()) {
 			const q = debouncedSearch.debounced().toLowerCase();
 			users = users.filter(
-				(u: any) =>
+				(u: UserItem) =>
 					u.name?.toLowerCase().includes(q) ||
 					u.email?.toLowerCase().includes(q) ||
 					u.phoneNumber?.includes(q)
@@ -52,9 +55,9 @@
 		}
 
 		if (filterStatus === 'active') {
-			users = users.filter((u: any) => u.isActive !== false);
+			users = users.filter((u: UserItem) => u.isActive !== false);
 		} else if (filterStatus === 'inactive') {
-			users = users.filter((u: any) => u.isActive === false);
+			users = users.filter((u: UserItem) => u.isActive === false);
 		}
 
 		return users;
@@ -153,7 +156,7 @@
 							</td>
 							<td class="px-6 py-4 text-right">
 								<a
-									href="/admin/users/{user.id}"
+									href={resolve(`/admin/users/${user.id}`, {})}
 									class="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
 								>
 									<Eye class="h-4 w-4" />

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Plus, Clock, FileSpreadsheet } from '@repo/icons';
@@ -105,7 +106,7 @@
 						<Plus class="h-4 w-4 mr-2" />
 						Create New Debt
 					</Button>
-					<Button href="/dashboard/import" class="w-full justify-start" variant="outline">
+					<Button href={resolve(`/dashboard/import`, {})} class="w-full justify-start" variant="outline">
 						<FileSpreadsheet class="h-4 w-4 mr-2" />
 						Import Debts
 					</Button>
@@ -130,7 +131,7 @@
 		{#if recentDebts.length === 0}
 			<div class="text-center py-8 text-muted-foreground">
 				<p>No recent debt activity</p>
-				<Button href="/debts/create" class="mt-4">
+				<Button href={resolve(`/debts/create`, {})} class="mt-4">
 					Create Your First Debt
 				</Button>
 			</div>

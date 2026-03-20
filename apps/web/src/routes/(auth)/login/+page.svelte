@@ -1,14 +1,15 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { Loader2 } from '@repo/icons';
-	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
+	import { loginRemote } from '$lib/remotes/auth.remote';
 	import { loginSchema, validateField } from '@repo/validation/client';
-	let { form, data } = $props();
+	let { data } = $props();
 
 	let email = $state('');
 	let password = $state('');
@@ -33,8 +34,9 @@
 
 	// Show toast on form error
 	$effect(() => {
-		if (form?.message) {
-			toast.error(form.message);
+		const issues = loginRemote.fields.allIssues();
+		if (issues && issues.length > 0) {
+			toast.error(issues[0].message);
 		}
 	});
 
@@ -52,21 +54,14 @@
 
 		<Card.Content>
 			<form
-				method="POST"
-				use:enhance={() => {
+				{...loginRemote.enhance(async ({ submit }) => {
 					isSubmitting = true;
-					return async ({ result, update }) => {
+					try {
+						await submit();
+					} finally {
 						isSubmitting = false;
-
-						// If login successful (redirect), use SvelteKit navigation to avoid FOUC
-						if (result.type === 'redirect') {
-							await goto(result.location, { invalidateAll: true });
-						} else {
-							// For errors, just update the form
-							await update();
-						}
-					};
-				}}
+					}
+				})}
 				class="space-y-4"
 			>
 				<!-- Email/Phone Field -->
@@ -96,7 +91,7 @@
 				<!-- Forgot Password Link -->
 				<div class="text-right">
 					<a
-						href="/forgot-password"
+						href={resolve(`/forgot-password`, {})}
 						data-sveltekit-preload-data="hover"
 						class="text-sm text-primary hover:underline"
 					>
@@ -130,7 +125,7 @@
 			<Button
 				variant="outline"
 				class="h-10 w-full"
-				href="/signup"
+				href={resolve(`/signup`, {})}
 				data-sveltekit-preload-data="hover">Create an account</Button
 			>
 		</Card.Footer>

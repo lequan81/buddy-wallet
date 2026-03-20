@@ -8,7 +8,7 @@
 import type { UploadState } from '$lib/types';
 
 class ImportUploadStore {
-	state = $state<UploadState>({
+	state = $state.raw<UploadState>({
 		file: null,
 		uploadId: null,
 		previewData: [],

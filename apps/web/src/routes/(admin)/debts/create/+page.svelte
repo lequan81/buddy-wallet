@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, Landmark, Plus, User } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { untrack } from 'svelte';
@@ -20,18 +21,15 @@
 		validateField
 	} from '@repo/validation/client';
 
-	// Props with type annotation to include hasBankAccount
-	interface PageData {
-		hasBankAccount?: boolean;
-		recentContacts?: string[];
-	}
-	let { form, data } = $props<{ form: any; data: PageData }>();
+	import { type PageData, type ActionData } from './$types';
+
+	let { form, data } = $props<{ form: ActionData; data: PageData }>();
 	let isSubmitting = $state(false);
 
 	// Bank account check - only needed for lending money, not for borrowing
 	let hasBankAccount = $derived(data.hasBankAccount ?? true);
 	let canLend = $derived(hasBankAccount);
-	let canBorrow = $derived(true); // Always allow borrowing regardless of bank account
+	let _canBorrow = $derived(true); // Always allow borrowing regardless of bank account
 
 	// Use $derived for direction to react to canLend changes
 	let _directionState = $state('LEND');
@@ -64,7 +62,7 @@
 
 	// Preview modal state
 	let showPreviewModal = $state(false);
-	let formElement: HTMLFormElement | undefined = $state(undefined);
+	let _formElement: HTMLFormElement | undefined = $state(undefined);
 
 	// Duplicate modal state
 	let showDuplicateModal = $state(false);
@@ -138,7 +136,7 @@
 
 <PageContainer maxWidth="max-w-2xl">
 	<a
-		href="/dashboard"
+		href={resolve(`/dashboard`, {})}
 		class="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
 	>
 		<ArrowLeft class="h-4 w-4" />
@@ -161,7 +159,7 @@
 					You need to add at least one bank account before creating debts where others owe you
 					money. Without a bank account, debtors cannot scan QR codes to pay you.
 				</p>
-				<Button href="/settings/banks" size="lg">
+				<Button href={resolve(`/settings/banks`, {})} size="lg">
 					<Plus class="mr-2 h-4 w-4" />
 					Add Bank Account Now
 				</Button>
@@ -176,7 +174,8 @@
 		<Card.Content class="pt-6">
 			<form
 				method="POST"
-				use:enhance={() => {
+				use:enhance={({ formData }) => {
+					formData.set('confirmDuplicate', confirmDuplicate.toString());
 					isSubmitting = true;
 					return async ({ update }) => {
 						await update();
@@ -333,6 +332,8 @@
 				<div class="space-y-2">
 					<Label class="text-sm">Confirmation Deadline</Label>
 					<select
+						id="expiryOption"
+						name="expiryOption"
 						bind:value={expiryOption}
 						class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					>
@@ -345,8 +346,7 @@
 					</p>
 				</div>
 
-				<input type="hidden" name="expiryOption" value={expiryOption} />
-				<input type="hidden" name="confirmDuplicate" value={confirmDuplicate ? 'true' : 'false'} />
+
 
 				<div class="flex gap-3">
 					<Button

@@ -12,8 +12,23 @@ import { PERMISSIONS } from '@repo/permissions';
 import { UserService, ActivityService } from '../services';
 import { getClientIP } from '../utils';
 
-const NullableString = t.Union([t.String(), t.Literal(null)]);
-const NullableDateString = t.Union([t.String(), t.Literal(null)]);
+// Helper functions to convert responses to Response objects for Elysia
+const _createErrorResponse = (error: { code: string; message: string }, details?: string, status: number = 400) => {
+  return new Response(JSON.stringify(errorResponse(error, details)), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+};
+
+const createSuccessResponse = <T extends object>(data?: T, status: number = 200) => {
+  return new Response(JSON.stringify(successResponse(data)), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+};
+
+const NullableString = t.Union([t.String(), t.Null()]);
+const NullableDateString = t.Union([t.String(), t.Null()]);
 
 const UserSchema = t.Object({
   id: t.String(),
@@ -116,7 +131,7 @@ export const UsersController = new Elysia({ prefix: '/users' })
       const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
       const offset = query.offset ? parseInt(query.offset) : 0;
       const result = await UserService.getAllUsers({ limit, offset });
-      return successResponse({
+      return createSuccessResponse({
         users: result.users,
         pagination: {
           total: result.total,
@@ -144,10 +159,10 @@ export const UsersController = new Elysia({ prefix: '/users' })
 
       if (!result.success) {
         set.status = 404;
-        return errorResponse(BE_ERRORS.USER_NOT_FOUND);
+        return _createErrorResponse(BE_ERRORS.USER_NOT_FOUND);
       }
 
-      return successResponse({ user: result.user });
+      return createSuccessResponse({ user: result.user });
     },
     {
       params: t.Object({ id: t.String() }),

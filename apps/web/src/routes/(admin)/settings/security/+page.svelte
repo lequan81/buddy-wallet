@@ -1,10 +1,11 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { AlertTriangle, Clock, Key, LogOut, Monitor, Shield, Smartphone, Tablet } from '@repo/icons';
-	import { enhance } from '$app/forms';
-	import { onMount } from 'svelte';
+
+	import { revokeSession, logoutAll, changePassword } from '$lib/remotes/security.remote';
+
 	import { toast } from 'svelte-sonner';
 	import { Button } from '@repo/ui/components/ui/button';
-	import { Label } from '@repo/ui/components/ui/label';
+
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Separator } from '@repo/ui/components/ui/separator';
 	import { cn } from '$lib/utils';
@@ -16,10 +17,12 @@
 
 	// Toast on form results
 	$effect(() => {
-		if (form?.success) {
-			toast.success(form.message || 'Action completed successfully');
-		} else if (form?.message && !form?.success) {
-			toast.error(form.message);
+		if (form && typeof form === 'object' && 'success' in form) {
+			const msg = (form as Record<string, unknown>).message;
+			toast.success((typeof msg === 'string' ? msg : null) || 'Action completed successfully');
+		} else if (form && typeof form === 'object' && 'error' in form) {
+			const err = (form as Record<string, unknown>).error as Record<string, unknown> | undefined;
+			toast.error((typeof err?.message === 'string' ? err.message : null) || 'An error occurred');
 		}
 	});
 
@@ -139,15 +142,15 @@
 	</div>
 	<Separator />
 
-	{#if form?.success}
+	{#if form && typeof form === 'object' && 'success' in form}
 		<div
 			class="rounded-md bg-green-50 p-4 text-sm text-green-600 dark:bg-green-950 dark:text-green-400"
 		>
-			{form.message || 'Action completed successfully'}
+			{(form as Record<string, unknown>).message || 'Action completed successfully'}
 		</div>
-	{:else if form?.message}
+	{:else if form && typeof form === 'object' && 'error' in form}
 		<div class="rounded-md bg-red-50 p-4 text-sm text-red-600 dark:bg-red-950 dark:text-red-400">
-			{form.message}
+			{((form as Record<string, unknown>).error as Record<string, unknown> | undefined)?.message || 'An error occurred'}
 		</div>
 	{/if}
 
@@ -176,7 +179,7 @@
 				{#if data.sessions.length >= 1}
 					<AlertDialog.Root bind:open={showLogoutAllDialog}>
 						<AlertDialog.Trigger>
-							{#snippet child({ props }: { props: Record<string, any> })}
+							{#snippet child({ props }: { props: Record<string, unknown> })}
 								<Button variant="destructive" size="sm" {...props}>
 									<LogOut class="mr-2 h-4 w-4" />
 									Logout All Devices
@@ -194,16 +197,15 @@
 							<AlertDialog.Footer>
 								<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 								<form
-									method="POST"
-									action="?/logoutAll"
-									use:enhance={() => {
+									{...logoutAll.enhance(async ({ submit }) => {
 										isLoggingOutAll = true;
-										return async ({ update }) => {
+										try {
+											await submit();
+										} finally {
 											isLoggingOutAll = false;
 											showLogoutAllDialog = false;
-											await update();
-										};
-									}}
+										}
+									})}
 								>
 									<Button type="submit" variant="destructive" disabled={isLoggingOutAll}>
 										{#if isLoggingOutAll}
@@ -280,17 +282,16 @@
 						</div>
 						{#if !isCurrent}
 							<form
-								method="POST"
-								action="?/revokeSession"
-								use:enhance={() => {
+								{...revokeSession.enhance(async ({ data, submit }) => {
+									data.sessionId = session.id;
 									isRevoking = session.id;
-									return async ({ update }) => {
+									try {
+										await submit();
+									} finally {
 										isRevoking = null;
-										await update();
-									};
-								}}
+									}
+								})}
 							>
-								<input type="hidden" name="sessionId" value={session.id} />
 								<Button
 									type="submit"
 									variant="ghost"
@@ -337,16 +338,15 @@
 		</Card.Header>
 		<Card.Content>
 			<form
-				method="POST"
-				action="?/changePassword"
 				class="space-y-4"
-				use:enhance={() => {
+				{...changePassword.enhance(async ({ submit }) => {
 					isChangingPassword = true;
-					return async ({ update }) => {
+					try {
+						await submit();
+					} finally {
 						isChangingPassword = false;
-						await update();
-					};
-				}}
+					}
+				})}
 			>
 				<FormInput
 					id="currentPassword"

@@ -1,3 +1,5 @@
+import type { Debt } from '@repo/db';
+
 export type DebtStatus = 'pending' | 'confirmed' | 'paid' | 'disputed' | 'cancelled';
 export type DebtDirection = 'LEND' | 'BORROW';
 
@@ -13,15 +15,15 @@ export interface DebtResult {
   error?: string;
   code?: string;
   message?: string;
-  debt?: QuickDebt;
-  debts?: QuickDebt[];
+  debt?: Debt;
+  debts?: Debt[];
 }
 
 export interface StatusUpdateResult {
   success: boolean;
   error?: string;
   code?: string;
-  debt?: QuickDebt;
+  debt?: Debt;
   previousStatus?: string;
   newStatus?: string;
   validTransitions?: string[];

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { buttonVariants } from '@repo/ui/components/ui/button';
 	import { Wallet } from '@repo/icons';
@@ -9,10 +10,10 @@
 
 <!-- Marketing Header -->
 <header
-	class="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm"
+	class="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 shadow-sm"
 >
 	<div class="container flex h-16 items-center justify-between">
-		<a href="/" class="flex items-center space-x-2.5 transition-opacity hover:opacity-90">
+		<a href={resolve(`/`, {})} class="flex items-center space-x-2.5 transition-opacity hover:opacity-90">
 			<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
 				<Wallet class="h-5 w-5 text-primary" />
 			</div>
@@ -20,14 +21,14 @@
 		</a>
 
 		<nav class="hidden items-center space-x-8 text-sm font-medium md:flex">
-			<a href="/" class="text-muted-foreground transition-colors hover:text-foreground">Home</a>
+			<a href={resolve(`/`, {})} class="text-muted-foreground transition-colors hover:text-foreground">Home</a>
 			<a
-				href="/about"
+				href={resolve(`/about`, {})}
 				data-sveltekit-preload-data="hover"
 				class="text-muted-foreground transition-colors hover:text-foreground">About</a
 			>
 			<a
-				href="/faq"
+				href={resolve(`/faq`, {})}
 				data-sveltekit-preload-data="hover"
 				class="text-muted-foreground transition-colors hover:text-foreground">FAQ</a
 			>
@@ -36,18 +37,18 @@
 		<div class="flex items-center space-x-3">
 			{#if user}
 				<a
-					href="/dashboard"
+					href={resolve(`/dashboard`, {})}
 					data-sveltekit-preload-data="hover"
 					class={buttonVariants({ variant: 'default', class: 'shadow-sm' })}>Dashboard</a
 				>
 			{:else}
 				<a
-					href="/login"
+					href={resolve(`/login`, {})}
 					data-sveltekit-preload-data="hover"
 					class={buttonVariants({ variant: 'ghost', class: 'font-medium' })}>Sign In</a
 				>
 				<a
-					href="/signup"
+					href={resolve(`/signup`, {})}
 					data-sveltekit-preload-data="hover"
 					class={buttonVariants({ variant: 'default', class: 'shadow-sm font-medium' })}>Get Started</a
 				>
@@ -67,7 +68,7 @@
 		<div class="grid gap-10 md:grid-cols-4 lg:gap-14">
 			<!-- Brand -->
 			<div class="space-y-5 lg:col-span-1">
-				<a href="/" class="flex items-center space-x-2.5">
+				<a href={resolve(`/`, {})} class="flex items-center space-x-2.5">
 					<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
 						<Wallet class="h-5 w-5 text-primary" />
 					</div>
@@ -82,17 +83,17 @@
 			<div class="space-y-5">
 				<h4 class="font-medium tracking-tight">System</h4>
 				<ul class="space-y-3 text-sm text-muted-foreground">
-					<li><a href="/" class="transition-colors hover:text-foreground">Platform Overview</a></li>
+					<li><a href={resolve(`/`, {})} class="transition-colors hover:text-foreground">Platform Overview</a></li>
 					<li>
 						<a
-							href="/about"
+							href={resolve(`/about`, {})}
 							data-sveltekit-preload-data="hover"
 							class="transition-colors hover:text-foreground">Company</a
 						>
 					</li>
 					<li>
 						<a
-							href="/faq"
+							href={resolve(`/faq`, {})}
 							data-sveltekit-preload-data="hover"
 							class="transition-colors hover:text-foreground">Knowledge Base</a
 						>
@@ -106,14 +107,14 @@
 				<ul class="space-y-3 text-sm text-muted-foreground">
 					<li>
 						<a
-							href="/terms"
+							href={resolve(`/terms`, {})}
 							data-sveltekit-preload-data="hover"
 							class="transition-colors hover:text-foreground">Terms of Service</a
 						>
 					</li>
 					<li>
 						<a
-							href="/privacy"
+							href={resolve(`/privacy`, {})}
 							data-sveltekit-preload-data="hover"
 							class="transition-colors hover:text-foreground">Privacy Policy</a
 						>
@@ -127,14 +128,14 @@
 				<ul class="space-y-3 text-sm text-muted-foreground">
 					<li>
 						<a
-							href="/login"
+							href={resolve(`/login`, {})}
 							data-sveltekit-preload-data="hover"
 							class="transition-colors hover:text-foreground">Sign In</a
 						>
 					</li>
 					<li>
 						<a
-							href="/signup"
+							href={resolve(`/signup`, {})}
 							data-sveltekit-preload-data="hover"
 							class="transition-colors hover:text-foreground">Create Account</a
 						>

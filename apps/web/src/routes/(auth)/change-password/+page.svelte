@@ -1,4 +1,5 @@
-﻿<script lang="ts">
+<script lang="ts">
+	import { resolve } from '$app/paths';
 	import { AlertTriangle, Loader2, Lock } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
@@ -7,17 +8,13 @@
 	import * as Card from '@repo/ui/components/ui/card';
 	import * as Alert from '@repo/ui/components/ui/alert';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
+	import { cn } from '$lib/utils';
 
 	let { form, data } = $props();
 
 	let newPassword = $state('');
 	let confirmPassword = $state('');
 	let isSubmitting = $state(false);
-
-	// Validation states
-	let passwordError = $state('');
-	let confirmError = $state('');
-
 	// Password requirements
 	const hasMinLength = $derived(newPassword.length >= 8);
 	const hasUppercase = $derived(/[A-Z]/.test(newPassword));
@@ -29,22 +26,13 @@
 	const isValidPassword = $derived(hasMinLength && hasUppercase && hasLowercase && hasNumber);
 	const canSubmit = $derived(isValidPassword && passwordsMatch && !isSubmitting);
 
-	// Validate as user types
-	$effect(() => {
-		if (newPassword.length > 0 && !isValidPassword) {
-			passwordError = 'Password does not meet requirements';
-		} else {
-			passwordError = '';
-		}
-	});
-
-	$effect(() => {
-		if (confirmPassword.length > 0 && !passwordsMatch) {
-			confirmError = 'Passwords do not match';
-		} else {
-			confirmError = '';
-		}
-	});
+	// Validation messages derived from reactive state (replaces $effect)
+	const passwordError = $derived(
+		newPassword.length > 0 && !isValidPassword ? 'Password does not meet requirements' : ''
+	);
+	const confirmError = $derived(
+		confirmPassword.length > 0 && !passwordsMatch ? 'Passwords do not match' : ''
+	);
 
 	// Show toast on form result
 	$effect(() => {
@@ -127,39 +115,39 @@
 					<p class="mb-2 text-xs font-medium text-muted-foreground">Password requirements:</p>
 					<ul class="space-y-1 text-xs">
 						<li
-							class:text-green-600={hasMinLength}
-							class:dark:text-green-400={hasMinLength}
-							class:text-muted-foreground={!hasMinLength}
+							class={cn(
+								hasMinLength ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'
+							)}
 						>
-							{hasMinLength ? 'âœ“' : 'â—‹'} At least 8 characters
+							{hasMinLength ? '✔' : '○'} At least 8 characters
 						</li>
 						<li
-							class:text-green-600={hasUppercase}
-							class:dark:text-green-400={hasUppercase}
-							class:text-muted-foreground={!hasUppercase}
+							class={cn(
+								hasUppercase ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'
+							)}
 						>
-							{hasUppercase ? 'âœ“' : 'â—‹'} One uppercase letter
+							{hasUppercase ? '✔' : '○'} One uppercase letter
 						</li>
 						<li
-							class:text-green-600={hasLowercase}
-							class:dark:text-green-400={hasLowercase}
-							class:text-muted-foreground={!hasLowercase}
+							class={cn(
+								hasLowercase ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'
+							)}
 						>
-							{hasLowercase ? 'âœ“' : 'â—‹'} One lowercase letter
+							{hasLowercase ? '✔' : '○'} One lowercase letter
 						</li>
 						<li
-							class:text-green-600={hasNumber}
-							class:dark:text-green-400={hasNumber}
-							class:text-muted-foreground={!hasNumber}
+							class={cn(
+								hasNumber ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'
+							)}
 						>
-							{hasNumber ? 'âœ“' : 'â—‹'} One number
+							{hasNumber ? '✔' : '○'} One number
 						</li>
 						<li
-							class:text-green-600={hasSpecial}
-							class:dark:text-green-400={hasSpecial}
-							class:text-muted-foreground={!hasSpecial}
+							class={cn(
+								hasSpecial ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'
+							)}
 						>
-							{hasSpecial ? 'âœ“' : 'â—‹'} One special character (recommended)
+							{hasSpecial ? '✔' : '○'} One special character (recommended)
 						</li>
 					</ul>
 				</div>
@@ -193,7 +181,7 @@
 
 		{#if !data.required}
 			<Card.Footer>
-				<Button variant="outline" class="h-10 w-full" href="/login">Cancel</Button>
+				<Button variant="outline" class="h-10 w-full" href={resolve(`/dashboard`, {})}>Cancel</Button>
 			</Card.Footer>
 		{/if}
 	</Card.Root>

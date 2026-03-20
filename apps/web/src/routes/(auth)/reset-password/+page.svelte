@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { Loader2, Lock } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
@@ -98,7 +99,7 @@
 					<span class="bg-card px-2 text-muted-foreground">Or return to login</span>
 				</div>
 			</div>
-			<Button variant="outline" class="h-10 w-full" href="/login">Back to Login</Button>
+			<Button variant="outline" class="h-10 w-full" href={resolve(`/login`, {})}>Back to Login</Button>
 		</Card.Footer>
 	</Card.Root>
 </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { Check, Circle, Loader2 } from '@repo/icons';
 	import { toast } from 'svelte-sonner';
 	import { superForm } from 'sveltekit-superforms';
@@ -203,7 +204,7 @@
 			<Button
 				variant="outline"
 				class="h-10 w-full"
-				href="/login"
+				href={resolve(`/login`, {})}
 				data-sveltekit-preload-data="hover">Sign in</Button
 			>
 		</Card.Footer>

@@ -108,10 +108,10 @@
     "tailwind-variants": "^3.2.2"
   },
   "devDependencies": {
-    "@internationalized/date": "^3.10.0",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@repo/icons": "workspace:*",
+    "@internationalized/date": "^3.10.0",
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "eslint": "^9.0.0",
     "svelte": "^5.45.6",

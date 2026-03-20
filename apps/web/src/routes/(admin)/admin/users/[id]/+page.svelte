@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { ArrowLeft, Calendar, DollarSign, Phone, Shield, TrendingDown, TrendingUp, User, UserCheck, UserX } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
@@ -16,7 +17,7 @@
 		let totalOwing = 0; // Money this user OWES
 
 		for (const debt of debts) {
-			if (debt.status === 'PAID') continue;
+			if (debt.status === 'paid') continue;
 			if (debt.creditorId === userId) {
 				totalOwed += debt.amount;
 			} else if (debt.debtorId === userId) {
@@ -35,7 +36,7 @@
 <div class="container mx-auto px-4 py-8">
 	<!-- Back Link -->
 	<a
-		href="/admin/users"
+		href={resolve(`/admin/users`, {})}
 		class="mb-6 inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
 	>
 		<ArrowLeft class="h-4 w-4" />
@@ -218,9 +219,9 @@
 							<td class="px-6 py-4">
 								<span
 									class="rounded-full px-2 py-1 text-xs font-medium
-									{debt.status === 'PAID'
+									{debt.status === 'paid'
 										? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-										: debt.status === 'PENDING'
+										: debt.status === 'pending'
 											? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
 											: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300'}"
 								>

@@ -79,7 +79,7 @@ async function tryGetUser(
 		const user = payload?.user ?? null;
 
 		// Handle locked account — redirect immediately
-		if (user?.isLocked) {
+		if (user && (user as any)?.isLocked) {
 			handleLockedAccount(event, user);
 		}
 

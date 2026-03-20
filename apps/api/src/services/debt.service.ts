@@ -445,7 +445,20 @@ export class DebtService implements IDebtService {
       }
     }
 
-    return { success: true, debt: entry };
+    return { 
+      success: true, 
+      debt: {
+        ...entry,
+        hasPendingProof: false,
+        proofCount: 0,
+        lastProofUploadedAt: null,
+        suggestedAmount: null,
+        suggestedDescription: null,
+        suggestedById: null,
+        suggestedAt: null,
+        deletedAt: null
+      }
+    };
   }
 
   /**

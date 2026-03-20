@@ -1,5 +1,5 @@
-﻿<script lang="ts">
-	import { AlertTriangle, RotateCcw } from '@repo/icons';
+<script lang="ts">
+	import { AlertTriangle, RotateCcw, Loader2 } from '@repo/icons';
 	/**
 	 * ErrorBoundary Component
 	 *
@@ -12,6 +12,13 @@
 
 <svelte:boundary>
 	{@render children?.()}
+
+	{#snippet pending()}
+		<div class="flex min-h-[50vh] flex-col items-center justify-center p-8 text-center text-muted-foreground">
+			<Loader2 class="mb-4 h-8 w-8 animate-spin text-primary" />
+			<p class="text-sm">Loading...</p>
+		</div>
+	{/snippet}
 
 	{#snippet failed(error, reset)}
 		<div class="flex min-h-50 flex-col items-center justify-center p-8 text-center text-red-500">

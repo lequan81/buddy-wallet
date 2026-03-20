@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui/components/ui/card';
 	import { Button } from '@repo/ui/components/ui/button';
@@ -76,7 +77,7 @@
 			{/if}
 
 			<div class="flex flex-col gap-2 pt-4">
-				<Button href="/login" variant="outline" class="w-full">
+				<Button href={resolve(`/login`, {})} variant="outline" class="w-full">
 					Return to Login
 				</Button>
 				{#if !isTemporary}

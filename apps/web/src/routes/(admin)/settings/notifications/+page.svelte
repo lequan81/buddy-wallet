@@ -1,6 +1,8 @@
-﻿<script lang="ts">
+<script lang="ts">
+	import { resolve } from '$app/paths';
+	import { updateNotifications } from '$lib/remotes/notifications.remote';
 	import { AlertTriangle, Bell, Mail } from '@repo/icons';
-	import { enhance } from '$app/forms';
+// ...
 	import { toast } from 'svelte-sonner';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Label } from '@repo/ui/components/ui/label';
@@ -8,7 +10,7 @@
 	import { Separator } from '@repo/ui/components/ui/separator';
 	import { Switch } from '@repo/ui/components/ui/switch';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let isSubmitting = $state(false);
 
@@ -25,20 +27,17 @@
 	// Track if user can enable push (requires email verification)
 	let canEnablePush = $derived(data.preferences?.emailVerified === true);
 
-	// DEBUG: Log the values to trace the issue
-	$effect(() => {
-		console.log('[SETTINGS] preferences:', data.preferences);
-		console.log('[SETTINGS] emailVerified:', data.preferences?.emailVerified);
-		console.log('[SETTINGS] canEnablePush:', canEnablePush);
-	});
+	// DEBUG: $inspect is auto-stripped in production builds
+	$inspect(data.preferences, canEnablePush);
 
 	// Show toast on form result
 	$effect(() => {
-		if (form?.success) {
+		if (updateNotifications.result?.success) {
 			toast.success('Notification preferences updated');
 		}
-		if (form?.message && !form?.success) {
-			toast.error(form.message);
+		const issues = updateNotifications.fields.allIssues();
+		if (issues && issues.length > 0) {
+			toast.error(issues[0].message);
 		}
 	});
 
@@ -72,7 +71,7 @@
 					<p class="font-medium text-amber-800 dark:text-amber-200">Email verification required</p>
 					<p class="mt-1 text-sm text-amber-700 dark:text-amber-300">
 						Verify your email address to enable push notifications. Go to
-						<a href="/settings/profile" class="underline">Profile Settings</a> to verify.
+						<a href={resolve(`/settings/profile`, {})} class="underline">Profile Settings</a> to verify.
 					</p>
 				</div>
 			</Card.Content>
@@ -80,14 +79,14 @@
 	{/if}
 
 	<form
-		method="POST"
-		use:enhance={() => {
+		{...updateNotifications.enhance(async ({ submit }) => {
 			isSubmitting = true;
-			return async ({ update }) => {
+			try {
+				await submit();
+			} finally {
 				isSubmitting = false;
-				await update();
-			};
-		}}
+			}
+		})}
 	>
 		<Card.Root>
 			<Card.Content class="space-y-6 pt-6">

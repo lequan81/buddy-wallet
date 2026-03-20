@@ -1,8 +1,8 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { Phone, User } from '@repo/icons';
-	import { enhance } from '$app/forms';
+	import { updateProfile } from '$lib/remotes/profile.remote';
 	import { page } from '$app/state';
-	import type { ActionData, PageData } from './$types';
+	import type { PageData } from './$types';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Label } from '@repo/ui/components/ui/label';
@@ -10,7 +10,7 @@
 	import { Separator } from '@repo/ui/components/ui/separator';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	let { data }: { data: PageData } = $props();
 	let user = $derived(data.user);
 
 	let loading = $state(false);
@@ -61,6 +61,16 @@
 		phoneValidation = 'success';
 		phoneMessage = 'Phone number looks good';
 	});
+
+	$effect(() => {
+		if (updateProfile.result?.success) {
+			toast.success('Profile updated successfully!');
+		}
+		const issues = updateProfile.fields.allIssues();
+		if (issues && issues.length > 0) {
+			toast.error(issues[0].message);
+		}
+	});
 </script>
 
 <div class="space-y-6">
@@ -82,14 +92,14 @@
 	{/if}
 
 	<form
-		method="POST"
-		use:enhance={() => {
+		{...updateProfile.enhance(async ({ submit }) => {
 			isSubmitting = true;
-			return async ({ update }) => {
+			try {
+				await submit();
+			} finally {
 				isSubmitting = false;
-				await update();
-			};
-		}}
+			}
+		})}
 	>
 		<Card.Root>
 			<Card.Content class="space-y-6 pt-6">
@@ -136,10 +146,4 @@
 			</Card.Footer>
 		</Card.Root>
 	</form>
-
-	{#if form?.success}
-		<p class="text-sm text-green-600">Profile updated successfully!</p>
-	{:else if form?.message}
-		<p class="text-sm text-red-600">{form.message}</p>
-	{/if}
 </div>

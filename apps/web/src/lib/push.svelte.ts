@@ -82,14 +82,14 @@ export async function fetchVapidKey(): Promise<string | null> {
 		const { data, error } = await api.v1.push['vapid-key'].get();
 		const vapidData = (data as { data?: { publicKey?: string }; publicKey?: string })?.data || data;
 
-		if (error || !vapidData?.publicKey) {
+		if (error || !(vapidData as any)?.publicKey) {
 			pushState.error = error ? ((error.value as { message?: string })?.message || 'Failed to fetch VAPID key') : 'Failed to fetch VAPID key';
 			return null;
 		}
 
-		pushState.vapidPublicKey = vapidData.publicKey;
+		pushState.vapidPublicKey = (vapidData as any).publicKey;
 		pushState.error = null;
-		return vapidData.publicKey as string;
+		return (vapidData as any).publicKey as string;
 	} catch (err) {
 		const errorMsg = err instanceof Error ? err.message : 'Failed to fetch VAPID key';
 		pushState.error = errorMsg;

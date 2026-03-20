@@ -1,105 +1,132 @@
 <script lang="ts">
-	import { AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, Calendar, Check, Clock, Edit, FileText, Image, MessageSquare, Phone, QrCode, Trash2, Upload, X } from '@repo/icons';
-	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
-	import { untrack } from 'svelte';
-	import { toast } from 'svelte-sonner';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Badge } from '@repo/ui/components/ui/badge';
-	import { Label } from '@repo/ui/components/ui/label';
-	import { Input } from '@repo/ui/components/ui/input';
-	import { Textarea } from '@repo/ui/components/ui/textarea';
+// mismatch about the shema and API expect on frontend vs backend, currently biggest gap is debt type, but not only this types have problems
+	import { type PageData, type ActionData } from './$types';
+	import { 
+		AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, Calendar, Check, Clock, Edit, FileText, Image, 
+		MessageSquare, Phone, QrCode, Trash2, Upload, X 
+	} from '@repo/icons';
+	import { 
+		updateDebtStatus, updateDebt, deleteDebt, confirmDebt, approveProof, rejectProof, 
+		suggestEdit, respondSuggestion 
+	} from '$lib/remotes/debts.remote';
+	import { DebtDetailState } from './debt-detail.svelte';
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
-
-	import { cn } from '$lib/utils';
-	import { formatCurrency } from '@repo/utils';
+	import { formatCurrency, formatDate } from '@repo/utils';
+	import * as Card from '@repo/ui/components/ui/card';
+	import { Button } from '@repo/ui/components/ui/button';
+	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
+	import { Input } from '@repo/ui/components/ui/input';
+	import { Label } from '@repo/ui/components/ui/label';
+	import { Textarea } from '@repo/ui/components/ui/textarea';
+	import { Badge } from '@repo/ui/components/ui/badge';
 	import DebtStatusBadge from '$lib/components/DebtStatusBadge.svelte';
+	import { cn } from '$lib/utils';
+	import { toast } from 'svelte-sonner';
 
-	let { data, form } = $props();
+	interface ExtendedDebt {
+		id: string;
+		amount: number;
+		status: string;
+		description: string | null;
+		createdAt: string;
+		updatedAt: string;
+		creditorId: string;
+		debtorId: string;
+		creditorPhone: string;
+		debtorPhone: string;
+		confirmedByCreditor: boolean;
+		confirmedByDebtor: boolean;
+		needsConfirmation: boolean;
+		creditorConfirmedAt?: string;
+		debtorConfirmedAt?: string;
+		hasPendingProof?: boolean;
+		suggestedById?: string;
+		suggestedAmount?: number;
+		suggestedDescription?: string;
+	}
 
-	// Ensure arrays are defined even if data is partial
+	let { data, form } = $props<{ data: PageData; form: ActionData }>();
+	let debt = $derived(data.debt as unknown as ExtendedDebt | null);
 	let creditorBanks = $derived(data.creditorBanks || []);
 	let pendingProofs = $derived(data.pendingProofs || []);
-
-	import { createDebtDetailState } from './debt-detail.svelte';
-	const state = untrack(() => createDebtDetailState(
-		data.debt,
-		creditorBanks,
-		data.currentUser,
-		data.isUploader,
-		data.isCreditor,
-		data.isDebtor
-	));
-
-	let debt = $derived.by(() => state.debt);
+	
+	const state = $derived(debt ? new DebtDetailState(
+		debt as any,
+		data.creditorBanks || [],
+		data.currentUser as any,
+		data.currentUser?.id === debt.creditorId,
+		data.currentUser?.id === debt.creditorId,
+		data.currentUser?.id === debt.debtorId
+	) : null);
 
 	$effect(() => {
-		state.debt = data.debt;
-		if (data.debt) {
+		if (data.debt && state) {
+			state.debt = data.debt;
 			state.editDescription = data.debt.description || '';
 			state.editAmount = data.debt.amount?.toString() || '';
 		}
 	});
 
-	// Toast on form results and handle special responses
 	$effect(() => {
-		if (form?.error) {
-			toast.error(form.error);
-		}
-		if (form?.success && form?.message) {
-			toast.success(form.message);
-		}
-		// Handle allProofsApproved response from approveProof action
-		if (form?.allProofsApproved && form?.debtId) {
-			state.lastApprovedDebtId = form.debtId;
-			state.showMarkAsPaidModal = true;
+		if (form && state) {
+			if ('error' in form && form.error) {
+				const errorMessage = typeof form.error === 'string' 
+					? form.error 
+					: (form.error as any).message || 'An error occurred';
+				toast.error(errorMessage);
+			}
+			if ('success' in form && form.success) {
+				const successForm = form as any;
+				if (successForm.message) toast.success(successForm.message);
+				
+				if (successForm.allProofsApproved && successForm.debtId) {
+					state.lastApprovedDebtId = successForm.debtId;
+					state.showMarkAsPaidModal = true;
+				}
+			}
 		}
 	});
 
-	const formatDate = (date: string | null) => {
-		if (!date) return '—';
-		return new Date(date).toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	};
-	const snapshotDebt = () => (state.debt ? { ...state.debt } : null);
+	function snapshotDebt() {
+		return debt ? { ...debt } : null;
+	}
 
-	const applyDebtPatch = (patch: Record<string, unknown>) => {
-		if (!state.debt) return;
-		state.debt = { ...state.debt, ...patch };
-	};
-
-	const applyStatusOptimistic = (nextStatus: string) => {
-		applyDebtPatch({ status: nextStatus, updatedAt: new Date().toISOString() });
-	};
-
-	const applyConfirmOptimistic = () => {
-		if (!state.debt) return;
-		const now = new Date().toISOString();
-		const nextDebt = { ...state.debt };
-		if (data.isCreditor) {
-			nextDebt.confirmedByCreditor = true;
-			nextDebt.creditorConfirmedAt = now;
+	function applyStatusOptimistic(status: string) {
+		if (state && debt) {
+			state.debt = { ...debt, status, updatedAt: new Date().toISOString() } as any;
 		}
-		if (data.isDebtor) {
-			nextDebt.confirmedByDebtor = true;
-			nextDebt.debtorConfirmedAt = now;
-		}
-		if (nextDebt.confirmedByCreditor && nextDebt.confirmedByDebtor) {
-			nextDebt.needsConfirmation = false;
-		}
-		nextDebt.updatedAt = now;
-		state.debt = nextDebt;
-	};
+	}
 
-	const shouldRollback = (result: { type: string }) =>
-		result.type === 'failure' || result.type === 'error';
+	function applyConfirmOptimistic() {
+		if (state && debt) {
+			const isCreditor = data.currentUser?.id === debt.creditorId;
+			const now = new Date().toISOString();
+			const nextDebt = { ...debt };
+
+			if (isCreditor) {
+				nextDebt.confirmedByCreditor = true;
+				nextDebt.creditorConfirmedAt = now;
+			} else {
+				nextDebt.confirmedByDebtor = true;
+				nextDebt.debtorConfirmedAt = now;
+			}
+
+			if (nextDebt.confirmedByCreditor && nextDebt.confirmedByDebtor) {
+				nextDebt.needsConfirmation = false;
+				nextDebt.status = 'confirmed';
+			}
+			nextDebt.updatedAt = now;
+			state.debt = nextDebt as any;
+		}
+	}
+
+	function applyDebtPatch(patch: Partial<ExtendedDebt>) {
+		if (state && debt) {
+			state.debt = { ...debt, ...patch } as any;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -109,7 +136,7 @@
 <PageContainer maxWidth="max-w-4xl">
 	<!-- Back Link -->
 	<a
-		href="/dashboard"
+		href={resolve(`/dashboard`, {})}
 		class="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
 	>
 		<ArrowLeft class="h-4 w-4" />
@@ -134,24 +161,25 @@
 	{:else}
 		<div class="space-y-6">
 			<!-- Success/Error Messages -->
-			{#if form?.error}
-				<div
-					class="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
-				>
-					{form.error}
-				</div>
-			{/if}
-			{#if form?.success && form?.message}
-				<div class="rounded-lg border border-success/20 bg-success/10 p-3 text-sm text-success">
-					{form.message}
-				</div>
-			{/if}
+			{#if state && form && typeof form === 'object'}
+		{#if 'error' in form && form.error}
+			<div class="mb-4 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+				{(form.error as any).message || 'An error occurred'}
+			</div>
+		{/if}
+
+		{#if 'success' in form && (form as any).message}
+			<div class="mb-4 rounded-md bg-success/15 p-3 text-sm text-success">
+				{(form as any).message}
+			</div>
+		{/if}
+	{/if}
 
 			<!-- Confirmation Banner for Counterparty -->
 			{#if debt?.needsConfirmation && !data.isUploader}
 				{@const needsMyConfirmation =
-					(data.isCreditor && !debt.confirmedByCreditor) ||
-					(data.isDebtor && !debt.confirmedByDebtor)}
+					(data.isCreditor && !debt?.confirmedByCreditor) ||
+					(data.isDebtor && !debt?.confirmedByDebtor)}
 				{#if needsMyConfirmation}
 					<Card.Root class="border-blue-500 bg-blue-50 dark:bg-blue-950/20">
 						<Card.Content
@@ -176,46 +204,44 @@
 							</div>
 							<div class="flex gap-2">
 								<form
-									method="POST"
-									action="?/confirmDebt"
-									use:enhance={() => {
+									{...confirmDebt.enhance(async ({ submit }) => {
 										const previousDebt = snapshotDebt();
 										applyConfirmOptimistic();
-										state.isSubmitting = true;
-										return async ({ result, update }) => {
-											await update();
-											state.isSubmitting = false;
-											if (shouldRollback(result) && previousDebt) {
-												state.debt = previousDebt;
+										if (state) state.isSubmitting = true;
+										try {
+											await submit();
+										} finally {
+											if (state) state.isSubmitting = false;
+											if (previousDebt && state) {
+												state.debt = previousDebt as any;
 											}
 											invalidateAll();
-										};
-									}}
+										}
+									})}
 								>
-									<Button type="submit" size="sm" variant="default" disabled={state.isSubmitting}>
+									<Button type="submit" size="sm" variant="default" disabled={state?.isSubmitting}>
 										<Check class="mr-2 h-4 w-4" />
 										Yes, Confirm
 									</Button>
 								</form>
 								<form
-									method="POST"
-									action="?/updateStatus"
-									use:enhance={({ formData }) => {
-										formData.set('status', 'disputed');
+									{...updateDebtStatus.enhance(async ({ data: formData, submit }) => {
+										formData.status = 'disputed';
 										const previousDebt = snapshotDebt();
 										applyStatusOptimistic('disputed');
-										state.isSubmitting = true;
-										return async ({ result, update }) => {
-											await update();
-											state.isSubmitting = false;
-											if (shouldRollback(result) && previousDebt) {
-												state.debt = previousDebt;
+										if (state) state.isSubmitting = true;
+										try {
+											await submit();
+										} finally {
+											if (state) state.isSubmitting = false;
+											if (previousDebt && state) {
+												state.debt = previousDebt as any;
 											}
 											invalidateAll();
-										};
-									}}
+										}
+									})}
 								>
-									<Button type="submit" size="sm" variant="destructive" disabled={state.isSubmitting}>
+									<Button type="submit" size="sm" variant="destructive" disabled={state?.isSubmitting}>
 										<X class="mr-2 h-4 w-4" />
 										Dispute
 									</Button>
@@ -240,7 +266,7 @@
 			{/if}
 
 			<!-- Pending Edit Suggestion Banner (for creator) -->
-			{#if state.hasPendingSuggestion}
+			{#if state?.hasPendingSuggestion}
 				<Card.Root class="border-warning bg-warning/10">
 					<Card.Content class="py-4">
 						<div class="flex items-start gap-3">
@@ -251,7 +277,7 @@
 									The other party has suggested changes to this debt:
 								</p>
 								<div class="mt-2 space-y-1 text-sm">
-									{#if debt.suggestedAmount}
+									{#if debt?.suggestedAmount}
 										<p>
 											<span class="text-muted-foreground">Amount:</span>
 											<span class="font-medium">{formatCurrency(debt.suggestedAmount)}</span>
@@ -260,7 +286,7 @@
 											>
 										</p>
 									{/if}
-									{#if debt.suggestedDescription}
+									{#if debt?.suggestedDescription}
 										<p>
 											<span class="text-muted-foreground">Description:</span>
 											<span class="font-medium">{debt.suggestedDescription}</span>
@@ -269,37 +295,35 @@
 								</div>
 								<div class="mt-3 flex gap-2">
 									<form
-										method="POST"
-										action="?/respondSuggestion"
-										use:enhance={() => {
-											state.isSubmitting = true;
-											return async ({ update }) => {
-												await update();
-												state.isSubmitting = false;
+										{...respondSuggestion.enhance(async ({ data: formData, submit }) => {
+											formData.accept = 'true';
+											if (state) state.isSubmitting = true;
+											try {
+												await submit();
+											} finally {
+												if (state) state.isSubmitting = false;
 												invalidateAll();
-											};
-										}}
+											}
+										})}
 									>
-										<input type="hidden" name="accept" value="true" />
-										<Button type="submit" size="sm" variant="default" disabled={state.isSubmitting}>
+										<Button type="submit" size="sm" variant="default" disabled={state?.isSubmitting}>
 											<Check class="mr-2 h-4 w-4" />
 											Accept
 										</Button>
 									</form>
 									<form
-										method="POST"
-										action="?/respondSuggestion"
-										use:enhance={() => {
-											state.isSubmitting = true;
-											return async ({ update }) => {
-												await update();
-												state.isSubmitting = false;
+										{...respondSuggestion.enhance(async ({ data: formData, submit }) => {
+											formData.accept = 'false';
+											if (state) state.isSubmitting = true;
+											try {
+												await submit();
+											} finally {
+												if (state) state.isSubmitting = false;
 												invalidateAll();
-											};
-										}}
+											}
+										})}
 									>
-										<input type="hidden" name="accept" value="false" />
-										<Button type="submit" size="sm" variant="outline" disabled={state.isSubmitting}>
+										<Button type="submit" size="sm" variant="outline" disabled={state?.isSubmitting}>
 											<X class="mr-2 h-4 w-4" />
 											Reject
 										</Button>
@@ -347,7 +371,7 @@
 						<!-- Status Badge -->
 						<div class="flex flex-col items-end gap-2">
 							<DebtStatusBadge status={debt.status} />
-							{#if debt.status === 'confirmed' && debt.hasPendingProof}
+							{#if debt.status === 'confirmed' && debt?.hasPendingProof}
 								<Badge
 									variant="outline"
 									class="border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400"
@@ -393,7 +417,7 @@
 							<Clock class="mt-0.5 h-4 w-4 text-muted-foreground" />
 							<div class="min-w-0 flex-1">
 								<p class="text-xs text-muted-foreground">Last Updated</p>
-								<p class="mt-0.5 text-sm">{formatDate(debt.updatedAt)}</p>
+								<p class="mt-0.5 text-sm">{formatDate(debt?.updatedAt)}</p>
 							</div>
 						</div>
 					</div>
@@ -415,83 +439,89 @@
 							<!-- QR Code -->
 							<div>
 								<p class="mb-3 text-sm font-medium text-muted-foreground">Step 1: Scan to Pay</p>
-								{#if creditorBanks.length === 0}
-									<div class="rounded-lg border border-dashed p-6 text-center">
-										<p class="text-sm text-muted-foreground">
-											Creditor has not added any bank accounts yet.
-										</p>
-										<p class="mt-1 text-xs text-muted-foreground">
-											Please contact them for payment details.
-										</p>
-									</div>
-								{:else}
-									<div class="space-y-4">
-										{#if creditorBanks.length > 1}
-											<div class="space-y-2">
-												<Label for="bankSelect" class="text-xs">Select Bank</Label>
-												<select
-													id="bankSelect"
-													class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
-													bind:value={state.selectedBankId}
-												>
-													{#each creditorBanks as bank}
-														<option value={bank.id}>{bank.shortName} - {bank.accountNumber}</option>
-													{/each}
-												</select>
-											</div>
-										{/if}
-
-										{#if state.selectedBank}
-											<div class="rounded-lg border bg-white p-3 dark:bg-white/5">
-												<img
-													src={state.qrUrl}
-													alt="Payment QR Code"
-													class="mx-auto w-full max-w-64 rounded"
-												/>
-												<div class="mt-3 space-y-1 text-center text-sm">
-													<p class="font-semibold">{state.selectedBank.bankName}</p>
-													<p class="font-mono text-xs">{state.selectedBank.accountNumber}</p>
-													<p class="text-xs text-muted-foreground">{state.selectedBank.accountName}</p>
+								{#if state}
+									{@const s = state}
+									{#if creditorBanks.length === 0}
+										<div class="rounded-lg border border-dashed p-6 text-center">
+											<p class="text-sm text-muted-foreground">
+												Creditor has not added any bank accounts yet.
+											</p>
+											<p class="mt-1 text-xs text-muted-foreground">
+												Please contact them for payment details.
+											</p>
+										</div>
+									{:else}
+										<div class="space-y-4">
+											{#if creditorBanks.length > 1}
+												<div class="space-y-2">
+													<Label for="bankSelect" class="text-xs">Select Bank</Label>
+													<select
+														id="bankSelect"
+														class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+														bind:value={s.selectedBankId}
+													>
+														{#each creditorBanks as bank}
+															<option value={bank.id}>{(bank as any).shortName || (bank as any).bankCode || 'Bank'} - {bank.accountNumber}</option>
+														{/each}
+													</select>
 												</div>
-											</div>
-										{/if}
-									</div>
+											{/if}
+
+											{#if s.selectedBank}
+												<div class="rounded-lg border bg-white p-3 dark:bg-white/5">
+													<img
+														src={s.qrUrl}
+														alt="Payment QR Code"
+														class="mx-auto w-full max-w-64 rounded"
+													/>
+													<div class="mt-3 space-y-1 text-center text-sm">
+														<p class="font-semibold">{s.selectedBank.bankName}</p>
+														<p class="font-mono text-xs">{s.selectedBank.accountNumber}</p>
+														<p class="text-xs text-muted-foreground">{s.selectedBank.accountName}</p>
+													</div>
+												</div>
+											{/if}
+										</div>
+									{/if}
 								{/if}
 							</div>
 
 							<!-- Upload Proof -->
 							<div>
 								<p class="mb-3 text-sm font-medium text-muted-foreground">Step 2: Upload Proof</p>
-								<div class="space-y-4">
-									<div class="space-y-2">
-										<Label for="proof" class="text-xs">Transaction Screenshot</Label>
-										<Input id="proof" type="file" accept="image/*" bind:files={state.uploadFile} />
-									</div>
-									<Button
-										onclick={state.handleUpload}
-										disabled={!state.uploadFile || state.isUploading}
-										class="w-full"
-										size="sm"
-									>
-										{#if state.isUploading}
-											Uploading...
-										{:else}
-											<Upload class="mr-2 h-4 w-4" />
-											Upload Proof
-										{/if}
-									</Button>
-
-									{#if state.uploadError}
-										<p class="text-sm text-destructive">{state.uploadError}</p>
-									{/if}
-									{#if state.uploadSuccess}
-										<div
-											class="rounded-md border border-success/20 bg-success/10 p-2 text-sm text-success"
-										>
-											Proof uploaded! The creditor will review it.
+								{#if state}
+									{@const s = state}
+									<div class="space-y-4">
+										<div class="space-y-2">
+											<Label for="proof" class="text-xs">Transaction Screenshot</Label>
+											<Input id="proof" type="file" accept="image/*" bind:files={s.uploadFile} />
 										</div>
-									{/if}
-								</div>
+										<Button
+											onclick={s.handleUpload}
+											disabled={!s.uploadFile || s.isUploading}
+											class="w-full"
+											size="sm"
+										>
+											{#if s.isUploading}
+												Uploading...
+											{:else}
+												<Upload class="mr-2 h-4 w-4" />
+												Upload Proof
+											{/if}
+										</Button>
+
+										{#if s.uploadError}
+											<p class="text-sm text-destructive">{s.uploadError}</p>
+										{/if}
+										{#if s.uploadSuccess}
+											<div
+												class="rounded-md border border-success/20 bg-success/10 p-2 text-sm text-success"
+											>
+												Proof uploaded! The creditor will review it.
+											</div>
+										{/if}
+									</div>
+								{/if}
 							</div>
 						</div>
 					</Card.Content>
@@ -524,58 +554,55 @@
 										<p class="mb-3 text-xs text-muted-foreground">{formatDate(proof.createdAt)}</p>
 										<div class="flex gap-2">
 											<form
-												method="POST"
-												action="?/approveProof"
 												class="flex-1"
-												use:enhance={() => {
-													state.isSubmitting = true;
-													return async ({ update }) => {
-														await update();
-														state.isSubmitting = false;
-														invalidateAll();
-													};
-												}}
+												{...approveProof.enhance(async ({ data: formData, submit }) => {
+													formData.proofId = proof.id;
+													if (state) state.isSubmitting = true;
+													try {
+														await submit();
+													} finally {
+														if (state) state.isSubmitting = false;
+													invalidateAll();
+												}
+											})}
+										>
+											<Button
+												type="submit"
+												size="sm"
+												class="w-full bg-success hover:bg-success/90"
+												disabled={state?.isSubmitting}
 											>
-												<input type="hidden" name="proofId" value={proof.id} />
-												<Button
-													type="submit"
-													size="sm"
-													class="w-full bg-success hover:bg-success/90"
-													disabled={state.isSubmitting}
-												>
-													<Check class="mr-1 h-4 w-4" /> Approve
-												</Button>
-											</form>
-											<form
-												method="POST"
-												action="?/rejectProof"
-												class="flex-1"
-												use:enhance={({ formData, cancel }) => {
-													const reason = prompt('Enter rejection reason:');
-													if (reason === null) {
-														cancel();
-														return;
-													}
-													formData.set('reason', reason);
-													state.isSubmitting = true;
-													return async ({ update }) => {
-														await update();
-														state.isSubmitting = false;
-														invalidateAll();
-													};
-												}}
+												<Check class="mr-1 h-4 w-4" /> Approve
+											</Button>
+										</form>
+										<form
+											class="flex-1"
+											{...rejectProof.enhance(async ({ data: formData, submit }) => {
+												formData.proofId = proof.id;
+												const reason = prompt('Enter rejection reason:');
+												if (reason === null) {
+													return;
+												}
+												if (reason) formData.reason = reason;
+												if (state) state.isSubmitting = true;
+												try {
+													await submit();
+												} finally {
+													if (state) state.isSubmitting = false;
+													invalidateAll();
+												}
+											})}
+										>
+											<Button
+												type="submit"
+												size="sm"
+												variant="destructive"
+												class="w-full"
+												disabled={state?.isSubmitting}
 											>
-												<input type="hidden" name="proofId" value={proof.id} />
-												<Button
-													type="submit"
-													size="sm"
-													variant="destructive"
-													class="w-full"
-													disabled={state.isSubmitting}
-												>
-													<X class="mr-1 h-4 w-4" /> Reject
-												</Button>
-											</form>
+												<X class="mr-1 h-4 w-4" /> Reject
+											</Button>
+										</form>
 										</div>
 									</div>
 								</div>
@@ -586,32 +613,32 @@
 			{/if}
 
 			<!-- Edit Form (shown when editing) -->
-			{#if state.isEditing && state.canEdit}
+			{#if state?.isEditing && state?.canEdit}
+				{@const s = state}
 				<Card.Root>
 					<Card.Header>
 						<Card.Title class="text-lg">Edit Debt</Card.Title>
 					</Card.Header>
 					<Card.Content>
 						<form
-							method="POST"
-							action="?/update"
-							use:enhance={() => {
+							{...updateDebt.enhance(async ({ submit }) => {
 								const previousDebt = snapshotDebt();
 								const patch: Record<string, unknown> = { updatedAt: new Date().toISOString() };
-								if (state.editDescription) patch.description = state.editDescription;
-								if (state.editAmount) patch.amount = Number(state.editAmount);
+								if (s.editDescription) patch.description = s.editDescription;
+								if (s.editAmount) patch.amount = Number(s.editAmount);
 								applyDebtPatch(patch);
-								state.isSubmitting = true;
-								return async ({ result, update }) => {
-									await update();
-									state.isSubmitting = false;
-									state.isEditing = false;
-									if (shouldRollback(result) && previousDebt) {
-										state.debt = previousDebt;
+								s.isSubmitting = true;
+								try {
+									await submit();
+								} finally {
+									s.isSubmitting = false;
+									s.isEditing = false;
+									if (previousDebt) {
+										s.debt = previousDebt as any;
 									}
 									invalidateAll();
-								};
-							}}
+								}
+							})}
 							class="space-y-4"
 						>
 							<div class="space-y-2">
@@ -620,7 +647,7 @@
 									type="text"
 									id="description"
 									name="description"
-									bind:value={state.editDescription}
+									bind:value={s.editDescription}
 									placeholder="What is this debt for?"
 								/>
 							</div>
@@ -630,15 +657,15 @@
 									type="number"
 									id="amount"
 									name="amount"
-									bind:value={state.editAmount}
+									bind:value={s.editAmount}
 									min="1000"
 									step="1000"
 									placeholder="Amount in VND"
 								/>
 							</div>
 							<div class="flex gap-2">
-								<Button type="submit" disabled={state.isSubmitting} size="sm">
-									{state.isSubmitting ? 'Saving...' : 'Save Changes'}
+								<Button type="submit" disabled={s.isSubmitting} size="sm">
+									{s.isSubmitting ? 'Saving...' : 'Save Changes'}
 								</Button>
 								<Button
 									type="button"
@@ -655,39 +682,39 @@
 			{/if}
 
 			<!-- Actions Card -->
-			{#if state.validTransitions.length > 0 || state.canEdit || state.canDelete || state.canSuggestEdit}
+			{#if state && (state.validTransitions.length > 0 || state.canEdit || state.canDelete || state.canSuggestEdit)}
+				{@const s = state as DebtDetailState}
 				<Card.Root>
 					<Card.Header>
 						<Card.Title class="text-lg">Actions</Card.Title>
 					</Card.Header>
 					<Card.Content class="space-y-4">
 						<!-- Status Transitions -->
-						{#if state.validTransitions.length > 0}
+						{#if s.validTransitions.length > 0}
 							<div>
 								<p class="mb-3 text-xs text-muted-foreground">Change Status</p>
 								<div class="flex flex-wrap gap-2">
-									{#each state.validTransitions as transition}
+									{#each s.validTransitions as transition}
 										<form
-											method="POST"
-											action="?/updateStatus"
-											use:enhance={() => {
+											{...updateDebtStatus.enhance(async ({ data: formData, submit }) => {
+												formData.status = transition.status as any;
 												const previousDebt = snapshotDebt();
 												applyStatusOptimistic(transition.status);
-												state.isSubmitting = true;
-												return async ({ result, update }) => {
-													await update();
-													state.isSubmitting = false;
-													if (shouldRollback(result) && previousDebt) {
-														state.debt = previousDebt;
+												s.isSubmitting = true;
+												try {
+													await submit();
+												} finally {
+													s.isSubmitting = false;
+													if (previousDebt) {
+														s.debt = previousDebt as any;
 													}
 													invalidateAll();
-												};
-											}}
+												}
+											})}
 										>
-											<input type="hidden" name="status" value={transition.status} />
 											<Button
 												type="submit"
-												disabled={state.isSubmitting || transition.disabled}
+												disabled={s.isSubmitting || transition.disabled}
 												size="sm"
 												variant={transition.status === 'cancelled' ||
 												transition.status === 'disputed'
@@ -711,19 +738,19 @@
 						{/if}
 
 						<!-- Edit & Delete -->
-						{#if state.canEdit || state.canDelete}
+						{#if s.canEdit || s.canDelete}
 							<div class="flex flex-wrap gap-2 border-t pt-4">
-								{#if state.canEdit && !state.isEditing}
-									<Button variant="outline" size="sm" onclick={() => (state.isEditing = true)}>
+								{#if s.canEdit && !s.isEditing}
+									<Button variant="outline" size="sm" onclick={() => (s.isEditing = true)}>
 										<Edit class="mr-2 h-4 w-4" />
 										Edit
 									</Button>
 								{/if}
 
-								{#if state.canDelete}
+								{#if s.canDelete}
 									<AlertDialog.Root>
 										<AlertDialog.Trigger>
-											{#snippet child({ props }: { props: Record<string, any> })}
+											{#snippet child({ props }: { props: Record<string, unknown> })}
 												<Button variant="destructive" size="sm" {...props}>
 													<Trash2 class="mr-2 h-4 w-4" />
 													Delete
@@ -741,21 +768,23 @@
 											<AlertDialog.Footer>
 												<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 												<form
-													method="POST"
-													action="?/delete"
-													use:enhance={() => {
-														state.isSubmitting = true;
-														return async ({ update }) => {
-															await update();
-															state.isSubmitting = false;
-														};
-													}}
+													{...deleteDebt.enhance(async ({ data, submit }) => {
+														if (debt) data.id = debt.id;
+														if (state) state.isSubmitting = true;
+														try {
+															await submit();
+														} finally {
+															if (state) state.isSubmitting = false;
+															invalidateAll();
+														}
+													})}
 												>
 													<AlertDialog.Action
 														type="submit"
+														disabled={s.isSubmitting}
 														class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 													>
-														{state.isSubmitting ? 'Deleting...' : 'Delete'}
+														{s.isSubmitting ? 'Deleting...' : 'Delete'}
 													</AlertDialog.Action>
 												</form>
 											</AlertDialog.Footer>
@@ -766,15 +795,15 @@
 						{/if}
 
 						<!-- Suggest Edit (for counterparty, not creator) -->
-						{#if state.canSuggestEdit && !debt.suggestedById}
+						{#if s.canSuggestEdit && !debt?.suggestedById}
 							<div class="border-t pt-4">
 								<Button
 									variant="outline"
 									size="sm"
 									onclick={() => {
-										state.suggestAmount = debt.amount?.toString() || '';
-										state.suggestDescription = debt.description || '';
-										state.showSuggestModal = true;
+										s.suggestAmount = debt.amount?.toString() || '';
+										s.suggestDescription = debt.description || '';
+										s.showSuggestModal = true;
 									}}
 								>
 									<MessageSquare class="mr-2 h-4 w-4" />
@@ -787,7 +816,7 @@
 						{/if}
 
 						<!-- Waiting for suggestion response -->
-						{#if state.canSuggestEdit && debt.suggestedById === data.currentUser?.id}
+						{#if s.canSuggestEdit && debt?.suggestedById === data.currentUser?.id}
 							<div class="border-t pt-4">
 								<div class="flex items-center gap-2 text-muted-foreground">
 									<Clock class="h-4 w-4" />
@@ -807,35 +836,36 @@
 	{/if}
 
 	<!-- Mark as Paid Modal -->
-	<AlertDialog.Root bind:open={state.showMarkAsPaidModal}>
-		<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>Mark Debt as Paid?</AlertDialog.Title>
-				<AlertDialog.Description>
-					All payment proofs have been approved. Would you like to mark this debt as fully paid?
-				</AlertDialog.Description>
-			</AlertDialog.Header>
-			<AlertDialog.Footer>
-				<AlertDialog.Cancel onclick={() => (state.showMarkAsPaidModal = false)}>
-					Not Yet
-				</AlertDialog.Cancel>
-				<form
-					method="POST"
-					action="?/updateStatus"
-					use:enhance={() => {
-						const previousDebt = snapshotDebt();
-						applyStatusOptimistic('paid');
-						return async ({ result, update }) => {
-							await update();
-							state.showMarkAsPaidModal = false;
-							if (shouldRollback(result) && previousDebt) {
-								state.debt = previousDebt;
+	{#if state}
+		{@const s = state as DebtDetailState}
+		<AlertDialog.Root bind:open={s.showMarkAsPaidModal}>
+			<AlertDialog.Content>
+				<AlertDialog.Header>
+					<AlertDialog.Title>Mark Debt as Paid?</AlertDialog.Title>
+					<AlertDialog.Description>
+						All payment proofs have been approved. Would you like to mark this debt as fully paid?
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				<AlertDialog.Footer>
+					<AlertDialog.Cancel onclick={() => (s.showMarkAsPaidModal = false)}>
+						Not Yet
+					</AlertDialog.Cancel>
+					<form
+						{...updateDebtStatus.enhance(async ({ data: formData, submit }) => {
+							formData.status = 'paid';
+							const previousDebt = snapshotDebt();
+							applyStatusOptimistic('paid');
+							try {
+								await submit();
+							} finally {
+								s.showMarkAsPaidModal = false;
+								if (previousDebt) {
+									s.debt = previousDebt as any;
+								}
+								invalidateAll();
 							}
-							invalidateAll();
-						};
-					}}
-				>
-					<input type="hidden" name="status" value="paid" />
+						})}
+					>
 					<AlertDialog.Action type="submit" class="bg-success hover:bg-success/90">
 						<Check class="mr-2 h-4 w-4" />
 						Yes, Mark as Paid
@@ -844,34 +874,34 @@
 			</AlertDialog.Footer>
 		</AlertDialog.Content>
 	</AlertDialog.Root>
+	{/if}
 
 	<!-- Suggest Edit Modal -->
-	<AlertDialog.Root bind:open={state.showSuggestModal}>
-		<AlertDialog.Content>
-			<AlertDialog.Header>
-				<AlertDialog.Title>Suggest Edit</AlertDialog.Title>
-				<AlertDialog.Description>
-					Propose changes to this debt. The creator will be notified and can accept or reject your
-					suggestion.
-				</AlertDialog.Description>
-			</AlertDialog.Header>
-			<form
-				method="POST"
-				action="?/suggestEdit"
-				use:enhance={() => {
-					state.isSuggesting = true;
-					return async ({ result, update }) => {
-						state.isSuggesting = false;
-						if (result.type === 'success') {
-							state.showSuggestModal = false;
-							state.suggestAmount = '';
-							state.suggestDescription = '';
+	{#if state}
+		{@const s = state as DebtDetailState}
+		<AlertDialog.Root bind:open={s.showSuggestModal}>
+			<AlertDialog.Content>
+				<AlertDialog.Header>
+					<AlertDialog.Title>Suggest Edit</AlertDialog.Title>
+					<AlertDialog.Description>
+						Propose changes to this debt. The creator will be notified and can accept or reject your
+						suggestion.
+					</AlertDialog.Description>
+				</AlertDialog.Header>
+				<form
+					{...suggestEdit.enhance(async ({ submit }) => {
+						s.isSuggesting = true;
+						try {
+							await submit();
+						} finally {
+							s.isSuggesting = false;
+							s.showSuggestModal = false;
+							s.suggestAmount = '';
+							s.suggestDescription = '';
+							invalidateAll();
 						}
-						await update();
-						invalidateAll();
-					};
-				}}
-			>
+					})}
+				>
 				<div class="grid gap-4 py-4">
 					<div class="grid gap-2">
 						<Label for="suggest-amount">Suggested Amount (VND)</Label>
@@ -903,9 +933,9 @@
 					</div>
 				</div>
 				<AlertDialog.Footer>
-					<AlertDialog.Cancel onclick={() => (state.showSuggestModal = false)}>Cancel</AlertDialog.Cancel>
-					<Button type="submit" disabled={state.isSuggesting}>
-						{#if state.isSuggesting}
+					<AlertDialog.Cancel onclick={() => (s.showSuggestModal = false)}>Cancel</AlertDialog.Cancel>
+					<Button type="submit" disabled={s.isSuggesting}>
+						{#if s.isSuggesting}
 							Sending...
 						{:else}
 							<MessageSquare class="mr-2 h-4 w-4" />
@@ -916,5 +946,6 @@
 			</form>
 		</AlertDialog.Content>
 	</AlertDialog.Root>
+	{/if}
 </PageContainer>
 

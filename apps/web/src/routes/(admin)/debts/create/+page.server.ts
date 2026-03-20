@@ -98,8 +98,6 @@ export const actions: Actions = {
 				confirmDuplicate
 			});
 
-			console.log('[Debt Create] Response:', { data, error: error?.value, status });
-
 			if (error) {
 				const errorObj = error.value as (ApiErrorValue & { duplicates?: unknown[] }) | undefined;
 

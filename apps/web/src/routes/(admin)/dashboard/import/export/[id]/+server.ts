@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
-	const { data, error } = await locals.api.v1.import.export({ id: params.id }).get();
+	const { data, error } = await (locals.api.v1.import as any).export({ id: params.id }).get();
 
 	if (error) {
 		return new Response(

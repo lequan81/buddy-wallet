@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+	import { resolve } from '$app/paths';
 	import { AlertCircle, ArrowLeft, HelpCircle, Home, Loader2, RotateCcw, Wallet } from '@repo/icons';
 	import { invalidateAll } from '$app/navigation';
 	import { getErrorInfo, getErrorMessage } from '$lib/errors';
@@ -94,7 +95,7 @@
 		class="flex min-h-dvh flex-col items-center justify-center bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-20 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900"
 	>
 		{#if showLogo}
-			<a href="/" class="mb-12 flex items-center space-x-2">
+			<a href={resolve(`/`, {})} class="mb-12 flex items-center space-x-2">
 				<Wallet class="h-8 w-8 text-primary" />
 				<span class="text-2xl font-bold">Buddy Wallet</span>
 			</a>
@@ -143,7 +144,7 @@
 
 				{#if showFaq}
 					<a
-						href="/faq"
+						href={resolve(`/faq`, {})}
 						class="mt-4 flex items-center justify-center gap-2 rounded-lg border border-gray-300 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
 					>
 						<HelpCircle class="h-4 w-4" />
@@ -240,7 +241,7 @@
 		class="flex min-h-dvh flex-col items-center justify-center bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-20 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900"
 	>
 		{#if showLogo}
-			<a href="/" class="mb-8 flex items-center space-x-2">
+			<a href={resolve(`/`, {})} class="mb-8 flex items-center space-x-2">
 				<Wallet class="h-8 w-8 text-primary" />
 				<span class="text-2xl font-bold">Buddy Wallet</span>
 			</a>
