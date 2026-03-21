@@ -17,7 +17,7 @@
 	import FinancialSummary from '$lib/components/dashboard/FinancialSummary.svelte';
 	import { cn } from '$lib/utils';
 	import { formatCurrency } from '@repo/utils';
-	import type { Debt } from '@repo/types';
+	import { type Debt, DEBT_STATUS } from '@repo/types';
 	import DebtStatusBadge from '$lib/components/DebtStatusBadge.svelte';
 	import CreateDebtModal from '$lib/components/dashboard/CreateDebtModal.svelte';
 
@@ -163,13 +163,13 @@
 				totalOwedToYou={debts
 					.filter(
 						(d: Debt) =>
-							d.creditorId === currentUser?.id && d.status !== 'paid' && d.status !== 'cancelled'
+							d.creditorId === currentUser?.id && d.status !== DEBT_STATUS.PAID && d.status !== DEBT_STATUS.CANCELLED
 					)
 					.reduce((acc: number, d: Debt) => acc + d.amount, 0)}
 				totalYouOwe={debts
 					.filter(
 						(d: Debt) =>
-							d.debtorId === currentUser?.id && d.status !== 'paid' && d.status !== 'cancelled'
+							d.debtorId === currentUser?.id && d.status !== DEBT_STATUS.PAID && d.status !== DEBT_STATUS.CANCELLED
 					)
 					.reduce((acc: number, d: Debt) => acc + d.amount, 0)}
 			/>
@@ -290,7 +290,7 @@
 					</Card.Header>
 					<Card.Content>
 						<div class="font-tabular text-4xl font-bold">
-							{debts.filter((d: Debt) => d.status === 'pending').length}
+							{debts.filter((d: Debt) => d.status === DEBT_STATUS.PENDING).length}
 						</div>
 						<p class="mt-1 text-xs text-muted-foreground">Awaiting confirmation</p>
 					</Card.Content>

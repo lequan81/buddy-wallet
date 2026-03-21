@@ -6,13 +6,18 @@
  */
 import type { Debt } from '@repo/db';
 import type { DebtStatus } from '../types';
+import { DEBT_STATUS } from '@repo/types';
 import type { IDebtState, TransitionContext } from '../types/debt-state';
 import { log } from '@repo/logger';
 
 export class DisputedState implements IDebtState {
-  readonly status: DebtStatus = 'disputed';
+  readonly status: DebtStatus = DEBT_STATUS.DISPUTED;
 
-  private readonly validTransitions: DebtStatus[] = ['pending', 'confirmed', 'cancelled'];
+  private readonly validTransitions: DebtStatus[] = [
+    DEBT_STATUS.PENDING,
+    DEBT_STATUS.CONFIRMED,
+    DEBT_STATUS.CANCELLED
+  ];
 
   canTransitionTo(targetStatus: DebtStatus, _debt: Debt, _context: TransitionContext): boolean {
     return this.validTransitions.includes(targetStatus);

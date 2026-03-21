@@ -1,4 +1,5 @@
 import type { CurrentUser } from '@repo/types';
+import { DEBT_STATUS } from '@repo/types';
 
 interface DebtLike {
 	uploadedById: string;
@@ -21,11 +22,11 @@ export function useDebtPermissions(debt: DebtLike, user: CurrentUser) {
 		isUploader,
 		isCreditor,
 		isDebtor,
-		canEdit: $derived(isUploader && status === 'pending'),
-		canDelete: $derived(isUploader && status !== 'paid'),
+		canEdit: $derived(isUploader && status === DEBT_STATUS.PENDING),
+		canDelete: $derived(isUploader && status !== DEBT_STATUS.PAID),
 		canSuggestEdit: $derived(
-			!isUploader && (isCreditor || isDebtor) && status !== 'paid' && status !== 'cancelled'
+			!isUploader && (isCreditor || isDebtor) && status !== DEBT_STATUS.PAID && status !== DEBT_STATUS.CANCELLED
 		),
-		canConfirm: $derived(!isUploader && (isCreditor || isDebtor) && status === 'pending')
+		canConfirm: $derived(!isUploader && (isCreditor || isDebtor) && status === DEBT_STATUS.PENDING)
 	};
 }

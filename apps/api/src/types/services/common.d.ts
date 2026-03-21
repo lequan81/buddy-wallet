@@ -24,23 +24,7 @@ export interface CacheService {
   del: (key: string) => Promise<void>;
 }
 
-/**
- * Status update result interface
- */
-export interface StatusUpdateResult {
-  success: boolean;
-  error?: string;
-  code?: string;
-  debt?: {
-    id: string;
-    status: string;
-    amount: number;
-    description?: string;
-  } | null;
-  previousStatus?: string;
-  newStatus?: string;
-  validTransitions?: string[];
-}
+import type { StatusUpdateResult } from '@repo/types';
 
 /**
  * Web-push module declaration

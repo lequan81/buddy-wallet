@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { invalidateAll } from '$app/navigation';
-// mismatch about the shema and API expect on frontend vs backend, currently biggest gap is debt type, but not only this types have problems
 	import { type PageData, type ActionData } from './$types';
 	import { 
 		AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, Calendar, Check, Clock, Edit, FileText, Image, 
@@ -24,36 +23,15 @@
 	import DebtStatusBadge from '$lib/components/DebtStatusBadge.svelte';
 	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
-
-	interface ExtendedDebt {
-		id: string;
-		amount: number;
-		status: string;
-		description: string | null;
-		createdAt: string;
-		updatedAt: string;
-		creditorId: string;
-		debtorId: string;
-		creditorPhone: string;
-		debtorPhone: string;
-		confirmedByCreditor: boolean;
-		confirmedByDebtor: boolean;
-		needsConfirmation: boolean;
-		creditorConfirmedAt?: string;
-		debtorConfirmedAt?: string;
-		hasPendingProof?: boolean;
-		suggestedById?: string;
-		suggestedAmount?: number;
-		suggestedDescription?: string;
-	}
+	import { type DebtDetails, DEBT_STATUS } from '@repo/types';
 
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
-	let debt = $derived(data.debt as unknown as ExtendedDebt | null);
+	let debt = $derived(data.debt as DebtDetails | null);
 	let creditorBanks = $derived(data.creditorBanks || []);
 	let pendingProofs = $derived(data.pendingProofs || []);
 	
 	const state = $derived(debt ? new DebtDetailState(
-		debt as any,
+		debt as DebtDetails,
 		data.creditorBanks || [],
 		data.currentUser as any,
 		data.currentUser?.id === debt.creditorId,
@@ -95,7 +73,7 @@
 
 	function applyStatusOptimistic(status: string) {
 		if (state && debt) {
-			state.debt = { ...debt, status, updatedAt: new Date().toISOString() } as any;
+			state.debt = { ...debt, status, updatedAt: new Date().toISOString() };
 		}
 	}
 
@@ -115,16 +93,16 @@
 
 			if (nextDebt.confirmedByCreditor && nextDebt.confirmedByDebtor) {
 				nextDebt.needsConfirmation = false;
-				nextDebt.status = 'confirmed';
+				nextDebt.status = DEBT_STATUS.CONFIRMED;
 			}
 			nextDebt.updatedAt = now;
-			state.debt = nextDebt as any;
+			state.debt = nextDebt;
 		}
 	}
 
-	function applyDebtPatch(patch: Partial<ExtendedDebt>) {
+	function applyDebtPatch(patch: Partial<DebtDetails>) {
 		if (state && debt) {
-			state.debt = { ...debt, ...patch } as any;
+			state.debt = { ...debt, ...patch };
 		}
 	}
 </script>
@@ -213,7 +191,7 @@
 										} finally {
 											if (state) state.isSubmitting = false;
 											if (previousDebt && state) {
-												state.debt = previousDebt as any;
+												state.debt = previousDebt;
 											}
 											invalidateAll();
 										}
@@ -226,16 +204,16 @@
 								</form>
 								<form
 									{...updateDebtStatus.enhance(async ({ data: formData, submit }) => {
-										formData.status = 'disputed';
+										formData.status = DEBT_STATUS.DISPUTED;
 										const previousDebt = snapshotDebt();
-										applyStatusOptimistic('disputed');
+										applyStatusOptimistic(DEBT_STATUS.DISPUTED);
 										if (state) state.isSubmitting = true;
 										try {
 											await submit();
 										} finally {
 											if (state) state.isSubmitting = false;
 											if (previousDebt && state) {
-												state.debt = previousDebt as any;
+												state.debt = previousDebt;
 											}
 											invalidateAll();
 										}
@@ -371,7 +349,7 @@
 						<!-- Status Badge -->
 						<div class="flex flex-col items-end gap-2">
 							<DebtStatusBadge status={debt.status} />
-							{#if debt.status === 'confirmed' && debt?.hasPendingProof}
+							{#if debt.status === DEBT_STATUS.CONFIRMED && debt?.hasPendingProof}
 								<Badge
 									variant="outline"
 									class="border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400"
@@ -425,7 +403,7 @@
 			</Card.Root>
 
 			<!-- Payment Section (For Debtor) -->
-			{#if data.isDebtor && debt.status !== 'paid' && debt.status !== 'cancelled'}
+			{#if data.isDebtor && debt.status !== DEBT_STATUS.PAID && debt.status !== DEBT_STATUS.CANCELLED}
 				<Card.Root>
 					<Card.Header>
 						<Card.Title class="flex items-center gap-2 text-lg">
@@ -697,7 +675,7 @@
 									{#each s.validTransitions as transition}
 										<form
 											{...updateDebtStatus.enhance(async ({ data: formData, submit }) => {
-												formData.status = transition.status as any;
+												formData.status = transition.status;
 												const previousDebt = snapshotDebt();
 												applyStatusOptimistic(transition.status);
 												s.isSubmitting = true;
@@ -706,7 +684,7 @@
 												} finally {
 													s.isSubmitting = false;
 													if (previousDebt) {
-														s.debt = previousDebt as any;
+														s.debt = previousDebt;
 													}
 													invalidateAll();
 												}
@@ -716,8 +694,8 @@
 												type="submit"
 												disabled={s.isSubmitting || transition.disabled}
 												size="sm"
-												variant={transition.status === 'cancelled' ||
-												transition.status === 'disputed'
+												variant={transition.status === DEBT_STATUS.CANCELLED ||
+												transition.status === DEBT_STATUS.DISPUTED
 													? 'destructive'
 													: 'default'}
 												title={transition.disabled ? 'Upload proof of payment first' : ''}

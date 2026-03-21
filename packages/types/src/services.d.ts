@@ -1,7 +1,8 @@
-import type { Debt } from '@repo/db';
+import type { DebtDetails } from './debt';
 import type { SafeUser, UserResult } from './user';
 import type { SessionInfo } from './session';
 import type { CreateDebtInput, DebtResult, DebtStatus, StatusUpdateResult } from './debt';
+import type { PaginatedResult, PaginationOptions, ExpiryOption } from './api';
 
 // Auth Types
 export interface RegisterInput {
@@ -100,29 +101,17 @@ export interface ISessionService {
   revokeAllSessions(userId: string): Promise<{ success: boolean; count: number }>;
 }
 
-export interface PaginationOptions {
-  limit?: number;
-  offset?: number;
-  status?: string;
-}
-
-export interface PaginatedResult<T> {
-  data: T[];
-  total: number;
-  limit: number;
-  offset: number;
-}
 
 export interface IDebtService {
   getDebtsForUser(
     userId: string,
     hasViewAllPermission: boolean,
     options?: PaginationOptions
-  ): Promise<PaginatedResult<Debt>>;
-  getDebtsByUserId(userId: string, options?: PaginationOptions): Promise<PaginatedResult<Debt>>;
+  ): Promise<PaginatedResult<DebtDetails>>;
+  getDebtsByUserId(userId: string, options?: PaginationOptions): Promise<PaginatedResult<DebtDetails>>;
   countActiveDebtsForPhone(phone: string): Promise<number>;
-  getDebtById(debtId: string): Promise<Debt | undefined>;
-  createDebt(input: CreateDebtInput & { expiryOption?: string; confirmDuplicate?: boolean }, currentUser: SafeUser): Promise<DebtResult>;
+  getDebtById(debtId: string): Promise<DebtDetails | undefined>;
+  createDebt(input: CreateDebtInput & { expiryOption?: ExpiryOption; confirmDuplicate?: boolean }, currentUser: SafeUser): Promise<DebtResult>;
   updateDebtStatus(debtId: string, newStatus: DebtStatus, currentUser: SafeUser): Promise<StatusUpdateResult>;
 }
 

@@ -1,9 +1,10 @@
 import { api } from '$lib/services/api';
 import type { PageData } from './$types';
-import type { BankAccount } from '@repo/types';
+import type { BankAccount, DebtDetails, DebtStatus } from '@repo/types';
+import { DEBT_STATUS } from '@repo/types';
 
 export class DebtDetailState {
-	debt = $state<NonNullable<PageData['debt']>>();
+	debt = $state<DebtDetails>();
 	
 	private creditorBanks: NonNullable<PageData['creditorBanks']>;
 	private currentUser: NonNullable<PageData['currentUser']>;
@@ -39,7 +40,7 @@ export class DebtDetailState {
 	isSuggesting = $state(false);
 
 	constructor(
-		debt: NonNullable<PageData['debt']>,
+		debt: DebtDetails,
 		creditorBanks: NonNullable<PageData['creditorBanks']>,
 		currentUser: NonNullable<PageData['currentUser']>,
 		isUploader: boolean,
@@ -75,55 +76,53 @@ export class DebtDetailState {
 	}
 
 	get canEdit() {
-		return this.isUploader && this.status === 'pending';
+		return this.isUploader && this.status === DEBT_STATUS.PENDING;
 	}
 
 	get canDelete() {
-		return this.isUploader && this.status !== 'paid';
+		return this.isUploader && this.status !== DEBT_STATUS.PAID;
 	}
 
 	get canSuggestEdit() {
-		return !this.isUploader && (this.isCreditor || this.isDebtor) && this.status !== 'paid' && this.status !== 'cancelled';
+		return !this.isUploader && (this.isCreditor || this.isDebtor) && this.status !== DEBT_STATUS.PAID && this.status !== DEBT_STATUS.CANCELLED;
 	}
 
 	get canConfirm() {
-		return !this.isUploader && (this.isCreditor || this.isDebtor) && this.status === 'pending';
+		return !this.isUploader && (this.isCreditor || this.isDebtor) && this.status === DEBT_STATUS.PENDING;
 	}
 
 	get hasPendingSuggestion() {
-		const d = this.debt as (NonNullable<PageData['debt']> & { suggestedById?: string });
-		return d?.suggestedById && this.isUploader;
+		return this.debt?.suggestedById && this.isUploader;
 	}
 
 	get validTransitions() {
 		const currentStatus = this.status || '';
-		const transitions: Record<string, { status: string; label: string; icon: string; disabled?: boolean }[]> = {
-			pending: [
-				{ status: 'confirmed', label: 'Confirm', icon: 'Check' },
-				{ status: 'disputed', label: 'Dispute', icon: 'AlertTriangle' },
-				{ status: 'cancelled', label: 'Cancel', icon: 'X' }
+		const transitions: Record<string, { status: DebtStatus; label: string; icon: string; disabled?: boolean }[]> = {
+			[DEBT_STATUS.PENDING]: [
+				{ status: DEBT_STATUS.CONFIRMED, label: 'Confirm', icon: 'Check' },
+				{ status: DEBT_STATUS.DISPUTED, label: 'Dispute', icon: 'AlertTriangle' },
+				{ status: DEBT_STATUS.CANCELLED, label: 'Cancel', icon: 'X' }
 			],
-			confirmed: [
+			[DEBT_STATUS.CONFIRMED]: [
 				{
-					status: 'paid',
+					status: DEBT_STATUS.PAID,
 					label: 'Mark as Paid',
 					icon: 'Check',
-					disabled: !(this.debt as (NonNullable<PageData['debt']> & { hasPendingProof?: boolean }))?.hasPendingProof
+					disabled: !this.debt?.hasPendingProof
 				},
-				{ status: 'disputed', label: 'Dispute', icon: 'AlertTriangle' }
+				{ status: DEBT_STATUS.DISPUTED, label: 'Dispute', icon: 'AlertTriangle' }
 			],
-			disputed: [],
-			paid: [],
-			cancelled: []
+			[DEBT_STATUS.DISPUTED]: [],
+			[DEBT_STATUS.PAID]: [],
+			[DEBT_STATUS.CANCELLED]: []
 		};
 		return transitions[currentStatus] || [];
 	}
 
 	get qrUrl() {
 		if (!this.selectedBank || !this.debt) return '';
-		const amount = this.debt.amount;
 		const addInfo = `Debt ${this.debt.id}`;
-		return `https://img.vietqr.io/image/${this.selectedBank.bankBin}-${this.selectedBank.accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent(this.selectedBank.accountName)}`;
+		return `https://img.vietqr.io/image/${this.selectedBank.bankBin}-${this.selectedBank.accountNumber}-compact2.png?amount=${this.debt.amount}&addInfo=${encodeURIComponent(addInfo)}&accountName=${encodeURIComponent(this.selectedBank.accountName || '')}`;
 	}
 
 	handleUpload = async () => {

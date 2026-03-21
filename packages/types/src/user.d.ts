@@ -1,23 +1,25 @@
-export interface CurrentUser {
-  id: string;
-  role: string;
-  permissions: string[];
-  phoneNumber: string | null;
-  email: string | null;
-}
+import type { User as DBUser } from '@repo/db';
 
-export interface SafeUser {
-  id: string;
-  name: string;
-  email: string | null;
-  phoneNumber: string | null;
-  role: string;
+export type CurrentUser = Pick<DBUser, 'id' | 'role' | 'phoneNumber' | 'email'> & { permissions: string[] };
+
+export interface SafeUser extends Omit<
+  DBUser,
+  | 'password'
+  | 'isLocked'
+  | 'lockoutUntil'
+  | 'failedLoginAttempts'
+  | 'lastFailedLoginAt'
+  | 'phoneVerified'
+  | 'sessionVersion'
+  | 'lastPasswordChangeAt'
+  | 'temporaryPassword'
+  | 'temporaryPasswordExpires'
+  | 'temporaryPasswordUsed'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'permissions'
+> {
   permissions: string[];
-  isActive: boolean;
-  emailVerified?: boolean;
-  emailNotificationsEnabled?: boolean;
-  pushNotificationsEnabled?: boolean;
-  mustChangePassword?: boolean;
   createdAt: Date | string | null;
   updatedAt: Date | string | null;
 }

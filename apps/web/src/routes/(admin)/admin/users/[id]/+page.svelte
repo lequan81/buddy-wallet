@@ -4,6 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { formatCurrency, formatDate } from '@repo/utils';
+	import { DEBT_STATUS } from '@repo/types';
 
 	let { data, form } = $props();
 
@@ -17,7 +18,7 @@
 		let totalOwing = 0; // Money this user OWES
 
 		for (const debt of debts) {
-			if (debt.status === 'paid') continue;
+			if (debt.status === DEBT_STATUS.PAID) continue;
 			if (debt.creditorId === userId) {
 				totalOwed += debt.amount;
 			} else if (debt.debtorId === userId) {
@@ -219,9 +220,9 @@
 							<td class="px-6 py-4">
 								<span
 									class="rounded-full px-2 py-1 text-xs font-medium
-									{debt.status === 'paid'
+									{debt.status === DEBT_STATUS.PAID
 										? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-										: debt.status === 'pending'
+										: debt.status === DEBT_STATUS.PENDING
 											? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
 											: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300'}"
 								>

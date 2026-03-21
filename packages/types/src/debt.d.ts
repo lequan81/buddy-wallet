@@ -1,5 +1,21 @@
 import type { Debt } from '@repo/db';
 
+/**
+ * DebtDetails represents the exact JSON payload sent over the wire.
+ * It strictly extends the database Debt type but transforms Date fields into ISO strings
+ * to match API serialization behavior.
+ */
+export interface DebtDetails extends Omit<Debt, 'createdAt' | 'updatedAt' | 'creditorConfirmedAt' | 'debtorConfirmedAt' | 'lastProofUploadedAt' | 'expiresAt' | 'suggestedAt' | 'deletedAt'> {
+  createdAt: string;
+  updatedAt: string;
+  creditorConfirmedAt: string | null;
+  debtorConfirmedAt: string | null;
+  lastProofUploadedAt: string | null;
+  expiresAt: string | null;
+  suggestedAt: string | null;
+  deletedAt: string | null;
+}
+
 export type DebtStatus = 'pending' | 'confirmed' | 'paid' | 'disputed' | 'cancelled';
 export type DebtDirection = 'LEND' | 'BORROW';
 
@@ -15,18 +31,18 @@ export interface DebtResult {
   error?: string;
   code?: string;
   message?: string;
-  debt?: Debt;
-  debts?: Debt[];
+  debt?: DebtDetails;
+  debts?: DebtDetails[];
 }
 
 export interface StatusUpdateResult {
   success: boolean;
   error?: string;
   code?: string;
-  debt?: Debt;
-  previousStatus?: string;
-  newStatus?: string;
-  validTransitions?: string[];
+  debt?: DebtDetails;
+  previousStatus?: DebtStatus;
+  newStatus?: DebtStatus;
+  validTransitions?: DebtStatus[];
 }
 
 export interface QuickDebt {
@@ -34,7 +50,7 @@ export interface QuickDebt {
   description: string;
   amount: number;
   direction: DebtDirection;
-  status: string;
+  status: DebtStatus;
   counterpartyPhone: string;
   counterpartyName?: string;
   createdAt: string;

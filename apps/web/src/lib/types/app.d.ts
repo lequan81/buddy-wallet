@@ -40,15 +40,6 @@ export interface LoadingState {
 	error: string | null;
 }
 
-// ============================================
-// API Response Types
-// ============================================
-
-export interface ApiResponse<T = unknown> {
-	success: boolean;
-	data?: T;
-	error?: string;
-}
 
 export interface HealthResponse {
 	status: 'ok';

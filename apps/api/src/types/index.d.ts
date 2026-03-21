@@ -24,16 +24,6 @@ export * from './debt-state';
 // App type (exported from index.ts)
 import type { Elysia } from 'elysia';
 
-/**
- * Base API response
- */
-export interface ApiResponse<T = unknown> {
-  success: boolean;
-  message?: string;
-  data?: T;
-  error?: string;
-  code?: string;
-}
 
 /**
  * Paginated response
@@ -72,18 +62,3 @@ export interface AuthenticatedContext {
   sessionId: string | null;
 }
 
-// Common service options and types
-export type ExpiryOption = '7d' | '30d' | '90d' | 'never';
-
-export interface PaginationOptions {
-  limit?: number;
-  offset?: number;
-  status?: string;
-}
-
-export interface PaginatedResult<T> {
-  data: T[];
-  total: number;
-  limit: number;
-  offset: number;
-}

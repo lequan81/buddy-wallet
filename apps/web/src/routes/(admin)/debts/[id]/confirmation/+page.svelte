@@ -4,11 +4,12 @@
 	import { Button } from '@repo/ui/components/ui/button';
 	import { cn } from '$lib/utils';
 	import { formatCurrency } from '@repo/utils';
+	import { DEBT_STATUS } from '@repo/types';
 
 	let { data } = $props();
 
 	const getStatusMessage = () => {
-		if (data.status === 'paid') {
+		if (data.status === DEBT_STATUS.PAID) {
 			return {
 				title: 'Debt Marked as Paid!',
 				subtitle: 'This debt has been successfully settled.',
@@ -29,7 +30,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.status === 'paid' ? 'Debt Paid' : 'Debt Confirmed'}</title>
+	<title>{data.status === DEBT_STATUS.PAID ? 'Debt Paid' : 'Debt Confirmed'}</title>
 </svelte:head>
 
 <div
@@ -52,7 +53,7 @@
 			<div
 				class={cn(
 					'mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full',
-					data.status === 'paid'
+					data.status === DEBT_STATUS.PAID
 						? 'bg-green-100 dark:bg-green-900/30'
 						: 'bg-blue-100 dark:bg-blue-900/30'
 				)}
@@ -128,7 +129,7 @@
 			Status: <span
 				class={cn(
 					'rounded-full px-2 py-0.5 text-xs font-medium',
-					data.status === 'paid'
+					data.status === DEBT_STATUS.PAID
 						? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
 						: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
 				)}

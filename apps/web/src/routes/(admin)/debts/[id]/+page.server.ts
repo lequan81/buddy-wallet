@@ -1,15 +1,15 @@
-import { redirect, fail } from '@sveltejs/kit';
-import type { PageServerLoad, Actions } from './$types';
-import type { Debt, BankAccount, ApiErrorValue } from '@repo/types';
+import { redirect } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
+import type { DebtDetails, BankAccount, ApiErrorValue } from '@repo/types';
 
-const extractDebt = (payload: unknown): Debt | null => {
+const extractDebt = (payload: unknown): DebtDetails | null => {
 	if (!payload || typeof payload !== 'object') return null;
 	const directDebt = (payload as { debt?: unknown }).debt;
-	if (directDebt) return directDebt as Debt;
+	if (directDebt) return directDebt as DebtDetails;
 	const nested = (payload as { data?: unknown }).data;
 	if (nested && typeof nested === 'object') {
 		const nestedDebt = (nested as { debt?: unknown }).debt;
-		return nestedDebt ? (nestedDebt as Debt) : null;
+		return nestedDebt ? (nestedDebt as DebtDetails) : null;
 	}
 	return null;
 };
@@ -27,7 +27,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const debt = extractDebt(debtData);
 
 	if (debtError || !debt) {
-		return { debt: null, error: (debtError?.value as any)?.message || (debtError?.value as ApiErrorValue)?.error || 'Debt not found' };
+		const errVal = debtError?.value as ApiErrorValue | undefined;
+		const errMsg = errVal?.message || errVal?.error;
+		const finalMsg = typeof errMsg === 'string' ? errMsg : (errMsg as { message?: string })?.message || 'Debt not found';
+		return { debt: null, error: finalMsg };
 	}
 
 	// Check if user is related to this debt
@@ -43,7 +46,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	// If I am the debtor, I need creditor's bank info to pay
 	if (isDebtor && debt.creditorId) {
 		const { data: bankData } = await api.v1.banks.user({ userId: debt.creditorId }).get();
-		creditorBanks = (bankData?.accounts as any[]) || [];
+		creditorBanks = (bankData?.accounts as unknown as BankAccount[]) || [];
 	}
 
 	// If I am the creditor, I want to see pending proofs.

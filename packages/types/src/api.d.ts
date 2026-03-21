@@ -1,4 +1,5 @@
 import type { VietQRBank, BankAccount } from './bank';
+import type { DebtStatus } from './debt';
 
 export interface BankResponse {
   success: boolean;
@@ -17,12 +18,39 @@ export interface ApiResponse<T = unknown> {
   code?: string;
 }
 
+/** Helper type for API error handling across the web app. */
+export interface ApiErrorValue {
+  message?: string;
+  details?: string;
+  error?: string | { message?: string };
+  code?: string;
+}
+
+/** Base pagination coordinates. */
 export interface Pagination {
-  total: number;
   limit: number;
   offset: number;
+}
+
+/** Standard pagination metadata shape returned by paginated API endpoints. */
+export interface PaginationMeta extends Pagination {
+  total: number;
   hasMore: boolean;
 }
+
+/** Standard paginated list result shape. */
+export interface PaginatedResult<T> extends Pagination {
+  data: T[];
+  total: number;
+}
+
+export type ExpiryOption = '7d' | '30d' | '90d' | 'never';
+
+/** Standard pagination options for queries. */
+export interface PaginationOptions extends Partial<Pagination> {
+  status?: DebtStatus | 'all';
+}
+
 
 export interface User {
   id: string;
@@ -44,7 +72,7 @@ export interface Debt {
   id: string;
   description: string;
   amount: number;
-  status: string;
+  status: DebtStatus;
   createdAt: string;
   creditorId?: string;
   debtorId?: string;

@@ -2,6 +2,7 @@ import { goto } from '$app/navigation';
 import { page } from '$app/stores';
 import { get } from 'svelte/store';
 import { SvelteSet, SvelteURL } from 'svelte/reactivity';
+import { DEBT_STATUS } from '@repo/types';
 
 type SortField = 'description' | 'status' | 'amount' | 'date';
 type SortDirection = 'asc' | 'desc';
@@ -33,7 +34,7 @@ export function createDashboardState(userId: string) {
 	const canDeleteDebt = (debt: { uploadedById?: string; status?: string }) => {
 		if (!userId) return false;
 		const isUploader = debt.uploadedById === userId;
-		const isPaid = debt.status === 'paid';
+		const isPaid = debt.status === DEBT_STATUS.PAID;
 		return isUploader && !isPaid;
 	};
 

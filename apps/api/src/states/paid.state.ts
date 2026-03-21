@@ -6,11 +6,12 @@
  */
 import type { Debt } from '@repo/db';
 import type { DebtStatus } from '../types';
+import { DEBT_STATUS } from '@repo/types';
 import type { IDebtState, TransitionContext } from '../types/debt-state';
 import { log } from '@repo/logger';
 
 export class PaidState implements IDebtState {
-  readonly status: DebtStatus = 'paid';
+  readonly status: DebtStatus = DEBT_STATUS.PAID;
 
   canTransitionTo(_targetStatus: DebtStatus, _debt: Debt, _context: TransitionContext): boolean {
     // Terminal state - no transitions allowed

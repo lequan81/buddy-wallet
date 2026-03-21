@@ -12,6 +12,7 @@ import { standardRateLimiter } from '../plugins/middleware';
 import { getUserWithFreshData } from '../plugins/auth';
 import { PERMISSIONS, hasPermission } from '@repo/permissions';
 import { DebtService, ActivityService } from '../services';
+import { DEBT_STATUS, DEBT_DIRECTION } from '@repo/types';
 import { getClientIP } from '../utils';
 
 // Helper functions to convert responses to Response objects for Elysia
@@ -30,11 +31,11 @@ const createSuccessResponse = <T extends object>(data?: T, status: number = 200)
 };
 
 const DebtStatusSchema = t.Union([
-  t.Literal('pending'),
-  t.Literal('confirmed'),
-  t.Literal('paid'),
-  t.Literal('disputed'),
-  t.Literal('cancelled')
+  t.Literal(DEBT_STATUS.PENDING),
+  t.Literal(DEBT_STATUS.CONFIRMED),
+  t.Literal(DEBT_STATUS.PAID),
+  t.Literal(DEBT_STATUS.DISPUTED),
+  t.Literal(DEBT_STATUS.CANCELLED)
 ]);
 
 const NullableString = t.Union([t.String(), t.Null()]);
@@ -161,7 +162,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       query: t.Object({
         limit: t.Optional(t.String()),
         offset: t.Optional(t.String()),
-        status: t.Optional(t.String())
+        status: t.Optional(t.Union([DebtStatusSchema, t.Literal('all')])),
       }),
       response: {
         200: DebtListResponseSchema,
@@ -230,7 +231,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       query: t.Object({
         limit: t.Optional(t.String()),
         offset: t.Optional(t.String()),
-        status: t.Optional(t.String())
+        status: t.Optional(t.Union([DebtStatusSchema, t.Literal('all')])),
       }),
       checkPermission: PERMISSIONS.DEBT_VIEW_ALL,
       response: { 200: DebtListResponseSchema, 401: ErrorResponseSchema }
@@ -321,7 +322,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         amount: t.Number({ minimum: 1 }),
         description: t.String({ maxLength: 500 }),
         counterpartyPhone: t.String({ minLength: 9, maxLength: 20 }),
-        direction: t.Union([t.Literal('LEND'), t.Literal('BORROW')]),
+        direction: t.Union([t.Literal(DEBT_DIRECTION.LEND), t.Literal(DEBT_DIRECTION.BORROW)]),
         expiryOption: t.Optional(
           t.Union([t.Literal('never'), t.Literal('7d'), t.Literal('30d'), t.Literal('90d')])
         ),
@@ -366,11 +367,11 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       params: t.Object({ id: t.String() }),
       body: t.Object({
         status: t.Union([
-          t.Literal('pending'),
-          t.Literal('confirmed'),
-          t.Literal('paid'),
-          t.Literal('disputed'),
-          t.Literal('cancelled')
+          t.Literal(DEBT_STATUS.PENDING),
+          t.Literal(DEBT_STATUS.CONFIRMED),
+          t.Literal(DEBT_STATUS.PAID),
+          t.Literal(DEBT_STATUS.DISPUTED),
+          t.Literal(DEBT_STATUS.CANCELLED)
         ])
       }),
       ensureRelatedDebt: 'id'

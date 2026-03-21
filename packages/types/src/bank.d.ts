@@ -9,15 +9,9 @@ export interface VietQRBank {
   lookupSupported: number;
 }
 
-export interface BankAccount {
-  id: string;
-  userId: string;
-  bankCode: string;
-  bankName: string;
-  bankBin: string;
-  accountNumber: string;
-  accountName: string;
-  isDefault: boolean;
+import type { BankAccount as DBBankAccount } from '@repo/db';
+
+export interface BankAccount extends Omit<DBBankAccount, 'createdAt' | 'updatedAt'> {
   createdAt: Date | string | number;
   updatedAt: Date | string | number;
 }
