@@ -32,5 +32,8 @@ export const importLogs = sqliteTable(
     // Soft delete support (Two-Stage deletion)
     deletedAt: integer('deleted_at', { mode: 'timestamp' })
   },
-  (table) => [index('idx_import_logs_user_id').on(table.userId)]
+  (table) => [
+    index('idx_import_logs_user_id').on(table.userId),
+    index('idx_import_logs_user_created_at_id').on(table.userId, table.createdAt, table.id)
+  ]
 );

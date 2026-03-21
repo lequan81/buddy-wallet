@@ -7,6 +7,7 @@
     "lint": "eslint . --max-warnings 0",
     "check-types": "bunx tsc --noEmit"
   },
+  "sideEffects": false,
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
@@ -19,6 +20,18 @@
     ".": {
       "types": "./index.ts",
       "default": "./index.ts"
+    },
+    "./frontend": {
+      "types": "./frontend.ts",
+      "default": "./frontend.ts"
+    },
+    "./backend": {
+      "types": "./backend.ts",
+      "default": "./backend.ts"
+    },
+    "./shared": {
+      "types": "./shared.ts",
+      "default": "./shared.ts"
     }
   }
 }

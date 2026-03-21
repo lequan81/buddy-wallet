@@ -15,7 +15,7 @@
 
 	onMount(() => {
 		mounted = true;
-
+		document.documentElement.dataset.hydrated = 'true';
 
 		useRegisterSW({
 			onRegisteredSW(swScriptUrl, registration) {

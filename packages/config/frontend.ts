@@ -22,6 +22,10 @@ export const FRONTEND_CONSTANTS = {
   // API
   API_BASE_URL: 'http://localhost:3000',
   WEB_BASE_URL: 'http://localhost:5173',
+
+  // External Services
+  VIETQR_API_URL: 'https://api.vietqr.io/v2/banks',
+  VIETQR_TIMEOUT: 5000,
   
   // Storage
   UPLOAD_TMP_DIR: '../../tmp/uploads',

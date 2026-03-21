@@ -4,3 +4,4 @@ export * from './device';
 
 export * from './password';
 export * from './user.mapping';
+export * from './cursor';

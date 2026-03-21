@@ -4,6 +4,59 @@
 /* ============================================ */
 @reference "@repo/ui/layout.css";
 
+/* ============================================ */
+/* Global Hydration Loader                      */
+/* ============================================ */
+
+#global-loader {
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: hsl(var(--background) / 0.98);
+	opacity: 1;
+	visibility: visible;
+	transition: opacity 280ms ease, visibility 280ms ease;
+}
+
+#global-loader .global-loader__shell {
+	width: min(260px, 70vw);
+	height: 6px;
+	border-radius: 999px;
+	background: hsl(var(--muted) / 0.8);
+	overflow: hidden;
+	box-shadow: 0 6px 18px hsl(var(--foreground) / 0.08);
+}
+
+#global-loader .global-loader__bar {
+	height: 100%;
+	width: 45%;
+	border-radius: inherit;
+	background: linear-gradient(
+		90deg,
+		hsl(var(--primary) / 0.2),
+		hsl(var(--primary)),
+		hsl(var(--primary) / 0.2)
+	);
+	animation: global-loader-sheen 1s ease-in-out infinite;
+}
+
+html[data-hydrated='true'] #global-loader {
+	opacity: 0;
+	visibility: hidden;
+}
+
+@keyframes global-loader-sheen {
+	0% {
+		transform: translateX(-50%);
+	}
+	100% {
+		transform: translateX(220%);
+	}
+}
+
 /* Typography Utilities for Financial Data */
 @layer utilities {
 	.font-tabular {

@@ -1,9 +1,24 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { AlertTriangle, ArrowLeft, CheckCircle, Clock, Eye, FileSpreadsheet, Loader2, Settings2, Upload, X } from '@repo/icons';
+	import {
+		AlertTriangle,
+		ArrowLeft,
+		CheckCircle,
+		ChevronLeft,
+		ChevronRight,
+		ChevronsLeft,
+		ChevronsRight,
+		Clock,
+		Eye,
+		FileSpreadsheet,
+		Loader2,
+		Settings2,
+		Upload,
+		X
+	} from '@repo/icons';
 	import { onMount } from 'svelte';
-	import { goto, invalidateAll } from '$app/navigation';
-	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { slide, fade } from 'svelte/transition';
@@ -18,10 +33,9 @@
 	import { importProgress } from '$lib/stores/import-progress.svelte';
 	import ConnectionFallback from '$lib/components/shared/ConnectionFallback.svelte';
 	import { cn } from '$lib/utils';
-	import { browser } from '$app/environment';
 	import type { UploadState } from '$lib/types';
 	import { importUpload } from '$lib/stores/import-upload.svelte';
-	import { IMPORT_DB_FIELDS } from '@repo/config';
+	import { IMPORT_DB_FIELDS } from '@repo/config/shared';
 	import * as m from '$lib/paraglide/messages';
 
 	// Type for import job preview result
@@ -94,9 +108,10 @@
 
 	// === HISTORY STATE (from server load) ===
 	let loadingHistory = $state(false);
-	let logs = $derived.by(() => data.logs as any[] || []);
+	let logs = $derived.by(() => (data.logs as any[]) || []);
 	let historyPage = $derived.by(() => data.historyPage || 1);
 	let historyTotalPages = $derived.by(() => data.historyTotalPages || 1);
+	let totalHistoryPages = $derived(Math.max(1, historyTotalPages || 1));
 	let selectedLog = $state<any | null>(null);
 	let showDetails = $state(false);
 	let showConnectionFallback = $state(false);
@@ -112,30 +127,54 @@
 		dueDate: ''
 	});
 
-	// === FUNCTIONS ===
-	async function fetchLogs(p: number = 1) {
-		// Navigate with historyPage param and invalidate to re-run server load
-		const url = new URL(window.location.href);
-		url.searchParams.set('historyPage', p.toString());
-		await goto(url.toString(), { replaceState: true, invalidateAll: true });
-		// After navigation, data prop will have updated logs
-		logs = data.logs as any[] || [];
-		historyPage = data.historyPage || p;
-		historyTotalPages = data.historyTotalPages || 1;
-
-		// Track active jobs from history
-		const threeHoursAgo = Date.now() - 3 * 60 * 60 * 1000;
-		for (const log of logs) {
-			if (log.status === 'processing' || log.status === 'pending') {
-				const logTime = new Date(log.createdAt).getTime();
-				if (logTime > threeHoursAgo) {
-					if (!importProgress.getJob(log.id)) {
-						importProgress.addJob(log.id, 'import', log.fileName);
-					}
-				}
+	const buildPageItems = (current: number, total: number) => {
+		if (total <= 1) return [1];
+		const set = new Set<number>([1, total, current - 1, current, current + 1]);
+		const pages = Array.from(set)
+			.filter((p) => p >= 1 && p <= total)
+			.sort((a, b) => a - b);
+		const items: Array<number | 'ellipsis'> = [];
+		for (let i = 0; i < pages.length; i++) {
+			const pageNum = pages[i];
+			const prev = pages[i - 1];
+			if (i > 0 && prev !== undefined && pageNum - prev > 1) {
+				items.push('ellipsis');
 			}
+			items.push(pageNum);
 		}
-	}
+		return items;
+	};
+
+	let jumpPage = $state('');
+
+	const clampHistoryPage = (value: number) => {
+		if (!Number.isFinite(value)) return 1;
+		return Math.min(Math.max(1, value), totalHistoryPages);
+	};
+
+	const fetchLogs = async (pageNumber = historyPage) => {
+		loadingHistory = true;
+		connectionError = '';
+		showConnectionFallback = false;
+
+		try {
+			const url = new URL($page.url);
+			url.searchParams.set('historyPage', clampHistoryPage(pageNumber).toString());
+			await goto(url.toString(), { invalidateAll: true, keepfocus: true, noScroll: true });
+		} catch (err) {
+			connectionError = err instanceof Error ? err.message : 'Failed to load import history.';
+			showConnectionFallback = true;
+		} finally {
+			loadingHistory = false;
+		}
+	};
+
+	const handleJump = async () => {
+		const target = parseInt(jumpPage, 10);
+		if (!Number.isFinite(target)) return;
+		jumpPage = '';
+		await fetchLogs(target);
+	};
 
 	const handleFileUpload = async (file: File) => {
 		if (!file) return;
@@ -219,8 +258,8 @@
 				// Reset state after successful import
 				resetUploadState();
 
-				// Refresh history
-				fetchLogs();
+				// Refresh history (first page)
+				await fetchLogs(1);
 			} else {
 				toast.error(actionData?.message || 'Import failed');
 			}
@@ -323,7 +362,7 @@
 				}
 			} else if (currentJob.type === 'import') {
 				isSubmitting = false;
-				fetchLogs(1); // Refresh history
+				void fetchLogs(1); // Refresh history
 				resetUploadState();
 			}
 		} else if (currentJob?.status === 'failed') {
@@ -692,6 +731,98 @@
 						{/if}
 					</Table.Body>
 				</Table.Root>
+				{#if logs.length > 0}
+					{@const pageItems = buildPageItems(historyPage, totalHistoryPages)}
+					<div class="flex flex-wrap items-center justify-between gap-3 border-t border-border/40 px-4 py-3">
+						{#if connectionError && !showConnectionFallback}
+							<span class="text-xs text-destructive">{connectionError}</span>
+						{:else}
+							<span class="text-xs text-muted-foreground">
+								Page {historyPage} of {totalHistoryPages} | Loaded {logs.length} imports
+							</span>
+						{/if}
+
+						<div class="flex items-center gap-1">
+							<Button
+								variant="outline"
+								size="icon"
+								class="h-8 w-8"
+								disabled={historyPage <= 1 || loadingHistory}
+								onclick={() => fetchLogs(1)}
+							>
+								<ChevronsLeft class="h-4 w-4" />
+							</Button>
+							<Button
+								variant="outline"
+								size="icon"
+								class="h-8 w-8"
+								disabled={historyPage <= 1 || loadingHistory}
+								onclick={() => fetchLogs(historyPage - 1)}
+							>
+								<ChevronLeft class="h-4 w-4" />
+							</Button>
+							{#each pageItems as item, index (index)}
+								{#if item === 'ellipsis'}
+									<span class="px-2 text-sm text-muted-foreground">...</span>
+								{:else}
+									<Button
+										variant={item === historyPage ? 'default' : 'outline'}
+										size="sm"
+										class="h-8 min-w-8 px-2"
+										disabled={loadingHistory}
+										onclick={() => fetchLogs(item)}
+									>
+										{item}
+									</Button>
+								{/if}
+							{/each}
+							<Button
+								variant="outline"
+								size="icon"
+								class="h-8 w-8"
+								disabled={historyPage >= totalHistoryPages || loadingHistory}
+								onclick={() => fetchLogs(historyPage + 1)}
+							>
+								<ChevronRight class="h-4 w-4" />
+							</Button>
+							<Button
+								variant="outline"
+								size="icon"
+								class="h-8 w-8"
+								disabled={historyPage >= totalHistoryPages || loadingHistory}
+								onclick={() => fetchLogs(totalHistoryPages)}
+							>
+								<ChevronsRight class="h-4 w-4" />
+							</Button>
+						</div>
+
+						<div class="flex items-center gap-2">
+							<span class="text-xs text-muted-foreground">Go to</span>
+							<Input
+								type="number"
+								min={1}
+								max={totalHistoryPages}
+								placeholder={historyPage.toString()}
+								class="h-8 w-16 px-2 py-1 text-xs"
+								bind:value={jumpPage}
+								onkeydown={(event) => {
+									if (event.key === 'Enter') {
+										handleJump();
+									}
+								}}
+							/>
+							<Button
+								variant="outline"
+								size="sm"
+								class="h-8"
+								disabled={loadingHistory}
+								onclick={handleJump}
+							>
+								Go
+							</Button>
+						</div>
+					</div>
+				{/if}
 			</Card.Content>
 		</Card.Root>
 	</div>

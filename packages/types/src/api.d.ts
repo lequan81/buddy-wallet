@@ -44,6 +44,24 @@ export interface PaginatedResult<T> extends Pagination {
   total: number;
 }
 
+/** Cursor pagination request shape. */
+export interface CursorPagination {
+  limit: number;
+  cursor?: string | null;
+}
+
+/** Cursor pagination metadata shape returned by cursor-based endpoints. */
+export interface CursorPaginationMeta {
+  limit: number;
+  hasMore: boolean;
+  nextCursor: string | null;
+}
+
+/** Standard cursor-paginated list result shape. */
+export interface CursorPaginatedResult<T> extends CursorPaginationMeta {
+  data: T[];
+}
+
 export type ExpiryOption = '7d' | '30d' | '90d' | 'never';
 
 /** Standard pagination options for queries. */

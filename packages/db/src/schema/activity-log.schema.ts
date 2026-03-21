@@ -51,6 +51,7 @@ export const activityLogs = sqliteTable(
 
     // Composite index for user + date queries (most common)
     userCreatedAtIdx: index('idx_activity_logs_user_created_at').on(table.userId, table.createdAt),
+    userCreatedAtIdIdx: index('idx_activity_logs_user_created_at_id').on(table.userId, table.createdAt, table.id),
 
     // Index for resource lookups
     resourceIdIdx: index('idx_activity_logs_resource_id').on(table.resource, table.resourceId)

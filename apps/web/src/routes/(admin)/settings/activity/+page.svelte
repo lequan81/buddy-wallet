@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Activity, AlertTriangle, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, FileText, LogIn, LogOut, Plus, Shield, Trash2, User } from '@repo/icons';
+	import { Activity, AlertTriangle, Check, Edit, FileText, LogIn, LogOut, Plus, Shield, Trash2, User, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from '@repo/icons';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import * as Card from '@repo/ui/components/ui/card';
@@ -19,7 +19,7 @@
 		});
 	};
 
-	// Unified action config — replaces 3 separate switch statements
+	// Unified action config -- replaces 3 separate switch statements
 	const ACTION_CONFIG: Record<string, { icon: typeof Activity; color: string }> = {
 		login:   { icon: LogIn,         color: 'text-green-600 bg-green-100 dark:bg-green-900/30' },
 		logout:  { icon: LogOut,        color: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30' },
@@ -68,7 +68,39 @@
 	let pagination = $derived(
 		extData.pagination || { total: 0, limit: 20, offset: 0, hasMore: false }
 	);
-	let totalPages = $derived(Math.ceil(pagination.total / pageSize) || 1);
+	let totalPages = $derived(Math.max(1, Math.ceil(pagination.total / pageSize) || 1));
+
+	const buildPageItems = (current: number, total: number) => {
+		if (total <= 1) return [1];
+		const set = new Set<number>([1, total, current - 1, current, current + 1]);
+		const pages = Array.from(set)
+			.filter((p) => p >= 1 && p <= total)
+			.sort((a, b) => a - b);
+		const items: Array<number | 'ellipsis'> = [];
+		for (let i = 0; i < pages.length; i++) {
+			const pageNum = pages[i];
+			const prev = pages[i - 1];
+			if (i > 0 && prev !== undefined && pageNum - prev > 1) {
+				items.push('ellipsis');
+			}
+			items.push(pageNum);
+		}
+		return items;
+	};
+
+	let jumpPage = $state('');
+
+	const clampPage = (value: number, total: number) => {
+		if (!Number.isFinite(value)) return 1;
+		return Math.min(Math.max(1, value), total);
+	};
+
+	const jumpToPage = (totalPagesValue: number) => {
+		const target = parseInt(jumpPage, 10);
+		if (!Number.isFinite(target)) return;
+		jumpPage = '';
+		navigateWithParams({ page: clampPage(target, totalPagesValue) });
+	};
 
 	// Navigate with pagination params
 	const navigateWithParams = (params: { page?: number; pageSize?: number }) => {
@@ -177,7 +209,8 @@
 
 				<!-- Pagination -->
 				{#if pagination.total > 0}
-					<div class="mt-6 flex items-center justify-between border-t pt-4">
+					{@const pageItems = buildPageItems(currentPage, totalPages)}
+					<div class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
 						<div class="flex items-center gap-2 text-sm text-muted-foreground">
 							<span>
 								Showing {(currentPage - 1) * pageSize + 1} to {Math.min(
@@ -215,9 +248,20 @@
 							>
 								<ChevronLeft class="h-4 w-4" />
 							</Button>
-							<span class="px-3 text-sm">
-								Page {currentPage} of {totalPages}
-							</span>
+							{#each pageItems as item, index (index)}
+								{#if item === 'ellipsis'}
+									<span class="px-2 text-sm text-muted-foreground">...</span>
+								{:else}
+									<Button
+										variant={item === currentPage ? 'default' : 'outline'}
+										size="sm"
+										class="h-8 min-w-8 px-2"
+										onclick={() => navigateWithParams({ page: item })}
+									>
+										{item}
+									</Button>
+								{/if}
+							{/each}
 							<Button
 								variant="outline"
 								size="icon"
@@ -235,6 +279,30 @@
 								onclick={() => navigateWithParams({ page: totalPages })}
 							>
 								<ChevronsRight class="h-4 w-4" />
+							</Button>
+						</div>
+						<div class="flex items-center gap-2">
+							<span class="text-xs text-muted-foreground">Go to</span>
+							<input
+								type="number"
+								min={1}
+								max={totalPages}
+								placeholder={currentPage.toString()}
+								class="h-8 w-16 rounded border bg-background px-2 py-1 text-xs"
+								bind:value={jumpPage}
+								onkeydown={(event) => {
+									if (event.key === 'Enter') {
+										jumpToPage(totalPages);
+									}
+								}}
+							/>
+							<Button
+								variant="outline"
+								size="sm"
+								class="h-8"
+								onclick={() => jumpToPage(totalPages)}
+							>
+								Go
 							</Button>
 						</div>
 					</div>

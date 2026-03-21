@@ -223,7 +223,7 @@ export class DebtService implements IDebtService {
 
     let query = this.db.select().from(debts);
     if (where) query = query.where(where) as typeof query;
-    const data = query.orderBy(desc(debts.createdAt)).limit(limit).offset(offset).all();
+    const data = query.orderBy(desc(debts.createdAt), desc(debts.id)).limit(limit).offset(offset).all();
 
     return { data: data.map(toDebtDetails), total, limit, offset };
   }

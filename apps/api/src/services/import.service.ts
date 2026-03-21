@@ -5,7 +5,7 @@
  * Uses constructor injection for testability.
  */
 import { randomUUIDv7 } from 'bun';
-import { users, debts, importLogs, eq, or, and, lte, desc, inArray } from '@repo/db';
+import { users, debts, importLogs, eq, or, and, lte, desc, inArray, count } from '@repo/db';
 import {
   isValidImportFile,
   ACCEPTED_IMPORT_EXTENSIONS,
@@ -458,20 +458,26 @@ export class ImportService {
         .select()
         .from(importLogs)
         .where(eq(importLogs.userId, userId))
-        .orderBy(desc(importLogs.createdAt))
+        .orderBy(desc(importLogs.createdAt), desc(importLogs.id))
         .limit(limit)
         .offset(offset),
 
-      this.db.select({ count: importLogs.id }).from(importLogs).where(eq(importLogs.userId, userId))
+      this.db
+        .select({ count: count() })
+        .from(importLogs)
+        .where(eq(importLogs.userId, userId))
+        .get()
     ]);
+
+    const totalCount = total?.count ?? 0;
 
     return {
       success: true,
       logs: logs,
-      total: total.length,
+      total: totalCount,
       page,
       limit,
-      totalPages: Math.ceil(total.length / limit)
+      totalPages: Math.max(1, Math.ceil(totalCount / limit))
     };
   }
 

@@ -99,8 +99,39 @@
 	// Pagination from server (URL params)
 	let currentPage = $derived(data.page || 1);
 	let pageSize = $derived(data.pageSize || 10);
-	let totalPages = $state(1);
 	let statusFilter = $derived(data.statusFilter || 'all');
+
+	const buildPageItems = (current: number, total: number) => {
+		if (total <= 1) return [1];
+		const set = new Set<number>([1, total, current - 1, current, current + 1]);
+		const pages = Array.from(set)
+			.filter((p) => p >= 1 && p <= total)
+			.sort((a, b) => a - b);
+		const items: Array<number | 'ellipsis'> = [];
+		for (let i = 0; i < pages.length; i++) {
+			const pageNum = pages[i];
+			const prev = pages[i - 1];
+			if (i > 0 && prev !== undefined && pageNum - prev > 1) {
+				items.push('ellipsis');
+			}
+			items.push(pageNum);
+		}
+		return items;
+	};
+
+	let jumpPage = $state('');
+
+	const clampPage = (value: number, total: number) => {
+		if (!Number.isFinite(value)) return 1;
+		return Math.min(Math.max(1, value), total);
+	};
+
+	const jumpToPage = (totalPagesValue: number) => {
+		const target = parseInt(jumpPage, 10);
+		if (!Number.isFinite(target)) return;
+		jumpPage = '';
+		dashState.navigateWithParams({ page: clampPage(target, totalPagesValue) });
+	};
 </script>
 
 <PageContainer>
@@ -157,6 +188,42 @@
 				debts: Debt[]; 
 				pagination: { total: number; limit: number; offset: number; hasMore: boolean } 
 			}}
+			{@const totalPagesValue = Math.max(1, Math.ceil(pagination.total / pageSize))}
+			{@const pageItems = buildPageItems(currentPage, totalPagesValue)}
+			{@const filteredDebts = debts.filter((debt) => {
+				const query = dashState.debouncedSearch.trim().toLowerCase();
+				if (!query) return true;
+				const description = (debt.description || '').toLowerCase();
+				const status = (debt.status || '').toLowerCase();
+				const amount = String(debt.amount);
+				const phone = `${debt.debtorPhone || ''} ${debt.creditorPhone || ''}`.toLowerCase();
+				return (
+					description.includes(query) ||
+					status.includes(query) ||
+					amount.includes(query) ||
+					phone.includes(query)
+				);
+			})}
+			{@const sortedDebts = [...filteredDebts].sort((a, b) => {
+				let comparison = 0;
+				switch (dashState.sortField) {
+					case 'description':
+						comparison = (a.description || '').localeCompare(b.description || '');
+						break;
+					case 'status':
+						comparison = a.status.localeCompare(b.status);
+						break;
+					case 'amount':
+						comparison = a.amount - b.amount;
+						break;
+					case 'date':
+						comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+						break;
+				}
+				return dashState.sortDirection === 'asc' ? comparison : -comparison;
+			})}
+			{@const allSelectedOnPage =
+				sortedDebts.length > 0 && sortedDebts.every((d) => dashState.selectedIds.has(d.id))}
 
 			<!-- Financial Summary -->
 			<FinancialSummary
@@ -442,28 +509,6 @@
 						</div>
 					</div>
 				</Card.Header>
-				{@const sortedDebts = [...debts].sort((a, b) => {
-					let comparison = 0;
-					switch (dashState.sortField) {
-						case 'description':
-							comparison = (a.description || '').localeCompare(b.description || '');
-							break;
-						case 'status':
-							comparison = a.status.localeCompare(b.status);
-							break;
-						case 'amount':
-							comparison = a.amount - b.amount;
-							break;
-						case 'date':
-							comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-							break;
-					}
-					return dashState.sortDirection === 'asc' ? comparison : -comparison;
-				})}
-
-				{@const allSelectedOnPage =
-					sortedDebts.length > 0 && sortedDebts.every((d) => dashState.selectedIds.has(d.id))}
-
 				{#if sortedDebts.length === 0}
 					<div class="flex flex-col items-center justify-center py-12 text-center">
 						<div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
@@ -673,7 +718,7 @@
 
 					<!-- Pagination Controls -->
 					{#if pagination.total > 0}
-						<div class="flex items-center justify-between border-t px-6 py-4">
+						<div class="flex flex-wrap items-center justify-between gap-3 border-t px-6 py-4">
 							<div class="flex items-center gap-2 text-sm text-muted-foreground">
 								<span>
 									Showing {(currentPage - 1) * pageSize + 1} to {Math.min(
@@ -693,7 +738,7 @@
 									<option value={50}>50 per page</option>
 								</select>
 							</div>
-							<div class="flex items-center gap-1">
+							<div class="flex items-center gap-2">
 								<Button
 									variant="outline"
 									size="icon"
@@ -712,14 +757,25 @@
 								>
 									<ChevronLeft class="h-4 w-4" />
 								</Button>
-								<span class="px-3 text-sm">
-									Page {currentPage} of {totalPages}
-								</span>
+								{#each pageItems as item, index (index)}
+									{#if item === 'ellipsis'}
+										<span class="px-2 text-sm text-muted-foreground">...</span>
+									{:else}
+										<Button
+											variant={item === currentPage ? 'default' : 'outline'}
+											size="sm"
+											class="h-8 min-w-8 px-2"
+											onclick={() => dashState.navigateWithParams({ page: item })}
+										>
+											{item}
+										</Button>
+									{/if}
+								{/each}
 								<Button
 									variant="outline"
 									size="icon"
 									class="h-8 w-8"
-									disabled={currentPage >= totalPages}
+									disabled={currentPage >= totalPagesValue}
 									onclick={() => dashState.navigateWithParams({ page: currentPage + 1 })}
 								>
 									<ChevronRight class="h-4 w-4" />
@@ -728,10 +784,34 @@
 									variant="outline"
 									size="icon"
 									class="h-8 w-8"
-									disabled={currentPage >= totalPages}
-									onclick={() => dashState.navigateWithParams({ page: totalPages })}
+									disabled={currentPage >= totalPagesValue}
+									onclick={() => dashState.navigateWithParams({ page: totalPagesValue })}
 								>
 									<ChevronsRight class="h-4 w-4" />
+								</Button>
+							</div>
+							<div class="flex items-center gap-2">
+								<span class="text-xs text-muted-foreground">Go to</span>
+								<input
+									type="number"
+									min={1}
+									max={totalPagesValue}
+									placeholder={currentPage.toString()}
+									class="h-8 w-16 rounded border bg-background px-2 py-1 text-xs"
+									bind:value={jumpPage}
+									onkeydown={(event) => {
+										if (event.key === 'Enter') {
+											jumpToPage(totalPagesValue);
+										}
+									}}
+								/>
+								<Button
+									variant="outline"
+									size="sm"
+									class="h-8"
+									onclick={() => jumpToPage(totalPagesValue)}
+								>
+									Go
 								</Button>
 							</div>
 						</div>
@@ -754,3 +834,4 @@
 	hasBankAccount={data.hasBankAccount}
 	recentContacts={data.recentContacts}
 />
+

@@ -68,7 +68,10 @@ export const debts = sqliteTable('debts', {
   uploadedByIdx: index('idx_debts_uploaded_by').on(table.uploadedById),
 
   // Composite index for date-based queries
-  statusCreatedAtIdx: index('idx_debts_status_created_at').on(table.status, table.createdAt)
+  statusCreatedAtIdx: index('idx_debts_status_created_at').on(table.status, table.createdAt),
+  statusCreatedAtIdIdx: index('idx_debts_status_created_at_id').on(table.status, table.createdAt, table.id),
+  debtorIdCreatedAtIdIdx: index('idx_debts_debtor_created_at_id').on(table.debtorId, table.createdAt, table.id),
+  creditorIdCreatedAtIdIdx: index('idx_debts_creditor_created_at_id').on(table.creditorId, table.createdAt, table.id)
 }));
 
 export type Debt = typeof debts.$inferSelect;

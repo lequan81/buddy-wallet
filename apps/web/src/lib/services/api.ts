@@ -3,13 +3,13 @@
  * Centralizes all API-related settings and utilities
  */
 
-import { API_BASE_URL, WEB_BASE_URL } from '@repo/config';
+import { FRONTEND_CONSTANTS } from '@repo/config/frontend';
 import { treaty } from '@elysiajs/eden';
 import type { App } from '@repo/api';
 
 // Environment-based URLs (works in both SSR and client)
-export const API_URL = import.meta.env.VITE_API_URL || API_BASE_URL;
-export const WEB_URL = import.meta.env.VITE_WEB_URL || WEB_BASE_URL;
+export const API_URL = import.meta.env.VITE_API_URL || FRONTEND_CONSTANTS.API_BASE_URL;
+export const WEB_URL = import.meta.env.VITE_WEB_URL || FRONTEND_CONSTANTS.WEB_BASE_URL;
 
 /**
  * Default headers required for all API requests

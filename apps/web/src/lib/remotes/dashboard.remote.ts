@@ -5,7 +5,6 @@ export const getDashboardDebts = async (statusFilter: string, page: number, page
 	if (!locals.user) return { debts: [], pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } };
 
 	const offset = (page - 1) * pageSize;
-	
 	const debtsQuery: Record<string, string> = {
 		limit: pageSize.toString(),
 		offset: offset.toString()

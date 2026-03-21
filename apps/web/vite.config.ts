@@ -22,7 +22,10 @@ export default defineConfig({
 		// Disable sourcemaps in dev entirely
 		sourcemap: false,
 		rollupOptions: {
-			external: ['bun']
+			external: ['bun'],
+			treeshake: {
+				moduleSideEffects: (id) => id.endsWith('.css')
+			}
 		}
 	},
 	plugins: [
@@ -139,7 +142,15 @@ export default defineConfig({
 			'@internationalized/date',
 			'@inlang/paraglide-js'
 		],
-		exclude: ['@repo/ui', '@repo/config', '@repo/errors', '@repo/permissions']
+		exclude: [
+			'@repo/ui',
+			'@repo/config',
+			'@repo/config/frontend',
+			'@repo/config/shared',
+			'@repo/config/backend',
+			'@repo/errors',
+			'@repo/permissions'
+		]
 	},
 	ssr: {
 		noExternal: ['@repo/ui'],

@@ -23,6 +23,10 @@ const config = {
 		experimental: {
 			remoteFunctions: true
 		},
+		output: {
+			preloadStrategy: 'preload-js'
+		},
+		inlineStyleThreshold: 4096,
 		// adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
 		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
@@ -31,7 +35,7 @@ const config = {
 			$contents: 'src/contents',
 			'@repo/icons': '../../packages/icons/src',
 			'@repo/db': '../../packages/db/src',
-			'@repo/config': '../../packages/config/src',
+			'@repo/config': '../../packages/config',
 			'@repo/utils': '../../packages/utils/src',
 			'@repo/validation': '../../packages/validation/src',
 			'@repo/types': '../../packages/types/src'

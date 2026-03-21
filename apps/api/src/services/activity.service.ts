@@ -7,7 +7,7 @@
  * - Data operations (import, export)
  */
 import { randomUUIDv7 } from 'bun';
-import { activityLogs, eq, desc, and, gte, lte, type ActivityLog, type ActivityAction, type ActivityResource } from '@repo/db';
+import { activityLogs, eq, desc, and, gte, lte, count, type ActivityLog, type ActivityAction, type ActivityResource } from '@repo/db';
 import type { DbClient } from '../types';
 
 export interface LogActivityInput {
@@ -93,20 +93,18 @@ export class ActivityService {
       conditions.push(lte(activityLogs.createdAt, endDate));
     }
 
-    // Get total count
     const countResult = this.db
-      .select()
+      .select({ count: count() })
       .from(activityLogs)
       .where(and(...conditions))
-      .all();
-    const total = countResult.length;
+      .get();
+    const total = countResult?.count ?? 0;
 
-    // Get paginated logs
     const logs = this.db
       .select()
       .from(activityLogs)
       .where(and(...conditions))
-      .orderBy(desc(activityLogs.createdAt))
+      .orderBy(desc(activityLogs.createdAt), desc(activityLogs.id))
       .limit(limit)
       .offset(offset)
       .all();
@@ -145,9 +143,9 @@ export class ActivityService {
 
     // Get total count
     const countQuery = conditions.length > 0
-      ? this.db.select().from(activityLogs).where(and(...conditions)).all()
-      : this.db.select().from(activityLogs).all();
-    const total = countQuery.length;
+      ? this.db.select({ count: count() }).from(activityLogs).where(and(...conditions)).get()
+      : this.db.select({ count: count() }).from(activityLogs).get();
+    const total = countQuery?.count ?? 0;
 
     // Get paginated logs
     const logsQuery = conditions.length > 0
@@ -155,7 +153,7 @@ export class ActivityService {
       : this.db.select().from(activityLogs);
 
     const logs = logsQuery
-      .orderBy(desc(activityLogs.createdAt))
+      .orderBy(desc(activityLogs.createdAt), desc(activityLogs.id))
       .limit(limit)
       .offset(offset)
       .all();
@@ -178,7 +176,7 @@ export class ActivityService {
         eq(activityLogs.resource, resource),
         eq(activityLogs.resourceId, resourceId)
       ))
-      .orderBy(desc(activityLogs.createdAt))
+      .orderBy(desc(activityLogs.createdAt), desc(activityLogs.id))
       .all();
   }
 
@@ -190,7 +188,7 @@ export class ActivityService {
       .select()
       .from(activityLogs)
       .where(eq(activityLogs.userId, userId))
-      .orderBy(desc(activityLogs.createdAt))
+      .orderBy(desc(activityLogs.createdAt), desc(activityLogs.id))
       .limit(limit)
       .all();
   }
