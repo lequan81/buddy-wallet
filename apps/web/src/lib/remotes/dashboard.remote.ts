@@ -1,6 +1,7 @@
-import { getRequestEvent } from '$app/server';
+import { getRequestEvent, query } from '$app/server';
+import * as v from 'valibot';
 
-export const getDashboardDebts = async (statusFilter: string, page: number, pageSize: number) => {
+export const getDashboardDebts = query(v.object({ statusFilter: v.string(), page: v.number(), pageSize: v.number() }), async ({statusFilter, page, pageSize}) => {
 	const { locals } = getRequestEvent();
 	if (!locals.user) return { debts: [], pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } };
 
@@ -25,9 +26,9 @@ export const getDashboardDebts = async (statusFilter: string, page: number, page
 			debts: [],
 			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false }
 		}));
-};
+});
 
-export const getDashboardUsers = async (canManageUsers: boolean) => {
+export const getDashboardUsers = query(v.boolean(), async (canManageUsers) => {
 	const { locals } = getRequestEvent();
 	if (!locals.user) return [];
 
@@ -36,9 +37,9 @@ export const getDashboardUsers = async (canManageUsers: boolean) => {
 		.get()
 		.then(({ data }) => data?.users || [])
 		.catch(() => []);
-};
+});
 
-export const getDashboardSecondaryData = async () => {
+export const getDashboardSecondaryData = query(async () => {
 	const { locals } = getRequestEvent();
 	if (!locals.user) return { hasBankAccount: false, recentContacts: [] };
 	
@@ -55,9 +56,9 @@ export const getDashboardSecondaryData = async () => {
 		console.error('[Dashboard] Failed to load bank/contacts:', err);
 	}
 	return { hasBankAccount, recentContacts };
-};
+});
 
-export const getRecentDebts = async () => {
+export const getRecentDebts = query(async () => {
 	const { locals } = getRequestEvent();
 	if (!locals.user) return [];
 
@@ -65,4 +66,4 @@ export const getRecentDebts = async () => {
 		.get()
 		.then(({ data }) => data?.debts || [])
 		.catch(() => []);
-};
+});

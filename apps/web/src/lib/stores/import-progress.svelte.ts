@@ -2,20 +2,22 @@ import { SvelteMap } from 'svelte/reactivity';
 import { api } from '$lib/services/api';
 import type { ImportJob, ProgressResult } from '@repo/types';
 
-
+/**
+ * Import Progress Store — HTTP Polling only
+ *
+ * Uses the existing `/progress-batch` endpoint to poll for job status
+ * every 3 seconds. No WebSocket connection needed — this approach is:
+ *  - More scalable (no persistent connections per user)
+ *  - More reliable (works across proxies, firewalls, mobile networks)
+ *  - Simpler to debug and maintain
+ */
 class ImportProgressStore {
-	// Use Svelte 5 Map for reactivity
 	activeJobs = new SvelteMap<string, ImportJob>();
-	private ws: ReturnType<typeof api.v1.import['progress-ws']['subscribe']> | undefined;
-	private reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
+	fileCache = new Map<string, File>();
+	private pollingInterval: ReturnType<typeof setInterval> | undefined;
+	private sseSource: EventSource | undefined;
 
-	constructor() {
-		if (typeof window !== 'undefined') {
-			this.setupWebSocket();
-		}
-	}
-
-	addJob(jobId: string, type: 'preview' | 'import', fileName: string) {
+	addJob(jobId: string, type: 'preview' | 'import', fileName: string, file?: File) {
 		this.activeJobs.set(jobId, {
 			jobId,
 			type,
@@ -23,91 +25,158 @@ class ImportProgressStore {
 			status: 'pending',
 			progress: { current: 0, total: 0, percentage: 0 }
 		});
-		this.syncSubscriptions();
+		if (file) {
+			this.fileCache.set(jobId, file);
+		}
+		this.startMonitoring();
 	}
 
-	private syncSubscriptions() {
-		if (!this.ws) {
-			this.setupWebSocket();
+	/** Decide between SSE (primary) or Polling (fallback) */
+	private startMonitoring() {
+		const pendingIds = this.getPendingJobIds();
+		if (pendingIds.length === 0) {
+			this.stopMonitoring();
 			return;
 		}
 
-		const jobsToSubscribe: string[] = [];
-		for (const [id, job] of this.activeJobs) {
-			if (job.status === 'pending' || job.status === 'processing') {
-				jobsToSubscribe.push(id);
-			}
+		const url = `/v1/import/progress-sse?logIds=${pendingIds.join(',')}`;
+		
+		// If already monitoring these exact jobs, don't restart
+		if (this.sseSource && this.sseSource.url.endsWith(url)) {
+			return;
 		}
 
-		if (jobsToSubscribe.length > 0) {
-			this.ws.send({ logIds: jobsToSubscribe });
+		console.log(`[Import] Monitoring ${pendingIds.length} jobs...`);
+		this.startSSE(url);
+	}
+
+	/** Attempt SSE connection */
+	private startSSE(url: string) {
+		this.stopSSE();
+		this.sseSource = new EventSource(url);
+
+		this.sseSource.onopen = () => {
+			console.log('[Import] [SSE] Connected and streaming updates');
+		};
+
+		this.sseSource.onmessage = (event) => {
+			try {
+				const data = JSON.parse(event.data) as Record<string, ProgressResult>;
+				console.log('[Import] [SSE] Received update for', Object.keys(data).length, 'jobs');
+				this.applyProgressUpdates(data);
+				
+				// If all jobs terminal, SSE will be closed by server or we can stop
+				if (this.getPendingJobIds().length === 0) {
+					console.log('[Import] [SSE] All jobs completed, stopping...');
+					this.stopMonitoring();
+				}
+			} catch (err) {
+				console.error('[Import] [SSE] Error parsing message', err);
+			}
+		};
+
+		this.sseSource.onerror = (err) => {
+			console.warn('[Import] [SSE] Connection error, falling back to polling...', err);
+			this.fallbackToPolling();
+		};
+	}
+
+	/** Fallback mechanism if SSE fails */
+	private fallbackToPolling() {
+		this.stopSSE();
+		this.startPolling();
+	}
+
+	/** Poll `/progress-batch` every 3s - fallback for SSE */
+	private startPolling() {
+		if (this.pollingInterval) return;
+
+		console.log('[Import] [Polling] Started fallback polling interval (3s)');
+		this.pollingInterval = setInterval(async () => {
+			const pendingIds = this.getPendingJobIds();
+			if (pendingIds.length === 0) {
+				this.stopMonitoring();
+				return;
+			}
+
+			try {
+				const { data, error } = await api.v1.import['progress-batch'].post({
+					logIds: pendingIds
+				});
+
+				if (!error && data) {
+					console.log('[Import] [Polling] Batch update received');
+					const result = (data as { data?: Record<string, ProgressResult> }).data || data;
+					this.applyProgressUpdates(result as Record<string, ProgressResult>);
+				}
+			} catch {
+				// Retry silently
+			}
+		}, 3000);
+	}
+
+	private getPendingJobIds(): string[] {
+		const pendingIds: string[] = [];
+		for (const [id, job] of this.activeJobs) {
+			if (job.status === 'pending' || job.status === 'processing') {
+				pendingIds.push(id);
+			}
+		}
+		return pendingIds;
+	}
+
+	private stopMonitoring() {
+		this.stopSSE();
+		this.stopPolling();
+	}
+
+	private stopSSE() {
+		if (this.sseSource) {
+			this.sseSource.close();
+			this.sseSource = undefined;
+			console.log('[Import] [SSE] Disconnected');
 		}
 	}
 
-	private setupWebSocket() {
-		if (this.ws) return;
+	private stopPolling() {
+		if (this.pollingInterval) {
+			clearInterval(this.pollingInterval);
+			this.pollingInterval = undefined;
+			console.log('[Import] [Polling] Stopped');
+		}
+	}
 
-		try {
-			this.ws = api.v1.import['progress-ws'].subscribe();
+	/** Apply progress data from any source (SSE or Polling) */
+	private applyProgressUpdates(data: Record<string, ProgressResult>) {
+		for (const [id, result] of Object.entries(data)) {
+			const job = this.activeJobs.get(id);
+			if (!job) continue;
 
-			this.ws.on('open', () => {
-				this.syncSubscriptions();
-			});
+			job.status = (result.status || 'pending') as ImportJob['status'];
+			job.progress = {
+				current: result.current || 0,
+				total: result.total || 0,
+				percentage: result.percentage || 0
+			};
+			job.message = result.message;
 
-			this.ws.on('message', (message: unknown) => {
-				const data = message as Record<string, ProgressResult> | { error: string };
-				if (!data || 'error' in data) return;
-
-				for (const [id, result] of Object.entries(data)) {
-					const job = this.activeJobs.get(id);
-					if (job) {
-						job.status = (result.status || 'pending') as ImportJob['status'];
-						job.progress = {
-							current: result.current || 0,
-							total: result.total || 0,
-							percentage: result.percentage || 0
-						};
-						job.message = result.message;
-
-						if (result.status === 'success') {
-							job.result = result.result;
-							if (job.type === 'preview') {
-								setTimeout(() => {
-									this.activeJobs.delete(id);
-								}, 30000);
-							}
-						} else if (result.status === 'failed') {
-							job.error = result.errors ? result.errors.join('; ') : 'Unknown error';
-						}
-
-						this.activeJobs.set(id, { ...job });
-					}
+			if (result.status === 'success') {
+				job.result = result.result;
+				// Auto-cleanup preview jobs after 30s
+				if (job.type === 'preview') {
+					setTimeout(() => this.activeJobs.delete(id), 30000);
 				}
-			});
+			} else if (result.status === 'failed') {
+				job.error = result.errors ? result.errors.join('; ') : 'Unknown error';
+			}
 
-			this.ws.on('close', () => {
-				this.ws = undefined;
-				// Try reconnecting after a while if there are active jobs
-				this.reconnectTimeout = setTimeout(() => {
-					if (this.activeJobs.size > 0) {
-						this.setupWebSocket();
-					}
-				}, 3000);
-			});
-		} catch (err) {
-			console.error('WebSocket setup error:', err);
+			// Trigger Svelte reactivity via SvelteMap.set
+			this.activeJobs.set(id, { ...job });
 		}
 	}
 
 	destroy() {
-		if (this.ws) {
-			this.ws.close();
-			this.ws = undefined;
-		}
-		if (this.reconnectTimeout) {
-			clearTimeout(this.reconnectTimeout);
-			this.reconnectTimeout = undefined;
-		}
+		this.stopPolling();
 	}
 
 	removeJob(jobId: string) {

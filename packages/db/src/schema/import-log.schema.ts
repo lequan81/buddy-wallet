@@ -9,7 +9,7 @@ export const importLogs = sqliteTable(
     fileName: text('file_name').notNull(),
     fileSize: integer('file_size').notNull(),
     status: text('status')
-      .$type<'pending' | 'processing' | 'success' | 'failed'>()
+      .$type<'pending' | 'processing' | 'success' | 'failed' | 'preview'>()
       .notNull()
       .default('pending'),
     // Link to preview log (for tracking preview -> import relationship)

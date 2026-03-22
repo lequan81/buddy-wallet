@@ -282,7 +282,7 @@
 						</div>
 						{#if !isCurrent}
 							<form
-								{...revokeSession.enhance(async ({ data, submit }) => {
+								{...revokeSession.for(session.id).enhance(async ({ data, submit }) => {
 									data.sessionId = session.id;
 									isRevoking = session.id;
 									try {

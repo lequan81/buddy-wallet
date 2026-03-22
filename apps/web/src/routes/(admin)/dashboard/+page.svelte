@@ -1,8 +1,8 @@
 <script lang="ts">
+	import type { PageData, ActionData } from './$types';
 	import { resolve } from '$app/paths';
 	import { batchDeleteDebts, deleteDebt, deleteAllDebts } from '$lib/remotes/debts.remote';
-
-	import { untrack } from 'svelte';
+	import { untrack } from 'svelte'; 
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { toast } from 'svelte-sonner';
@@ -20,7 +20,8 @@
 	import { type Debt, DEBT_STATUS } from '@repo/types';
 	import DebtStatusBadge from '$lib/components/DebtStatusBadge.svelte';
 	import CreateDebtModal from '$lib/components/dashboard/CreateDebtModal.svelte';
-
+	import { createDashboardState } from './dashboard.svelte';
+	
 	import {
 		Plus,
 		Download,
@@ -44,7 +45,7 @@
 		ChevronsRight
 	} from '@repo/icons';
 
-	let { data, form } = $props();
+	let { data, form }: { data: PageData, form: ActionData } = $props();
 
 	let createDebtModalOpen = $state(false);
 	let modalInitialDescription = $state('');
@@ -58,13 +59,29 @@
 		createDebtModalOpen = true;
 	}
 
+	interface RemoteFormInstance {
+		fields: {
+			allIssues: () => Array<{ message: string; path?: (string | number)[] }>;
+		};
+		result?: {
+			success?: boolean;
+			deleted?: number;
+		};
+	}
+
 	// Toast on form results
 	$effect(() => {
-		if (form && typeof form === 'object' && 'error' in form) {
-			toast.error((form as any).error?.message || 'An error occurred');
-		}
-		if (form && typeof form === 'object' && 'success' in form) {
-			toast.success(`${(form as any).deleted || 1} debt(s) deleted successfully`);
+		if (form && typeof form === 'object') {
+			if ('error' in form && form.error) {
+				const errorMessage = typeof form.error === 'string' 
+					? form.error 
+					: (form.error as { message?: string }).message || 'An error occurred';
+				toast.error(errorMessage);
+			}
+			if ('success' in form && form.success) {
+				const deletedCount = (form as Record<string, unknown>).deleted as number | undefined;
+				toast.success(`${deletedCount || 1} debt(s) deleted successfully`);
+			}
 		}
 	});
 
@@ -78,13 +95,14 @@
 
 	// Toast for remote form results
 	$effect(() => {
-		const forms = [batchDeleteDebts, deleteDebt, deleteAllDebts];
-		for (const form of forms) {
-			if ((form as any).issues?.length > 0) {
-				toast.error((form as any).issues[0].message || 'An error occurred');
+		const forms = [batchDeleteDebts, deleteDebt, deleteAllDebts] as RemoteFormInstance[];
+		for (const remoteForm of forms) {
+			const issues = remoteForm.fields.allIssues();
+			if (issues && issues.length > 0) {
+				toast.error(issues[0].message || 'An error occurred');
 			}
-			if ((form as any).result?.success) {
-				toast.success(`Deleted ${(form as any).result.deleted || 1} debt(s) successfully`);
+			if (remoteForm.result?.success) {
+				toast.success(`Deleted ${remoteForm.result.deleted || 1} debt(s) successfully`);
 			}
 		}
 	});
@@ -93,7 +111,6 @@
 	let permissions = $derived(data.permissions);
 	let currentUser = $derived(data.currentUser);
 
-	import { createDashboardState } from './dashboard.svelte';
 	const dashState = untrack(() => createDashboardState(currentUser?.id || ''));
 
 	// Pagination from server (URL params)

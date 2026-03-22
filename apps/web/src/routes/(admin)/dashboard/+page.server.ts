@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const { permissions } = await parent();
 
 	const usersPromise = getDashboardUsers(permissions.canManageUsers);
-	const debtsPromise = getDashboardDebts(statusFilter, page, pageSize);
+	const debtsPromise = getDashboardDebts({ statusFilter, page, pageSize });
 	
 	const { hasBankAccount, recentContacts } = await getDashboardSecondaryData();
 	const recentDebtsPromise = getRecentDebts();

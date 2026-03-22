@@ -37,7 +37,7 @@ const config = {
 			'@repo/db': '../../packages/db/src',
 			'@repo/config': '../../packages/config',
 			'@repo/utils': '../../packages/utils/src',
-			'@repo/validation': '../../packages/validation/src',
+			'@repo/validation': '../../packages/validation',
 			'@repo/types': '../../packages/types/src'
 			// Keep web aliases client-safe. Avoid aliasing into `apps/api/src/*`
 			// to prevent accidental server-code imports into the SvelteKit bundle.

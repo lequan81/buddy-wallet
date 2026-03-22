@@ -2,8 +2,9 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { FE_ERRORS } from '@repo/errors';
 import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config';
+import type { ApiResponse, PreviewResult, ImportResult } from '@repo/types';
 
-export const load: PageServerLoad = async ({ parent, locals, url }) => {
+export const load: PageServerLoad = async ({ parent, locals }) => {
 	// Get server-computed permissions from layout
 	const { permissions } = await parent();
 
@@ -12,14 +13,13 @@ export const load: PageServerLoad = async ({ parent, locals, url }) => {
 		throw redirect(303, '/dashboard');
 	}
 
-	// Fetch import history logs server-side
-	const historyPage = parseInt(url.searchParams.get('historyPage') || '1');
+	// Always fetch page 1 initially for the history
 	let logs: unknown[] = [];
 	let historyTotalPages = 1;
 
 	try {
 		const { data, error } = await locals.api.v1.import.logs.get({
-			query: { page: historyPage.toString(), limit: '10' }
+			query: { page: '1', limit: '10' }
 		});
 		if (!error && data) {
 			const payload = data as Record<string, unknown>;
@@ -33,7 +33,6 @@ export const load: PageServerLoad = async ({ parent, locals, url }) => {
 	return {
 		acceptedFormats: ACCEPTED_IMPORT_EXTENSIONS,
 		logs,
-		historyPage,
 		historyTotalPages
 	};
 };
@@ -70,18 +69,18 @@ export const actions: Actions = {
 				});
 
 				if (error) {
-					const errVal = error.value as any;
+					const errVal = error.value as { code?: string; message?: string };
 					return fail(typeof error.status === 'number' ? error.status : 400, {
 						code: errVal?.code || FE_ERRORS.IMPORT_PREVIEW_FAILED.code,
 						message: errVal?.message || FE_ERRORS.IMPORT_PREVIEW_FAILED.message
 					});
 				}
 
-				const d = data as any;
+				const d = data as ApiResponse<PreviewResult & { jobId?: string }> & Record<string, unknown>;
 				return {
 					success: true,
 					preview: true,
-					jobId: d?.data?.jobId || d?.jobId,
+					jobId: d?.data?.jobId || d?.jobId as string,
 					logId: d?.data?.logId || d?.logId,
 					fileName: d?.data?.fileName || d?.fileName,
 					totalRows: d?.data?.totalRows || d?.totalRows,
@@ -133,7 +132,7 @@ export const actions: Actions = {
 			const safeFile = new File([safeBlob], file.name, { type: file.type });
 
 			try {
-				const body: { file: File; config: any; previewLogId?: string } = {
+				const body: { file: File; config: string; previewLogId?: string } = {
 					file: safeFile,
 					config: configRaw
 				};
@@ -141,20 +140,20 @@ export const actions: Actions = {
 					body.previewLogId = previewLogId;
 				}
 
-				const { data, error } = await locals.api.v1.import.debts.post(body);
+				const { data, error } = await locals.api.v1.import.debts.post(body as { file: File; config: string; previewLogId?: string });
 
 				if (error) {
-					const errVal = error.value as any;
+					const errVal = error.value as { code?: string; message?: string };
 					return fail(typeof error.status === 'number' ? error.status : 500, {
 						code: errVal?.code || 'BE_UNKNOWN',
 						message: errVal?.message || 'Import failed'
 					});
 				}
 
-				const d = data as any;
+				const d = data as ApiResponse<ImportResult & { jobId?: string }> & Record<string, unknown>;
 				return {
 					success: true,
-					jobId: d?.data?.jobId || d?.jobId,
+					jobId: d?.data?.jobId || d?.jobId as string,
 					logId: d?.data?.logId || d?.logId,
 					imported: d?.data?.imported || d?.imported,
 					errors: d?.data?.errors || d?.errors

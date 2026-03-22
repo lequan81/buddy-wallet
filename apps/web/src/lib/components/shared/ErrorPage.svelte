@@ -1,7 +1,7 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { resolve } from '$app/paths';
 	import { AlertCircle, ArrowLeft, HelpCircle, Home, Loader2, RotateCcw, Wallet } from '@repo/icons';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateAll, afterNavigate } from '$app/navigation';
 	import { getErrorInfo, getErrorMessage } from '$lib/errors';
 	import { cn } from '$lib/utils';
 
@@ -41,6 +41,11 @@
 			isRetrying = false;
 		}
 	}
+
+	// Important: Clear the error state when navigating away or going back
+	afterNavigate(async () => {
+		await invalidateAll();
+	});
 </script>
 
 <svelte:head>
@@ -80,7 +85,10 @@
 		</a>
 
 		<button
-			onclick={() => window.history.back()}
+			onclick={async () => {
+				await invalidateAll();
+				window.history.back();
+			}}
 			class="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-900 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
 		>
 			<ArrowLeft class="h-4 w-4" />
@@ -224,7 +232,10 @@
 							{homeLabel}
 						</a>
 						<button
-							onclick={() => window.history.back()}
+							onclick={async () => {
+								await invalidateAll();
+								window.history.back();
+							}}
 							class="inline-flex items-center justify-center gap-2 rounded px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/30"
 						>
 							<ArrowLeft class="h-4 w-4" />

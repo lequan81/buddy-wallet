@@ -60,15 +60,21 @@ export interface ImportJob {
 
 export interface ImportLog {
   id: string;
+  userId: string;
   fileName: string;
+  fileSize: number;
   status: string;
   totalRows: number;
   importedCount: number;
   errorCount: number;
   errors?: string[];
-  createdAt: string;
-  completedAt?: string;
+  createdAt: string | Date;
+  completedAt?: string | Date;
   previewLogId?: string;
+  previewData?: string[][];
+  columnHeaders?: string[];
+  columnMapping?: Record<string, string>;
+  startRow?: number;
 }
 
 export interface ImportDetailResult {

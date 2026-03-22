@@ -154,6 +154,14 @@ export class ImportService {
         .where(eq(importLogs.id, previewLogId));
     }
 
+    // Validate mapping: name and amount are required
+    if (!mapping.name || !mapping.amount) {
+      await ImportLoggerService.updateLogStatus(id, 'failed', [
+        'Incomplete mapping: Name and Amount columns are required.'
+      ]);
+      return { success: false, error: 'Incomplete mapping: Name and Amount columns are required.' };
+    }
+
     try {
       const allRows = await SpreadsheetService.parseToRows(file);
 

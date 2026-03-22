@@ -110,3 +110,4 @@ export { default as Zap } from '~icons/lucide/zap';
 export { default as WifiOff } from '~icons/lucide/wifi-off';
 export { default as PartyPopper } from '~icons/lucide/party-popper';
 export { default as Minus } from '~icons/lucide/minus';
+export { default as Info } from '~icons/lucide/info';

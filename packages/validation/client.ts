@@ -8,10 +8,10 @@
  *   import { signupSchema } from '@repo/validation/client';
  */
 
-export * from './src/auth';
-export * from './src/debt';
-export * from './src/bank';
-export * from './src/profile';
-export * from './src/helpers';
+export * from './src/auth.js';
+export * from './src/debt.js';
+export * from './src/bank.js';
+export * from './src/profile.js';
+export * from './src/helpers.js';
 export * as v from 'valibot';
 export * from 'valibot';

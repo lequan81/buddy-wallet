@@ -25,7 +25,11 @@
 	});
 
 	// Track if user can enable push (requires email verification)
-	let canEnablePush = $derived(data.preferences?.emailVerified === true);
+	// Check both preferences from server load and user data from parent layout
+	let canEnablePush = $derived(
+		data.preferences?.emailVerified === true || 
+		(data.user as any)?.emailVerified === true
+	);
 
 	// DEBUG: $inspect is auto-stripped in production builds
 	$inspect(data.preferences, canEnablePush);

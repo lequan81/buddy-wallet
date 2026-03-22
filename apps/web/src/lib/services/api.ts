@@ -14,10 +14,12 @@ export const WEB_URL = import.meta.env.VITE_WEB_URL || FRONTEND_CONSTANTS.WEB_BA
 /**
  * Default headers required for all API requests
  * - Origin/Referer: Required by CSRF protection
- * - Content-Type: Standard JSON API
+ * NOTE: Do NOT set Content-Type here. Eden treaty auto-detects it:
+ *   - application/json for JSON bodies
+ *   - multipart/form-data for File bodies
+ * Hardcoding it breaks file uploads (import preview/import).
  */
 export const getDefaultHeaders = (): HeadersInit => ({
-	'Content-Type': 'application/json',
 	Origin: WEB_URL,
 	Referer: `${WEB_URL}/`
 });

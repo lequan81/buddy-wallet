@@ -15,10 +15,7 @@ import { isValidSpreadsheetBytes } from '@repo/utils';
 import type { ImportConfig } from '../types';
 import type { User } from '@repo/db';
 
-interface WsData {
-  user?: User;
-  interval?: ReturnType<typeof setInterval>;
-}
+
 
 // Helper to parse JSON string to object
 // useful for handling multipart/form-data where JSON is sent as string
@@ -255,6 +252,78 @@ export const ImportController = new Elysia({ prefix: '/import' })
     { params: t.Object({ logId: t.String() }) }
   )
 
+
+  // Get batch import progress (SSE)
+  // Provides real-time updates without polling overhead from client
+  .get(
+    '/progress-sse',
+    (ctx: any) => {
+      const { query, user, set } = ctx;
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
+
+      const logIds = query.logIds?.split(',') || [];
+      if (logIds.length === 0) {
+        return errorResponse(GEN_ERRORS.INVALID_INPUT, 'logIds required');
+      }
+
+      // Set SSE headers for browser/proxy compatibility
+      set.headers['Content-Type'] = 'text/event-stream';
+      set.headers['Cache-Control'] = 'no-cache, no-transform';
+      set.headers['Connection'] = 'keep-alive';
+      set.headers['X-Accel-Buffering'] = 'no';
+
+      // Use native ReadableStream for SSE - robust and standard compliant
+      const stream = new ReadableStream({
+        async start(controller) {
+          const interval = setInterval(async () => {
+            try {
+              const results = await ImportService.getProgressBatch(logIds, user.id);
+              
+              // Format as SSE data
+              controller.enqueue(`data: ${JSON.stringify(results)}\n\n`);
+
+              // If all monitored jobs are terminal, stop streaming
+              const allDone = Object.values(results).every(
+                (r) => r.status === 'success' || r.status === 'failed'
+              );
+
+              if (allDone) {
+                clearInterval(interval);
+                controller.close();
+              }
+            } catch (err) {
+              logger.error('[Import] SSE stream error', { error: String(err) });
+              clearInterval(interval);
+              controller.error(err);
+            }
+          }, 2000);
+
+          // Handle client disconnect to clear interval
+          // Bun supports 'close' event on the request/response
+        },
+        cancel() {
+          // This is called when the client disconnects
+        }
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        }
+      });
+    },
+    {
+      query: t.Object({
+        logIds: t.Optional(t.String())
+      })
+    }
+  )
+
   // Get batch import progress (HTTP)
   // Reduces 10+ concurrent requests to 1
   .post(
@@ -276,53 +345,10 @@ export const ImportController = new Elysia({ prefix: '/import' })
     { body: t.Object({ logIds: t.Array(t.String()) }) }
   )
 
-  // Get batch import progress (WebSocket)
-  .ws('/progress-ws', {
-    body: t.Object({ logIds: t.Array(t.String()) }),
-    message(ws, { logIds }) {
-      const wsData = ws.data as WsData;
-      const user = wsData.user;
-      if (!user) {
-        ws.send({ error: 'Unauthorized' });
-        ws.close();
-        return;
-      }
 
-      // If there's an existing interval, clear it
-      if (wsData.interval) {
-        clearInterval(wsData.interval);
-      }
+  // WebSocket removed — use /progress-batch HTTP endpoint instead
+  // (better scalability: no persistent connections, no CPU overhead at scale)
 
-      // Start polling backend progress and pushing to client
-      const interval = setInterval(async () => {
-        try {
-          const result = await ImportService.getProgressBatch(logIds, user.id);
-          ws.send(result);
-
-          // Check if all requested jobs are finished
-          if (Object.keys(result).length > 0) {
-            const allFinished = Object.values(result).every(
-              (job) => job.status === 'success' || job.status === 'failed'
-            );
-
-            if (allFinished) {
-              clearInterval(interval);
-            }
-          }
-        } catch (error) {
-          logger.error('[WS] Progress sync error', { error: String(error) });
-        }
-      }, 2000);
-
-      wsData.interval = interval;
-    },
-    close(ws) {
-      const wsData = ws.data as WsData;
-      if (wsData.interval) {
-        clearInterval(wsData.interval);
-      }
-    }
-  })
 
   // Get import logs
   .get(

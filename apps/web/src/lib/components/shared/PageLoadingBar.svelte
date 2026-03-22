@@ -31,7 +31,7 @@
 
 {#if visible || progress > 0}
 	<div
-		class="fixed top-0 right-0 left-0 z-100 h-0.5 bg-linear-to-r from-primary via-primary/80 to-primary transition-all duration-300 ease-out"
+		class="fixed top-0 right-0 left-0 z-1000 h-1 bg-linear-to-r from-primary via-primary/80 to-primary transition-all duration-300 ease-out shadow-sm"
 		style="width: {Math.min(progress, 100)}%; opacity: {progress >= 100 ? 0 : 1}"
 	></div>
 {/if}
