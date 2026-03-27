@@ -26,7 +26,7 @@ import {
 } from './controllers';
 import { telemetry } from './instrumentation';
 import { logger } from '@repo/logger';
-import { CleanupService } from './services/cleanup.service';
+import { CleanupService } from './services/system/cleanup.service';
 // Cleanup jobs now run externally via scripts/prune-worker AND internally via timers
 
 export const app = new Elysia()

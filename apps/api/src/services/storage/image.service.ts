@@ -1,12 +1,5 @@
 import sharp from 'sharp';
-
-interface ImageServiceConfig {
-  format: 'webp' | 'jpeg';
-  quality: number;
-  maxWidth: number;
-  maxHeight: number;
-  timeoutSeconds: number;
-}
+import type { ImageServiceConfig } from '@/types';
 
 const DEFAULT_CONFIG: ImageServiceConfig = {
   format: 'webp',

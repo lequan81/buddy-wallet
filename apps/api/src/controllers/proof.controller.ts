@@ -1,25 +1,18 @@
-import { Elysia, t } from 'elysia';
-import { db, debts, eq } from '@repo/db';
-import { FileService } from '@services/storage/file.service';
-import { ActivityService } from '@services/activity.service';
-import { UPLOAD_TMP_DIR, PROOF_TMP_DIR } from '@repo/config';
-import { DiskStorageService } from '@services/storage.service';
-import { ImageService } from '@services/image.service';
+import { sessionAuthPlugin, servicesPlugin } from '@plugins';
 import { BE_ERRORS, GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import type { User } from '@/types';
 
-const uploadStorage = new DiskStorageService(UPLOAD_TMP_DIR);
-const proofStorage = new DiskStorageService(PROOF_TMP_DIR);
-const imageService = new ImageService();
-const fileService = new FileService(db, uploadStorage, proofStorage, imageService);
-const activityService = new ActivityService(db);
+import { Elysia, t } from 'elysia';
+import { debts, eq } from '@repo/db';
 
 export const ProofController = new Elysia({ prefix: '/proofs' })
+  .use(servicesPlugin)
+  .use(sessionAuthPlugin)
   // Upload payment proof for a debt
   .post(
     '/debt/:debtId',
     async (ctx) => {
-      const { user, params, body, request, set } = ctx as typeof ctx & { user: User };
+      const { user, params, body, request, set, fileService, activityService, db } = ctx;
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
@@ -72,7 +65,7 @@ export const ProofController = new Elysia({ prefix: '/proofs' })
   .get(
     '/debt/:debtId',
     async (ctx) => {
-      const { user, params, set } = ctx as typeof ctx & { user: User };
+      const { user, params, set, fileService, db } = ctx;
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
@@ -104,7 +97,7 @@ export const ProofController = new Elysia({ prefix: '/proofs' })
   .patch(
     '/:proofId/review',
     async (ctx) => {
-      const { user, params, body, request, set } = ctx as typeof ctx & { user: User };
+      const { user, params, body, request, set, fileService, activityService } = ctx;
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);

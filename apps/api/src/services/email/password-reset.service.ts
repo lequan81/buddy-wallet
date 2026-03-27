@@ -8,11 +8,11 @@
  * 4. Force password change on login
  */
 import { users, eq, and } from '@repo/db';
-import { configs } from '../configs';
+import { configs } from '@/configs';
 import { log } from '@repo/logger';
-import { normalizePhoneNumber } from '../utils';
-import type { DbClient, ResetResult } from '../types';
-import { EmailService } from './index';
+import { normalizePhoneNumber } from '@utils';
+import type { DbClient, ResetResult } from '@/types';
+import { EmailService } from './email.service';
 
 import * as crypto from 'node:crypto';
 
@@ -26,7 +26,7 @@ function generateResetToken(): string {
 }
 
 export class PasswordResetService {
-  constructor(private db: DbClient) {}
+  constructor(private db: DbClient, private emailService: EmailService) {}
 
   /**
    * Request password reset
@@ -93,7 +93,7 @@ export class PasswordResetService {
     const resetLink = `${configs.APP.WEB_URL}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
 
     // Send email with reset link
-    const emailResult = await EmailService.send({
+    const emailResult = await this.emailService.send({
       to: email,
       subject: 'BuddyWallet - Password Reset Request',
       html: this.generateEmailHtml(user.name, resetLink, TEMP_PASSWORD_EXPIRY_HOURS),

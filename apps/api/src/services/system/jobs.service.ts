@@ -1,5 +1,5 @@
 import { randomUUIDv7 } from 'bun';
-import { importCache, isRedisAvailable, getClient } from '../plugins/redis';
+import { importCache, isRedisAvailable, getClient } from '@plugins/redis';
 import { logger } from '@repo/logger';
 import type { WorkerJobPayload, JobType, JobPayload } from '@repo/types';
 

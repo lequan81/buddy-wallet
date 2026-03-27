@@ -1,4 +1,4 @@
-import type { DetectedMapping } from '../types';
+import type { DetectedMapping } from '@/types';
 
 export class SpreadsheetService {
   /**

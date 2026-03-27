@@ -1,7 +1,7 @@
 import { importLogs, eq } from '@repo/db';
-import { importCache, isRedisAvailable } from '../plugins/redis';
-import type { ImportProgress } from '../plugins/redis';
-import type { DbClient } from '../types';
+import { importCache, isRedisAvailable } from '@plugins/redis';
+import type { ImportProgress } from '@plugins/redis';
+import type { DbClient } from '@/types';
 
 export class ImportLoggerService {
   constructor(private db: DbClient) {}

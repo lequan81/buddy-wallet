@@ -17,10 +17,10 @@ import {
   isNull,
 } from '@repo/db';
 
-// Define DebtStatus type locally since it's not exported from @repo/db
-type DebtStatus = 'pending' | 'confirmed' | 'paid' | 'disputed' | 'cancelled';
-import type { DbClient } from '../../types/services/common';
-import type { PaginatedResult } from '../../types';
+import { DEBT_STATUS } from '@repo/types';
+import type { DebtStatus } from '@repo/types';
+import type { DbClient } from '@/types';
+import type { PaginatedResult } from '@repo/types';
 import type {
   IDebtRepository,
   DebtEntity,
@@ -195,13 +195,44 @@ export class DrizzleDebtRepository implements IDebtRepository {
           eq(debts.creditorPhone, creditorPhone),
           gte(debts.amount, amount - amountRange),
           gte(debts.createdAt, cutoffDate),
-          ne(debts.status, 'cancelled' as DebtStatus),
+          ne(debts.status, DEBT_STATUS.CANCELLED as DebtStatus),
           isNull(debts.deletedAt)
         )
       )
       .all();
 
     return duplicates.filter((d) => d.amount <= amount + amountRange);
+  }
+
+  async batchSoftDelete(ids: string[], deletedAt: Date): Promise<{ deleted: string[]; notFound: string[] }> {
+    const deleted: string[] = [];
+    const notFound: string[] = [];
+
+    for (const id of ids) {
+      const result = await this.db
+        .update(debts)
+        .set({ deletedAt, updatedAt: deletedAt })
+        .where(and(eq(debts.id, id), isNull(debts.deletedAt)))
+        .returning({ id: debts.id });
+
+      if (result.length > 0) {
+        deleted.push(id);
+      } else {
+        notFound.push(id);
+      }
+    }
+
+    return { deleted, notFound };
+  }
+
+  async softDeleteByUploader(uploadedById: string, deletedAt: Date): Promise<number> {
+    const result = await this.db
+      .update(debts)
+      .set({ deletedAt, updatedAt: deletedAt })
+      .where(and(eq(debts.uploadedById, uploadedById), isNull(debts.deletedAt)))
+      .returning({ id: debts.id });
+
+    return result.length;
   }
 
   async getRecentContacts(userId: string, limit: number): Promise<string[]> {
@@ -248,7 +279,7 @@ export class DrizzleDebtRepository implements IDebtRepository {
       .where(
         and(
           or(eq(debts.debtorPhone, phone), eq(debts.creditorPhone, phone)),
-          and(ne(debts.status, 'paid' as DebtStatus), ne(debts.status, 'cancelled' as DebtStatus)),
+          and(ne(debts.status, DEBT_STATUS.PAID as DebtStatus), ne(debts.status, DEBT_STATUS.CANCELLED as DebtStatus)),
           isNull(debts.deletedAt)
         )
       )

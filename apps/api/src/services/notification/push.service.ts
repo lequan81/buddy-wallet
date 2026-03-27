@@ -7,10 +7,10 @@
 import { randomUUIDv7 } from 'bun';
 import webpush from 'web-push';
 import { pushSubscriptions, eq, and, sql } from '@repo/db';
-import { configs } from '../configs';
+import { configs } from '@/configs';
 import { logger } from '@repo/logger';
-import type { DbClient } from '../types';
-import type { PushPayload, SubscribeInput, SendResult } from '../types/push';
+import type { DbClient } from '@/types';
+import type { PushPayload, SubscribeInput, SendResult } from '@/types/push';
 
 // Configure web-push with VAPID keys (only if valid keys are provided)
 const hasValidVapidKeys =

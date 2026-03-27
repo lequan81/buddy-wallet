@@ -1,9 +1,11 @@
 /**
  * Debt Service Utilities
- * 
- * Shared helper functions for debt services
+ *
+ * Shared helper functions for debt services.
+ * Works with DebtEntity (repository layer) rather than ORM-specific types.
  */
-import type { Debt, DebtDetails } from '@repo/types';
+import type { DebtDetails, ExpiryOption } from '@repo/types';
+import type { DebtEntity } from '../../repositories';
 
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -13,10 +15,8 @@ const EXPIRY_DAYS: Record<'7d' | '30d' | '90d', number> = {
   '90d': 90
 };
 
-export type ExpiryOption = 'never' | '7d' | '30d' | '90d';
-
 /**
- * Calculate expiry date from option
+ * Calculate expiry date from option string.
  */
 export function calculateExpiryDate(option: ExpiryOption): Date | null {
   if (option === 'never') return null;
@@ -26,18 +26,35 @@ export function calculateExpiryDate(option: ExpiryOption): Date | null {
 }
 
 /**
- * Maps a raw Drizzle Debt object (with Dates) to a DebtDetails DTO (with strings)
+ * Maps a DebtEntity (with Dates) to a DebtDetails DTO (with ISO strings).
+ * This is the single serialization point — no other code should convert dates manually.
  */
-export function toDebtDetails(debt: Debt): DebtDetails {
+export function toDebtDetails(entity: DebtEntity): DebtDetails {
   return {
-    ...debt,
-    createdAt: debt.createdAt.toISOString(),
-    updatedAt: debt.updatedAt.toISOString(),
-    creditorConfirmedAt: debt.creditorConfirmedAt?.toISOString() || null,
-    debtorConfirmedAt: debt.debtorConfirmedAt?.toISOString() || null,
-    lastProofUploadedAt: debt.lastProofUploadedAt?.toISOString() || null,
-    expiresAt: debt.expiresAt?.toISOString() || null,
-    suggestedAt: debt.suggestedAt?.toISOString() || null,
-    deletedAt: debt.deletedAt?.toISOString() || null,
+    id: entity.id,
+    debtorPhone: entity.debtorPhone,
+    creditorPhone: entity.creditorPhone,
+    debtorId: entity.debtorId,
+    creditorId: entity.creditorId,
+    uploadedById: entity.uploadedById,
+    amount: entity.amount,
+    description: entity.description ?? '',
+    status: entity.status,
+    needsConfirmation: entity.needsConfirmation,
+    confirmedByCreditor: entity.confirmedByCreditor,
+    confirmedByDebtor: entity.confirmedByDebtor,
+    hasPendingProof: entity.hasPendingProof,
+    proofCount: entity.proofCount,
+    suggestedAmount: entity.suggestedAmount,
+    suggestedDescription: entity.suggestedDescription,
+    suggestedById: entity.suggestedById,
+    createdAt: entity.createdAt.toISOString(),
+    updatedAt: entity.updatedAt.toISOString(),
+    creditorConfirmedAt: entity.creditorConfirmedAt?.toISOString() || null,
+    debtorConfirmedAt: entity.debtorConfirmedAt?.toISOString() || null,
+    lastProofUploadedAt: entity.lastProofUploadedAt?.toISOString() || null,
+    expiresAt: entity.expiresAt?.toISOString() || null,
+    suggestedAt: entity.suggestedAt?.toISOString() || null,
+    deletedAt: entity.deletedAt?.toISOString() || null,
   };
 }

@@ -4,12 +4,13 @@
  * Tests OTP generation, verification, rate limiting, and status checks.
  */
 import { describe, expect, it, beforeEach } from 'bun:test';
-import { EmailVerificationService } from '@/services/email-verification.service';
+import { EmailVerificationService } from '@/services/email/email-verification.service';
+import type { DbClient } from '@/types';
 
 // Mock database for testing
 function createMockDb() {
-  const emailVerifications: any[] = [];
-  const users: any[] = [
+  const emailVerifications: Record<string, unknown>[] = [];
+  const users: Record<string, unknown>[] = [
     {
       id: 'test-user-1',
       email: 'test@example.com',
@@ -20,7 +21,7 @@ function createMockDb() {
 
   return {
     select: () => ({
-      from: (table: any) => ({
+      from: (table: { name: string }) => ({
         where: () => ({
           get: () => {
             if (table.name === 'users') {
@@ -35,14 +36,14 @@ function createMockDb() {
         })
       })
     }),
-    insert: (table: any) => ({
-      values: (data: any) => {
+    insert: () => ({
+      values: (data: Record<string, unknown>) => {
         emailVerifications.push(data);
         return Promise.resolve();
       }
     }),
-    update: (table: any) => ({
-      set: (data: any) => ({
+    update: (table: { name: string }) => ({
+      set: (data: Record<string, unknown>) => ({
         where: () => {
           if (table.name === 'users' && data.emailVerified !== undefined) {
             users[0].emailVerified = data.emailVerified;
@@ -63,7 +64,7 @@ describe('EmailVerificationService', () => {
 
   beforeEach(() => {
     mockDb = createMockDb();
-    service = new EmailVerificationService(mockDb as any);
+    service = new EmailVerificationService(mockDb as unknown as DbClient);
   });
 
   describe('createOtp', () => {

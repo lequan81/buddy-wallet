@@ -6,9 +6,9 @@
  * - Generating QR codes (via URL construction)
  */
 import { MAJOR_BANKS_FALLBACK } from '@repo/config';
-import { cache } from '../plugins/redis';
+import { cache } from '@plugins/redis';
 import { log } from '@repo/logger';
-import type { VietQRBank, VietQRResponse } from '../types';
+import type { VietQRBank, VietQRResponse } from '@/types';
 
 const VIETQR_API_URL = 'https://api.vietqr.io/v2/banks';
 const CACHE_TTL = 86400; // 24 hours

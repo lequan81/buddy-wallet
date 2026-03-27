@@ -12,7 +12,8 @@ export type DbClient = typeof db;
  * JWT interface for token signing
  */
 export interface JwtService {
-  sign: (payload: Record<string, string | number | boolean | undefined>) => Promise<string>;
+  sign: (payload: any) => Promise<string>;
+  verify: (token: string) => Promise<any>;
 }
 
 /**

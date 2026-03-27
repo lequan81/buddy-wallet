@@ -12,20 +12,25 @@ import {
   BACKEND_CONSTANTS,
   FRONTEND_CONSTANTS
 } from '@repo/config';
-import { importCache, isRedisAvailable } from '../plugins/redis';
-import type { ImportConfig } from '../types';
-import type { PreviewResult, ImportResult, ProgressResult } from '../types';
-import { SpreadsheetService, ImportLoggerService } from './index';
-import { configs } from '../configs';
+import { importCache, isRedisAvailable } from '@plugins/redis';
+import type { ImportConfig } from '@/types';
+import type { PreviewResult, ImportResult, ProgressResult } from '@/types';
+import type { SpreadsheetService } from './spreadsheet.service';
+import type { ImportLoggerService } from './import-logger.service';
+import { configs } from '@/configs';
 import { logger } from '@repo/logger';
-import type { DbClient } from '../types';
-import type { CurrentUser, ImportRow } from '../types';
+import type { DbClient } from '@/types';
+import type { CurrentUser, ImportRow } from '@/types';
 
 /**
  * ImportService class with dependency injection
  */
 export class ImportService {
-  constructor(private db: DbClient) {}
+  constructor(
+    private db: DbClient,
+    private spreadsheetService: SpreadsheetService,
+    private importLoggerService: ImportLoggerService
+  ) {}
 
   /**
    * Preview an import file
@@ -36,7 +41,7 @@ export class ImportService {
 
     if (!isValidImportFile(file.name)) {
       const error = `Invalid format. Accepted: ${ACCEPTED_IMPORT_EXTENSIONS.join(', ')}`;
-      await ImportLoggerService.updateLogStatus(id, 'failed', [error]);
+      await this.importLoggerService.updateLogStatus(id, 'failed', [error]);
       return { success: false, error };
     }
 
@@ -52,29 +57,29 @@ export class ImportService {
 
     try {
       logger.info(`[ImportService] Parsing file for job ${id}`);
-      const allRows = await SpreadsheetService.parseToRows(file);
+      const allRows = await this.spreadsheetService.parseToRows(file);
       logger.info(`[ImportService] Parsed ${allRows.length} rows for job ${id}`);
 
       if (allRows.length === 0) {
-        await ImportLoggerService.updateLogStatus(id, 'failed', ['Empty sheet']);
+        await this.importLoggerService.updateLogStatus(id, 'failed', ['Empty sheet']);
         return { success: false, error: 'Empty sheet' };
       }
 
       // Determine column count from widest row
-      const maxCols = allRows.reduce((max, row) => Math.max(max, row.length), 0);
+      const maxCols = allRows.reduce((max: number, row: string[]) => Math.max(max, row.length), 0);
 
       const columnHeaders: string[] = [];
       for (let c = 0; c < maxCols; c++) {
-        const letter = SpreadsheetService.indexToColLetter(c);
+        const letter = this.spreadsheetService.indexToColLetter(c);
         const headerName = allRows[0]?.[c]?.trim() || '';
         columnHeaders.push(headerName ? `${letter}:${headerName}` : letter);
       }
 
       const previewData = allRows
         .slice(0, BACKEND_CONSTANTS.PREVIEW_ROWS)
-        .map((row) => columnHeaders.map((_, i) => String(row[i] ?? '')));
+        .map((row: string[]) => columnHeaders.map((_, i) => String(row[i] ?? '')));
 
-      const autoMapping = SpreadsheetService.detectColumnMapping(allRows[0] || [], columnHeaders);
+      const autoMapping = this.spreadsheetService.detectColumnMapping(allRows[0] || [], columnHeaders);
 
       await this.db
         .update(importLogs)
@@ -98,7 +103,7 @@ export class ImportService {
         autoMapping
       };
 
-      await ImportLoggerService.updateLogStatus(id, 'success', []);
+      await this.importLoggerService.updateLogStatus(id, 'success', []);
 
       if (isRedisAvailable()) {
         await importCache.setProgress(id, {
@@ -111,7 +116,7 @@ export class ImportService {
 
       return result;
     } catch (err) {
-      await ImportLoggerService.updateLogStatus(id, 'failed', [String(err)]);
+      await this.importLoggerService.updateLogStatus(id, 'failed', [String(err)]);
       return { success: false, error: String(err) };
     }
   }
@@ -156,17 +161,17 @@ export class ImportService {
 
     // Validate mapping: name and amount are required
     if (!mapping.name || !mapping.amount) {
-      await ImportLoggerService.updateLogStatus(id, 'failed', [
+      await this.importLoggerService.updateLogStatus(id, 'failed', [
         'Incomplete mapping: Name and Amount columns are required.'
       ]);
       return { success: false, error: 'Incomplete mapping: Name and Amount columns are required.' };
     }
 
     try {
-      const allRows = await SpreadsheetService.parseToRows(file);
+      const allRows = await this.spreadsheetService.parseToRows(file);
 
       if (allRows.length === 0) {
-        await ImportLoggerService.updateLogStatus(id, 'failed', ['Empty sheet']);
+        await this.importLoggerService.updateLogStatus(id, 'failed', ['Empty sheet']);
         return { success: false, error: 'Empty sheet' };
       }
 
@@ -178,7 +183,7 @@ export class ImportService {
       const totalRowsToProcess = allRows.length - dataStartIndex;
 
       if (totalRowsToProcess <= 0) {
-        await ImportLoggerService.updateLogStatus(id, 'failed', [
+        await this.importLoggerService.updateLogStatus(id, 'failed', [
           'No data rows found (only headers)'
         ]);
         return { success: false, error: 'No data rows found' };
@@ -187,7 +192,7 @@ export class ImportService {
       // Helper to get value from row array by column letter
       const getRowValue = (row: string[], col: string | undefined): string | undefined => {
         if (!col) return undefined;
-        const idx = SpreadsheetService.colLetterToIndex(col.toUpperCase());
+        const idx = this.spreadsheetService.colLetterToIndex(col.toUpperCase());
         return idx >= 0 && idx < row.length && row[idx] ? row[idx] : undefined;
       };
 
@@ -337,7 +342,7 @@ export class ImportService {
       return { success: true, logId: id, imported: newDebts.length, errors };
     } catch (err) {
       logger.error('[ImportService] Error processing file:', { error: String(err) });
-      await ImportLoggerService.updateLogStatus(id, 'failed', [String(err)]);
+      await this.importLoggerService.updateLogStatus(id, 'failed', [String(err)]);
       if (previewLogId) {
         await this.db
           .update(importLogs)

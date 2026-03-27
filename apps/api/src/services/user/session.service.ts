@@ -6,12 +6,12 @@
  * Implements ISessionService interface for LSP compliance.
  */
 import { users, sessions, eq, and, gte } from '@repo/db';
-import { configs } from '../configs';
-import { sessionCache, jwtBlacklist, isRedisAvailable } from '../plugins/redis';
-import { hashToken, generateSecureToken, toSafeUser } from '../utils';
-import type { DbClient, JwtService } from '../types';
-import type { SessionInfo } from '../types';
-import type { ISessionService, RequestInfo as _RequestInfo, RefreshSessionResult } from '../types';
+import { configs } from '../../configs';
+import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
+import { hashToken, generateSecureToken, toSafeUser } from '@utils';
+import type { DbClient, JwtService } from '@/types';
+import type { SessionInfo } from '@/types';
+import type { ISessionService, RequestInfo as _RequestInfo, RefreshSessionResult } from '@/types';
 
 /**
  * SessionService class with dependency injection
@@ -214,7 +214,7 @@ export class SessionService implements ISessionService {
 
     if (isRedisAvailable()) {
       await Promise.all(
-        activeSessions.map(async (s) => {
+        activeSessions.map(async (s: { accessTokenHash: string | null }) => {
           if (s.accessTokenHash) {
             await sessionCache.del(s.accessTokenHash);
             await jwtBlacklist.add(s.accessTokenHash, configs.AUTH.JWT_BLACKLIST_SECONDS);

@@ -9,7 +9,7 @@
  * Dependencies: db, emailService, emailVerificationService
  */
 import { randomUUIDv7 } from 'bun';
-import { users, debts, eq, and, or, isNull, type NewUser } from '@repo/db';
+import { users, debts, eq, and, isNull, type NewUser } from '@repo/db';
 import { DEFAULT_USER_PERMISSIONS } from '@repo/permissions';
 import { configs } from '../../configs';
 import {
@@ -17,12 +17,12 @@ import {
   validatePasswordComplexity,
   isCommonPassword,
   toSafeUser
-} from '../../utils';
+} from '@utils';
 import { logger } from '@repo/logger';
-import type { DbClient } from '../../types';
-import type { RegisterInput, AuthResult } from '../../types';
-import type { EmailService } from '../email.service';
-import type { EmailVerificationService } from '../email-verification.service';
+import type { DbClient } from '@/types';
+import type { RegisterInput, AuthResult } from '@/types';
+import type { EmailService } from '@services/email/email.service';
+import type { EmailVerificationService } from '@services/email/email-verification.service';
 import { dbCircuitBreaker, DatabaseError as _DatabaseError } from '../../utils/database';
 
 /**

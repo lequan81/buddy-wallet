@@ -7,39 +7,9 @@
  * - Data operations (import, export)
  */
 import { randomUUIDv7 } from 'bun';
-import { activityLogs, eq, desc, and, gte, lte, count, type ActivityLog, type ActivityAction, type ActivityResource } from '@repo/db';
-import type { DbClient } from '../types';
-
-export interface LogActivityInput {
-  userId: string;
-  action: ActivityAction;
-  resource: ActivityResource;
-  resourceId?: string;
-  changes?: {
-    before?: Record<string, unknown>;
-    after?: Record<string, unknown>;
-  };
-  metadata?: Record<string, unknown>;
-  ipAddress?: string;
-  userAgent?: string;
-  location?: string;
-}
-
-export interface ActivityFilters {
-  action?: ActivityAction;
-  resource?: ActivityResource;
-  resourceId?: string;
-  startDate?: Date;
-  endDate?: Date;
-  limit?: number;
-  offset?: number;
-}
-
-export interface ActivityLogResult {
-  logs: ActivityLog[];
-  total: number;
-  hasMore: boolean;
-}
+import { activityLogs, eq, desc, and, gte, lte, count, type ActivityLog, type ActivityResource } from '@repo/db';
+import type { DbClient } from '@/types';
+import type { LogActivityInput, ActivityFilters, ActivityLogResult } from '@/types/services/activity';
 
 /**
  * ActivityService class with dependency injection

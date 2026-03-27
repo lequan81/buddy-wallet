@@ -6,11 +6,10 @@
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { accessControlPlugin } from '../plugins';
-import { permissionPlugin } from '../plugins/guards';
+import { sessionAuthPlugin, accessControlPlugin, servicesPlugin } from '@plugins';
+import { permissionPlugin } from '@plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
-import { getClientIP } from '../utils';
-import { servicesPlugin } from '../plugins/services.plugin';
+import { getClientIP } from '@utils';
 
 // Helper functions to convert responses to Response objects for Elysia
 const _createErrorResponse = (error: { code: string; message: string }, details?: string, status: number = 400) => {
@@ -66,6 +65,7 @@ const UserResponseSchema = t.Object({
 
 export const UsersController = new Elysia({ prefix: '/users' })
   .use(servicesPlugin)
+  .use(sessionAuthPlugin)
   .use(accessControlPlugin)
   .use(permissionPlugin)
 

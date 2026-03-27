@@ -13,12 +13,12 @@ import {
 import { PERMISSIONS } from '@repo/permissions';
 import { BE_ERRORS, errorResponse } from '@repo/errors';
 import { getClientIP } from '../utils';
-import { servicesPlugin } from '../plugins/services.plugin';
+import { servicesPlugin, services } from '../plugins/services.plugin';
 
 import { formatVND } from '@repo/utils';
 
 // Helper to check if user can receive push notifications
-async function canReceivePush(userId: string, userService: any): Promise<boolean> {
+async function canReceivePush(userId: string, userService: typeof services.userService): Promise<boolean> {
   const result = await userService.getUserById(userId);
   if (!result.user) return false;
   // Must have verified email AND push enabled
@@ -68,9 +68,9 @@ export const UploadController = new Elysia({ prefix: '/upload' })
       )
       .post(
         '/payment-proof/:debtId',
-        async ({ user, params: { debtId }, body, set, request, server, debtServiceHex, fileService, userService, pushService, activityService }) => {
+        async ({ user, params: { debtId }, body, set, request, server, debtService, fileService, userService, pushService, activityService }) => {
           // Verify debt exists and user is related to it
-          const debt = await debtServiceHex.getDebtById(debtId);
+          const debt = await debtService.getDebtById(debtId);
           if (!debt) {
             set.status = 404;
             return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
@@ -188,9 +188,9 @@ export const UploadController = new Elysia({ prefix: '/upload' })
       )
       .get(
         '/pending-proofs/:debtId',
-        async ({ user, params: { debtId }, set, debtServiceHex, fileService }) => {
+        async ({ user, params: { debtId }, set, debtService, fileService }) => {
           // Verify debt exists and user is creditor
-          const debt = await debtServiceHex.getDebtById(debtId);
+          const debt = await debtService.getDebtById(debtId);
           if (!debt) {
             set.status = 404;
             return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);

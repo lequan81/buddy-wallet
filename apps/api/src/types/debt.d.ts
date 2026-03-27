@@ -11,12 +11,8 @@ import type { DebtStatus } from './services/debt';
 
 // ── Service Interfaces (from debt.interfaces.d.ts) ───────────────────
 
-/** Push notification payload shape - used across all debt services */
-export interface PushPayload {
-  title: string;
-  body: string;
-  url?: string;
-}
+// PushPayload is defined in push.d.ts — import from there
+export type { PushPayload } from './push.d';
 
 /** Debt creation options */
 export interface DebtCreationOptions {

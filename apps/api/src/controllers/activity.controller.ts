@@ -5,11 +5,12 @@
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { permissionPlugin } from '../plugins/guards';
-import { servicesPlugin } from '../plugins/services.plugin';
+import { sessionAuthPlugin, servicesPlugin } from '@plugins';
+import { permissionPlugin } from '@plugins/guards';
 
 export const ActivityController = new Elysia({ prefix: '/activity' })
   .use(servicesPlugin)
+  .use(sessionAuthPlugin)
   .use(permissionPlugin)
 
   // Get current user's activity logs

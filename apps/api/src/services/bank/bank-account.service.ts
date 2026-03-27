@@ -5,7 +5,7 @@
  */
 import { bankAccounts, eq, desc } from '@repo/db';
 import { log } from '@repo/logger';
-import type { DbClient } from '../types';
+import type { DbClient } from '@/types';
 import type { BankAccount, NewBankAccount } from '@repo/db';
 
 export class BankAccountService {

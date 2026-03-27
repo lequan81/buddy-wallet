@@ -12,5 +12,4 @@ export { AuthCoreService } from './auth-core.service';
 export { AuthSecurityService } from './auth-security.service';
 export { AuthSessionService } from './auth-session.service';
 
-// Re-export combined AuthService for backward compatibility
-export { AuthService } from '../auth.service';
+// No legacy exports anymore

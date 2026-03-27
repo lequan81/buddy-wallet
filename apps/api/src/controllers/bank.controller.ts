@@ -156,9 +156,9 @@ export const BankController = new Elysia({ prefix: '/banks' })
   // Generate a VietQR code for paying a specific debt
   .get(
     '/qr/:debtId',
-    async ({ user, params: { debtId }, set, debtServiceHex, bankAccountService, vietqrService }) => {
+    async ({ user, params: { debtId }, set, debtService, bankAccountService, vietqrService }) => {
       // 1. Get debt details
-      const debt = await debtServiceHex.getDebtById(debtId);
+      const debt = await debtService.getDebtById(debtId);
       if (!debt) {
         set.status = 404;
         return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);

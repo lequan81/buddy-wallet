@@ -6,11 +6,9 @@
  */
 import { Elysia } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse } from '@repo/errors';
-import { sessionAuthPlugin } from '../plugins/auth';
-import { accessControlPlugin } from '../plugins';
-import { getClientIP } from '../utils';
-import { servicesPlugin } from '../plugins/services.plugin';
-import type { ExportFormat } from '../types';
+import { sessionAuthPlugin, accessControlPlugin, servicesPlugin } from '@plugins';
+import { getClientIP } from '@utils';
+import type { ExportFormat } from '@/types';
 
 export const ExportController = new Elysia({ prefix: '/export' })
   .use(servicesPlugin)

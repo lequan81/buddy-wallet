@@ -17,10 +17,10 @@ import {
   parseUserAgent,
   getLocationFromIP,
   toSafeUser
-} from '../../utils';
+} from '@utils';
 import { logger } from '@repo/logger';
-import type { DbClient } from '../../types';
-import type { LoginInput, AuthResult } from '../../types';
+import type { DbClient, JwtService } from '@/types';
+import type { LoginInput, AuthResult } from '@/types';
 
 // Dummy hash for timing attack mitigation (pre-calculated at startup)
 let DUMMY_HASH = '';
@@ -46,11 +46,7 @@ export class AuthSecurityService {
    */
   async login(
     input: LoginInput,
-    jwt: {
-      sign: (
-        payload: Record<string, string | number | boolean | null | undefined>
-      ) => Promise<string>;
-    }
+    jwt: JwtService
   ): Promise<AuthResult & { sessionId?: string }> {
     try {
       const { identifier, password, userAgent, clientIP } = input;

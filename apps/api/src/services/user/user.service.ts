@@ -6,11 +6,11 @@
  * Implements IUserService interface for LSP compliance.
  */
 import { users, sessions, eq, and, ne, count } from '@repo/db';
-import { userCache, isRedisAvailable } from '../plugins/redis';
-import { toSafeUser } from '../utils';
-import type { DbClient } from '../types';
-import type { SafeUser, UserResult } from '../types';
-import type { IUserService } from '../types';
+import { userCache, isRedisAvailable } from '@plugins/redis';
+import { toSafeUser } from '@utils';
+import type { DbClient } from '@/types';
+import type { SafeUser, UserResult } from '@/types';
+import type { IUserService } from '@/types';
 
 /**
  * UserService class with dependency injection
@@ -70,7 +70,7 @@ export class UserService implements IUserService {
 
     // Cache the user profile
     if (isRedisAvailable()) {
-      await userCache.set(userId, safeUser as any);
+      await userCache.set(userId, safeUser as unknown as Record<string, unknown>);
     }
 
     return { success: true, user: safeUser as SafeUser };

@@ -6,32 +6,15 @@
  */
 import { randomUUIDv7 } from 'bun';
 import { emailVerifications, users, eq, and, desc } from '@repo/db';
-import { hashToken } from '../utils';
-import type { DbClient } from '../types';
+import { hashToken } from '@utils';
+import type { DbClient } from '@/types';
+import type { CreateOtpResult, VerifyOtpResult, ResendOtpResult } from '@/types';
 
 // OTP Configuration
 const OTP_EXPIRY_MINUTES = 10;
 const OTP_RESEND_COOLDOWN_SECONDS = 60;
 const OTP_MAX_RESENDS_PER_HOUR = 5;
 const OTP_MAX_ATTEMPTS = 5;
-
-export interface CreateOtpResult {
-  success: boolean;
-  otp?: string;
-  error?: string;
-}
-
-export interface VerifyOtpResult {
-  success: boolean;
-  error?: string;
-}
-
-export interface ResendOtpResult {
-  success: boolean;
-  otp?: string;
-  error?: string;
-  retryAfter?: number; // seconds until next resend allowed
-}
 
 /**
  * EmailVerificationService class with dependency injection
@@ -168,7 +151,7 @@ export class EmailVerificationService {
       .where(and(eq(emailVerifications.userId, userId), eq(emailVerifications.email, user.email)))
       .all();
 
-    const recentCount = recentVerifications.filter((v) => v.createdAt > oneHourAgo).length;
+    const recentCount = recentVerifications.filter((v: typeof emailVerifications.$inferSelect) => v.createdAt > oneHourAgo).length;
 
     if (recentCount >= OTP_MAX_RESENDS_PER_HOUR) {
       return {
@@ -180,7 +163,7 @@ export class EmailVerificationService {
 
     // Check cooldown from last send
     const lastVerification = recentVerifications.sort(
-      (a, b) => b.lastSentAt.getTime() - a.lastSentAt.getTime()
+      (a: typeof emailVerifications.$inferSelect, b: typeof emailVerifications.$inferSelect) => b.lastSentAt.getTime() - a.lastSentAt.getTime()
     )[0];
 
     if (lastVerification) {

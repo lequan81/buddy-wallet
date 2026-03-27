@@ -72,11 +72,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
           userAgent,
           clientIP
         },
-        jwt as unknown as {
-          sign: (
-            payload: Record<string, string | number | boolean | null | undefined>
-          ) => Promise<string>;
-        }
+        jwt
       );
 
       if (!result.success) {

@@ -8,6 +8,18 @@
 export * from './rate-limit';
 export * from './trace';
 export * from './services/common';
+export * from './services/activity';
+export * from './services/auth';
+export * from './services/debt';
+export * from './services/export';
+export * from './services/image';
+export * from './services/import';
+export * from './services/jobs';
+export * from './services/password-reset';
+export * from './services/session';
+export * from './services/storage';
+export * from './services/user';
+export * from './services/vietqr';
 export * from '@repo/types';
 
 // Service Types - re-export from @repo/types

@@ -5,9 +5,7 @@
  * Business logic depends on this interface, not concrete implementations.
  * This enables swapping implementations (Drizzle, Prisma, mock) without changing business logic.
  */
-import type { Debt, DebtStatus } from '@repo/db';
-import type { DebtDetails } from '@repo/types';
-import type { PaginationOptions, PaginatedResult } from '../../types';
+import type { DebtStatus, PaginationOptions, PaginatedResult } from '@repo/types';
 
 /**
  * Debt entity for repository operations
@@ -59,7 +57,7 @@ export interface CreateDebtData {
   id: string;
   amount: number;
   description: string;
-  status: string;
+  status: DebtStatus;
   uploadedById: string;
   confirmedByCreditor: boolean;
   confirmedByDebtor: boolean;
@@ -155,6 +153,16 @@ export interface IDebtRepository {
    * Count unconfirmed debts for a creditor
    */
   countUnconfirmedByCreditor(creditorId: string): Promise<number>;
+
+  /**
+   * Batch soft-delete multiple debts by ID
+   */
+  batchSoftDelete(ids: string[], deletedAt: Date): Promise<{ deleted: string[]; notFound: string[] }>;
+
+  /**
+   * Soft-delete all debts uploaded by a user
+   */
+  softDeleteByUploader(uploadedById: string, deletedAt: Date): Promise<number>;
 
   /**
    * Link debts to user by phone number (for new user registration)

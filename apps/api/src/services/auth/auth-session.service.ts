@@ -13,8 +13,8 @@ import {
   hashToken,
   validatePasswordComplexity,
   isCommonPassword
-} from '../../utils';
-import type { DbClient } from '../../types';
+} from '@utils';
+import type { DbClient } from '@/types';
 
 /**
  * AuthSessionService - Session management and password changes

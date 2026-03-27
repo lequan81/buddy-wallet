@@ -20,9 +20,12 @@ import {
   isNull
 } from '@repo/db';
 import { log } from '@repo/logger';
-import { PushService } from './index';
+import { PushService as PushServiceClass } from '@services/notification/push.service';
 
 import { formatVND } from '@repo/utils';
+
+// Instantiate for internal static-like use (this service is a literal object, not a class)
+const pushService = new PushServiceClass(db);
 
 export const CleanupService = {
   /**
@@ -186,7 +189,7 @@ export const CleanupService = {
             // Check if user can receive notifications
             const user = db.select().from(users).where(eq(users.id, debt.uploadedById)).get();
             if (user?.emailVerified && user?.pushNotificationsEnabled) {
-              await PushService.sendToUser(debt.uploadedById, {
+              await pushService.sendToUser(debt.uploadedById, {
                 title: 'Debt Expired',
                 body: `Your debt of ${formatVND(debt.amount)} was auto-cancelled - confirmation period ended.`,
                 url: `/debts/${debt.id}`

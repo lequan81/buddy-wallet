@@ -1,5 +1,5 @@
 import { fileMetadata, debts, eq, and } from '@repo/db';
-import { cache } from '../plugins/redis';
+import { cache } from '@/plugins/redis';
 import { log } from '@repo/logger';
 import {
   MAX_IMAGE_FILE_SIZE,
@@ -8,9 +8,10 @@ import {
   PROOF_TMP_DIR
 } from '@repo/config';
 import { isValidImageBytes } from '@repo/utils';
-import type { DbClient } from '../types';
+import type { DbClient } from '@/types';
 import type { FileType, FileStatus, FileMetadata } from '@repo/db';
-import { DiskStorageService, type IStorageService } from './storage.service';
+import { DiskStorageService } from './storage.service';
+import type { IStorageService } from '@/types';
 import { ImageService } from './image.service';
 
 const IMAGE_CACHE_TTL = 3600; // 1 hour

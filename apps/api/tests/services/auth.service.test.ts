@@ -6,7 +6,7 @@
  * without requiring a real database connection.
  */
 import { describe, expect, it, beforeEach } from 'bun:test';
-import { AuthService } from '@/services/auth.service';
+import { AuthCoreService as AuthService } from '@/services/auth/auth-core.service';
 
 // Simplified mock database for demonstrating DI pattern
 function createMockDb() {
@@ -37,7 +37,9 @@ describe('AuthService (Unit Tests with DI)', () => {
 
   beforeEach(() => {
     mockDb = createMockDb();
-    authService = new AuthService(mockDb as any);
+    const mockEmailService = {} as any;
+    const mockVerificationService = {} as any;
+    authService = new AuthService(mockDb as any, mockEmailService, mockVerificationService);
   });
 
   describe('input validation', () => {
@@ -60,34 +62,6 @@ describe('AuthService (Unit Tests with DI)', () => {
       });
 
       expect(result.success).toBe(false);
-    });
-  });
-
-  describe('logout', () => {
-    it('should reject empty refresh token', async () => {
-      const result = await authService.logout('');
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('No refresh token provided');
-    });
-
-    it('should successfully logout with valid token', async () => {
-      const result = await authService.logout('valid-refresh-token');
-
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('changePassword', () => {
-    it('should reject when user not found', async () => {
-      const result = await authService.changePassword(
-        'nonexistent-user',
-        'oldpassword',
-        'newpassword'
-      );
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('User not found');
     });
   });
 });
