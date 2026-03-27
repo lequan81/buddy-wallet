@@ -1,12 +1,12 @@
 import { Elysia, t } from 'elysia';
 import { db, debts, eq } from '@repo/db';
-import { FileService } from '../services/file.service';
-import { ActivityService } from '../services/activity.service';
+import { FileService } from '@services/storage/file.service';
+import { ActivityService } from '@services/activity.service';
 import { UPLOAD_TMP_DIR, PROOF_TMP_DIR } from '@repo/config';
-import { DiskStorageService } from '../services/storage.service';
-import { ImageService } from '../services/image.service';
+import { DiskStorageService } from '@services/storage.service';
+import { ImageService } from '@services/image.service';
 import { BE_ERRORS, GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import type { User } from '../types';
+import type { User } from '@/types';
 
 const uploadStorage = new DiskStorageService(UPLOAD_TMP_DIR);
 const proofStorage = new DiskStorageService(PROOF_TMP_DIR);

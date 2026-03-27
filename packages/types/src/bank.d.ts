@@ -1,3 +1,5 @@
+/// <reference types="@repo/db" />
+
 export interface VietQRBank {
   id: number;
   name: string;
@@ -9,9 +11,13 @@ export interface VietQRBank {
   lookupSupported: number;
 }
 
-import type { BankAccount as DBBankAccount } from '@repo/db';
+export interface VietQRResponse {
+  code: string;
+  desc: string;
+  data: VietQRBank[];
+}
 
-export interface BankAccount extends Omit<DBBankAccount, 'createdAt' | 'updatedAt'> {
+export interface BankAccount extends Omit<import('@repo/db').BankAccount, 'createdAt' | 'updatedAt'> {
   createdAt: Date | string | number;
   updatedAt: Date | string | number;
 }

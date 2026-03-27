@@ -1,11 +1,5 @@
-export interface ColumnMapping {
-  name: string;
-  amount: string;
-  phone?: string;
-  email?: string;
-  description?: string;
-  dueDate?: string;
-}
+import type { ColumnMapping } from './worker.js';
+export type { ColumnMapping };
 
 export interface ImportConfig {
   mapping: ColumnMapping;

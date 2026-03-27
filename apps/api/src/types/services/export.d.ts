@@ -1,12 +1,5 @@
 /**
  * Export Type Definitions
+ * Re-exported from @repo/types
  */
-export type ExportFormat = 'xlsx' | 'csv';
-
-export interface ExportResult {
-  success: boolean;
-  error?: string;
-  buffer?: Buffer;
-  contentType?: string;
-  filename?: string;
-}
+export type { ExportFormat, ExportResult } from '@repo/types';

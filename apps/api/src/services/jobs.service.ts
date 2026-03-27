@@ -1,11 +1,7 @@
 import { randomUUIDv7 } from 'bun';
 import { importCache, isRedisAvailable, getClient } from '../plugins/redis';
-import { MAX_DIRECT_PROCESS_SIZE_BYTES } from '@repo/config';
 import { logger } from '@repo/logger';
-
-type JobType = 'preview' | 'import';
-
-import type { JobPayload } from '../types';
+import type { WorkerJobPayload, JobType, JobPayload } from '@repo/types';
 
 export class JobsService {
   private jobTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
@@ -21,14 +17,12 @@ export class JobsService {
   async addJob(type: JobType, payload: JobPayload): Promise<string> {
     const jobId = randomUUIDv7('base64url');
     const fileName = payload.file ? payload.file.name : payload.fileName;
-    const isSmallFile = payload.file && payload.file.size <= MAX_DIRECT_PROCESS_SIZE_BYTES;
 
     // FIX ENOENT:
     // Elysia (via Bun) mounts incoming multipart File uploads onto the volatile OS Temp directory.
     // The *instant* this HTTP handler returns a Response, Bun deletes that `bun-xxxx` OS file natively.
     // Because JobsService launches background tracking tasks, we MUST eagerly detach the file
     // into a stable RAM-based `<Blob>` synchronously before yielding back to the HTTP router!
-    let detachedFile: File | undefined;
     let tempFilePath: string | undefined;
 
     if (payload.file) {
@@ -52,41 +46,16 @@ export class JobsService {
       if (!stats) {
         throw new Error(`Critical I/O Error: Failed to flush upload to disk at ${tempFilePath}`);
       }
-
-      // Reconstitute the payload File with our disk-backed secure payload, isolating it from Bun OS Temp deletes!
-      const persistedBlob = Bun.file(tempFilePath);
-      detachedFile = new File([persistedBlob], payload.file.name, { type: payload.file.type });
     }
 
-    const safePayload = { ...payload, file: detachedFile };
+    // NORMAL FLOW: Always Push to Redis Queue for Background Worker
 
-    // Direct Processing for previews and small import files
-    if (type === 'preview' || (type === 'import' && isSmallFile)) {
-      logger.info(
-        `[JobsService] Starting in-process job: ${jobId} (Type: ${type}, File: ${fileName})`
-      );
-
-      if (isRedisAvailable()) {
-        await importCache.setProgress(jobId, { status: 'pending', current: 0, total: 0 });
-      }
-
-      this.runInProcessJob(jobId, type, safePayload).catch((err) => {
-        logger.error(`[JobsService] Unhandled error in in-process job ${jobId}:`, {
-          error: String(err)
-        });
-      });
-
-      return jobId;
-    }
-
-    // NORMAL FLOW: Push to Redis Queue for Background Worker
-
-    const workerPayload = {
+    const workerPayload: WorkerJobPayload = {
       type,
       jobId,
       userId: payload.userId,
-      fileName,
-      config: payload.config,
+      fileName: fileName || 'unnamed',
+      config: payload.config as { mapping: import('@repo/types').ColumnMapping; startRow: number } | undefined,
       previewLogId: payload.previewLogId,
       tempFilePath
     };
@@ -148,73 +117,6 @@ export class JobsService {
     this.jobTimeouts.set(jobId, timeout);
 
     return jobId;
-  }
-
-  private async runInProcessJob(jobId: string, type: JobType, payload: JobPayload) {
-    logger.info(`[JobsService] Starting job ${jobId} (${type})`);
-    
-    try {
-      logger.info(`[JobsService] Importing services for job ${jobId}`);
-      const { ImportService } = await import('./import.service');
-      const { db } = await import('@repo/db');
-      const service = new ImportService(db);
-
-      if (!payload.file) {
-        logger.error(`[JobsService] No file provided for job ${jobId}`);
-        throw new Error('No file provided for job');
-      }
-      
-      logger.info(`[JobsService] File details for job ${jobId}:`, {
-        name: payload.file.name,
-        size: payload.file.size,
-        type: payload.file.type
-      });
-
-      const timeoutMs = type === 'preview' ? 60 * 1000 : 3 * 60 * 1000;
-      logger.info(`[JobsService] Setting timeout ${timeoutMs}ms for job ${jobId}`);
-      
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`Job timed out after ${timeoutMs}ms`)), timeoutMs)
-      );
-
-      let processingPromise;
-      if (type === 'preview') {
-        const userId = typeof payload.userId === 'string' ? payload.userId : payload.userId.id;
-        logger.info(`[JobsService] Calling previewFile for job ${jobId}, user ${userId}`);
-        processingPromise = service.previewFile(payload.file, userId, jobId);
-      } else {
-        const uId =
-          typeof payload.userId === 'string'
-            ? { id: payload.userId, phoneNumber: null }
-            : payload.userId;
-        const typeCastConfig = payload.config as import('../types').ImportConfig;
-        const typeCastUid = uId as import('../types').CurrentUser;
-        processingPromise = service.importDebts(
-          payload.file,
-          typeCastConfig,
-          typeCastUid,
-          payload.previewLogId,
-          jobId
-        );
-      }
-
-      logger.info(`[JobsService] Waiting for job ${jobId} to complete or timeout`);
-      const result = (await Promise.race([processingPromise, timeoutPromise])) as {
-        success: boolean;
-      };
-
-      logger.info(`[JobsService] In-process job ${jobId} finished. Success: ${result.success}`);
-    } catch (error) {
-      logger.error(`[JobsService] In-process job ${jobId} failed:`, { error: String(error) });
-      if (isRedisAvailable()) {
-        await importCache.setProgress(jobId, {
-          status: 'failed',
-          errors: [error instanceof Error ? error.message : String(error)],
-          current: 0,
-          total: 0
-        });
-      }
-    }
   }
 
   /**

@@ -4,12 +4,14 @@
   "scripts": {
     "build": "turbo run build",
     "build:emails": "turbo run build --filter=@repo/email-templates",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=@repo/web --filter=@repo/api --filter=@repo/worker --ui=tui",
     "lint": "turbo run lint",
     "check": "turbo run check check-types",
     "format": "prettier --write .",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
+    "dev:worker": "turbo run dev --filter=@repo/worker",
+    "start:worker": "turbo run start --filter=@repo/worker",
     "start": "bun run start.ts",
     "clean": "turbo run clean"
   },
@@ -21,7 +23,7 @@
   "engines": {
     "node": ">=18"
   },
-  "packageManager": "bun@1.3.5",
+  "packageManager": "bun@1.3.10",
   "workspaces": [
     "apps/*",
     "packages/*"

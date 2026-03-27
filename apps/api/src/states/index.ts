@@ -5,7 +5,7 @@
  *
  * Usage:
  * ```typescript
- * import { debtStateMachine } from '../states';
+ * import type { DebtStatus } from '@/types';
  *
  * // Transition a debt
  * const result = await debtStateMachine.transition(debt, 'confirmed', context);
@@ -31,4 +31,4 @@ export type {
   IDebtStateMachine,
   TransitionContext,
   TransitionResult
-} from '../types/debt-state';
+} from '@/types/debt.d';

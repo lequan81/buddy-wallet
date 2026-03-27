@@ -5,9 +5,9 @@
  * Can transition to: confirmed, disputed, cancelled
  */
 import type { Debt } from '@repo/db';
-import type { DebtStatus } from '../types';
+import type { DebtStatus } from '@/types';
 import { DEBT_STATUS } from '@repo/types';
-import type { IDebtState, TransitionContext } from '../types/debt-state';
+import type { IDebtState, TransitionContext } from '@/types/debt.d';
 import { log } from '@repo/logger';
 
 export class PendingState implements IDebtState {

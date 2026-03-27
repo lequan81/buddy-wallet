@@ -1,14 +1,5 @@
 // Bun automatically loads .env files - no dotenv needed
-import { validateSecretStrength } from '@repo/config';
-
-export const getEnv = (key: string, defaultValue?: string): string => {
-  // Bun.env là cách truy cập biến môi trường nhanh nhất trong Bun
-  const value = Bun.env[key] || defaultValue;
-  if (value === undefined) {
-    throw new Error(`[ERROR] Missing required environment variable: ${key}`);
-  }
-  return value;
-};
+import { validateSecretStrength, optionalEnv, getEnvInt } from '@repo/config';
 
 /**
  * Validate JWT secret strength using shared validation rules
@@ -22,36 +13,36 @@ function validateJWTSecretOnStartup(secret: string) {
   }
 }
 
-const jwtSecret = getEnv('JWT_SECRET');
+const jwtSecret = optionalEnv('JWT_SECRET', 'dev-secret-change-in-production');
 validateJWTSecretOnStartup(jwtSecret);
 
 export const configs = {
   APP: {
     NODE_ENV: Bun.env.NODE_ENV || 'development',
-    PORT: Bun.env.PORT || '3000',
-    WEB_URL: getEnv('WEB_URL', 'http://localhost:5173'),
+    PORT: optionalEnv('PORT', '3000'),
+    WEB_URL: optionalEnv('WEB_URL', 'http://localhost:5173'),
     IS_DEV: (Bun.env.NODE_ENV || 'development') !== 'production'
   },
   AUTH: {
     JWT_SECRET: jwtSecret,
-    ACCESS_TOKEN_LIFETIME: parseInt(Bun.env.ACCESS_TOKEN_LIFETIME || '900000'), // 15m default
-    REFRESH_TOKEN_LIFETIME: parseInt(Bun.env.REFRESH_TOKEN_LIFETIME || '7776000000'), // 90d default
-    JWT_BLACKLIST_SECONDS: parseInt(Bun.env.JWT_BLACKLIST_SECONDS || '900'), // 15m default
-    MIN_PASSWORD_LENGTH: parseInt(Bun.env.MIN_PASSWORD_LENGTH || '8'),
+    ACCESS_TOKEN_LIFETIME: getEnvInt('ACCESS_TOKEN_LIFETIME', 900000),
+    REFRESH_TOKEN_LIFETIME: getEnvInt('REFRESH_TOKEN_LIFETIME', 7776000000),
+    JWT_BLACKLIST_SECONDS: getEnvInt('JWT_BLACKLIST_SECONDS', 900),
+    MIN_PASSWORD_LENGTH: getEnvInt('MIN_PASSWORD_LENGTH', 8),
     ARGON2_OPTIONS: {
       algorithm: 'argon2id' as const,
-      memoryCost: parseInt(Bun.env.ARGON2_MEMORY_COST || '65536'), // 64MB
-      timeCost: parseInt(Bun.env.ARGON2_TIME_COST || '3') // 3 iterations
+      memoryCost: getEnvInt('ARGON2_MEMORY_COST', 65536),
+      timeCost: getEnvInt('ARGON2_TIME_COST', 3)
     }
   },
   IMPORT: {
-    MAX_ROWS: parseInt(Bun.env.IMPORT_MAX_ROWS || '1000'),
-    STALE_LOG_LIFETIME: parseInt(Bun.env.IMPORT_STALE_LOG_LIFETIME || '86400000') // 24h
+    MAX_ROWS: getEnvInt('IMPORT_MAX_ROWS', 1000),
+    STALE_LOG_LIFETIME: getEnvInt('IMPORT_STALE_LOG_LIFETIME', 86400000)
   },
   PUSH: {
-    VAPID_PUBLIC_KEY: Bun.env.VAPID_PUBLIC_KEY || '',
-    VAPID_PRIVATE_KEY: Bun.env.VAPID_PRIVATE_KEY || '',
-    VAPID_SUBJECT: Bun.env.VAPID_SUBJECT || 'mailto:support@buddywallet.app',
-    MAX_FAILED_ATTEMPTS: parseInt(Bun.env.PUSH_MAX_FAILED_ATTEMPTS || '5')
+    VAPID_PUBLIC_KEY: optionalEnv('VAPID_PUBLIC_KEY', ''),
+    VAPID_PRIVATE_KEY: optionalEnv('VAPID_PRIVATE_KEY', ''),
+    VAPID_SUBJECT: optionalEnv('VAPID_SUBJECT', 'mailto:support@buddywallet.app'),
+    MAX_FAILED_ATTEMPTS: getEnvInt('PUSH_MAX_FAILED_ATTEMPTS', 5)
   }
 };

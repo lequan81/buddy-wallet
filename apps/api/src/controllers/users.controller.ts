@@ -1,7 +1,7 @@
 /**
  * Users Controller
  *
- * Thin controller that delegates to UserService.
+ * Thin controller that delegates to UserService via DI.
  * Handles HTTP concerns only.
  */
 import { Elysia, t } from 'elysia';
@@ -9,8 +9,8 @@ import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/err
 import { accessControlPlugin } from '../plugins';
 import { permissionPlugin } from '../plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
-import { UserService, ActivityService } from '../services';
 import { getClientIP } from '../utils';
+import { servicesPlugin } from '../plugins/services.plugin';
 
 // Helper functions to convert responses to Response objects for Elysia
 const _createErrorResponse = (error: { code: string; message: string }, details?: string, status: number = 400) => {
@@ -65,6 +65,7 @@ const UserResponseSchema = t.Object({
 });
 
 export const UsersController = new Elysia({ prefix: '/users' })
+  .use(servicesPlugin)
   .use(accessControlPlugin)
   .use(permissionPlugin)
 
@@ -81,13 +82,13 @@ export const UsersController = new Elysia({ prefix: '/users' })
   // Update current user profile
   .patch(
     '/me',
-    async ({ user, body, set, request, server }) => {
+    async ({ user, body, set, request, server, userService, activityService }) => {
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
 
-      const result = await UserService.updateProfile(user.id, {
+      const result = await userService.updateProfile(user.id, {
         name: body.name,
         email: body.email,
         phoneNumber: body.phoneNumber,
@@ -100,7 +101,7 @@ export const UsersController = new Elysia({ prefix: '/users' })
         return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
 
-      await ActivityService.log({
+      await activityService.log({
         userId: user.id,
         action: 'update',
         resource: 'user',
@@ -127,10 +128,10 @@ export const UsersController = new Elysia({ prefix: '/users' })
   // List all users (admin) with pagination
   .get(
     '/',
-    async ({ query }) => {
+    async ({ query, userService }) => {
       const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
       const offset = query.offset ? parseInt(query.offset) : 0;
-      const result = await UserService.getAllUsers({ limit, offset });
+      const result = await userService.getAllUsers({ limit, offset });
       return createSuccessResponse({
         users: result.users,
         pagination: {
@@ -154,8 +155,8 @@ export const UsersController = new Elysia({ prefix: '/users' })
   // Get user by ID
   .get(
     '/:id',
-    async ({ params: { id }, set }) => {
-      const result = await UserService.getUserById(id);
+    async ({ params: { id }, set, userService }) => {
+      const result = await userService.getUserById(id);
 
       if (!result.success) {
         set.status = 404;
@@ -174,15 +175,15 @@ export const UsersController = new Elysia({ prefix: '/users' })
   // Toggle user status (admin)
   .patch(
     '/:id/status',
-    async ({ user, params: { id }, set, request, server }) => {
-      const result = await UserService.toggleUserStatus(id);
+    async ({ user, params: { id }, set, request, server, userService, activityService }) => {
+      const result = await userService.toggleUserStatus(id);
 
       if (!result.success) {
         set.status = 404;
         return errorResponse(BE_ERRORS.USER_NOT_FOUND);
       }
 
-      await ActivityService.log({
+      await activityService.log({
         userId: user!.id,
         action: 'status_change',
         resource: 'user',

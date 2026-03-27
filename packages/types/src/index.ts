@@ -8,3 +8,8 @@ export type * from './session.js';
 export type * from './activity.js';
 export type * from './import.js';
 export type * from './export.js';
+export type * from './worker.js';
+export type * from './device.js';
+export type * from './push.js';
+export type * from './email.js';
+export type * from './job.js';

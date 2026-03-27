@@ -2,20 +2,21 @@
  * Public Controller
  *
  * Thin controller for public (unauthenticated) endpoints.
- * Delegates to DebtService for business logic.
+ * Delegates to debtService for business logic.
  */
 import { Elysia, t } from 'elysia';
 import { strictRateLimiter } from '../plugins/middleware';
 import { normalizePhoneNumber, maskPhone } from '../utils/phone';
-import { DebtService } from '../services';
+import { servicesPlugin } from '../plugins/services.plugin';
 
 export const PublicController = new Elysia({ prefix: '/public' })
+  .use(servicesPlugin)
   .use(strictRateLimiter)
 
   // Check if a phone number has active debts
   .get(
     '/check-debt',
-    async ({ query, set }) => {
+    async ({ query, set, debtServiceHex }) => {
       const { phoneNumber } = query;
 
       // Validate and normalize phone number
@@ -29,8 +30,8 @@ export const PublicController = new Elysia({ prefix: '/public' })
         };
       }
 
-      // Use DebtService for the lookup
-      const count = await DebtService.countActiveDebtsForPhone(normalizedPhone);
+      // Use debtService for the lookup
+      const count = await debtServiceHex.countActiveDebtsForPhone(normalizedPhone);
 
       return {
         success: true,

@@ -1,7 +1,7 @@
 /**
  * Auth Controller
  *
- * Thin controller that delegates to authService and sessionService.
+ * Thin controller that delegates to auth services via DI.
  * Handles HTTP concerns (cookies, headers, status codes) only.
  */
 import { Elysia, t } from 'elysia';
@@ -10,26 +10,19 @@ import { sessionAuthPlugin } from '../plugins/auth';
 import { authRateLimiter } from '../plugins/middleware';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from '../plugins/redis';
 import { configs } from '../configs';
-import {
-  AuthService,
-  SessionService,
-  ActivityService,
-  EmailVerificationService,
-  EmailService,
-  PasswordResetService,
-  UserService
-} from '../services';
 import { getClientIP, hashToken } from '../utils';
+import { servicesPlugin } from '../plugins/services.plugin';
 
 export const AuthController = new Elysia({ prefix: '/auth' })
+  .use(servicesPlugin)
   .use(sessionAuthPlugin)
   .use(authRateLimiter) // Rate limit: 10 requests per minute
 
   // ==================== REGISTER ====================
   .post(
     '/register',
-    async ({ body, set }) => {
-      const result = await AuthService.register(body);
+    async ({ body, set, authCoreService }) => {
+      const result = await authCoreService.register(body);
 
       if (!result.success) {
         if (result.error === 'DATABASE_ERROR') {
@@ -68,11 +61,11 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   // ==================== LOGIN ====================
   .post(
     '/login',
-    async ({ body, jwt, cookie, set, request, server }) => {
+    async ({ body, jwt, cookie, set, request, server, authSecurityService, activityService }) => {
       const userAgent = request.headers.get('user-agent');
       const clientIP = getClientIP(request, server);
 
-      const result = await AuthService.login(
+      const result = await authSecurityService.login(
         {
           identifier: body.email,
           password: body.password,
@@ -121,7 +114,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
       });
 
       // Log the login activity
-      await ActivityService.log({
+      await activityService.log({
         userId: result.user!.id,
         action: 'login',
         resource: 'session',
@@ -145,10 +138,10 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   )
 
   // ==================== REFRESH ====================
-  .post('/refresh', async ({ jwt, cookie, set, request, server }) => {
+  .post('/refresh', async ({ jwt, cookie, set, request, server, sessionService }) => {
     const refreshToken = cookie.refresh_token.value as string;
 
-    const result = await SessionService.refreshSession(refreshToken, jwt, {
+    const result = await sessionService.refreshSession(refreshToken, jwt, {
       userAgent: request.headers.get('user-agent'),
       clientIP: getClientIP(request, server)
     });
@@ -213,7 +206,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   })
 
   // ==================== LOGOUT ====================
-  .post('/logout', async ({ user, cookie, set, request, server }) => {
+  .post('/logout', async ({ user, cookie, set, request, server, authSessionService, activityService }) => {
     const refreshToken = cookie.refresh_token.value as string;
     const accessToken = cookie.session.value as string;
 
@@ -224,7 +217,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
     }
 
     if (refreshToken) {
-      const result = await AuthService.logout(refreshToken, user?.id);
+      const result = await authSessionService.logout(refreshToken, user?.id);
       if (!result.success) {
         set.status = 403;
         return errorResponse(GEN_ERRORS.FORBIDDEN, result.error);
@@ -240,7 +233,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
 
     // Log the logout activity
     if (user) {
-      await ActivityService.log({
+      await activityService.log({
         userId: user.id,
         action: 'logout',
         resource: 'session',
@@ -258,16 +251,16 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   })
 
   // ==================== LOGOUT ALL ====================
-  .post('/logout-all', async ({ user, cookie, set, request, server }) => {
+  .post('/logout-all', async ({ user, cookie, set, request, server, sessionService, activityService }) => {
     if (!user) {
       set.status = 401;
       return errorResponse(GEN_ERRORS.UNAUTHORIZED);
     }
 
-    await SessionService.revokeAllSessions(user.id);
+    await sessionService.revokeAllSessions(user.id);
 
     // Log the logout-all activity
-    await ActivityService.log({
+    await activityService.log({
       userId: user.id,
       action: 'logout_all',
       resource: 'session',
@@ -284,14 +277,14 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   })
 
   // ==================== LIST SESSIONS ====================
-  .get('/sessions', async ({ user, cookie, set }) => {
+  .get('/sessions', async ({ user, cookie, set, sessionService }) => {
     if (!user) {
       set.status = 401;
       return errorResponse(GEN_ERRORS.UNAUTHORIZED);
     }
 
     const refreshToken = cookie.refresh_token.value as string;
-    const result = await SessionService.getUserSessions(user.id, refreshToken);
+    const result = await sessionService.getUserSessions(user.id, refreshToken);
 
     return successResponse(result);
   })
@@ -299,14 +292,14 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   // ==================== REVOKE SESSION ====================
   .post(
     '/sessions/:sessionId/revoke',
-    async ({ user, params, cookie, set }) => {
+    async ({ user, params, cookie, set, sessionService }) => {
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
 
       const refreshToken = cookie.refresh_token.value as string;
-      const result = await SessionService.revokeSession(params.sessionId, user.id, refreshToken);
+      const result = await sessionService.revokeSession(params.sessionId, user.id, refreshToken);
 
       if (!result.success) {
         set.status = 404;
@@ -331,7 +324,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   // ==================== CHANGE PASSWORD ====================
   .post(
     '/change-password',
-    async ({ user, body, cookie, set }) => {
+    async ({ user, body, cookie, set, authSessionService, sessionService }) => {
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
@@ -342,12 +335,12 @@ export const AuthController = new Elysia({ prefix: '/auth' })
       const refreshToken = cookie.refresh_token.value as string;
       if (refreshToken) {
         await hashToken(refreshToken);
-        const { sessions } = await SessionService.getUserSessions(user.id);
+        const { sessions } = await sessionService.getUserSessions(user.id);
         // Find matching session (simplified)
         currentSessionId = sessions[0]?.id || null;
       }
 
-      const result = await AuthService.changePassword(
+      const result = await authSessionService.changePassword(
         user.id,
         body.currentPassword,
         body.newPassword,
@@ -374,8 +367,8 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   // ==================== VERIFY OTP ====================
   .post(
     '/verify-otp',
-    async ({ body, set }) => {
-      const result = await EmailVerificationService.verifyOtp(body.email, body.otp);
+    async ({ body, set, emailVerificationService }) => {
+      const result = await emailVerificationService.verifyOtp(body.email, body.otp);
 
       if (!result.success) {
         set.status = 400;
@@ -393,13 +386,13 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   )
 
   // ==================== RESEND OTP ====================
-  .post('/resend-otp', async ({ user, set }) => {
+  .post('/resend-otp', async ({ user, set, emailVerificationService, emailService }) => {
     if (!user) {
       set.status = 401;
       return errorResponse(GEN_ERRORS.UNAUTHORIZED);
     }
 
-    const result = await EmailVerificationService.resendOtp(user.id);
+    const result = await emailVerificationService.resendOtp(user.id);
 
     if (!result.success) {
       set.status = 429; // Too Many Requests
@@ -411,20 +404,20 @@ export const AuthController = new Elysia({ prefix: '/auth' })
 
     // Send the new OTP via email
     if (result.otp && user.email) {
-      await EmailService.sendOtp(user.email, result.otp, user.name);
+      await emailService.sendOtp(user.email, result.otp, user.name);
     }
 
     return successResponse({ message: 'Verification code sent' });
   })
 
   // ==================== VERIFICATION STATUS ====================
-  .get('/verification-status', async ({ user, set }) => {
+  .get('/verification-status', async ({ user, set, emailVerificationService }) => {
     if (!user) {
       set.status = 401;
       return errorResponse(GEN_ERRORS.UNAUTHORIZED);
     }
 
-    const status = await EmailVerificationService.getVerificationStatus(user.id);
+    const status = await emailVerificationService.getVerificationStatus(user.id);
 
     return successResponse({
       email: status.email,
@@ -436,8 +429,8 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   // ==================== FORGOT PASSWORD ====================
   .post(
     '/forgot-password',
-    async ({ body, set }) => {
-      await PasswordResetService.requestReset(body.email, body.phoneNumber);
+    async ({ body, set, passwordResetService }) => {
+      await passwordResetService.requestReset(body.email, body.phoneNumber);
 
       // Always return success to prevent user enumeration
       // The actual result is sent via email
@@ -458,8 +451,8 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   // ==================== RESET PASSWORD WITH TOKEN ====================
   .post(
     '/reset-password',
-    async ({ body, set }) => {
-      const resetResult = await PasswordResetService.resetPasswordWithToken(
+    async ({ body, set, passwordResetService }) => {
+      const resetResult = await passwordResetService.resetPasswordWithToken(
         body.email,
         body.token,
         body.newPassword
@@ -484,20 +477,20 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   // ==================== FORCE CHANGE PASSWORD ====================
   .post(
     '/force-change-password',
-    async ({ user, body, set }) => {
+    async ({ user, body, set, userService, passwordResetService }) => {
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
 
       // Only allow if user has mustChangePassword flag
-      const result = await UserService.getUserById(user.id);
+      const result = await userService.getUserById(user.id);
       if (!result.success || !result.user?.mustChangePassword) {
         set.status = 403;
         return errorResponse(GEN_ERRORS.FORBIDDEN, 'Password change not required');
       }
 
-      const resetResult = await PasswordResetService.completeReset(user.id, body.newPassword);
+      const resetResult = await passwordResetService.completeReset(user.id, body.newPassword);
 
       if (!resetResult.success) {
         set.status = 400;

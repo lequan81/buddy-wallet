@@ -1,7 +1,5 @@
-import { VietQRBank } from '@repo/types';
-
-export interface VietQRResponse {
-  code: string;
-  desc: string;
-  data: VietQRBank[];
-}
+/**
+ * VietQR Type Definitions
+ * Re-exported from @repo/types
+ */
+export type { VietQRResponse, VietQRBank } from '@repo/types';

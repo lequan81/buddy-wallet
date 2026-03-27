@@ -2,13 +2,21 @@
  * Worker Job Types
  *
  * Shared between the import worker and JobsService.
- * Moved from workers/types.ts to centralized types directory.
  */
+
+export interface ColumnMapping {
+  name: string;
+  amount: string;
+  phone?: string;
+  email?: string;
+  description?: string;
+  dueDate?: string;
+}
 
 export interface WorkerJobPayload {
   type: 'preview' | 'import';
   jobId: string;
-  userId: string | { id: string; phoneNumber?: string };
+  userId: string | { id: string; phoneNumber?: string | null };
   fileName: string;
   tempFilePath?: string;
   config?: {
@@ -16,15 +24,6 @@ export interface WorkerJobPayload {
     startRow: number;
   };
   previewLogId?: string;
-}
-
-export interface ColumnMapping {
-  name: string;
-  amount: string;
-  phone: string;
-  email: string;
-  description: string;
-  dueDate: string;
 }
 
 export interface ImportProgress {

@@ -1,19 +1,43 @@
 /**
- * Debt State Interface (OCP Compliance)
- *
- * Implements the State Pattern for debt status transitions.
- * Each state defines:
- * - Valid transitions
- * - Lifecycle hooks (onEnter, onExit)
- * - Business rules for that state
- *
- * Benefits:
- * - Adding new states doesn't modify existing code (Open/Closed)
- * - Each state encapsulates its own rules (Single Responsibility)
- * - State-specific behavior is polymorphic (Liskov Substitution)
+ * Debt Types - Consolidated
+ * 
+ * All debt-related interfaces and types in one file:
+ * - State machine interfaces (from debt-state.d.ts)
+ * - Service interfaces (from debt.interfaces.d.ts)
+ * - Shared types for debt services
  */
 import type { Debt } from '@repo/db';
 import type { DebtStatus } from './services/debt';
+
+// ── Service Interfaces (from debt.interfaces.d.ts) ───────────────────
+
+/** Push notification payload shape - used across all debt services */
+export interface PushPayload {
+  title: string;
+  body: string;
+  url?: string;
+}
+
+/** Debt creation options */
+export interface DebtCreationOptions {
+  expiryOption?: 'never' | '7d' | '30d' | '90d';
+  confirmDuplicate?: boolean;
+}
+
+/** Debt suggestion data */
+export interface DebtSuggestion {
+  amount?: number;
+  description?: string;
+}
+
+/** Batch delete result */
+export interface BatchDeleteResult {
+  success: boolean;
+  deleted: number;
+  errors: string[];
+}
+
+// ── State Machine Interfaces (from debt-state.d.ts) ──────────────────
 
 /**
  * Context passed to state lifecycle hooks

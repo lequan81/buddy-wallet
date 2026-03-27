@@ -9,8 +9,8 @@
  * No modification to existing code required (Open/Closed Principle)
  */
 import type { Debt } from '@repo/db';
-import type { DebtStatus } from '../types';
-import type { IDebtState, IDebtStateMachine, TransitionContext, TransitionResult } from '../types/debt-state';
+import type { DebtStatus } from '@/types';
+import type { IDebtState, IDebtStateMachine, TransitionContext, TransitionResult } from '@/types/debt.d';
 import { log } from '@repo/logger';
 
 // Import all state implementations

@@ -8,8 +8,7 @@ import { SmtpTransport } from '@upyo/smtp';
 import { createMessage } from '@upyo/core';
 import { log } from '@repo/logger';
 import { renderOtp, renderWelcome } from '@repo/email-templates';
-
-type EmailFrom = 'noreply' | 'support';
+import type { EmailFrom, EmailOptions, EmailSendResult } from '@repo/config';
 
 const FROM_ADDRESSES: Record<EmailFrom, string> = {
   noreply: Bun.env.SMTP_FROM_NOREPLY || 'no-reply@buddywallet.dpdns.org',
@@ -39,13 +38,7 @@ export class EmailService {
   /**
    * Send a generic email
    */
-  async send(options: {
-    to: string;
-    subject: string;
-    text?: string;
-    html?: string;
-    from?: EmailFrom;
-  }): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  async send(options: EmailOptions): Promise<EmailSendResult> {
     const fromAddr = FROM_ADDRESSES[options.from || 'noreply'];
 
     const message = createMessage({

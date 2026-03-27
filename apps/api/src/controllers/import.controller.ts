@@ -1,17 +1,17 @@
 /**
  * Import Controller
  *
- * Thin controller that delegates to ImportService.
+ * Thin controller that delegates to ImportService via DI.
  * Handles HTTP concerns (validation, response) only.
  */
 import { Elysia, t, type TSchema } from 'elysia';
 import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { accessControlPlugin } from '../plugins';
 import { deleteRateLimiter } from '../plugins/middleware';
-import { ImportService, JobsService } from '../services';
 import { logger } from '@repo/logger';
 import { MAX_IMPORT_FILE_SIZE, ACCEPTED_IMPORT_MIME_TYPES } from '@repo/config';
 import { isValidSpreadsheetBytes } from '@repo/utils';
+import { servicesPlugin } from '../plugins/services.plugin';
 import type { ImportConfig } from '../types';
 import type { User } from '@repo/db';
 
@@ -50,14 +50,14 @@ const ImportConfigSchema = t.Object({
 });
 
 export const ImportController = new Elysia({ prefix: '/import' })
+  .use(servicesPlugin)
   .use(accessControlPlugin)
 
   // Preview endpoint
   // Preview endpoint (Async)
   .post(
     '/preview',
-    async (ctx) => {
-      const { user, body, set } = ctx as typeof ctx & { user: User };
+    async ({ user, body, set, jobsService }) => {
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
@@ -96,7 +96,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
       }
 
       try {
-        const jobId = await JobsService.addJob('preview', {
+        const jobId = await jobsService.addJob('preview', {
           file,
           userId: user.id
         });
@@ -129,8 +129,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
   // Import debts endpoint (Async)
   .post(
     '/debts',
-    async (ctx) => {
-      const { user, body, set } = ctx as typeof ctx & { user: User };
+    async ({ user, body, set, jobsService }) => {
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
@@ -169,7 +168,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
       }
 
       try {
-        const jobId = await JobsService.addJob('import', {
+        const jobId = await jobsService.addJob('import', {
           file,
           config: config as ImportConfig,
           userId: { id: user.id, phoneNumber: user.phoneNumber },
@@ -207,15 +206,14 @@ export const ImportController = new Elysia({ prefix: '/import' })
 
   // Cleanup stale logs (user-specific)
   .use(deleteRateLimiter) // Rate limit: 20 deletes per minute
-  .delete('/cleanup', async (ctx) => {
-    const { user, set } = ctx as typeof ctx & { user: User };
+  .delete('/cleanup', async ({ user, set, importService }) => {
     if (!user) {
       set.status = 401;
       return errorResponse(GEN_ERRORS.UNAUTHORIZED);
     }
 
     // Clean up user's stale pending logs
-    await ImportService.cleanupStaleLogs(user.id);
+    await importService.cleanupStaleLogs(user.id);
 
     // Also trigger system-wide cleanup of zombie processing logs (safe as it checks >1h)
     // This helps users fix "stuck" jobs without needing admin access
@@ -232,7 +230,8 @@ export const ImportController = new Elysia({ prefix: '/import' })
       const {
         params: { logId },
         set,
-        user
+        user,
+        importService
       } = ctx as typeof ctx & { user: User };
 
       if (!user) {
@@ -240,7 +239,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
 
-      const result = await ImportService.getProgress(logId, user.id);
+      const result = await importService.getProgress(logId, user.id);
 
       if (!result.success) {
         set.status = 404;
@@ -257,8 +256,8 @@ export const ImportController = new Elysia({ prefix: '/import' })
   // Provides real-time updates without polling overhead from client
   .get(
     '/progress-sse',
-    (ctx: any) => {
-      const { query, user, set } = ctx;
+    async (ctx) => {
+      const { query, user, set, importService } = ctx as typeof ctx & { user: User; importService: typeof ImportService };
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
@@ -280,7 +279,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
         async start(controller) {
           const interval = setInterval(async () => {
             try {
-              const results = await ImportService.getProgressBatch(logIds, user.id);
+              const results = await importService.getProgressBatch(logIds, user.id);
               
               // Format as SSE data
               controller.enqueue(`data: ${JSON.stringify(results)}\n\n`);
@@ -331,7 +330,8 @@ export const ImportController = new Elysia({ prefix: '/import' })
     async (ctx) => {
       const {
         body: { logIds },
-        user
+        user,
+        importService
       } = ctx as typeof ctx & { user: User; body: { logIds: string[] } };
 
       if (!user) {
@@ -339,7 +339,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
 
-      const result = await ImportService.getProgressBatch(logIds, user.id);
+      const result = await importService.getProgressBatch(logIds, user.id);
       return successResponse(result);
     },
     { body: t.Object({ logIds: t.Array(t.String()) }) }
@@ -354,7 +354,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
   .get(
     '/logs',
     async (ctx) => {
-      const { user, query, set } = ctx as typeof ctx & { user: User };
+      const { user, query, set, importService } = ctx as typeof ctx & { user: User };
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
@@ -365,7 +365,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
       // Cleanup is handled by 15-minute cron in index.ts
 
       // Let's call the service method we just added
-      const result = await ImportService.getLogs(user.id, page, limit);
+      const result = await importService.getLogs(user.id, page, limit);
 
       return successResponse(result);
     },
@@ -384,13 +384,14 @@ export const ImportController = new Elysia({ prefix: '/import' })
       const {
         user,
         set,
-        params: { id }
+        params: { id },
+        importService
       } = ctx as typeof ctx & { user: User };
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
-      const result = await ImportService.getLogById(id, user.id);
+      const result = await importService.getLogById(id, user.id);
       if (!result) {
         return errorResponse(GEN_ERRORS.NOT_FOUND, 'Import log not found');
       }
@@ -406,13 +407,14 @@ export const ImportController = new Elysia({ prefix: '/import' })
       const {
         user,
         params: { jobId },
-        set
+        set,
+        jobsService
       } = ctx as typeof ctx & { user: User };
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
-      const result = await JobsService.cancelJob(jobId, user.id);
+      const result = await jobsService.cancelJob(jobId, user.id);
       if (!result.success) {
         set.status = 400;
         return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);

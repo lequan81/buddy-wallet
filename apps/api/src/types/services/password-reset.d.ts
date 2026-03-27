@@ -1,11 +1,5 @@
 /**
  * Password Reset Service Types
+ * Re-exported from @repo/types
  */
-
-/**
- * Result of a password reset operation
- */
-export interface ResetResult {
-  success: boolean;
-  error?: string;
-}
+export type { ResetResult } from '@repo/types';

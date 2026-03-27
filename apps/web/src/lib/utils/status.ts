@@ -17,10 +17,5 @@ export function getImportStatusColor(status: string): string {
 	return IMPORT_STATUS_COLORS[status?.toLowerCase()] || 'text-gray-600';
 }
 
-/**
- * Formats a date string into a localized string
- */
-export function formatDate(dateStr: string | Date): string {
-	if (!dateStr) return '';
-	return new Date(dateStr).toLocaleString();
-}
+// Re-export formatDate from shared utils
+export { formatDate } from '@repo/utils';

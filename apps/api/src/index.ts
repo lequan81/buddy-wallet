@@ -7,7 +7,8 @@ import {
   permissionPlugin,
   requestLoggerPlugin,
   redisPlugin,
-  securityHeadersPlugin
+  securityHeadersPlugin,
+  servicesPlugin
 } from './plugins';
 import {
   ActivityController,
@@ -48,6 +49,8 @@ export const app = new Elysia()
   })
   // OpenTelemetry (if enabled)
   .use(telemetry ?? new Elysia())
+  // Services DI (decorate context with all services)
+  .use(servicesPlugin)
   // Redis (if enabled)
   .use(redisPlugin)
   // Request logging

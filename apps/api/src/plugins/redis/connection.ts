@@ -2,10 +2,10 @@
  * Redis Connection Module
  *
  * Handles TCP connection to Redis using Bun's native RedisClient.
- * Uses component-based config (REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_TLS).
  */
 import { RedisClient } from 'bun';
 import { log } from '@repo/logger';
+import { REDIS_CONFIG, buildRedisUrl, getRedisOptions } from '@repo/config';
 import { circuitBreaker } from './circuit-breaker';
 
 // Connection state
@@ -13,41 +13,10 @@ let redisClient: RedisClient | null = null;
 let connectionHealthy = false;
 
 /**
- * Parse boolean env var with explicit default
- * - 'true' → true
- * - undefined/null/'false'/anything else → defaultValue (false)
- */
-function getEnvBool(key: string, defaultValue: boolean = false): boolean {
-  const value = Bun.env[key];
-  if (value === undefined || value === null) return defaultValue;
-  return value.toLowerCase() === 'true';
-}
-
-// Component-based configuration (readable in .env)
-const REDIS_HOST = Bun.env.REDIS_HOST || 'anonychat.vinaddns.com';
-const REDIS_PORT = Bun.env.REDIS_PORT || '13409';
-const REDIS_PASSWORD = Bun.env.REDIS_PASSWORD || 'PhamAnhSaoKhue@130409_lequan81!';
-const REDIS_TLS = getEnvBool('REDIS_TLS', true); // Enable TLS for secure connection
-const REDIS_ENABLED = getEnvBool('REDIS_ENABLED', true); // Enable Redis by default
-
-/**
- * Build Redis URL from components (auto-encodes password)
- */
-function buildRedisUrl(): string | undefined {
-  if (!REDIS_HOST) return undefined;
-
-  const protocol = REDIS_TLS ? 'rediss' : 'redis';
-  const url = new URL(`${protocol}://${REDIS_HOST}:${REDIS_PORT}`);
-  if (REDIS_PASSWORD) url.password = REDIS_PASSWORD;
-
-  return url.toString();
-}
-
-/**
  * Initialize Redis connection
  */
 export async function initRedis(): Promise<boolean> {
-  if (!REDIS_ENABLED) {
+  if (!REDIS_CONFIG.ENABLED) {
     log.debug('REDIS', 'Disabled - using in-memory fallback');
     return false;
   }
@@ -59,12 +28,7 @@ export async function initRedis(): Promise<boolean> {
   }
 
   try {
-    const client = new RedisClient(redisUrl, {
-      connectionTimeout: 10000, // Increased timeout
-      autoReconnect: true,
-      maxRetries: 5, // More retries
-      enableOfflineQueue: true
-    });
+    const client = new RedisClient(redisUrl, getRedisOptions());
 
     client.onconnect = () => {
       log.debug('REDIS', 'Connected via TCP');
@@ -87,9 +51,9 @@ export async function initRedis(): Promise<boolean> {
     redisClient = client;
     connectionHealthy = true; // Mark as healthy after successful connection
     log.info('REDIS', 'Connection successful', {
-      host: REDIS_HOST,
-      port: REDIS_PORT,
-      tls: REDIS_TLS
+      host: REDIS_CONFIG.HOST,
+      port: REDIS_CONFIG.PORT,
+      tls: REDIS_CONFIG.TLS
     });
     return true;
   } catch (err) {

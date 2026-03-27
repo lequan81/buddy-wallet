@@ -8,6 +8,10 @@
 export * from './shared';
 export * from './backend';
 export * from './frontend';
+export * from './env';
+export * from './redis';
+export * from './security';
+export * from './email';
 
 // Legacy exports for backward compatibility
 export const ACCEPTED_IMPORT_EXTENSIONS = ['.xlsx', '.xls', '.csv'] as const;

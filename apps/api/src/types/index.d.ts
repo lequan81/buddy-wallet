@@ -4,26 +4,18 @@
  * All shared types and interfaces for the API
  */
 
-// Re-export all types
+// Re-export all types from shared packages
 export * from './rate-limit';
 export * from './trace';
+export * from './services/common';
 export * from '@repo/types';
 
-// Service Types
-export * from './services/common';
-export * from './services/import';
-export * from './services/vietqr';
-export * from './services/jobs';
-export * from './services/password-reset';
-export * from './push';
-// Services are now in @repo/types
-
-// Debt State Types (OCP) - Dedicated location
-export * from './debt-state';
+// Service Types - re-export from @repo/types
+export type { EmailFrom, EmailOptions, EmailSendResult } from '@repo/types';
+export type { JobType, JobPayload } from '@repo/types';
 
 // App type (exported from index.ts)
 import type { Elysia } from 'elysia';
-
 
 /**
  * Paginated response

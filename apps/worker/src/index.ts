@@ -1,15 +1,7 @@
 /**
- * Import Worker — Background Job Processor
+ * Import Worker - Background Job Processor
  *
- * Runs as a separate Bun process: `bun run --watch src/workers/import-worker.ts`
- * Shares .env with the API since it lives under apps/api/.
- *
- * Features:
- * - Circuit breaker for Redis (trips after 3 failures, resets after 60s)
- * - Throttled progress updates (max 1/sec per job, fire-and-forget)
- * - Exponential backoff on queue errors (5s → 10s → 20s → max 60s)
- * - Typed payloads (no `any`)
- * - Payload validation before processing
+ * Runs as a separate Bun process in apps/worker workspace.
  */
 import { RedisClient } from 'bun';
 import { logger } from '@repo/logger';
@@ -17,28 +9,61 @@ import ExcelJS from 'exceljs';
 import { db, debts, users, importLogs, eq, or, inArray } from '@repo/db';
 import { randomUUIDv7 } from 'bun';
 import * as fs from 'node:fs/promises';
-import { MAX_IMPORT_ROWS, MAX_DAILY_IMPORT_ROWS } from '@repo/config';
-import type { WorkerJobPayload, ImportProgress } from '../types/worker';
+import { MAX_IMPORT_ROWS, REDIS_CONFIG, buildRedisUrl, getRedisOptions } from '@repo/config';
+import type { WorkerJobPayload, ImportProgress } from '@repo/types';
 
-// ── Redis Connection (uses Bun.env, same .env as API) ──────
-const REDIS_HOST = Bun.env.REDIS_HOST || 'localhost';
-const REDIS_PORT = Bun.env.REDIS_PORT || '6379';
-const REDIS_PASSWORD = Bun.env.REDIS_PASSWORD;
-const REDIS_TLS = Bun.env.REDIS_TLS?.toLowerCase() === 'true';
+// ── Connection State ───────────────────────────────────────
+let redisClient: RedisClient | null = null;
+let connectionHealthy = false;
 
-function buildRedisUrl(): string {
-  const protocol = REDIS_TLS ? 'rediss' : 'redis';
-  const url = new URL(`${protocol}://${REDIS_HOST}:${REDIS_PORT}`);
-  if (REDIS_PASSWORD) url.password = REDIS_PASSWORD;
-  return url.toString();
+async function initRedis(): Promise<boolean> {
+  if (!REDIS_CONFIG.ENABLED) {
+    logger.info('[Worker] Redis disabled');
+    return false;
+  }
+
+  const redisUrl = buildRedisUrl();
+  if (!redisUrl) {
+    logger.warn('[Worker] Redis URL not configured');
+    return false;
+  }
+
+  try {
+    const client = new RedisClient(redisUrl, getRedisOptions());
+
+    client.onconnect = () => {
+      logger.info('[Worker] Redis connected');
+      connectionHealthy = true;
+    };
+
+    client.onclose = (error: Error | undefined) => {
+      connectionHealthy = false;
+      if (error) {
+        logger.error('[Worker] Redis connection error', { error: String(error) });
+      }
+    };
+
+    // Test connection before returning
+    await client.set('_health', 'ok');
+    await client.del('_health');
+
+    redisClient = client;
+    connectionHealthy = true;
+    logger.info('[Worker] Redis ready', { host: REDIS_CONFIG.HOST, port: REDIS_CONFIG.PORT });
+    return true;
+
+  } catch (err) {
+    logger.error('[Worker] Redis init failed', { error: String(err) });
+    return false;
+  }
 }
 
-const redis = new RedisClient(buildRedisUrl(), {
-  connectionTimeout: 5000,
-  autoReconnect: true,
-  maxRetries: 3,
-  enableOfflineQueue: true
-});
+function getRedis(): RedisClient {
+  if (!redisClient || !connectionHealthy) {
+    throw new Error('Redis not connected');
+  }
+  return redisClient;
+}
 
 // ── Circuit Breaker ────────────────────────────────────────
 let redisFailures = 0;
@@ -50,12 +75,12 @@ function isRedisHealthy(): boolean {
   if (redisFailures >= MAX_FAILURES) {
     if (Date.now() - lastFailure > CIRCUIT_RESET_MS) {
       redisFailures = 0;
-      logger.info('[Worker] Redis circuit breaker reset');
+      logger.info('[Worker] Circuit breaker reset');
       return true;
     }
     return false;
   }
-  return true;
+  return connectionHealthy;
 }
 
 function onRedisSuccess(): void {
@@ -65,11 +90,10 @@ function onRedisSuccess(): void {
 function onRedisFailure(err: unknown): void {
   redisFailures++;
   lastFailure = Date.now();
-  logger.error('[Worker] Redis operation failed', { error: String(err), failures: redisFailures });
+  logger.error('[Worker] Redis operation failed', { error: String(err) });
 }
 
-// ── Throttled Progress Updates ─────────────────────────────
-// Rate-limit: max 1 Redis write per second per job (fire-and-forget)
+// ── Throttled Progress Updates ──────────────────────────────
 const lastProgressUpdate = new Map<string, number>();
 const PROGRESS_THROTTLE_MS = 1000;
 
@@ -79,18 +103,21 @@ function setProgress(logId: string, progress: ImportProgress): void {
   const now = Date.now();
   const last = lastProgressUpdate.get(logId) || 0;
 
-  // Always send status changes (success/failed); throttle processing updates
   const isStatusChange = progress.status !== 'processing';
   if (!isStatusChange && now - last < PROGRESS_THROTTLE_MS) {
-    return; // Throttled — skip non-critical update
+    return;
   }
   lastProgressUpdate.set(logId, now);
 
-  // Fire-and-forget — never await progress writes
-  redis
-    .send('SETEX', [`bw:import:${logId}`, '3600', JSON.stringify(progress)])
-    .then(() => onRedisSuccess())
-    .catch((err) => onRedisFailure(err));
+  try {
+    const redis = getRedis();
+    redis
+      .send('SETEX', [`bw:import:${logId}`, '3600', JSON.stringify(progress)])
+      .then(() => onRedisSuccess())
+      .catch((err) => onRedisFailure(err));
+  } catch {
+    // Redis not available
+  }
 }
 
 // ── Payload Validation ─────────────────────────────────────
@@ -105,39 +132,43 @@ function validatePayload(raw: unknown): raw is WorkerJobPayload {
   );
 }
 
-// ── Cell Value Helper (ExcelJS) ─────────────────────────────
-// ExcelJS rows are 1-indexed arrays; columns map by letter → index
+// ── Cell Value Helper ─────────────────────────────────────
 const colLetterToIndex = (col: string): number => {
   const letterPart = col.includes(':') ? col.split(':')[0].toUpperCase() : col.toUpperCase();
   let idx = 0;
   for (let i = 0; i < letterPart.length; i++) {
-    idx = idx * 26 + (letterPart.charCodeAt(i) - 64); // A=1, B=2, ...
+    idx = idx * 26 + (letterPart.charCodeAt(i) - 64);
   }
   return idx;
 };
 
-// ── 5-minute kill timeout for runaway jobs ──────────────────
-setTimeout(
-  () => {
-    logger.error('[Worker] Kill timeout reached (5 min)');
-    process.exit(1);
-  },
-  5 * 60 * 1000
-);
+// ── 5-minute kill timeout ─────────────────────────────────
+setTimeout(() => {
+  logger.error('[Worker] Kill timeout reached (5 min)');
+  process.exit(1);
+}, 5 * 60 * 1000);
 
 // ── Main Queue Loop ────────────────────────────────────────
 async function main() {
-  logger.info('🚀 Import Worker started, listening on import_jobs queue...');
+  logger.info('[Worker] Import Worker starting...');
+
+  const redisReady = await initRedis();
+  if (!redisReady) {
+    logger.error('[Worker] Cannot start: Redis unavailable');
+    process.exit(1);
+  }
+
+  logger.info('[Worker] Listening on import_jobs queue...');
 
   let consecutiveErrors = 0;
 
   while (true) {
     try {
-      // BLPOP with 30s timeout (not 0/forever — allows circuit breaker to check)
+      const redis = getRedis();
       const result = await redis.blpop('import_jobs', 30);
 
       if (result && result.length === 2) {
-        consecutiveErrors = 0; // Reset backoff on success
+        consecutiveErrors = 0;
         const [, payloadString] = result;
 
         let parsed: unknown;
@@ -149,26 +180,31 @@ async function main() {
         }
 
         if (!validatePayload(parsed)) {
-          logger.error('[Worker] Invalid payload structure', {
-            keys: Object.keys(parsed as object).join(',')
-          });
+          logger.error('[Worker] Invalid payload', { keys: Object.keys(parsed as object).join(',') });
           continue;
         }
 
-        logger.info(
-          `🛠️ Processing job: ${parsed.jobId} (${parsed.type}) for file ${parsed.fileName}`
-        );
+        logger.info(`[Worker] Processing job: ${parsed.jobId} (${parsed.type})`);
         await processJob(parsed);
       }
-      // result is null → BLPOP timed out, just loop again
     } catch (error) {
-      consecutiveErrors++;
-      // Exponential backoff: 5s, 10s, 20s, 40s, max 60s
+      const errorStr = String(error);
+      const isConnectionError = errorStr.includes('Connection') || errorStr.includes('not connected');
+
+      if (isConnectionError) {
+        logger.error('[Worker] Connection lost, attempting reconnect...');
+        const reconnected = await initRedis();
+        if (!reconnected) {
+          logger.error('[Worker] Reconnect failed, exiting');
+          process.exit(1);
+        }
+        consecutiveErrors = 0;
+      } else {
+        consecutiveErrors++;
+      }
+
       const backoff = Math.min(5000 * Math.pow(2, consecutiveErrors - 1), 60_000);
-      logger.warn(`[Worker] Queue error, retrying in ${Math.round(backoff / 1000)}s`, {
-        error: String(error),
-        attempts: consecutiveErrors
-      });
+      logger.warn(`[Worker] Error, retrying in ${Math.round(backoff / 1000)}s`, { error: errorStr, attempt: consecutiveErrors });
       await Bun.sleep(backoff);
     }
   }
@@ -188,7 +224,6 @@ async function processJob(payload: WorkerJobPayload) {
       message: 'Reading file...'
     });
 
-    // Mark log as processing
     if (previewLogId) {
       await db
         .update(importLogs)
@@ -212,16 +247,12 @@ async function processJob(payload: WorkerJobPayload) {
     const startRow = config?.startRow || 2;
     const isCSV = payload.fileName.toLowerCase().endsWith('.csv');
 
-    // ── Parse rows (ExcelJS streaming for XLSX, native Bun for CSV) ──
-    // Collect all rows into an array first for batch user resolution
     const allRows: string[][] = [];
 
     if (isCSV) {
-      // CSV: use Bun native reader + line split (no library needed)
       const text = await Bun.file(tempFilePath).text();
       const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
       for (const line of lines) {
-        // Simple CSV parsing (handles quoted fields)
         const cells: string[] = [];
         let current = '';
         let inQuotes = false;
@@ -249,7 +280,6 @@ async function processJob(payload: WorkerJobPayload) {
         allRows.push(cells);
       }
     } else {
-      // XLSX: ExcelJS streaming reader for memory efficiency
       const workbook = new ExcelJS.stream.xlsx.WorkbookReader(tempFilePath, {
         entries: 'emit',
         sharedStrings: 'cache'
@@ -265,7 +295,7 @@ async function processJob(payload: WorkerJobPayload) {
           });
           allRows.push(rowValues);
         }
-        break; // Only process first worksheet
+        break;
       }
     }
 
@@ -273,7 +303,6 @@ async function processJob(payload: WorkerJobPayload) {
       throw new Error('Empty sheet');
     }
 
-    // startRow is 1-based (row 2 = skip header), allRows is 0-indexed
     const dataStartIndex = startRow - 1;
     const totalRowsToProcess = allRows.length - dataStartIndex;
 
@@ -281,22 +310,9 @@ async function processJob(payload: WorkerJobPayload) {
       throw new Error('No data rows found (only headers)');
     }
 
-    // Row limit check
     if (totalRowsToProcess > MAX_IMPORT_ROWS) {
       throw new Error(
         `Too many rows (${totalRowsToProcess}). Max: ${MAX_IMPORT_ROWS}. Split the file.`
-      );
-    }
-
-    // Daily import limit check
-    const creditorIdForLimit = typeof userId === 'string' ? userId : userId.id;
-    const today = new Date().toISOString().slice(0, 10);
-    const dailyKey = `import:daily:${creditorIdForLimit}:${today}`;
-    const dailyUsedRaw = await redis.send('GET', [dailyKey]).catch(() => null);
-    const dailyUsed = parseInt((dailyUsedRaw as string) || '0');
-    if (dailyUsed + totalRowsToProcess > MAX_DAILY_IMPORT_ROWS) {
-      throw new Error(
-        `Daily import limit exceeded (${dailyUsed}/${MAX_DAILY_IMPORT_ROWS} rows used today)`
       );
     }
 
@@ -307,14 +323,12 @@ async function processJob(payload: WorkerJobPayload) {
       message: 'Optimizing DB lookups...'
     });
 
-    // ── Helper: get cell value by column letter from row array ──
     const getRowValue = (row: string[], col: string | undefined): string | undefined => {
       if (!col) return undefined;
-      const idx = colLetterToIndex(col.toUpperCase()) - 1; // Convert to 0-based
+      const idx = colLetterToIndex(col.toUpperCase()) - 1;
       return idx >= 0 && idx < row.length && row[idx] ? row[idx] : undefined;
     };
 
-    // ── Batch User Resolution ───────────────────────────
     const uniqueIdentifiers = new Set<string>();
     for (let i = dataStartIndex; i < allRows.length; i++) {
       if (i - dataStartIndex >= MAX_IMPORT_ROWS) break;
@@ -345,7 +359,6 @@ async function processJob(payload: WorkerJobPayload) {
       }
     }
 
-    // ── Process Rows ────────────────────────────────────
     const errors: string[] = [];
     const newDebts: Array<{
       id: string;
@@ -371,19 +384,22 @@ async function processJob(payload: WorkerJobPayload) {
 
     for (let i = dataStartIndex; i < allRows.length; i++) {
       rowCount++;
-      const excelRow = i + 1; // 1-based for user-facing messages
+      const excelRow = i + 1;
       const row = allRows[i];
 
-      // Check cancellation every 100 rows
       if (rowCount % 100 === 0) {
-        const status = await redis.send('HGET', [`job:${jobId}`, 'status']).catch(() => null);
-        if (status === 'cancelled') {
-          logger.info(`[Worker] ${jobId} cancelled`);
-          break;
+        try {
+          const redis = getRedis();
+          const status = await redis.send('HGET', [`job:${jobId}`, 'status']).catch(() => null);
+          if (status === 'cancelled') {
+            logger.info(`[Worker] ${jobId} cancelled`);
+            break;
+          }
+        } catch {
+          // Ignore check error
         }
       }
 
-      // Throttled progress update (fire-and-forget, max 1/sec)
       setProgress(jobId, {
         current: rowCount,
         total: totalRowsToProcess,
@@ -436,7 +452,6 @@ async function processJob(payload: WorkerJobPayload) {
       });
     }
 
-    // ── Insert Results ──────────────────────────────────
     if (newDebts.length > 0) {
       await db.insert(debts).values(newDebts);
       logger.info(`[Worker] Job ${jobId}: Inserted ${newDebts.length} rows`);
@@ -454,7 +469,6 @@ async function processJob(payload: WorkerJobPayload) {
       })
       .where(eq(importLogs.id, jobId));
 
-    // Final progress — always sent (not throttled, status change)
     setProgress(jobId, {
       current: totalRowsToProcess,
       total: totalRowsToProcess,
@@ -463,22 +477,13 @@ async function processJob(payload: WorkerJobPayload) {
       result: { imported: newDebts.length, errors: errors.length > 0 ? errors : undefined }
     });
 
-    logger.info(`✅ Job ${jobId} finished successfully`);
+    logger.info(`[Worker] Job ${jobId} finished successfully`);
 
-    // Increment daily import counter
-    const importCreditorId = typeof userId === 'string' ? userId : userId.id;
-    const importToday = new Date().toISOString().slice(0, 10);
-    const importDailyKey = `import:daily:${importCreditorId}:${importToday}`;
-    redis.send('INCRBY', [importDailyKey, String(newDebts.length)]).catch(() => {});
-    redis.send('EXPIRE', [importDailyKey, '86400']).catch(() => {});
-
-    // Clean up the temp file
     await fs.unlink(tempFilePath).catch(() => {});
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    logger.error(`❌ Job ${jobId} failed:`, { error: errorMessage });
+    logger.error(`[Worker] Job ${jobId} failed:`, { error: errorMessage });
 
-    // Final failure progress — always sent (status change)
     setProgress(jobId, {
       status: 'failed',
       current: 0,
@@ -495,15 +500,12 @@ async function processJob(payload: WorkerJobPayload) {
       await db.update(importLogs).set({ status: 'failed' }).where(eq(importLogs.id, previewLogId));
     }
 
-    // Clean up on failure too
     if (tempFilePath) await fs.unlink(tempFilePath).catch(() => {});
   } finally {
-    // Clean up throttle tracking for completed job
     lastProgressUpdate.delete(payload.jobId);
   }
 }
 
-// ── Start ──────────────────────────────────────────────────
 main().catch((err) => {
   logger.error('Fatal worker error', { error: String(err) });
   process.exit(1);

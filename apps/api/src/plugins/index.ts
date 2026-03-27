@@ -22,3 +22,6 @@ export * from './redis';
 
 // Access control (combined plugin)
 export { accessControlPlugin } from './access-control.plugin';
+
+// Services DI plugin
+export { servicesPlugin, services } from './services.plugin';

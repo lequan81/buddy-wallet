@@ -1,8 +1,8 @@
-import type { DebtDetails } from './debt';
-import type { SafeUser, UserResult } from './user';
-import type { SessionInfo } from './session';
-import type { CreateDebtInput, DebtResult, DebtStatus, StatusUpdateResult } from './debt';
-import type { PaginatedResult, PaginationOptions, ExpiryOption } from './api';
+/// <reference types="./debt" />
+/// <reference types="./user" />
+/// <reference types="./session" />
+/// <reference types="./api" />
+/// <reference types="./device" />
 
 // Auth Types
 export interface RegisterInput {
@@ -12,28 +12,15 @@ export interface RegisterInput {
   email?: string;
 }
 
-export interface ClientHints {
-  brands?: Array<{ brand: string; version: string }>;
-  mobile?: boolean;
-  platform?: string;
-}
-
-export interface ClientLocation {
-  city?: string;
-  region?: string;
-  country?: string;
-  timezone?: string;
-}
-
 export interface LoginInput {
   identifier: string;
   password?: string;
   otp?: string;
   userAgent?: string | null;
   clientIP?: string | null;
-  clientHints?: ClientHints;
-  coordinates?: { lat: number; lon: number } | null;
-  clientLocation?: ClientLocation;
+  clientHints?: import('./device').ClientHints;
+  coordinates?: import('./device').Coordinates | null;
+  clientLocation?: import('./device').ClientLocation;
 }
 
 export interface AuthResult {
@@ -42,7 +29,7 @@ export interface AuthResult {
   refreshToken?: string;
   sessionId?: string;
   expiresIn?: number;
-  user?: SafeUser;
+  user?: import('./user').SafeUser;
   error?: string;
   code?: string;
   isNewUser?: boolean;
@@ -58,7 +45,7 @@ export interface JwtService {
 export interface RefreshSessionResult {
   success: boolean;
   error?: string;
-  user?: SafeUser;
+  user?: import('./user').SafeUser;
   accessToken?: string;
   refreshToken?: string;
   expiresIn?: number;
@@ -92,7 +79,7 @@ export interface ISessionService {
   getUserSessions(
     userId: string,
     currentRefreshToken?: string
-  ): Promise<{ sessions: SessionInfo[]; currentSessionId: string | null }>;
+  ): Promise<{ sessions: import('./session').SessionInfo[]; currentSessionId: string | null }>;
   revokeSession(
     sessionId: string,
     userId: string,
@@ -106,21 +93,26 @@ export interface IDebtService {
   getDebtsForUser(
     userId: string,
     hasViewAllPermission: boolean,
-    options?: PaginationOptions
-  ): Promise<PaginatedResult<DebtDetails>>;
-  getDebtsByUserId(userId: string, options?: PaginationOptions): Promise<PaginatedResult<DebtDetails>>;
+    options?: import('./api').PaginationOptions
+  ): Promise<import('./api').PaginatedResult<import('./debt').DebtDetails>>;
+  getDebtsByUserId(userId: string, options?: import('./api').PaginationOptions): Promise<import('./api').PaginatedResult<import('./debt').DebtDetails>>;
   countActiveDebtsForPhone(phone: string): Promise<number>;
-  getDebtById(debtId: string): Promise<DebtDetails | undefined>;
-  createDebt(input: CreateDebtInput & { expiryOption?: ExpiryOption; confirmDuplicate?: boolean }, currentUser: SafeUser): Promise<DebtResult>;
-  updateDebtStatus(debtId: string, newStatus: DebtStatus, currentUser: SafeUser): Promise<StatusUpdateResult>;
+  getDebtById(debtId: string): Promise<import('./debt').DebtDetails | undefined>;
+  createDebt(input: import('./debt').CreateDebtInput & { expiryOption?: import('./api').ExpiryOption; confirmDuplicate?: boolean }, currentUser: import('./user').SafeUser): Promise<import('./debt').DebtResult>;
+  updateDebtStatus(debtId: string, newStatus: import('./debt').DebtStatus, currentUser: import('./user').SafeUser): Promise<import('./debt').StatusUpdateResult>;
 }
 
 export interface IUserService {
   getAllUsers(options?: {
     limit?: number;
     offset?: number;
-  }): Promise<{ users: SafeUser[]; total: number; hasMore: boolean }>;
-  getUserById(userId: string): Promise<UserResult>;
-  toggleUserStatus(userId: string): Promise<UserResult>;
-  updateUserPermissions?(userId: string, permissions: string[]): Promise<UserResult>;
+  }): Promise<{ users: import('./user').SafeUser[]; total: number; hasMore: boolean }>;
+  getUserById(userId: string): Promise<import('./user').UserResult>;
+  toggleUserStatus(userId: string): Promise<import('./user').UserResult>;
+  updateUserPermissions?(userId: string, permissions: string[]): Promise<import('./user').UserResult>;
+}
+
+export interface ResetResult {
+  success: boolean;
+  error?: string;
 }

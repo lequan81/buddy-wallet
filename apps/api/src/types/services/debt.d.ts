@@ -1,5 +1,5 @@
-import type { DebtStatus, DebtDirection, CreateDebtInput, DebtResult } from '@repo/types';
-
-export type { DebtStatus, DebtDirection, CreateDebtInput, DebtResult } from '@repo/types';
-
-export type { DebtStatus, DebtDirection, CreateDebtInput, DebtResult } from '@repo/types';
+/**
+ * Debt Type Definitions
+ * Re-exported from @repo/types
+ */
+export type { DebtStatus, DebtDirection, CreateDebtInput, DebtResult, StatusUpdateResult } from '@repo/types';

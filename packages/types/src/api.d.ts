@@ -1,14 +1,14 @@
-import type { VietQRBank, BankAccount } from './bank';
-import type { DebtStatus } from './debt';
+/// <reference types="./bank" />
+/// <reference types="./debt" />
 
 export interface BankResponse {
   success: boolean;
-  banks: VietQRBank[];
+  banks: import('./bank').VietQRBank[];
 }
 
 export interface AccountsResponse {
   success: boolean;
-  accounts: BankAccount[];
+  accounts: import('./bank').BankAccount[];
 }
 
 export interface ApiResponse<T = unknown> {
@@ -66,7 +66,7 @@ export type ExpiryOption = '7d' | '30d' | '90d' | 'never';
 
 /** Standard pagination options for queries. */
 export interface PaginationOptions extends Partial<Pagination> {
-  status?: DebtStatus | 'all';
+  status?: import('./debt').DebtStatus | 'all';
 }
 
 
@@ -90,7 +90,7 @@ export interface Debt {
   id: string;
   description: string;
   amount: number;
-  status: DebtStatus;
+  status: import('./debt').DebtStatus;
   createdAt: string;
   creditorId?: string;
   debtorId?: string;

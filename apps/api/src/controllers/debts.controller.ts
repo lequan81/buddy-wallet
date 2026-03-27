@@ -1,8 +1,8 @@
 /**
  * Debts Controller
  *
- * Thin controller that delegates to DebtService.
- * Handles HTTP concerns (status codes, params) only.
+ * Thin controller that delegates to DebtService via DI.
+ * Uses Elysia decorate() pattern for service injection.
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
@@ -10,10 +10,12 @@ import { accessControlPlugin } from '../plugins';
 import { permissionPlugin } from '../plugins/guards';
 import { standardRateLimiter } from '../plugins/middleware';
 import { getUserWithFreshData } from '../plugins/auth';
+import { servicesPlugin } from '../plugins'; // DI services
 import { PERMISSIONS, hasPermission } from '@repo/permissions';
-import { DebtService, ActivityService } from '../services';
 import { DEBT_STATUS, DEBT_DIRECTION } from '@repo/types';
 import { getClientIP } from '../utils';
+import { getIdempotentResponse, storeIdempotentResponse } from '../utils/idempotency';
+import { logger } from '@repo/logger';
 
 // Helper functions to convert responses to Response objects for Elysia
 const createErrorResponse = (error: { code: string; message: string }, details?: string, status: number = 400) => {
@@ -123,6 +125,7 @@ const DeleteAllResponseSchema = t.Object({
 });
 
 export const DebtsController = new Elysia({ prefix: '/debts' })
+  .use(servicesPlugin) // Inject services via DI
   .use(permissionPlugin)
   .use(accessControlPlugin)
   // Apply standard rate limit (100 req/min) for all debt endpoints
@@ -131,7 +134,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // List debts (own or all for admin) with pagination
   .get(
     '/',
-    async ({ user, permissions, query, set }) => {
+    async ({ debtServiceHex, user, permissions, query, set }) => {
       if (!user) {
         set.status = 401;
         return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, undefined, 401);
@@ -141,7 +144,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       const offset = query.offset ? parseInt(query.offset) : 0;
       const status = query.status || undefined;
 
-      const result = await DebtService.getDebtsForUser(user!.id, hasViewAll, {
+      const result = await debtServiceHex.getDebtsForUser(user!.id, hasViewAll, {
         limit,
         offset,
         status
@@ -174,19 +177,19 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Get recent debts for quick actions
   .get(
     '/recent',
-    async ({ user, permissions, set }) => {
+    async ({ debtServiceHex, user, permissions, set }) => {
       if (!user) {
         set.status = 401;
         return createErrorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
       const hasViewAll = hasPermission(permissions, PERMISSIONS.DEBT_VIEW_ALL);
-      const result = await DebtService.getDebtsForUser(user!.id, hasViewAll, {
+      const result = await debtServiceHex.getDebtsForUser(user!.id, hasViewAll, {
         limit: 5,
         offset: 0
       });
 
       // Return simplified recent debt data
-      const recentDebts = result.data.map(debt => ({
+      const recentDebts = result.data.map((debt: typeof result.data[0]) => ({
         id: debt.id,
         description: debt.description,
         amount: debt.amount.toString(),
@@ -205,12 +208,12 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Admin: Get specific user's debts with pagination
   .get(
     '/user/:userId',
-    async ({ params: { userId }, query }) => {
+    async ({ debtServiceHex, params: { userId }, query }) => {
       const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
       const offset = query.offset ? parseInt(query.offset) : 0;
       const status = query.status || undefined;
 
-      const result = await DebtService.getDebtsByUserId(userId, {
+      const result = await debtServiceHex.getDebtsByUserId(userId, {
         limit,
         offset,
         status
@@ -241,12 +244,12 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Get recent contacts (phone numbers user has interacted with)
   .get(
     '/recent-contacts',
-    async ({ user, set }) => {
+    async ({ debtServiceHex, user, set }) => {
       if (!user) {
         set.status = 401;
         return createErrorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
-      const contacts = await DebtService.getRecentContacts(user.id, 10);
+      const contacts = await debtServiceHex.getRecentContacts(user.id, 10);
       return createSuccessResponse({ contacts });
     },
     { checkPermission: PERMISSIONS.DEBT_VIEW_OWN, response: { 200: RecentContactsResponseSchema, 401: ErrorResponseSchema } }
@@ -255,8 +258,8 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Get single debt by ID
   .get(
     '/:id',
-    async ({ params: { id }, set }) => {
-      const debt = await DebtService.getDebtById(id);
+    async ({ debtServiceHex, params: { id }, set }) => {
+      const debt = await debtServiceHex.getDebtById(id);
       if (!debt) {
         set.status = 404;
         return createErrorResponse(BE_ERRORS.DEBT_NOT_FOUND);
@@ -270,10 +273,26 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     }
   )
 
-  // Create new debt
+  // Create new debt (with idempotency support)
   .post(
     '/',
-    async ({ user, body, set }) => {
+    async ({ debtServiceHex, user, body, set, headers }) => {
+      // Check idempotency key first
+      const idempotencyKey = headers['idempotency-key'] || headers['Idempotency-Key'];
+      if (idempotencyKey) {
+        const cached = await getIdempotentResponse<{ success: true; debt: unknown } | { success: false; error: unknown }>(idempotencyKey);
+        if (cached) {
+          logger.info('Idempotency cache hit for debt creation', { key: idempotencyKey });
+          set.headers['X-Idempotency-Key'] = idempotencyKey;
+          set.headers['X-Idempotency-Replay'] = 'true';
+          if ('debt' in cached) {
+            return createSuccessResponse({ debt: cached.debt });
+          }
+          // Return cached error as proper response
+          return cached.error as Response;
+        }
+      }
+
       // SECURITY FIX 2: Get fresh user data from database (bypassing cache)
       // This ensures phoneNumber is from authoritative source
       const freshUser = await getUserWithFreshData(user!.id);
@@ -282,7 +301,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
-      const result = await DebtService.createDebt(
+      const result = await debtServiceHex.createDebt(
         {
           amount: body.amount,
           description: body.description,
@@ -306,16 +325,34 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         // Return duplicate warning with duplicates info
         if (result.code === 'DUPLICATE_WARNING') {
           set.status = 409; // Conflict
-          return createErrorResponse({
+          const error = createErrorResponse({
             code: result.code || 'DUPLICATE_WARNING',
             message: result.error || 'Duplicate debts detected'
           }, undefined, 409);
+          if (idempotencyKey) {
+            await storeIdempotentResponse(idempotencyKey, { success: false, error });
+            set.headers['X-Idempotency-Key'] = idempotencyKey;
+          }
+          return error;
         }
         set.status = 400;
-        return createErrorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+        const error = createErrorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+        if (idempotencyKey) {
+          await storeIdempotentResponse(idempotencyKey, { success: false, error });
+          set.headers['X-Idempotency-Key'] = idempotencyKey;
+        }
+        return error;
       }
 
-      return createSuccessResponse({ debt: result.debt });
+      const response = { debt: result.debt };
+      
+      // Store successful response for idempotency
+      if (idempotencyKey) {
+        await storeIdempotentResponse(idempotencyKey, { success: true, debt: result.debt });
+        set.headers['X-Idempotency-Key'] = idempotencyKey;
+      }
+
+      return createSuccessResponse(response);
     },
     {
       body: t.Object({
@@ -336,7 +373,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Update debt status
   .patch(
     '/:id/status',
-    async ({ user, params: { id }, body, set }) => {
+    async ({ debtServiceHex, user, params: { id }, body, set }) => {
       // SECURITY FIX 2: Get fresh user data from database (bypassing cache)
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
@@ -344,7 +381,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
-      const result = await DebtService.updateDebtStatus(id, body.status, {
+      const result = await debtServiceHex.updateDebtStatus(id, body.status, {
         id: freshUser.id,
         phoneNumber: freshUser.phoneNumber,
         permissions: freshUser.permissions as string[],
@@ -381,14 +418,14 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Update debt details (description/amount)
   .put(
     '/:id',
-    async ({ user, params: { id }, body, set }) => {
+    async ({ debtServiceHex, user, params: { id }, body, set }) => {
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
         return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
-      const result = await DebtService.updateDebt(id, body, {
+      const result = await debtServiceHex.updateDebt(id, body, {
         id: freshUser.id,
         phoneNumber: freshUser.phoneNumber,
         permissions: freshUser.permissions as string[],
@@ -422,7 +459,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Batch delete debts (must be before /:id to avoid route conflict)
   .delete(
     '/batch',
-    async ({ user, body, set, request, server }) => {
+    async ({ debtServiceHex, activityService, user, body, set, request, server }) => {
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
@@ -434,7 +471,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         return createErrorResponse(GEN_ERRORS.INVALID_INPUT, 'Cannot delete more than 50 debts at once');
       }
 
-      const result = await DebtService.deleteDebts(body.ids, {
+      const result = await debtServiceHex.deleteDebts(body.ids, {
         id: freshUser.id,
         phoneNumber: freshUser.phoneNumber,
         permissions: freshUser.permissions as string[],
@@ -444,7 +481,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
 
       // Log the batch delete activity
       if (result.deleted > 0) {
-        await ActivityService.log({
+        await activityService.log({
           userId: freshUser.id,
           action: 'delete',
           resource: 'debt',
@@ -470,7 +507,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Delete all user's debts (must be before /:id to avoid route conflict)
   .delete(
     '/all',
-    async ({ user, query, set, request, server }) => {
+    async ({ debtServiceHex, activityService, user, query, set, request, server }) => {
       if (!user) {
         set.status = 401;
         return createErrorResponse(GEN_ERRORS.UNAUTHORIZED);
@@ -480,11 +517,11 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         return createErrorResponse(GEN_ERRORS.INVALID_INPUT, 'Must confirm deletion with ?confirm=true');
       }
 
-      const result = await DebtService.deleteAllDebts(user.id);
+      const result = await debtServiceHex.deleteAllDebts(user.id);
 
       // Log the delete all activity
       if (result.deleted > 0) {
-        await ActivityService.log({
+        await activityService.log({
           userId: user!.id,
           action: 'delete_all',
           resource: 'debt',
@@ -511,14 +548,14 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Delete single debt (soft delete)
   .delete(
     '/:id',
-    async ({ user, params: { id }, set }) => {
+    async ({ debtServiceHex, user, params: { id }, set }) => {
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
         return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
-      const result = await DebtService.deleteDebt(id, {
+      const result = await debtServiceHex.deleteDebt(id, {
         id: freshUser.id,
         phoneNumber: freshUser.phoneNumber,
         permissions: freshUser.permissions as string[],
@@ -548,14 +585,14 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Confirm debt by counterparty
   .post(
     '/:id/confirm',
-    async ({ user, params: { id }, set }) => {
+    async ({ debtServiceHex, user, params: { id }, set }) => {
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
         return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
-      const result = await DebtService.confirmDebt(id, {
+      const result = await debtServiceHex.confirmDebt(id, {
         id: freshUser.id,
         phoneNumber: freshUser.phoneNumber,
         permissions: freshUser.permissions as string[],
@@ -591,14 +628,14 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Suggest edit to a debt (counterparty only)
   .post(
     '/:id/suggest',
-    async ({ user, params: { id }, body, set, request, server }) => {
+    async ({ debtServiceHex, activityService, user, params: { id }, body, set, request, server }) => {
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
         return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
-      const result = await DebtService.suggestEdit(
+      const result = await debtServiceHex.suggestEdit(
         id,
         {
           id: freshUser.id,
@@ -626,7 +663,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         return createErrorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
 
-      await ActivityService.log({
+      await activityService.log({
         userId: freshUser.id,
         action: 'suggest_edit',
         resource: 'debt',
@@ -652,14 +689,14 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   // Respond to suggested edit (creator only)
   .post(
     '/:id/suggestion/respond',
-    async ({ user, params: { id }, body, set, request, server }) => {
+    async ({ debtServiceHex, activityService, user, params: { id }, body, set, request, server }) => {
       const freshUser = await getUserWithFreshData(user!.id);
       if (!freshUser) {
         set.status = 401;
         return createErrorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
 
-      const result = await DebtService.respondToSuggestion(
+      const result = await debtServiceHex.respondToSuggestion(
         id,
         {
           id: freshUser.id,
@@ -684,7 +721,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         return createErrorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
       }
 
-      await ActivityService.log({
+      await activityService.log({
         userId: freshUser.id,
         action: body.accept ? 'accept_suggestion' : 'reject_suggestion',
         resource: 'debt',

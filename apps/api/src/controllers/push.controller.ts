@@ -7,15 +7,16 @@ import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { permissionPlugin } from '../plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
-import { PushService } from '../services';
 import { broadcastRateLimiter } from '../plugins/middleware';
+import { servicesPlugin } from '../plugins/services.plugin';
 
 export const PushController = new Elysia({ prefix: '/push' })
+  .use(servicesPlugin)
   .use(permissionPlugin)
 
   // Get VAPID public key (for client to create subscription)
-  .get('/vapid-key', async ({ set }) => {
-    const publicKey = PushService.getVapidPublicKey();
+  .get('/vapid-key', async ({ set, pushService }) => {
+    const publicKey = pushService.getVapidPublicKey();
 
     if (!publicKey) {
       set.status = 503;
@@ -28,13 +29,13 @@ export const PushController = new Elysia({ prefix: '/push' })
   // Subscribe to push notifications
   .post(
     '/subscribe',
-    async ({ user, body, set }) => {
+    async ({ user, body, set, pushService }) => {
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
 
-      const result = await PushService.subscribe(user.id, {
+      const result = await pushService.subscribe(user.id, {
         endpoint: body.endpoint,
         keys: body.keys,
         expirationTime: body.expirationTime,
@@ -68,13 +69,13 @@ export const PushController = new Elysia({ prefix: '/push' })
   // Unsubscribe from push notifications
   .post(
     '/unsubscribe',
-    async ({ user, body, set }) => {
+    async ({ user, body, set, pushService }) => {
       if (!user) {
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
 
-      const result = await PushService.unsubscribe(user.id, body.endpoint);
+      const result = await pushService.unsubscribe(user.id, body.endpoint);
 
       if (!result.success) {
         set.status = 400;
@@ -91,24 +92,24 @@ export const PushController = new Elysia({ prefix: '/push' })
   )
 
   // Get user's subscriptions
-  .get('/subscriptions', async ({ user, set }) => {
+  .get('/subscriptions', async ({ user, set, pushService }) => {
     if (!user) {
       set.status = 401;
       return errorResponse(GEN_ERRORS.UNAUTHORIZED);
     }
 
-    const subscriptions = await PushService.getUserSubscriptions(user.id);
+    const subscriptions = await pushService.getUserSubscriptions(user.id);
     return successResponse({ subscriptions });
   })
 
   // Send test notification (to self)
-  .post('/test', async ({ user, set }) => {
+  .post('/test', async ({ user, set, pushService }) => {
     if (!user) {
       set.status = 401;
       return errorResponse(GEN_ERRORS.UNAUTHORIZED);
     }
 
-    const result = await PushService.sendToUser(user.id, {
+    const result = await pushService.sendToUser(user.id, {
       title: 'Test Notification',
       body: 'Push notifications are working!',
       icon: '/icons/pwa-192x192.png',
@@ -131,8 +132,8 @@ export const PushController = new Elysia({ prefix: '/push' })
   .use(broadcastRateLimiter) // Rate limit: 1 broadcast per minute
   .post(
     '/broadcast',
-    async ({ body }) => {
-      const result = await PushService.broadcast({
+    async ({ body, pushService }) => {
+      const result = await pushService.broadcast({
         title: body.title,
         body: body.body,
         icon: body.icon,
