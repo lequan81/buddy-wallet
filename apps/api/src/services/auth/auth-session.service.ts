@@ -7,7 +7,6 @@
  * 
  * Dependencies: db
  */
-import { sessions } from '@repo/db';
 import { configs } from '../../configs';
 import type { IUserRepository, ISessionRepository } from '@repo/types';
 import {

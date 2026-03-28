@@ -36,7 +36,7 @@ function createMockRepos() {
       const records = emailVerifications
         .filter((v) => v.email === email && v.verified === false)
         .sort((a, b) => Number(b.createdAt as Date) - Number(a.createdAt as Date));
-      return (records[0] as any) ?? null;
+      return (records[0] as unknown as Record<string, unknown>) ?? null;
     },
     updateAttempts: async (id: string, attempts: number) => {
       const verification = emailVerifications.find((v) => v.id === id);
@@ -47,18 +47,18 @@ function createMockRepos() {
       if (verification) verification.verified = true;
     },
     findAllByUserIdAndEmail: async (userId: string, email: string) =>
-      emailVerifications.filter((v) => v.userId === userId && v.email === email) as any[],
+      emailVerifications.filter((v) => v.userId === userId && v.email === email) as unknown as Record<string, unknown>[],
     getPendingCount: async (userId: string) =>
       emailVerifications.filter((v) => v.userId === userId && v.verified === false).length
   };
 
   const userRepo = {
-    findById: async (id: string) => (users.find((u) => u.id === id) as any) ?? null,
+    findById: async (id: string) => (users.find((u) => u.id === id) as unknown as Record<string, unknown>) ?? null,
     update: async (id: string, data: Record<string, unknown>) => {
       const user = users.find((u) => u.id === id);
       if (!user) return null;
       Object.assign(user, data);
-      return user as any;
+      return user as unknown as Record<string, unknown>;
     }
   };
 
@@ -77,8 +77,8 @@ describe('EmailVerificationService', () => {
   beforeEach(() => {
     mockRepos = createMockRepos();
     service = new EmailVerificationService(
-      mockRepos.emailVerificationRepo as any,
-      mockRepos.userRepo as any
+      mockRepos.emailVerificationRepo as unknown as Parameters<typeof EmailVerificationService>[0],
+      mockRepos.userRepo as unknown as Parameters<typeof EmailVerificationService>[1]
     );
   });
 

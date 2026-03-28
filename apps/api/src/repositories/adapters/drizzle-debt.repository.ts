@@ -6,7 +6,6 @@
  */
 import {
   debts,
-  users,
   eq,
   ne,
   gte,

@@ -160,11 +160,11 @@ export class AuthSecurityService {
         status: 'active',
         deviceName: deviceInfo.deviceName,
         deviceType: deviceInfo.deviceType,
-        location: location as any,
+        location: location as Parameters<typeof this.sessionRepo.create>[0]['location'],
         userAgent: userAgent || null,
         ipAddress: clientIP || null,
         lastActiveAt: new Date()
-      } as any);
+      } as Parameters<typeof this.sessionRepo.create>[0]);
 
       return {
         success: true,

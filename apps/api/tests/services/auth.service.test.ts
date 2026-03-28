@@ -37,11 +37,11 @@ describe('AuthService (Unit Tests with DI)', () => {
 
   beforeEach(() => {
     mockDb = createMockDb();
-    const mockDebtRepo = { linkDebtsToUser: async () => undefined } as any;
-    const mockEmailService = {} as any;
-    const mockVerificationService = {} as any;
+    const mockDebtRepo = { linkDebtsToUser: async () => undefined } as unknown as Parameters<typeof AuthService>[1];
+    const mockEmailService = {} as unknown as Parameters<typeof AuthService>[2];
+    const mockVerificationService = {} as unknown as Parameters<typeof AuthService>[3];
     authService = new AuthService(
-      mockDb as any,
+      mockDb as unknown as Parameters<typeof AuthService>[0],
       mockDebtRepo,
       mockEmailService,
       mockVerificationService

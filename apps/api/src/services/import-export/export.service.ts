@@ -52,7 +52,7 @@ export class ExportService {
     const userMap = new Map(allUsers.map((u) => [u.id, { email: u.email, name: u.name }]));
 
     // Format data
-    const data = userDebts.map((d: any) => {
+    const data = userDebts.map((d: { debtorId?: string | null; creditorId?: string | null; debtorPhone?: string | null; creditorPhone?: string | null; amount?: number; status?: string; description?: string | null; createdAt?: Date | string | null; updatedAt?: Date | string | null; id?: string }) => {
       const debtor = userMap.get(d.debtorId ?? '') || { email: d.debtorPhone, name: d.debtorPhone };
       const creditor = userMap.get(d.creditorId ?? '') || {
         email: d.creditorPhone,
@@ -66,7 +66,7 @@ export class ExportService {
         Person: isCreditor ? debtor.name || debtor.email : creditor.name || creditor.email,
         Amount: d.amount,
         Status: d.status,
-        Description: (d as any).description || ''
+        Description: d.description || ''
       };
     });
 
@@ -87,9 +87,9 @@ export class ExportService {
     const allUsers = await this.userRepo.findPaginated(10000, 0);
     const userMap = new Map(allUsers.map((u) => [u.id, u]));
 
-    const data = allDebts.map((d: any) => {
-      const debtor = userMap.get(d.debtorId ?? '') as any;
-      const creditor = userMap.get(d.creditorId ?? '') as any;
+    const data = allDebts.map((d: { debtorId?: string | null; creditorId?: string | null; debtorPhone?: string | null; creditorPhone?: string | null; amount?: number; status?: string; description?: string | null; createdAt?: Date | string | null; updatedAt?: Date | string | null; id?: string }) => {
+      const debtor = userMap.get(d.debtorId ?? '') as { name?: string | null; email?: string | null; phoneNumber?: string | null } | undefined;
+      const creditor = userMap.get(d.creditorId ?? '') as { name?: string | null; email?: string | null; phoneNumber?: string | null } | undefined;
 
       return {
         ID: d.id,
@@ -99,9 +99,9 @@ export class ExportService {
         'Creditor Phone': maskPhoneNumber(creditor?.phoneNumber || d.creditorPhone || ''),
         Amount: d.amount,
         Status: d.status,
-        Description: (d as any).description || '',
-        Created: (d as any).createdAt ? new Date((d as any).createdAt).toISOString() : '',
-        Updated: (d as any).updatedAt ? new Date((d as any).updatedAt).toISOString() : ''
+        Description: d.description || '',
+        Created: d.createdAt ? new Date(d.createdAt).toISOString() : '',
+        Updated: d.updatedAt ? new Date(d.updatedAt).toISOString() : ''
       };
     });
 

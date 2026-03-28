@@ -78,7 +78,7 @@ export class FileService {
       const now = new Date();
       const status = (type === 'qr_code' ? 'approved' : 'pending') as string;
 
-      const metadata: any = {
+      const metadata = {
         id,
         filename,
         originalName: file.name,

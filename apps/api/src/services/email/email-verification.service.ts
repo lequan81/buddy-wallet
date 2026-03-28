@@ -124,7 +124,7 @@ export class EmailVerificationService {
     // Check resend count in last hour
     const recentVerifications = await this.emailVerificationRepo.findAllByUserIdAndEmail(userId, user.email);
 
-    const recentCount = recentVerifications.filter((v: any) => v.createdAt > oneHourAgo).length;
+    const recentCount = recentVerifications.filter((v: { createdAt: Date }) => v.createdAt > oneHourAgo).length;
 
     if (recentCount >= OTP_MAX_RESENDS_PER_HOUR) {
       return {
@@ -136,7 +136,7 @@ export class EmailVerificationService {
 
     // Check cooldown from last send
     const lastVerification = recentVerifications.sort(
-      (a: any, b: any) => b.lastSentAt.getTime() - a.lastSentAt.getTime()
+      (a: { lastSentAt: Date }, b: { lastSentAt: Date }) => b.lastSentAt.getTime() - a.lastSentAt.getTime()
     )[0];
 
     if (lastVerification) {

@@ -305,7 +305,7 @@ export class ImportService {
       }
 
       if (newDebts.length > 0) {
-        await this.importRepo.createDebtsBatch(newDebts as any[]);
+        await this.importRepo.createDebtsBatch(newDebts as Parameters<typeof this.importRepo.createDebtsBatch>[0]);
       }
 
       await this.importRepo.updateLog(id, {

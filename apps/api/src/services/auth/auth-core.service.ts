@@ -99,7 +99,7 @@ export class AuthCoreService {
             password: hashedPassword,
             permissions: DEFAULT_USER_PERMISSIONS,
             temporaryPasswordUsed: false
-          } as any)
+          } as Parameters<typeof this.userRepo.create>[0])
         );
         newUser = result;
       } catch (error) {
