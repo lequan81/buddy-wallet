@@ -9,7 +9,8 @@
  * Dependencies: db, emailService, emailVerificationService
  */
 import { type User } from '@repo/db';
-import type { IUserRepository, IDebtRepository } from '@repo/types';
+import type { IUserRepository } from '@repo/types';
+import type { IDebtRepository } from '@/repositories';
 import { DEFAULT_USER_PERMISSIONS } from '@repo/permissions';
 import { configs } from '../../configs';
 import {
@@ -22,7 +23,7 @@ import { logger } from '@repo/logger';
 import type { EmailService } from '@services/email/email.service';
 import type { EmailVerificationService } from '@services/email/email-verification.service';
 import type { RegisterInput, AuthResult } from '@/types';
-import { dbCircuitBreaker, DatabaseError as _DatabaseError } from '../../utils/database';
+import { dbCircuitBreaker, DatabaseError as _DatabaseError } from '../../utils/database.utils';
 
 /**
  * AuthCoreService - Core registration and login operations
@@ -40,7 +41,7 @@ export class AuthCoreService {
    */
   private async linkDebtsToUser(userId: string, phoneNumber: string) {
     await dbCircuitBreaker.execute(async () =>
-      this.debtRepo.linkToUser(userId, phoneNumber)
+      this.debtRepo.linkDebtsToUser(userId, phoneNumber)
     );
   }
 

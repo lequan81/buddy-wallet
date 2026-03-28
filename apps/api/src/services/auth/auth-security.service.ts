@@ -10,6 +10,7 @@
  * Dependencies: db
  */
 import { randomUUIDv7 } from 'bun';
+import { createHash } from 'node:crypto';
 import { configs } from '../../configs';
 import type { IUserRepository, ISessionRepository } from '@repo/types';
 import {
@@ -35,6 +36,10 @@ function generateRefreshToken(): string {
   return Buffer.from(bytes).toString('base64url');
 }
 
+function redactIdentifier(identifier: string): string {
+  return createHash('sha256').update(identifier.trim().toLowerCase()).digest('hex').slice(0, 12);
+}
+
 /**
  * AuthSecurityService - Login security and session creation
  */
@@ -53,7 +58,11 @@ export class AuthSecurityService {
   ): Promise<AuthResult & { sessionId?: string }> {
     try {
       const { identifier, password, userAgent, clientIP } = input;
-      logger.auth(`Login attempt`, { identifier });
+      const identifierType = identifier.includes('@') ? 'email' : 'phone';
+      logger.auth(`Login attempt`, {
+        identifierType,
+        identifierHash: redactIdentifier(identifier)
+      });
 
       // Find user by email OR phone number
       const user = identifier.includes('@') 
@@ -68,7 +77,10 @@ export class AuthSecurityService {
       }
 
       if (!user) {
-        logger.auth(`User not found`, { identifier });
+        logger.auth(`User not found`, {
+          identifierType,
+          identifierHash: redactIdentifier(identifier)
+        });
         if (DUMMY_HASH) await Bun.password.verify(password || '', DUMMY_HASH);
         return { success: false, error: 'Invalid credentials' };
       }

@@ -6,43 +6,43 @@
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { sessionAuthPlugin, accessControlPlugin, servicesPlugin } from '@plugins';
-import { permissionPlugin } from '@plugins/guards';
+import { accessControlPlugin, permissionPlugin, servicesPlugin, sessionAuthPlugin } from '@plugins';
 import { PERMISSIONS } from '@repo/permissions';
-import { getClientIP } from '@utils';
-import { configs } from '../../configs';
+import { getClientIP, toSafeUser } from '@utils';
 import {
   UpdateProfileSchema,
   PaginationQuerySchema
 } from '@repo/schemas';
+import { parseOffsetPagination } from '@/core/http/pagination';
+import { requireAuth } from '@/core/http/require-auth';
 
 
 export const UsersController = new Elysia({ prefix: '/users' })
   .use(servicesPlugin)
   .use(sessionAuthPlugin)
-  .use(accessControlPlugin)
   .use(permissionPlugin)
+  .use(accessControlPlugin)
 
   // Get current user profile
   .get('/me', async ({ user, set }) => {
-    if (!user) {
-      set.status = 401;
-      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+    const auth = requireAuth(user, set);
+    if ('error' in auth) {
+      return auth.error;
     }
 
-    return successResponse({ user });
+    return successResponse({ user: toSafeUser(auth.user) });
   })
 
   // Update current user profile
   .patch(
     '/me',
     async ({ user, body, set, request, server, userService, activityService }) => {
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
 
-      const result = await userService.updateProfile(user.id, {
+      const result = await userService.updateProfile(auth.user.id, {
         name: body.name,
         email: body.email,
         phoneNumber: body.phoneNumber,
@@ -56,10 +56,10 @@ export const UsersController = new Elysia({ prefix: '/users' })
       }
 
       await activityService.log({
-        userId: user.id,
+        userId: auth.user.id,
         action: 'update',
         resource: 'user',
-        resourceId: user.id,
+        resourceId: auth.user.id,
         changes: { after: body },
         ipAddress: getClientIP(request, server) || undefined,
         userAgent: request.headers.get('user-agent') || undefined
@@ -77,8 +77,7 @@ export const UsersController = new Elysia({ prefix: '/users' })
   .get(
     '/',
     async ({ query, userService }) => {
-      const limit = query.limit ? Math.min(parseInt(query.limit), configs.PAGINATION.MAX_LIMIT) : configs.PAGINATION.DEFAULT_LIMIT;
-      const offset = query.offset ? parseInt(query.offset) : 0;
+      const { limit, offset } = parseOffsetPagination(query);
       const result = await userService.getAllUsers({ limit, offset });
       return successResponse({
         users: result.data,
@@ -114,6 +113,11 @@ export const UsersController = new Elysia({ prefix: '/users' })
   .patch(
     '/:id/status',
     async ({ user, params: { id }, set, request, server, userService, activityService }) => {
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
+      }
+
       const result = await userService.toggleUserStatus(id);
 
       if (!result.success) {
@@ -122,7 +126,7 @@ export const UsersController = new Elysia({ prefix: '/users' })
       }
 
       await activityService.log({
-        userId: user!.id,
+        userId: auth.user.id,
         action: 'status_change',
         resource: 'user',
         resourceId: id,

@@ -119,7 +119,7 @@
 							View Imported Debts
 						</Button>
 					{/if}
-				{:else if selectedLog.status === 'pending' || selectedLog.status === 'processing' || selectedLog.status === 'preview'}
+				{:else if selectedLog.status === 'pending' || selectedLog.status === 'queued' || selectedLog.status === 'processing' || selectedLog.status === 'preview'}
 					<Button
 						variant="default"
 						class="w-full h-11"

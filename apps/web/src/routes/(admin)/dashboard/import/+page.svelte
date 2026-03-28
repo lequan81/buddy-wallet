@@ -2,11 +2,11 @@
 	import { resolve } from '$app/paths';
 	import { ArrowLeft } from '@repo/icons';
 	import { onMount, untrack } from 'svelte';
-	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import { enhance } from '$app/forms';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
+	import { api } from '$lib/services/api';
 	import { importProgress } from '$lib/stores/import-progress.svelte';
 	import { importUpload } from '$lib/stores/import-upload.svelte';
 	import { IMPORT_DB_FIELDS } from '@repo/config/shared';
@@ -61,6 +61,10 @@
 
 	let historyPage = $state(1);
 	let selectedLog = $state<ImportLog | null>(null);
+	let history = $state({
+		logs: (data.logs as ImportLog[]) || [],
+		totalPages: Math.max(1, data.historyTotalPages || 1)
+	});
 
 	// Form References
 	let uploadForm = $state<HTMLFormElement>();
@@ -90,8 +94,8 @@
 
 	const hasPreview = $derived(uploadState.previewData.length > 0);
 	const currentJob = $derived(importProgress.getJob(importForm.currentJobId));
-	const logs = $derived((data.logs as ImportLog[]) || []);
-	const totalHistoryPages = $derived(Math.max(1, data.historyTotalPages || 1));
+	const logs = $derived(history.logs);
+	const totalHistoryPages = $derived(history.totalPages);
 
 	// === ACTIONS ===
 	const resetUploadState = () => {
@@ -111,35 +115,43 @@
 		if (hiddenFileInput) hiddenFileInput.value = '';
 	};
 
-	const fetchLogs = async (pageNumber = historyPage) => {
-		ui.loadingHistory = true;
+	const fetchLogs = async (pageNumber = historyPage, options: { silent?: boolean } = {}) => {
+		if (!options.silent) {
+			ui.loadingHistory = true;
+		}
 		ui.connectionError = '';
 		ui.showConnectionFallback = false;
 
 		try {
-			// SvelteKit idiomatic way to refresh data without full page reload is invalidateAll 
-			// combined with URLSearchParams. 
-			// The user wants to reduce use of path params, but for search/pagination 
-			// it's the standard SvelteKit way. We'll at least hide it from the user 
-			// where possible or keep it clean.
-			await goto(`?historyPage=${pageNumber}`, { 
-				replaceState: true, 
-				noScroll: true, 
-				keepFocus: true, 
-				invalidateAll: true 
+			const { data: response, error } = await api.v1.import.logs.get({
+				query: {
+					page: String(pageNumber),
+					limit: '10'
+				}
 			});
-			historyPage = pageNumber;
+
+			if (error || !response) {
+				throw new Error((error?.value as { message?: string })?.message || 'Failed to load import history.');
+			}
+
+			const payload = response as Record<string, unknown>;
+			history.logs = (payload.logs as ImportLog[]) ?? [];
+			history.totalPages = Math.max(1, Number(payload.totalPages || 1));
+			historyPage = Math.max(1, Math.min(pageNumber, history.totalPages));
 		} catch (err) {
 			ui.connectionError = err instanceof Error ? err.message : 'Failed to load import history.';
 			ui.showConnectionFallback = true;
 		} finally {
-			ui.loadingHistory = false;
+			if (!options.silent) {
+				ui.loadingHistory = false;
+			}
 		}
 	};
 
 	// === LIFECYCLE ===
 	onMount(() => {
 		setTimeout(() => { ui.isInitialLoading = false; }, 400);
+		historyPage = Math.max(1, Number(data.historyPage || 1));
 
 		if (importUpload.state.status !== 'idle') {
 			uploadState = { ...importUpload.state };
@@ -149,7 +161,7 @@
 
 		const threeHoursAgo = Date.now() - 3 * 60 * 60 * 1000;
 		for (const log of logs) {
-			if (log.status === 'processing' || log.status === 'pending') {
+			if (log.status === 'processing' || log.status === 'pending' || log.status === 'queued') {
 				const logTime = new Date(log.createdAt).getTime();
 				if (logTime > threeHoursAgo) {
 					if (!importProgress.getJob(log.id)) {
@@ -158,6 +170,17 @@
 				}
 			}
 		}
+
+		const interval = setInterval(() => {
+			const hasActiveJobs = Array.from(importProgress.activeJobs.values()).some((job) =>
+				job.status === 'pending' || job.status === 'queued' || job.status === 'processing'
+			);
+			if (hasActiveJobs) {
+				void fetchLogs(historyPage, { silent: true });
+			}
+		}, 3000);
+
+		return () => clearInterval(interval);
 	});
 
 	// Sync state to importUpload store
@@ -184,6 +207,7 @@
 					const current = untrack(() => importForm.columnMapping);
 					importForm.columnMapping = { ...current, ...previewRes.autoMapping };
 				}
+				void fetchLogs(1);
 			} else if (currentJob.type === 'import') {
 				ui.isSubmitting = false;
 				void fetchLogs(1);
@@ -195,6 +219,7 @@
 			uploadState.error = currentJob.error || 'Operation failed';
 			ui.isSubmitting = false;
 			toast.error(currentJob.error || 'Operation failed');
+			void fetchLogs(1);
 		}
 	});
 </script>
@@ -290,7 +315,10 @@
 						method="POST"
 						action="?/import"
 						enctype="multipart/form-data"
-						use:enhance={() => {
+						use:enhance={({ formData }) => {
+							if (uploadState.file) {
+								formData.set('file', uploadState.file);
+							}
 							ui.isSubmitting = true;
 							return async ({ result }) => {
 								if (result.type === 'success') {
@@ -311,8 +339,6 @@
 							};
 						}}
 					>
-						<!-- Pass file again for the actual import action if needed by server -->
-						<input type="hidden" name="file" value={uploadState.file} />
 						<input type="hidden" name="config" value={JSON.stringify({
 							mapping: importForm.columnMapping,
 							startRow: importForm.startRow

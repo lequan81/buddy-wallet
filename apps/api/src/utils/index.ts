@@ -1,7 +1,8 @@
 export * from './phone.utils';
 export * from './crypto.utils';
-export * from './device.utils';
-export * from './ip.utils';
+export { parseUserAgent, getLocationFromIP } from './device.utils';
+export type { ClientHints } from './device.utils';
+export { isPrivateIP, isLocalhost, isTrustedProxy, getClientIP } from './ip.utils';
 export * from './password.utils';
 export * from './user-mapping.utils';
 export * from './cursor.utils';

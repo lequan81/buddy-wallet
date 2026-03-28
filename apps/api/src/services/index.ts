@@ -1,60 +1,24 @@
 /**
- * Services Index
- *
- * Central export point for all services.
- * Exports singleton instances for use outside DI context (worker, scripts).
- *
- * NOTE: Controllers should use the DI plugin (servicesPlugin) instead.
+ * Canonical service exports.
+ * Re-uses the single DI composition graph from services.plugin.ts.
  */
-import { db } from '@repo/db';
-// No unused imports
+import { services } from '@/plugins/services.plugin';
 
-// Import Service Classes
-import { SessionService as SessionServiceClass } from './user/session.service';
-import { UserService as UserServiceClass } from './user/user.service';
-import { DrizzleUserRepository, DrizzleSessionRepository } from '@/repositories/adapters/drizzle-user.repository';
-import { DrizzleActivityRepository } from '@/repositories/adapters/drizzle-activity.repository';
-import { DrizzleNotificationRepository } from '@/repositories/adapters/drizzle-notification.repository';
-import { DrizzleBankAccountRepository } from '@/repositories/adapters/drizzle-bank-account.repository';
-import { ExportService as ExportServiceClass } from './import-export/export.service';
-import { ImportService as ImportServiceClass } from './import-export/import.service';
-import { FileService as FileServiceClass } from './storage/file.service';
-import { EmailService as EmailServiceClass } from './email/email.service';
-import { PushService as PushServiceClass } from './notification/push.service';
-import { ActivityService as ActivityServiceClass } from './activity/activity.service';
-import { BankAccountService as BankAccountServiceClass } from './bank/bank-account.service';
-import { EmailVerificationService as EmailVerificationServiceClass } from './email/email-verification.service';
-import { PasswordResetService as PasswordResetServiceClass } from './email/password-reset.service';
-import { VietQRService as VietQRServiceClass } from './bank/vietqr.service';
-import { JobsService as JobsServiceClass } from './system/jobs.service';
-import { SpreadsheetService as SpreadsheetServiceClass } from './import-export/spreadsheet.service';
-import { ImportLoggerService as ImportLoggerServiceClass } from './import-export/import-logger.service';
-
-export { CleanupService } from './system/cleanup.service';
-
-// Re-export types from centralized type system
 export type { DbClient, JwtService, CacheService } from '../types';
 
-// Core Repositories
-const userRepository = new DrizzleUserRepository(db);
-const sessionRepository = new DrizzleSessionRepository(db);
-const activityRepository = new DrizzleActivityRepository(db);
-const notificationRepository = new DrizzleNotificationRepository(db);
-const bankAccountRepository = new DrizzleBankAccountRepository(db);
-
-// Singleton instances (for non-DI contexts: worker, scripts, cron)
-export const SessionService = new SessionServiceClass(sessionRepository, userRepository);
-export const PushService = new PushServiceClass(notificationRepository);
-export const ActivityService = new ActivityServiceClass(activityRepository);
-export const UserService = new UserServiceClass(userRepository, sessionRepository);
-export const EmailVerificationService = new EmailVerificationServiceClass(db);
-export const EmailService = new EmailServiceClass();
-export const PasswordResetService = new PasswordResetServiceClass(db, EmailService);
-export const VietqrService = new VietQRServiceClass();
-export const JobsService = new JobsServiceClass();
-export const SpreadsheetService = new SpreadsheetServiceClass();
-export const ImportLoggerService = new ImportLoggerServiceClass(db);
-export const ImportService = new ImportServiceClass(db, SpreadsheetService, ImportLoggerService);
-export const ExportService = new ExportServiceClass(db);
-export const FileService = new FileServiceClass(db);
-export const BankAccountService = new BankAccountServiceClass(bankAccountRepository);
+export const SessionService = services.sessionService;
+export const PushService = services.pushService;
+export const ActivityService = services.activityService;
+export const UserService = services.userService;
+export const EmailVerificationService = services.emailVerificationService;
+export const EmailService = services.emailService;
+export const PasswordResetService = services.passwordResetService;
+export const VietqrService = services.vietqrService;
+export const JobsService = services.jobsService;
+export const SpreadsheetService = services.spreadsheetService;
+export const ImportLoggerService = services.importLoggerService;
+export const ImportService = services.importService;
+export const ExportService = services.exportService;
+export const FileService = services.fileService;
+export const BankAccountService = services.bankAccountService;
+export const DebtService = services.debtService;

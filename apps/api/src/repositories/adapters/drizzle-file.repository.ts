@@ -1,6 +1,4 @@
-import { eq, and, desc } from 'drizzle-orm';
-import type { FileMetadata, FileStatus } from '@repo/db';
-import { fileMetadata } from '@repo/db';
+import { eq, and, desc, fileMetadata, type FileMetadata, type FileStatus } from '@repo/db';
 import type { IFileRepository } from '@repo/types';
 import type { DbClient } from '@/types';
 

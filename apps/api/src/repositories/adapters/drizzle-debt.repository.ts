@@ -14,10 +14,12 @@ import {
   and,
   or,
   count,
-  isNull
+  isNull,
+  inArray,
+  sql
 } from '@repo/db';
 import { configs } from '@/configs';
-import type { DebtStatus } from '@repo/types';
+import { DEBT_STATUS, type DebtStatus } from '@repo/types';
 import type { DbClient } from '@/types';
 import type { PaginatedResult } from '@repo/types';
 import type {
@@ -34,35 +36,8 @@ import type {
 export class DrizzleDebtRepository implements IDebtRepository {
   constructor(private db: DbClient) {}
 
-  /**
-   * Map Drizzle Debt to domain DebtEntity
-   */
-  private toEntity(debt: typeof debts.$inferSelect): DebtEntity {
-    return {
-      ...debt,
-      status: debt.status as DebtStatus
-    } as DebtEntity;
-  }
-
-  async findById(id: string, includeDeleted = false): Promise<DebtEntity | null> {
-    const where = includeDeleted
-      ? eq(debts.id, id)
-      : and(eq(debts.id, id), isNull(debts.deletedAt));
-
-    const debt = await this.db.query.debts.findFirst({ where });
-    return debt ? this.toEntity(debt) : null;
-  }
-
-  async findMany(options: DebtFilterOptions): Promise<PaginatedResult<DebtEntity>> {
-    const { 
-      limit = configs.PAGINATION.DEFAULT_LIMIT, 
-      offset = 0, 
-      status, 
-      involvedUserId, 
-      includeDeleted 
-    } = options;
-
-    // Build where clause
+  private buildWhere(options: Omit<DebtFilterOptions, 'limit' | 'offset'>) {
+    const { status, involvedUserId, includeDeleted } = options;
     let where: ReturnType<typeof and> | ReturnType<typeof or> | undefined;
 
     if (involvedUserId) {
@@ -92,6 +67,43 @@ export class DrizzleDebtRepository implements IDebtRepository {
     if (!includeDeleted) {
       where = where ? and(where, isNull(debts.deletedAt)) : isNull(debts.deletedAt);
     }
+
+    return where;
+  }
+
+  /**
+   * Map Drizzle Debt to domain DebtEntity
+   */
+  private toEntity(debt: typeof debts.$inferSelect): DebtEntity {
+    return {
+      ...debt,
+      status: debt.status as DebtStatus
+    } as DebtEntity;
+  }
+
+  async findById(id: string, includeDeleted = false): Promise<DebtEntity | null> {
+    const where = includeDeleted
+      ? eq(debts.id, id)
+      : and(eq(debts.id, id), isNull(debts.deletedAt));
+
+    const debt = await this.db.query.debts.findFirst({ where });
+    return debt ? this.toEntity(debt) : null;
+  }
+
+  async findByIds(ids: string[], includeDeleted = false): Promise<DebtEntity[]> {
+    if (ids.length === 0) return [];
+
+    const where = includeDeleted
+      ? inArray(debts.id, ids)
+      : and(inArray(debts.id, ids), isNull(debts.deletedAt));
+
+    const rows = await this.db.select().from(debts).where(where).all();
+    return rows.map((row) => this.toEntity(row));
+  }
+
+  async findMany(options: DebtFilterOptions): Promise<PaginatedResult<DebtEntity>> {
+    const { limit = configs.PAGINATION.DEFAULT_LIMIT, offset = 0 } = options;
+    const where = this.buildWhere(options);
 
     // Get count
     const countResult = where
@@ -121,38 +133,7 @@ export class DrizzleDebtRepository implements IDebtRepository {
   }
 
   async count(options: Omit<DebtFilterOptions, 'limit' | 'offset'>): Promise<number> {
-    // Reuse findMany logic but only return count
-    const { status, involvedUserId, includeDeleted } = options;
-
-    let where: ReturnType<typeof and> | ReturnType<typeof or> | undefined;
-
-    if (involvedUserId) {
-      where = or(eq(debts.debtorId, involvedUserId), eq(debts.creditorId, involvedUserId));
-    }
-
-    if (options.debtorId) {
-      const debtorCond = eq(debts.debtorId, options.debtorId);
-      where = where ? and(where, debtorCond) : debtorCond;
-    }
-
-    if (options.creditorId) {
-      const creditorCond = eq(debts.creditorId, options.creditorId);
-      where = where ? and(where, creditorCond) : creditorCond;
-    }
-
-    if (options.uploadedById) {
-      const uploadedCond = eq(debts.uploadedById, options.uploadedById);
-      where = where ? and(where, uploadedCond) : uploadedCond;
-    }
-
-    if (status && status !== 'all') {
-      const statusCond = eq(debts.status, status);
-      where = where ? and(where, statusCond) : statusCond;
-    }
-
-    if (!includeDeleted) {
-      where = where ? and(where, isNull(debts.deletedAt)) : isNull(debts.deletedAt);
-    }
+    const where = this.buildWhere(options);
 
     const countResult = where
       ? await this.db.select({ count: count() }).from(debts).where(where).get()
@@ -169,21 +150,6 @@ export class DrizzleDebtRepository implements IDebtRepository {
   async update(id: string, data: UpdateDebtData): Promise<DebtEntity | null> {
     const result = await this.db.update(debts).set(data).where(eq(debts.id, id)).returning();
     return result.length > 0 ? this.toEntity(result[0]) : null;
-  }
-
-  async linkToUser(userId: string, phoneNumber: string): Promise<void> {
-    const now = new Date();
-    // Link debtor
-    await this.db
-      .update(debts)
-      .set({ debtorId: userId, updatedAt: now })
-      .where(and(eq(debts.debtorPhone, phoneNumber), isNull(debts.debtorId)));
-
-    // Link creditor
-    await this.db
-      .update(debts)
-      .set({ creditorId: userId, updatedAt: now })
-      .where(and(eq(debts.creditorPhone, phoneNumber), isNull(debts.creditorId)));
   }
 
   async countByUserId(userId: string): Promise<{ total: number; pending: number; completed: number }> {
@@ -249,23 +215,26 @@ export class DrizzleDebtRepository implements IDebtRepository {
   }
 
   async batchSoftDelete(ids: string[], deletedAt: Date): Promise<{ deleted: string[]; notFound: string[] }> {
-    const deleted: string[] = [];
-    const notFound: string[] = [];
-
-    for (const id of ids) {
-      const result = await this.db
-        .update(debts)
-        .set({ deletedAt, updatedAt: deletedAt })
-        .where(and(eq(debts.id, id), isNull(debts.deletedAt)))
-        .returning({ id: debts.id });
-
-      if (result.length > 0) {
-        deleted.push(id);
-      } else {
-        notFound.push(id);
-      }
+    if (ids.length === 0) {
+      return { deleted: [], notFound: [] };
     }
 
+    const existingRows = await this.db
+      .select({ id: debts.id })
+      .from(debts)
+      .where(and(inArray(debts.id, ids), isNull(debts.deletedAt)))
+      .all();
+
+    const deleted = existingRows.map((row) => row.id);
+    if (deleted.length > 0) {
+      await this.db
+        .update(debts)
+        .set({ deletedAt, updatedAt: deletedAt })
+        .where(and(inArray(debts.id, deleted), isNull(debts.deletedAt)));
+    }
+
+    const deletedSet = new Set(deleted);
+    const notFound = ids.filter((id) => !deletedSet.has(id));
     return { deleted, notFound };
   }
 
@@ -280,40 +249,19 @@ export class DrizzleDebtRepository implements IDebtRepository {
   }
 
   async getRecentContacts(userId: string, limit: number): Promise<string[]> {
-    // Get all debts involving this user
-    const userDebts = await this.db
+    const rows = await this.db
       .select({
-        debtorPhone: debts.debtorPhone,
-        creditorPhone: debts.creditorPhone,
-        createdAt: debts.createdAt
+        phone: sql<string>`CASE WHEN ${debts.debtorId} = ${userId} THEN ${debts.creditorPhone} ELSE ${debts.debtorPhone} END`,
+        lastCreatedAt: sql<number>`MAX(${debts.createdAt})`
       })
       .from(debts)
-      .where(or(eq(debts.debtorId, userId), eq(debts.creditorId, userId)))
-      .orderBy(debts.createdAt)
+      .where(and(or(eq(debts.debtorId, userId), eq(debts.creditorId, userId)), isNull(debts.deletedAt)))
+      .groupBy(sql`CASE WHEN ${debts.debtorId} = ${userId} THEN ${debts.creditorPhone} ELSE ${debts.debtorPhone} END`)
+      .orderBy(sql`lastCreatedAt DESC`)
+      .limit(limit)
       .all();
 
-    // Get user's phone number
-    const user = await this.db.query.users.findFirst({
-      where: eq(users.id, userId),
-      columns: { phoneNumber: true }
-    });
-    const myPhone = user?.phoneNumber;
-
-    // Extract unique counterparty phones
-    const seenPhones = new Set<string>();
-    const contacts: string[] = [];
-
-    for (let i = userDebts.length - 1; i >= 0 && contacts.length < limit; i--) {
-      const d = userDebts[i];
-      const counterpartyPhone = d.debtorPhone !== myPhone ? d.debtorPhone : d.creditorPhone;
-
-      if (counterpartyPhone && !seenPhones.has(counterpartyPhone)) {
-        seenPhones.add(counterpartyPhone);
-        contacts.push(counterpartyPhone);
-      }
-    }
-
-    return contacts;
+    return rows.map((row) => row.phone).filter(Boolean);
   }
 
   async countActiveDebtsForPhone(phone: string): Promise<number> {

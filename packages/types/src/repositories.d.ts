@@ -69,6 +69,7 @@ export interface IImportExportRepository {
   createLog(data: Omit<ImportLog, 'createdAt' | 'deletedAt'>): Promise<void>;
   updateLog(id: string, data: Partial<ImportLog>): Promise<void>;
   getLogById(id: string, userId: string): Promise<ImportLog | null>;
+  getLogsByIds(ids: string[], userId: string): Promise<ImportLog[]>;
   getLogsPaginated(userId: string, limit: number, offset: number): Promise<{ logs: ImportLog[]; total: number }>;
   deleteLogsByStatus(userId: string, status: string, olderThan: Date): Promise<number>;
   // Batch operations

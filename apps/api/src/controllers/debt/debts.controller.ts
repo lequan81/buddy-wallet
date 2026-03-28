@@ -6,8 +6,12 @@
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { sessionAuthPlugin, accessControlPlugin, servicesPlugin } from '@plugins';
-import { permissionPlugin } from '@plugins/guards';
+import {
+  accessControlPlugin,
+  permissionPlugin,
+  servicesPlugin,
+  sessionAuthPlugin
+} from '@plugins';
 import { standardRateLimiter } from '@plugins/middleware';
 import { getUserWithFreshData } from '@plugins/auth';
 import { PERMISSIONS, hasPermission } from '@repo/permissions';
@@ -24,13 +28,12 @@ import {
 import { getClientIP } from '@utils';
 import { getIdempotentResponse, storeIdempotentResponse } from '@/utils/idempotency';
 import { logger } from '@repo/logger';
-import { configs } from '../../configs';
-
-
-
+import { toCurrentUser } from './current-user.mapper';
+import { parseOffsetPagination } from '@/core/http/pagination';
+import { requireAuth } from '@/core/http/require-auth';
 
 export const DebtsController = new Elysia({ prefix: '/debts' })
-  .use(servicesPlugin) // Inject services via DI
+  .use(servicesPlugin)
   .use(sessionAuthPlugin)
   .use(permissionPlugin)
   .use(accessControlPlugin)
@@ -46,16 +49,17 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   .get(
     '/',
     async ({ debtService, user, permissions, query, set }) => {
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
+      const userEntity = auth.user;
+
       const hasViewAll = hasPermission(permissions, PERMISSIONS.DEBT_VIEW_ALL);
-      const limit = query.limit ? Math.min(parseInt(query.limit), configs.PAGINATION.MAX_LIMIT) : configs.PAGINATION.DEFAULT_LIMIT;
-      const offset = query.offset ? parseInt(query.offset) : 0;
+      const { limit, offset } = parseOffsetPagination(query);
       const status = query.status || undefined;
 
-      const result = await debtService.getDebtsForUser(user.id, hasViewAll, {
+      const result = await debtService.getDebtsForUser(userEntity.id, hasViewAll, {
         limit,
         offset,
         status
@@ -80,12 +84,13 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   .get(
     '/recent',
     async ({ debtService, user, permissions, set }) => {
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
+      const userEntity = auth.user;
       const hasViewAll = hasPermission(permissions, PERMISSIONS.DEBT_VIEW_ALL);
-      const result = await debtService.getDebtsForUser(user.id, hasViewAll, {
+      const result = await debtService.getDebtsForUser(userEntity.id, hasViewAll, {
         limit: 5,
         offset: 0
       });
@@ -110,8 +115,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   .get(
     '/user/:userId',
     async ({ debtService, params: { userId }, query }) => {
-      const limit = query.limit ? Math.min(parseInt(query.limit), configs.PAGINATION.MAX_LIMIT) : configs.PAGINATION.DEFAULT_LIMIT;
-      const offset = query.offset ? parseInt(query.offset) : 0;
+      const { limit, offset } = parseOffsetPagination(query);
       const status = query.status || undefined;
 
       const result = await debtService.getDebtsByUserId(userId, {
@@ -136,11 +140,11 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   .get(
     '/recent-contacts',
     async ({ debtService, user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
-      const contacts = await debtService.getRecentContacts(user.id, 10);
+      const contacts = await debtService.getRecentContacts(auth.user.id, 10);
       return successResponse({ contacts });
     },
     { checkPermission: PERMISSIONS.DEBT_VIEW_OWN }
@@ -187,6 +191,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
+      const actor = toCurrentUser(freshUser);
 
       const result = await debtService.createDebt(
         {
@@ -195,13 +200,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
           counterpartyPhone: body.counterpartyPhone,
           direction: body.direction
         },
-        {
-          id: freshUser.id,
-          phoneNumber: freshUser.phoneNumber,
-          permissions: freshUser.permissions as string[],
-          role: freshUser.role,
-          email: freshUser.email
-        },
+        actor,
         {
           expiryOption: body.expiryOption as 'never' | '7d' | '30d' | '90d' | undefined,
           confirmDuplicate: body.confirmDuplicate
@@ -255,14 +254,9 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
+      const actor = toCurrentUser(freshUser);
 
-      const result = await debtService.updateDebtStatus(id, body.status, {
-        id: freshUser.id,
-        phoneNumber: freshUser.phoneNumber,
-        permissions: freshUser.permissions as string[],
-        role: freshUser.role,
-        email: freshUser.email
-      });
+      const result = await debtService.updateDebtStatus(id, body.status, actor);
 
       if (!result.success) {
         if (result.error === 'Debt not found') {
@@ -270,7 +264,12 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
           return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
         }
         set.status = 400;
-        return errorResponse(BE_ERRORS.DEBT_INVALID_STATUS, result.error);
+        const error = errorResponse(BE_ERRORS.DEBT_INVALID_STATUS, result.error);
+        return {
+          ...error,
+          code: result.code || 'DEBT_INVALID_STATUS',
+          reason: result.error || 'Invalid debt state transition'
+        };
       }
 
       return successResponse({ debt: result.debt });
@@ -290,14 +289,9 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
+      const actor = toCurrentUser(freshUser);
 
-      const result = await debtService.updateDebt(id, body, {
-        id: freshUser.id,
-        phoneNumber: freshUser.phoneNumber,
-        permissions: freshUser.permissions as string[],
-        role: freshUser.role,
-        email: freshUser.email
-      });
+      const result = await debtService.updateDebt(id, body, actor);
 
       if (!result.success) {
         if (result.error === 'Debt not found') {
@@ -326,19 +320,14 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
+      const actor = toCurrentUser(freshUser);
 
       if (body.ids.length > 50) {
         set.status = 400;
         return errorResponse(GEN_ERRORS.INVALID_INPUT, 'Cannot delete more than 50 debts at once');
       }
 
-      const result = await debtService.deleteDebts(body.ids, {
-        id: freshUser.id,
-        phoneNumber: freshUser.phoneNumber,
-        permissions: freshUser.permissions as string[],
-        role: freshUser.role,
-        email: freshUser.email
-      });
+      const result = await debtService.deleteDebts(body.ids, actor);
 
       // Log the batch delete activity
       if (result.deleted > 0) {
@@ -411,14 +400,9 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
+      const actor = toCurrentUser(freshUser);
 
-      const result = await debtService.deleteDebt(id, {
-        id: freshUser.id,
-        phoneNumber: freshUser.phoneNumber,
-        permissions: freshUser.permissions as string[],
-        role: freshUser.role,
-        email: freshUser.email
-      });
+      const result = await debtService.deleteDebt(id, actor);
 
       if (!result.success) {
         if (result.error === 'Debt not found') {
@@ -446,14 +430,9 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
+      const actor = toCurrentUser(freshUser);
 
-      const result = await debtService.confirmDebt(id, {
-        id: freshUser.id,
-        phoneNumber: freshUser.phoneNumber,
-        permissions: freshUser.permissions as string[],
-        role: freshUser.role,
-        email: freshUser.email
-      });
+      const result = await debtService.confirmDebt(id, actor);
 
       if (!result.success) {
         if (result.code === 'NOT_FOUND') {
@@ -487,16 +466,11 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
+      const actor = toCurrentUser(freshUser);
 
       const result = await debtService.suggestEdit(
         id,
-        {
-          id: freshUser.id,
-          phoneNumber: freshUser.phoneNumber,
-          permissions: freshUser.permissions as string[],
-          role: freshUser.role,
-          email: freshUser.email
-        },
+        actor,
         {
           amount: body.amount,
           description: body.description
@@ -543,16 +517,11 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         set.status = 401;
         return errorResponse(GEN_ERRORS.UNAUTHORIZED, 'User not found');
       }
+      const actor = toCurrentUser(freshUser);
 
       const result = await debtService.respondToSuggestion(
         id,
-        {
-          id: freshUser.id,
-          phoneNumber: freshUser.phoneNumber,
-          permissions: freshUser.permissions as string[],
-          role: freshUser.role,
-          email: freshUser.email
-        },
+        actor,
         body.accept
       );
 

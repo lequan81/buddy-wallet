@@ -1,6 +1,4 @@
-import { eq, and, desc, count } from 'drizzle-orm';
-import type { EmailVerification } from '@repo/db';
-import { emailVerifications } from '@repo/db';
+import { eq, and, desc, count, emailVerifications, type EmailVerification } from '@repo/db';
 import type { IEmailVerificationRepository } from '@repo/types';
 import type { DbClient } from '@/types';
 

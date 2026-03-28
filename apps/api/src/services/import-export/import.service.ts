@@ -16,7 +16,6 @@ import type { ImportConfig } from '@/types';
 import type { PreviewResult, ImportResult, ProgressResult } from '@/types';
 import type { SpreadsheetService } from './spreadsheet.service';
 import type { ImportLoggerService } from './import-logger.service';
-import { configs } from '@/configs';
 import { logger } from '@repo/logger';
 import type { IImportExportRepository } from '@repo/types';
 import type { CurrentUser, ImportRow } from '@/types';
@@ -376,20 +375,16 @@ export class ImportService {
     // 2. Fallback to DB for missing keys (older jobs)
     const missingIds = logIds.filter((id) => !results[id]);
     if (missingIds.length > 0) {
-      for (const id of missingIds) {
-        const log = await this.importRepo.getLogById(id, userId);
-        if (log) {
-          results[id] = {
-            success: true,
-            current: log.importedCount || 0,
-            total: log.totalRows || 0,
-            status: log.status,
-            errors: log.errors ? JSON.parse(log.errors) : undefined,
-            percentage: log.totalRows
-              ? Math.round(((log.importedCount || 0) / log.totalRows) * 100)
-              : 0
-          };
-        }
+      const logs = await this.importRepo.getLogsByIds(missingIds, userId);
+      for (const log of logs) {
+        results[log.id] = {
+          success: true,
+          current: log.importedCount || 0,
+          total: log.totalRows || 0,
+          status: log.status,
+          errors: log.errors ? JSON.parse(log.errors) : undefined,
+          percentage: log.totalRows ? Math.round(((log.importedCount || 0) / log.totalRows) * 100) : 0
+        };
       }
     }
 
@@ -426,16 +421,6 @@ export class ImportService {
       errors: log.errors ? JSON.parse(log.errors) : undefined,
       percentage: log.totalRows ? Math.round(((log.importedCount || 0) / log.totalRows) * 100) : 0
     };
-  }
-
-  /**
-   * Cleanup stale pending logs (user-specific)
-   * SECURITY: Filter by userId to prevent cleaning other users' logs
-   */
-  async cleanupStaleLogs(userId: string): Promise<{ success: boolean }> {
-    const cutoff = new Date(Date.now() - configs.IMPORT.STALE_LOG_LIFETIME);
-    await this.importRepo.deleteLogsByStatus(userId, 'pending', cutoff);
-    return { success: true };
   }
 
   /**

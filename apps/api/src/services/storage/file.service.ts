@@ -1,18 +1,15 @@
 import { type FileMetadata, type FileType } from '@repo/db';
 import { cache } from '@/plugins/redis';
 import { log } from '@repo/logger';
-import {
-  MAX_IMAGE_FILE_SIZE,
-  ACCEPTED_IMAGE_MIME_TYPES,
-  UPLOAD_TMP_DIR,
-  PROOF_TMP_DIR
-} from '@repo/config';
+import { MAX_IMAGE_FILE_SIZE, ACCEPTED_IMAGE_MIME_TYPES, BACKEND_CONSTANTS } from '@repo/config';
 import { isValidImageBytes } from '@repo/utils';
-import { DiskStorageService } from './storage.service';
-import type { IStorageService, IFileRepository, IDebtRepository } from '@/types';
+import { createStorageServices } from './storage.service';
+import type { IStorageService } from '@/types';
+import type { IFileRepository } from '@repo/types';
+import type { IDebtRepository } from '@/repositories';
 import { ImageService } from './image.service';
 
-const IMAGE_CACHE_TTL = 3600; // 1 hour
+const IMAGE_CACHE_TTL_SECONDS = Math.floor(BACKEND_CONSTANTS.LOCATION_TTL_MS / 1000);
 
 export class FileService {
   private uploadStorage: IStorageService;
@@ -26,8 +23,9 @@ export class FileService {
     proofStorage?: IStorageService,
     imageService?: ImageService
   ) {
-    this.uploadStorage = uploadStorage || new DiskStorageService(UPLOAD_TMP_DIR);
-    this.proofStorage = proofStorage || new DiskStorageService(PROOF_TMP_DIR);
+    const defaultStorage = createStorageServices();
+    this.uploadStorage = uploadStorage || defaultStorage.uploadStorage;
+    this.proofStorage = proofStorage || defaultStorage.proofStorage;
     this.imageService = imageService || new ImageService();
     this.ensureDirs();
   }
@@ -74,7 +72,7 @@ export class FileService {
       const relativePath = `${filename}`; // Storage handles the base directory now
 
       const targetStorage = type === 'payment_proof' ? this.proofStorage : this.uploadStorage;
-      await targetStorage.save(relativePath, processedBuffer);
+      const storedPath = await targetStorage.save(relativePath, processedBuffer);
 
       // Metadata
       const now = new Date();
@@ -86,7 +84,7 @@ export class FileService {
         originalName: file.name,
         mimeType: 'image/webp',
         sizeBytes: processedBuffer.length,
-        storagePath: relativePath,
+        storagePath: storedPath,
         uploadedById: userId,
         fileType: type,
         relatedDebtId: relatedDebtId || null,
@@ -107,14 +105,15 @@ export class FileService {
             await this.debtRepo.update(relatedDebtId, {
               hasPendingProof: true,
               proofCount: (debt.proofCount || 0) + 1,
-              lastProofUploadedAt: now
+              lastProofUploadedAt: now,
+              updatedAt: now
             });
             log.debug('FILE', 'Updated debt proof tracking', { debtId: relatedDebtId });
           }
         }
       } catch (dbError) {
         const targetStorage = type === 'payment_proof' ? this.proofStorage : this.uploadStorage;
-        await targetStorage.delete(relativePath);
+        await targetStorage.delete(storedPath);
         throw dbError;
       }
 
@@ -174,11 +173,11 @@ export class FileService {
       const targetStorage =
         metadata.fileType === 'payment_proof' ? this.proofStorage : this.uploadStorage;
       const data = await targetStorage.read(metadata.storagePath);
-      await cache.set(cacheKey, data.toString('base64'), IMAGE_CACHE_TTL);
+      await cache.set(cacheKey, data.toString('base64'), IMAGE_CACHE_TTL_SECONDS);
 
       return { success: true, data, mimeType: metadata.mimeType, metadata };
     } catch {
-      return { success: false, error: 'File not found on disk' };
+      return { success: false, error: 'File not found in storage' };
     }
   }
 
@@ -228,7 +227,10 @@ export class FileService {
 
     // Clear hasPendingProof if no more pending proofs
     if (allProofsApproved) {
-      await this.debtRepo.update(file.relatedDebtId, { hasPendingProof: false });
+      await this.debtRepo.update(file.relatedDebtId, {
+        hasPendingProof: false,
+        updatedAt: new Date()
+      });
       log.debug('FILE', 'Cleared hasPendingProof for debt', { debtId: file.relatedDebtId });
     }
 

@@ -21,13 +21,14 @@ import {
   TracesController,
   PushController,
   BankController,
-  UploadController,
-  ProofController
+  UploadController
 } from './controllers';
 import { telemetry } from './instrumentation';
 import { logger } from '@repo/logger';
-import { CleanupService } from './services/system/cleanup.service';
-// Cleanup jobs now run externally via scripts/prune-worker AND internally via timers
+import { requireAuth } from '@/core/http/require-auth';
+import { getStorageReadiness } from '@/core/health/storage-readiness';
+
+// Cleanup jobs run via external worker/timer entrypoint.
 
 export const app = new Elysia()
   // Global error handler - ensures all errors return proper JSON
@@ -72,11 +73,12 @@ export const app = new Elysia()
       .guard(
         {
           beforeHandle: (ctx) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { user, set } = ctx as any;
-            if (!user) {
-              set.status = 401;
-              return { success: false, message: 'Unauthorized' };
+            const auth = requireAuth(
+              (ctx as { user?: import('@repo/db').User | null }).user,
+              ctx.set
+            );
+            if ('error' in auth) {
+              return auth.error;
             }
           }
         },
@@ -89,7 +91,6 @@ export const app = new Elysia()
             .use(ActivityController)
             .use(BankController)
             .use(UploadController) // File uploads for QR codes and payment proofs
-            .use(ProofController)
       )
   )
   .get('/', () => ({
@@ -108,38 +109,30 @@ export const app = new Elysia()
     };
     return base;
   })
+  .get('/health/ready', async ({ set }) => {
+    const storage = await getStorageReadiness();
+    if (!storage.ready) {
+      set.status = 503;
+      return {
+        status: 'degraded',
+        storage,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    return {
+      status: 'ready',
+      storage,
+      timestamp: new Date().toISOString()
+    };
+  })
   // Trace viewer (dev only)
   .use(TracesController);
 
 // Only listen if run directly (not imported)
 if (import.meta.main) {
   app.listen(configs.APP.PORT, () => {
-    logger.app(`🦊 API is running at ${app.server?.hostname}:${app.server?.port}`);
-
-    // Start background cleanup cron (every 15 minutes) with concurrency guard
-    let cleanupRunning = false;
-    setInterval(
-      async () => {
-        if (cleanupRunning) {
-          logger.app('[CRON] Skipping cleanup - previous run still in progress');
-          return;
-        }
-        cleanupRunning = true;
-        try {
-          logger.app('[CRON] Running background cleanup tasks...');
-          await CleanupService.cleanupStaleProcessingLogs();
-          await CleanupService.cleanupStalePendingLogs();
-          await CleanupService.cleanupExpiredSessions();
-          await CleanupService.cleanupExpiredOTPs();
-          logger.app('[CRON] Cleanup complete');
-        } catch (err) {
-          logger.error('[CRON] Cleanup error:', { error: String(err) });
-        } finally {
-          cleanupRunning = false;
-        }
-      },
-      15 * 60 * 1000
-    );
+    logger.app(`API is running at ${app.server?.hostname}:${app.server?.port}`);
   });
 }
 

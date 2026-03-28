@@ -1,6 +1,7 @@
 import { activityLogs, eq, desc, and, gte, lte, count, type ActivityLog, type ActivityResource } from '@repo/db';
 import type { DbClient } from '@/types';
-import type { IActivityRepository, PaginatedResult, ActivityFilters } from '@repo/types';
+import type { IActivityRepository, PaginatedResult } from '@repo/types';
+import type { ActivityFilters } from '@/types';
 import { randomUUIDv7 } from 'bun';
 
 export class DrizzleActivityRepository implements IActivityRepository {
@@ -16,18 +17,19 @@ export class DrizzleActivityRepository implements IActivityRepository {
   }
 
   async findMany(filters: ActivityFilters & { limit?: number; offset?: number }): Promise<PaginatedResult<ActivityLog>> {
+    const { limit = 50, offset = 0 } = filters;
     const conditions = this.buildConditions(filters);
 
-    const countQuery = conditions.length > 0
+    const countQuery = await (conditions.length > 0
       ? this.db.select({ count: count() }).from(activityLogs).where(and(...conditions)).get()
-      : this.db.select({ count: count() }).from(activityLogs).get();
+      : this.db.select({ count: count() }).from(activityLogs).get());
     const total = countQuery?.count ?? 0;
 
     const logsQuery = conditions.length > 0
       ? this.db.select().from(activityLogs).where(and(...conditions))
       : this.db.select().from(activityLogs);
 
-    const logs = logsQuery
+    const logs = await logsQuery
       .orderBy(desc(activityLogs.createdAt), desc(activityLogs.id))
       .limit(limit)
       .offset(offset)
@@ -46,7 +48,7 @@ export class DrizzleActivityRepository implements IActivityRepository {
   }
 
   async findManyByUserId(userId: string, filters: ActivityFilters & { limit?: number; offset?: number }): Promise<PaginatedResult<ActivityLog>> {
-    return this.findMany({ ...filters, userId });
+    return this.findMany({ ...filters, userId } as any);
   }
 
   async findByResourceId(resource: ActivityResource, resourceId: string): Promise<ActivityLog[]> {

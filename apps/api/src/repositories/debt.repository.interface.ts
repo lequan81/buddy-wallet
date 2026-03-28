@@ -47,6 +47,11 @@ export interface IDebtRepository {
   findById(id: string, includeDeleted?: boolean): Promise<DebtEntity | null>;
 
   /**
+   * Find multiple debts by IDs.
+   */
+  findByIds(ids: string[], includeDeleted?: boolean): Promise<DebtEntity[]>;
+
+  /**
    * Find debts with filters
    */
   findMany(options: DebtFilterOptions): Promise<PaginatedResult<DebtEntity>>;

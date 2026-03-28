@@ -4,7 +4,7 @@ import { FE_ERRORS } from '@repo/errors';
 import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config';
 import type { ApiResponse, PreviewResult, ImportResult } from '@repo/types';
 
-export const load: PageServerLoad = async ({ parent, locals }) => {
+export const load: PageServerLoad = async ({ parent, locals, url }) => {
 	// Get server-computed permissions from layout
 	const { permissions } = await parent();
 
@@ -13,13 +13,16 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 		throw redirect(303, '/dashboard');
 	}
 
-	// Always fetch page 1 initially for the history
+	const historyPageRaw = Number(url.searchParams.get('historyPage') || '1');
+	const historyPage = Number.isFinite(historyPageRaw) && historyPageRaw > 0 ? historyPageRaw : 1;
+
+	// Fetch selected history page
 	let logs: unknown[] = [];
 	let historyTotalPages = 1;
 
 	try {
 		const { data, error } = await locals.api.v1.import.logs.get({
-			query: { page: '1', limit: '10' }
+			query: { page: String(historyPage), limit: '10' }
 		});
 		if (!error && data) {
 			const payload = data as Record<string, unknown>;
@@ -33,7 +36,8 @@ export const load: PageServerLoad = async ({ parent, locals }) => {
 	return {
 		acceptedFormats: ACCEPTED_IMPORT_EXTENSIONS,
 		logs,
-		historyTotalPages
+		historyTotalPages,
+		historyPage
 	};
 };
 

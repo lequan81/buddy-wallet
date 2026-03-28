@@ -40,7 +40,7 @@ function getUserAgentFingerprint(request: Request): string {
  * - Authenticated requests: by user ID (can't be spoofed)
  * - Unauthenticated requests: by IP + User-Agent fingerprint (harder to spoof)
  */
-const defaultKeyGenerator = (req: Request, ctx?: { user?: { id: string } }): string => {
+export const defaultKeyGenerator = (req: Request, ctx?: { user?: { id: string } }): string => {
   // 1. Prefer authenticated User ID (cannot be spoofed via headers)
   if (ctx?.user?.id) {
     return `user:${ctx.user.id}`;
@@ -52,6 +52,39 @@ const defaultKeyGenerator = (req: Request, ctx?: { user?: { id: string } }): str
   const uaFingerprint = getUserAgentFingerprint(req);
   return `ip:${ip}:ua:${uaFingerprint}`;
 };
+
+const safeNormalizeIdentifier = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  return normalized.slice(0, 120);
+};
+
+/**
+ * Build key generator for endpoints that should rate limit by identifier (email/phone).
+ * Falls back to the default key generator when identifier is unavailable.
+ */
+export const identifierKeyGenerator =
+  (...fields: string[]) =>
+  async (request: Request, ctx?: { user?: { id: string } }): Promise<string> => {
+    const fallback = defaultKeyGenerator(request, ctx);
+    if (request.method !== 'POST' && request.method !== 'PUT' && request.method !== 'PATCH') {
+      return fallback;
+    }
+
+    try {
+      const body = (await request.clone().json()) as Record<string, unknown>;
+      for (const field of fields) {
+        const normalized = safeNormalizeIdentifier(body[field]);
+        if (normalized) {
+          return `id:${field}:${normalized}`;
+        }
+      }
+    } catch {
+      // Body may not be JSON; use fallback key.
+    }
+    return fallback;
+  };
 
 /**
  * Create a rate limiting plugin with configurable options
@@ -74,7 +107,8 @@ export function createRateLimiter(config: RateLimitConfig) {
       }
 
       // Pass full context to keyGenerator so it can access user if available
-      const key = `ratelimit:${keyGenerator(request, ctx as { user?: { id: string } })}`;
+      const generatedKey = await keyGenerator(request, ctx as { user?: { id: string } });
+      const key = `ratelimit:${generatedKey}`;
       const now = Date.now();
       const windowSeconds = Math.ceil(windowMs / 1000);
 
@@ -138,6 +172,30 @@ export const strictRateLimiter = createRateLimiter(configs.RATE_LIMITS.STRICT);
  
 // Auth: 10 requests per minute (for login/register)
 export const authRateLimiter = createRateLimiter(configs.RATE_LIMITS.AUTH);
+
+// Auth (identifier-aware): limits by email/phone when present in request payload.
+export const authIdentifierRateLimiter = createRateLimiter({
+  ...configs.RATE_LIMITS.AUTH,
+  keyGenerator: identifierKeyGenerator('email', 'phoneNumber')
+});
+
+// Password recovery request limiter (identifier-aware by email/phone).
+export const authRecoveryRateLimiter = createRateLimiter({
+  ...configs.RATE_LIMITS.AUTH_RECOVERY,
+  keyGenerator: identifierKeyGenerator('email', 'phoneNumber')
+});
+
+// Password reset token usage limiter (identifier-aware by email/token).
+export const authResetRateLimiter = createRateLimiter({
+  ...configs.RATE_LIMITS.AUTH_RESET,
+  keyGenerator: identifierKeyGenerator('email', 'token')
+});
+
+// OTP verification/resend limiter (identifier-aware by email).
+export const authOtpRateLimiter = createRateLimiter({
+  ...configs.RATE_LIMITS.AUTH_OTP,
+  keyGenerator: identifierKeyGenerator('email')
+});
  
 // Standard: 100 requests per minute (for general API)
 export const standardRateLimiter = createRateLimiter(configs.RATE_LIMITS.STANDARD);

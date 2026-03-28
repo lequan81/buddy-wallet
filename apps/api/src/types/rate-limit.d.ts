@@ -13,7 +13,10 @@ export interface RateLimitConfig {
   /** Maximum requests per window */
   maxRequests: number;
   /** Custom key generator (default: IP address) */
-  keyGenerator?: (request: Request) => string;
+  keyGenerator?: (
+    request: Request,
+    ctx?: { user?: { id: string } }
+  ) => string | Promise<string>;
   /** Skip rate limiting for certain requests */
   skip?: (request: Request) => boolean;
   /** Custom error message */

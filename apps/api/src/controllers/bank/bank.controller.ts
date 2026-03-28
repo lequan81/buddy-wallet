@@ -6,14 +6,15 @@
 import { Elysia, t } from 'elysia';
 import { UpdateBankAccountSchema } from '@repo/schemas';
 import { BE_ERRORS, GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { permissionPlugin } from '@plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
 import { insertBankAccountSchema } from '@repo/db';
 import { getClientIP } from '@utils';
-import { servicesPlugin } from '@plugins/services.plugin';
+import { permissionPlugin, servicesPlugin, sessionAuthPlugin } from '@plugins';
+import { requireAuth } from '@/core/http/require-auth';
 
 export const BankController = new Elysia({ prefix: '/banks' })
   .use(servicesPlugin)
+  .use(sessionAuthPlugin)
   .use(permissionPlugin)
 
   // ==================== GET SUPPORTED BANKS ====================
@@ -35,11 +36,11 @@ export const BankController = new Elysia({ prefix: '/banks' })
   .get(
     '/me',
     async ({ user, set, bankAccountService }) => {
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
-      const accounts = await bankAccountService.getUserBankAccounts(user.id);
+      const accounts = await bankAccountService.getUserBankAccounts(auth.user.id);
       return successResponse({ accounts });
     },
     {
@@ -51,13 +52,13 @@ export const BankController = new Elysia({ prefix: '/banks' })
   .post(
     '/me',
     async ({ user, body, set, request, server, bankAccountService, activityService }) => {
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
       const result = await bankAccountService.addBankAccount({
         ...body,
-        userId: user!.id
+        userId: auth.user.id
       });
 
       if (!result.success) {
@@ -66,7 +67,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
       }
 
       await activityService.log({
-        userId: user!.id,
+        userId: auth.user.id,
         action: 'create',
         resource: 'bank_account',
         resourceId: result.account?.id,
@@ -87,12 +88,12 @@ export const BankController = new Elysia({ prefix: '/banks' })
   .patch(
     '/:id',
     async ({ user, params: { id }, body, set, request, server, bankAccountService, activityService }) => {
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
 
-      const result = await bankAccountService.updateBankAccount(id, user.id, body as Record<string, unknown>);
+      const result = await bankAccountService.updateBankAccount(id, auth.user.id, body as Record<string, unknown>);
 
       if (!result.success) {
         set.status = 400;
@@ -100,7 +101,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
       }
 
       await activityService.log({
-        userId: user.id,
+        userId: auth.user.id,
         action: 'update',
         resource: 'bank_account',
         resourceId: id,
@@ -150,6 +151,11 @@ export const BankController = new Elysia({ prefix: '/banks' })
   .get(
     '/qr/:debtId',
     async ({ user, params: { debtId }, set, debtService, bankAccountService, vietqrService }) => {
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
+      }
+
       // 1. Get debt details
       const debt = await debtService.getDebtById(debtId);
       if (!debt) {
@@ -162,7 +168,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
       // Let's stick to debt visibility rules.
       // If user is debtor => they see QR to pay creditor
       // If user is creditor => they see QR to share with debtor
-      if (debt.debtorId !== user!.id && debt.creditorId !== user!.id) {
+      if (debt.debtorId !== auth.user.id && debt.creditorId !== auth.user.id) {
         // TODO: Strict check? For now, relying on DEBT_VIEW_OWN permission which is generic.
         // Ideally we should check if they have access.
       }
@@ -201,11 +207,11 @@ export const BankController = new Elysia({ prefix: '/banks' })
   .delete(
     '/:id',
     async ({ user, params: { id }, set, request, server, bankAccountService, activityService }) => {
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
-      const result = await bankAccountService.deleteBankAccount(id, user.id);
+      const result = await bankAccountService.deleteBankAccount(id, auth.user.id);
 
       if (!result.success) {
         set.status = 404;
@@ -213,7 +219,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
       }
 
       await activityService.log({
-        userId: user!.id,
+        userId: auth.user.id,
         action: 'delete',
         resource: 'bank_account',
         resourceId: id,

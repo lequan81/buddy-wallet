@@ -5,7 +5,8 @@
  * Uses constructor injection for testability.
  */
 import ExcelJS from 'exceljs';
-import type { IDebtRepository, IUserRepository } from '@repo/types';
+import type { IUserRepository } from '@repo/types';
+import type { IDebtRepository } from '@/repositories';
 import type { ExportFormat, ExportResult } from '@/types';
 
 /**

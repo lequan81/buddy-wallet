@@ -5,10 +5,8 @@
  */
 import { describe, expect, it, beforeEach } from 'bun:test';
 import { EmailVerificationService } from '@/services/email/email-verification.service';
-import type { DbClient } from '@/types';
 
-// Mock database for testing
-function createMockDb() {
+function createMockRepos() {
   const emailVerifications: Record<string, unknown>[] = [];
   const users: Record<string, unknown>[] = [
     {
@@ -19,40 +17,54 @@ function createMockDb() {
     }
   ];
 
-  return {
-    select: () => ({
-      from: (table: { name: string }) => ({
-        where: () => ({
-          get: () => {
-            if (table.name === 'users') {
-              return users[0];
-            }
-            return emailVerifications.find((v) => !v.verified);
-          },
-          all: () => emailVerifications,
-          orderBy: () => ({
-            get: () => emailVerifications.find((v) => !v.verified)
-          })
-        })
-      })
-    }),
-    insert: () => ({
-      values: (data: Record<string, unknown>) => {
-        emailVerifications.push(data);
-        return Promise.resolve();
-      }
-    }),
-    update: (table: { name: string }) => ({
-      set: (data: Record<string, unknown>) => ({
-        where: () => {
-          if (table.name === 'users' && data.emailVerified !== undefined) {
-            users[0].emailVerified = data.emailVerified;
-          }
-          return Promise.resolve();
+  const emailVerificationRepo = {
+    invalidateExisting: async (userId: string, email: string) => {
+      for (const verification of emailVerifications) {
+        if (verification.userId === userId && verification.email === email) {
+          verification.verified = true;
         }
-      })
-    }),
-    // For tests to verify state
+      }
+    },
+    create: async (data: Record<string, unknown>) => {
+      emailVerifications.push({
+        ...data,
+        createdAt: new Date(),
+        lastSentAt: new Date()
+      });
+    },
+    findLatestUnverified: async (email: string) => {
+      const records = emailVerifications
+        .filter((v) => v.email === email && v.verified === false)
+        .sort((a, b) => Number(b.createdAt as Date) - Number(a.createdAt as Date));
+      return (records[0] as any) ?? null;
+    },
+    updateAttempts: async (id: string, attempts: number) => {
+      const verification = emailVerifications.find((v) => v.id === id);
+      if (verification) verification.attempts = attempts;
+    },
+    markVerified: async (id: string) => {
+      const verification = emailVerifications.find((v) => v.id === id);
+      if (verification) verification.verified = true;
+    },
+    findAllByUserIdAndEmail: async (userId: string, email: string) =>
+      emailVerifications.filter((v) => v.userId === userId && v.email === email) as any[],
+    getPendingCount: async (userId: string) =>
+      emailVerifications.filter((v) => v.userId === userId && v.verified === false).length
+  };
+
+  const userRepo = {
+    findById: async (id: string) => (users.find((u) => u.id === id) as any) ?? null,
+    update: async (id: string, data: Record<string, unknown>) => {
+      const user = users.find((u) => u.id === id);
+      if (!user) return null;
+      Object.assign(user, data);
+      return user as any;
+    }
+  };
+
+  return {
+    emailVerificationRepo,
+    userRepo,
     _getVerifications: () => emailVerifications,
     _getUsers: () => users
   };
@@ -60,11 +72,14 @@ function createMockDb() {
 
 describe('EmailVerificationService', () => {
   let service: EmailVerificationService;
-  let mockDb: ReturnType<typeof createMockDb>;
+  let mockRepos: ReturnType<typeof createMockRepos>;
 
   beforeEach(() => {
-    mockDb = createMockDb();
-    service = new EmailVerificationService(mockDb as unknown as DbClient);
+    mockRepos = createMockRepos();
+    service = new EmailVerificationService(
+      mockRepos.emailVerificationRepo as any,
+      mockRepos.userRepo as any
+    );
   });
 
   describe('createOtp', () => {
@@ -80,7 +95,7 @@ describe('EmailVerificationService', () => {
     it('should store OTP in database', async () => {
       await service.createOtp('test-user-1', 'test@example.com');
 
-      const verifications = mockDb._getVerifications();
+      const verifications = mockRepos._getVerifications();
       expect(verifications.length).toBe(1);
       expect(verifications[0].userId).toBe('test-user-1');
       expect(verifications[0].email).toBe('test@example.com');

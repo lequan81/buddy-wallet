@@ -67,6 +67,7 @@
 			case 'success': return { icon: CheckCircle, color: 'text-green-600', label: 'Completed', badge: 'default' };
 			case 'failed': return { icon: XCircle, color: 'text-red-600', label: 'Failed', badge: 'destructive' };
 			case 'processing': return { icon: Loader2, color: 'text-blue-600', label: 'Processing', badge: 'secondary' };
+			case 'queued': return { icon: Clock, color: 'text-yellow-600', label: 'Queued', badge: 'secondary' };
 			case 'preview': return { icon: FileSpreadsheet, color: 'text-purple-600', label: 'Waiting', badge: 'outline' };
 			default: return { icon: Clock, color: 'text-yellow-600', label: 'Waiting', badge: 'secondary' };
 		}
@@ -80,6 +81,11 @@
 	});
 
 	let progressPercentage = $derived(progress?.percentage || 0);
+	let canResumeMapping = $derived(
+		log
+			? log.status !== 'success' || ((log.importedCount ?? 0) === 0 && (log.errorCount ?? 0) === 0)
+			: false
+	);
 
 	const fieldLabels: Record<string, () => string> = {
 		name: m.import_field_name,
@@ -183,7 +189,7 @@
 				{/if}
 
 				<!-- 2. Interactive Mapping Section -->
-				{#if log.status !== 'success' || (log.importedCount === 0 && log.errorCount === 0)}
+				{#if canResumeMapping}
 					{#if isEditingMapping}
 						<Card.Root class="overflow-hidden border-2 border-primary shadow-xl animate-in zoom-in-95 duration-200">
 							<Card.Header class="bg-primary/5 border-b">

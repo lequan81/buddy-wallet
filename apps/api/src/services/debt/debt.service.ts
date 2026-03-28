@@ -536,8 +536,10 @@ export class DebtServices {
 
     // Check ownership first (fail-fast for unauthorized)
     if (!isAdmin) {
+      const foundDebts = await this.debtRepo.findByIds(debtIds);
+      const debtsById = new Map(foundDebts.map((debt) => [debt.id, debt]));
       for (const id of debtIds) {
-        const debt = await this.debtRepo.findById(id);
+        const debt = debtsById.get(id);
         if (!debt) {
           errors.push(`Debt ${id} not found`);
         } else if (debt.uploadedById !== currentUser.id) {

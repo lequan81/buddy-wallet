@@ -25,6 +25,14 @@ function generateResetToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
+function redactIdentifier(value: string): string {
+  return crypto
+    .createHash('sha256')
+    .update(value.trim().toLowerCase())
+    .digest('hex')
+    .slice(0, 12);
+}
+
 export class PasswordResetService {
   constructor(
     private readonly userRepo: IUserRepository,
@@ -46,7 +54,9 @@ export class PasswordResetService {
 
     if (!user) {
       // SECURITY: Don't reveal if email/phone exists - use generic message
-      log.warn('PASSWORD_RESET', 'Reset attempt with non-matching credentials', { email });
+      log.warn('PASSWORD_RESET', 'Reset attempt with non-matching credentials', {
+        identifierHash: redactIdentifier(email)
+      });
       return {
         success: false,
         error:

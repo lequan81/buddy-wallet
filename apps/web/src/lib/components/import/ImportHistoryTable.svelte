@@ -61,10 +61,10 @@
 
 	function getEffectiveStatus(log: ImportLog) {
 		// If success but no rows imported, it means it's still at preview stage
-		if (log.status === 'success' && (log.importedCount === 0 && log.errorCount === 0)) {
+		if (log.status === 'success' && ((log.importedCount ?? 0) === 0 && (log.errorCount ?? 0) === 0)) {
 			return { label: 'waiting', color: 'text-yellow-600', canResume: true };
 		}
-		if (log.status === 'preview' || log.status === 'pending') {
+		if (log.status === 'preview' || log.status === 'pending' || log.status === 'queued') {
 			return { label: 'waiting', color: 'text-yellow-600', canResume: true };
 		}
 		return { 
@@ -171,17 +171,26 @@
 								</div>
 							</div>
 
-							{#if activeJob && (activeJob.status === 'processing' || activeJob.status === 'pending')}
+							{#if activeJob && (activeJob.status === 'processing' || activeJob.status === 'pending' || activeJob.status === 'queued')}
 								<div class="w-full space-y-1 mt-1">
 									<div class="flex items-center justify-between">
 										<span class="text-[10px] text-muted-foreground font-medium">
-											{activeJob.status === 'processing' ? 'Processing' : 'Pending'}
+											{activeJob.status === 'processing'
+												? 'Processing'
+												: activeJob.status === 'queued'
+													? 'Queued'
+													: 'Pending'}
 										</span>
 										<span class="text-[10px] text-muted-foreground">
 											{activeJob.progress?.percentage || 0}%
 										</span>
 									</div>
 									<Progress value={activeJob.progress?.percentage || 0} class="h-1" />
+									{#if activeJob.message}
+										<p class="text-[10px] text-muted-foreground truncate" title={activeJob.message}>
+											{activeJob.message}
+										</p>
+									{/if}
 								</div>
 							{/if}
 						</div>

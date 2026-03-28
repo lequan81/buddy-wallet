@@ -118,7 +118,7 @@ class ImportProgressStore {
 	private getPendingJobIds(): string[] {
 		const pendingIds: string[] = [];
 		for (const [id, job] of this.activeJobs) {
-			if (job.status === 'pending' || job.status === 'processing') {
+			if (job.status === 'pending' || job.status === 'queued' || job.status === 'processing') {
 				pendingIds.push(id);
 			}
 		}
@@ -166,7 +166,7 @@ class ImportProgressStore {
 				if (job.type === 'preview') {
 					setTimeout(() => this.activeJobs.delete(id), 30000);
 				}
-			} else if (result.status === 'failed') {
+			} else if (result.status === 'failed' || result.status === 'cancelled') {
 				job.error = result.errors ? result.errors.join('; ') : 'Unknown error';
 			}
 

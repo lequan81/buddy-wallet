@@ -13,13 +13,13 @@ import {
   LogsQuerySchema
 } from '@repo/schemas';
 import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { sessionAuthPlugin, accessControlPlugin, servicesPlugin } from '@plugins';
-import { deleteRateLimiter } from '@plugins/middleware';
+import { accessControlPlugin, servicesPlugin, sessionAuthPlugin } from '@plugins';
 import { logger } from '@repo/logger';
-import { configs } from '../../configs';
-import { MAX_IMPORT_FILE_SIZE, ACCEPTED_IMPORT_MIME_TYPES } from '@repo/config';
-import { isValidSpreadsheetBytes } from '@repo/utils';
 import type { ImportConfig } from '@/types';
+import { validateImportUploadFile } from './import-file.utils';
+import { requireAuth } from '@/core/http/require-auth';
+import { parsePagePagination } from '@/core/http/pagination';
+import { normalizeImportStatus } from '@/core/http/import-status';
 
 
 
@@ -34,47 +34,21 @@ export const ImportController = new Elysia({ prefix: '/import' })
   .post(
     '/preview',
     async ({ user, body, set, jobsService }) => {
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
       const { file } = body;
-
-      // File validation
-      if (file.size > MAX_IMPORT_FILE_SIZE) {
-        set.status = 400;
-        return errorResponse(
-          GEN_ERRORS.INVALID_INPUT,
-          `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max: ${MAX_IMPORT_FILE_SIZE / 1024 / 1024}MB`
-        );
-      }
-
-      if (
-        !ACCEPTED_IMPORT_MIME_TYPES.includes(
-          file.type as (typeof ACCEPTED_IMPORT_MIME_TYPES)[number]
-        )
-      ) {
-        set.status = 400;
-        return errorResponse(
-          GEN_ERRORS.INVALID_INPUT,
-          `Invalid file type '${file.type}'. Allowed: .xlsx, .xls, .csv`
-        );
-      }
-
-      const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
-
-      if (!isValidSpreadsheetBytes(header)) {
-        set.status = 400;
-        return errorResponse(
-          GEN_ERRORS.INVALID_INPUT,
-          'File content does not match XLSX or CSV format'
-        );
+      const validationError = await validateImportUploadFile(file);
+      if (validationError) {
+        set.status = validationError.status;
+        return validationError.body;
       }
 
       try {
         const jobId = await jobsService.addJob('preview', {
           file,
-          userId: user.id
+          userId: auth.user.id
         });
 
         return successResponse({
@@ -96,48 +70,22 @@ export const ImportController = new Elysia({ prefix: '/import' })
   .post(
     '/debts',
     async ({ user, body, set, jobsService }) => {
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
       const { file, config, previewLogId } = body;
-
-      // File validation
-      if (file.size > MAX_IMPORT_FILE_SIZE) {
-        set.status = 400;
-        return errorResponse(
-          GEN_ERRORS.INVALID_INPUT,
-          `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Max: ${MAX_IMPORT_FILE_SIZE / 1024 / 1024}MB`
-        );
-      }
-
-      if (
-        !ACCEPTED_IMPORT_MIME_TYPES.includes(
-          file.type as (typeof ACCEPTED_IMPORT_MIME_TYPES)[number]
-        )
-      ) {
-        set.status = 400;
-        return errorResponse(
-          GEN_ERRORS.INVALID_INPUT,
-          `Invalid file type '${file.type}'. Allowed: .xlsx, .xls, .csv`
-        );
-      }
-
-      const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
-
-      if (!isValidSpreadsheetBytes(header)) {
-        set.status = 400;
-        return errorResponse(
-          GEN_ERRORS.INVALID_INPUT,
-          'File content does not match XLSX or CSV format'
-        );
+      const validationError = await validateImportUploadFile(file);
+      if (validationError) {
+        set.status = validationError.status;
+        return validationError.body;
       }
 
       try {
         const jobId = await jobsService.addJob('import', {
           file,
           config: config as ImportConfig,
-          userId: { id: user.id, phoneNumber: user.phoneNumber },
+          userId: { id: auth.user.id, phoneNumber: auth.user.phoneNumber },
           previewLogId
         });
 
@@ -156,25 +104,6 @@ export const ImportController = new Elysia({ prefix: '/import' })
       body: StartImportSchema
     }
   )
-
-  // Cleanup stale logs (user-specific)
-  .use(deleteRateLimiter) // Rate limit: 20 deletes per minute
-  .delete('/cleanup', async ({ user, set, importService }) => {
-    if (!user) {
-      set.status = 401;
-      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
-    }
-
-    // Clean up user's stale pending logs
-    await importService.cleanupStaleLogs(user.id);
-
-    // Also trigger system-wide cleanup of zombie processing logs (safe as it checks >1h)
-    // This helps users fix "stuck" jobs without needing admin access
-    const { CleanupService } = await import('../../services/system/cleanup.service');
-    await CleanupService.cleanupStaleProcessingLogs();
-
-    return successResponse({ message: 'Cleanup completed' });
-  })
 
   // Get import progress
   .get(
@@ -199,7 +128,10 @@ export const ImportController = new Elysia({ prefix: '/import' })
         return errorResponse(GEN_ERRORS.NOT_FOUND, result.error);
       }
 
-      return successResponse(result);
+      return successResponse({
+        ...result,
+        status: normalizeImportStatus(result.status)
+      });
     },
     { params: t.Object({ logId: t.String() }) }
   )
@@ -211,9 +143,9 @@ export const ImportController = new Elysia({ prefix: '/import' })
     '/progress-sse',
     async (ctx) => {
       const { query, user, set, importService } = ctx;
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
 
       const logIds = query.logIds?.split(',') || [];
@@ -228,27 +160,32 @@ export const ImportController = new Elysia({ prefix: '/import' })
       set.headers['X-Accel-Buffering'] = 'no';
 
       // Use native ReadableStream for SSE - robust and standard compliant
+      let interval: ReturnType<typeof setInterval> | null = null;
       const stream = new ReadableStream({
         async start(controller) {
-          const interval = setInterval(async () => {
+          interval = setInterval(async () => {
             try {
-              const results = await importService.getProgressBatch(logIds, user.id);
+              const results = await importService.getProgressBatch(logIds, auth.user.id);
+
+              for (const key of Object.keys(results)) {
+                results[key].status = normalizeImportStatus(results[key].status);
+              }
               
               // Format as SSE data
               controller.enqueue(`data: ${JSON.stringify(results)}\n\n`);
 
               // If all monitored jobs are terminal, stop streaming
               const allDone = Object.values(results).every(
-                (r) => r.status === 'success' || r.status === 'failed'
+                (r) => r.status === 'success' || r.status === 'failed' || r.status === 'cancelled'
               );
 
               if (allDone) {
-                clearInterval(interval);
+                if (interval) clearInterval(interval);
                 controller.close();
               }
             } catch (err) {
               logger.error('[Import] SSE stream error', { error: String(err) });
-              clearInterval(interval);
+              if (interval) clearInterval(interval);
               controller.error(err);
             }
           }, 2000);
@@ -258,6 +195,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
         },
         cancel() {
           // This is called when the client disconnects
+          if (interval) clearInterval(interval);
         }
       });
 
@@ -291,6 +229,9 @@ export const ImportController = new Elysia({ prefix: '/import' })
       }
 
       const result = await importService.getProgressBatch(logIds, user.id);
+      for (const key of Object.keys(result)) {
+        result[key].status = normalizeImportStatus(result[key].status);
+      }
       return successResponse(result);
     },
     { body: ProgressBatchBodySchema }
@@ -306,17 +247,16 @@ export const ImportController = new Elysia({ prefix: '/import' })
     '/logs',
     async (ctx) => {
       const { user, query, set, importService } = ctx;
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
-      const page = parseInt(query.page || '1');
-      const limit = query.limit ? Math.min(parseInt(query.limit), configs.PAGINATION.MAX_LIMIT) : configs.PAGINATION.DEFAULT_LIMIT;
+      const { page, limit } = parsePagePagination(query);
 
-      // Cleanup is handled by 15-minute cron in index.ts
+      // Import log lifecycle is handled by worker-side operational scripts.
 
       // Let's call the service method we just added
-      const result = await importService.getLogs(user.id, page, limit);
+      const result = await importService.getLogs(auth.user.id, page, limit);
 
       return successResponse(result);
     },
@@ -335,13 +275,17 @@ export const ImportController = new Elysia({ prefix: '/import' })
         params: { id },
         importService
       } = ctx;
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
-      const result = await importService.getLogById(id, user.id);
+      const result = await importService.getLogById(id, auth.user.id);
       if (!result) {
         return errorResponse(GEN_ERRORS.NOT_FOUND, 'Import log not found');
+      }
+
+      if (result.status) {
+        result.status = normalizeImportStatus(result.status);
       }
       return successResponse(result);
     },
@@ -358,11 +302,11 @@ export const ImportController = new Elysia({ prefix: '/import' })
         set,
         jobsService
       } = ctx;
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
-      const result = await jobsService.cancelJob(jobId, user.id);
+      const result = await jobsService.cancelJob(jobId, auth.user.id);
       if (!result.success) {
         set.status = 400;
         return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);

@@ -6,9 +6,10 @@
  */
 import { Elysia } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, errorResponse } from '@repo/errors';
-import { sessionAuthPlugin, accessControlPlugin, servicesPlugin } from '@plugins';
+import { accessControlPlugin, servicesPlugin, sessionAuthPlugin } from '@plugins';
 import { getClientIP } from '@utils';
 import type { ExportFormat } from '@/types';
+import { requireAuth } from '@/core/http/require-auth';
 
 export const ExportController = new Elysia({ prefix: '/export' })
   .use(servicesPlugin)
@@ -17,9 +18,14 @@ export const ExportController = new Elysia({ prefix: '/export' })
 
   // Export user's own debts
   .get('/debts', async ({ user, set, query, request, server, exportService, activityService }) => {
+    const auth = requireAuth(user, set);
+    if ('error' in auth) {
+      return auth.error;
+    }
+
     const format = ((query as Record<string, unknown>)?.format || 'xlsx') as ExportFormat;
 
-    const result = await exportService.exportUserDebts(user!.id, format);
+    const result = await exportService.exportUserDebts(auth.user.id, format);
 
     if (!result.success) {
       set.status = 404;
@@ -27,7 +33,7 @@ export const ExportController = new Elysia({ prefix: '/export' })
     }
 
     await activityService.log({
-      userId: user!.id,
+      userId: auth.user.id,
       action: 'export',
       resource: 'export',
       metadata: { format, filename: result.filename },

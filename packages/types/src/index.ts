@@ -14,4 +14,4 @@ export type * from './device.js';
 export type * from './push.js';
 export type * from './email.js';
 export type * from './job.js';
-export * from './repositories';
+export type * from './repositories.js';

@@ -18,7 +18,7 @@ import { jwtPlugin } from './jwt.plugin';
 import { logger } from '@repo/logger';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from '../redis';
 import { hashToken } from '../../utils';
-import { logJWTTampered, logSessionHijack, logSecurityEvent } from '../../utils/security-logger';
+import { logJWTTampered, logSessionHijack, logSecurityEvent } from '../../utils/security-logger.utils';
 
 export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
   .use(jwtPlugin)

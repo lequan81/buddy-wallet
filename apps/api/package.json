@@ -8,7 +8,8 @@
     "build": "bun build src/index.ts --outdir=dist --target=bun --packages external --sourcemap --minify",
     "start": "bun run dist/index.js",
     "check-types": "bunx tsc --noEmit",
-    "clean": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\""
+    "clean": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\"",
+    "storage:migrate:s3": "bun run scripts/storage/migrate-to-s3.ts"
   },
   "dependencies": {
     "@repo/config": "workspace:*",

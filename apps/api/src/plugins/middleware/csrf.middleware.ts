@@ -5,8 +5,8 @@ import { logger } from '@repo/logger';
 // Support comma-separated origins for dev/staging/prod
 const allowedOrigins = configs.APP.WEB_URL.split(',').map((o) => o.trim());
 
-// CSRF secret - reuse JWT secret for consistency
-const CSRF_SECRET = configs.AUTH.JWT_SECRET;
+// Dedicated CSRF secret (falls back to JWT secret only when env is missing)
+const CSRF_SECRET = configs.AUTH.CSRF_SECRET;
 
 /**
  * Hybrid CSRF Protection Plugin

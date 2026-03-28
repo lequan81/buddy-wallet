@@ -8,10 +8,16 @@ import { Elysia, t } from 'elysia';
 import { RegisterSchema, LoginSchema } from '@repo/schemas';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { sessionAuthPlugin } from '@plugins/auth';
-import { authRateLimiter } from '@plugins/middleware';
+import {
+  authIdentifierRateLimiter,
+  authOtpRateLimiter,
+  authRateLimiter,
+  authRecoveryRateLimiter,
+  authResetRateLimiter
+} from '@plugins/middleware';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
 import { configs } from '@/configs';
-import { getClientIP, hashToken } from '@utils';
+import { getClientIP, hashToken, toSafeUser } from '@utils';
 import { servicesPlugin } from '@plugins/services.plugin';
 
 export const AuthController = new Elysia({ prefix: '/auth' })
@@ -55,75 +61,77 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   )
 
   // ==================== LOGIN ====================
-  .post(
-    '/login',
-    async ({ body, jwt, cookie, set, request, server, authSecurityService, activityService }) => {
-      const userAgent = request.headers.get('user-agent');
-      const clientIP = getClientIP(request, server);
+  .group('', (app) =>
+    app.use(authIdentifierRateLimiter).post(
+      '/login',
+      async ({ body, jwt, cookie, set, request, server, authSecurityService, activityService }) => {
+        const userAgent = request.headers.get('user-agent');
+        const clientIP = getClientIP(request, server);
 
-      const result = await authSecurityService.login(
-        {
-          identifier: body.email,
-          password: body.password,
-          userAgent,
-          clientIP
-        },
-        jwt
-      );
+        const result = await authSecurityService.login(
+          {
+            identifier: body.email,
+            password: body.password,
+            userAgent,
+            clientIP
+          },
+          jwt
+        );
 
-      if (!result.success) {
-        if (result.error === 'DATABASE_ERROR') {
-          set.status = 503;
-          set.headers['Retry-After'] = '30';
-          return errorResponse(
-            BE_ERRORS.DB_CONNECTION,
-            'Service unavailable. Please try again later.'
-          );
+        if (!result.success) {
+          if (result.error === 'DATABASE_ERROR') {
+            set.status = 503;
+            set.headers['Retry-After'] = '30';
+            return errorResponse(
+              BE_ERRORS.DB_CONNECTION,
+              'Service unavailable. Please try again later.'
+            );
+          }
+
+          set.status = 401;
+          return errorResponse(BE_ERRORS.AUTH_INVALID_CREDENTIALS, result.error);
         }
 
-        set.status = 401;
-        return errorResponse(BE_ERRORS.AUTH_INVALID_CREDENTIALS, result.error);
+        // Set access token cookie (short-lived)
+        cookie.session.set({
+          value: result.accessToken!,
+          httpOnly: true,
+          secure: !configs.APP.IS_DEV,
+          sameSite: 'lax',
+          path: '/',
+          maxAge: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
+        });
+
+        // Set refresh token cookie (long-lived)
+        cookie.refresh_token.set({
+          value: result.refreshToken!,
+          httpOnly: true,
+          secure: !configs.APP.IS_DEV,
+          sameSite: 'lax',
+          path: '/',
+          maxAge: configs.AUTH.REFRESH_TOKEN_LIFETIME / 1000
+        });
+
+        // Log the login activity
+        await activityService.log({
+          userId: result.user!.id,
+          action: 'login',
+          resource: 'session',
+          ipAddress: clientIP || undefined,
+          userAgent: userAgent || undefined
+        });
+
+        set.status = 200;
+        return successResponse({
+          user: result.user,
+          expiresIn: result.expiresIn,
+          mustChangePassword: result.mustChangePassword
+        });
+      },
+      {
+        body: LoginSchema
       }
-
-      // Set access token cookie (short-lived)
-      cookie.session.set({
-        value: result.accessToken!,
-        httpOnly: true,
-        secure: !configs.APP.IS_DEV,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
-      });
-
-      // Set refresh token cookie (long-lived)
-      cookie.refresh_token.set({
-        value: result.refreshToken!,
-        httpOnly: true,
-        secure: !configs.APP.IS_DEV,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: configs.AUTH.REFRESH_TOKEN_LIFETIME / 1000
-      });
-
-      // Log the login activity
-      await activityService.log({
-        userId: result.user!.id,
-        action: 'login',
-        resource: 'session',
-        ipAddress: clientIP || undefined,
-        userAgent: userAgent || undefined
-      });
-
-      set.status = 200;
-      return successResponse({
-        user: result.user,
-        expiresIn: result.expiresIn,
-        mustChangePassword: result.mustChangePassword
-      });
-    },
-    {
-      body: LoginSchema
-    }
+    )
   )
 
   // ==================== REFRESH ====================
@@ -174,23 +182,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   // ==================== ME ====================
   .get('/me', async ({ user }) => {
     return successResponse({
-      user: user
-        ? {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            phoneNumber: user.phoneNumber,
-            role: user.role,
-            permissions: user.permissions || [],
-            isActive: user.isActive,
-            emailVerified: user.emailVerified,
-            emailNotificationsEnabled: user.emailNotificationsEnabled,
-            pushNotificationsEnabled: user.pushNotificationsEnabled,
-            mustChangePassword: user.mustChangePassword,
-            createdAt: user.createdAt,
-            updatedAt: user.updatedAt
-          }
-        : null
+      user: user ? toSafeUser(user) : null
     });
   })
 
@@ -354,50 +346,54 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   )
 
   // ==================== VERIFY OTP ====================
-  .post(
-    '/verify-otp',
-    async ({ body, set, emailVerificationService }) => {
-      const result = await emailVerificationService.verifyOtp(body.email, body.otp);
+  .group('', (app) =>
+    app.use(authOtpRateLimiter).post(
+      '/verify-otp',
+      async ({ body, set, emailVerificationService }) => {
+        const result = await emailVerificationService.verifyOtp(body.email, body.otp);
 
-      if (!result.success) {
-        set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+        if (!result.success) {
+          set.status = 400;
+          return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+        }
+
+        return successResponse({ message: 'Email verified successfully' });
+      },
+      {
+        body: t.Object({
+          email: t.String({ format: 'email' }),
+          otp: t.String({ minLength: 6, maxLength: 6 })
+        })
       }
-
-      return successResponse({ message: 'Email verified successfully' });
-    },
-    {
-      body: t.Object({
-        email: t.String({ format: 'email' }),
-        otp: t.String({ minLength: 6, maxLength: 6 })
-      })
-    }
+    )
   )
 
   // ==================== RESEND OTP ====================
-  .post('/resend-otp', async ({ user, set, emailVerificationService, emailService }) => {
-    if (!user) {
-      set.status = 401;
-      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
-    }
+  .group('', (app) =>
+    app.use(authOtpRateLimiter).post('/resend-otp', async ({ user, set, emailVerificationService, emailService }) => {
+      if (!user) {
+        set.status = 401;
+        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      }
 
-    const result = await emailVerificationService.resendOtp(user.id);
+      const result = await emailVerificationService.resendOtp(user.id);
 
-    if (!result.success) {
-      set.status = 429; // Too Many Requests
-      const details = result.retryAfter
-        ? `${result.error} Retry after ${result.retryAfter} seconds.`
-        : result.error;
-      return errorResponse(BE_ERRORS.RATE_LIMITED, details);
-    }
+      if (!result.success) {
+        set.status = 429; // Too Many Requests
+        const details = result.retryAfter
+          ? `${result.error} Retry after ${result.retryAfter} seconds.`
+          : result.error;
+        return errorResponse(BE_ERRORS.RATE_LIMITED, details);
+      }
 
-    // Send the new OTP via email
-    if (result.otp && user.email) {
-      await emailService.sendOtp(user.email, result.otp, user.name);
-    }
+      // Send the new OTP via email
+      if (result.otp && user.email) {
+        await emailService.sendOtp(user.email, result.otp, user.name);
+      }
 
-    return successResponse({ message: 'Verification code sent' });
-  })
+      return successResponse({ message: 'Verification code sent' });
+    })
+  )
 
   // ==================== VERIFICATION STATUS ====================
   .get('/verification-status', async ({ user, set, emailVerificationService }) => {
@@ -416,51 +412,55 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   })
 
   // ==================== FORGOT PASSWORD ====================
-  .post(
-    '/forgot-password',
-    async ({ body, set, passwordResetService }) => {
-      await passwordResetService.requestReset(body.email, body.phoneNumber);
+  .group('', (app) =>
+    app.use(authRecoveryRateLimiter).post(
+      '/forgot-password',
+      async ({ body, set, passwordResetService }) => {
+        await passwordResetService.requestReset(body.email, body.phoneNumber);
 
-      // Always return success to prevent user enumeration
-      // The actual result is sent via email
-      set.status = 200;
-      return successResponse({
-        message:
-          'If the email and phone number match our records, you will receive reset instructions.'
-      });
-    },
-    {
-      body: t.Object({
-        email: t.String({ format: 'email' }),
-        phoneNumber: t.String({ minLength: 10 })
-      })
-    }
+        // Always return success to prevent user enumeration
+        // The actual result is sent via email
+        set.status = 200;
+        return successResponse({
+          message:
+            'If the email and phone number match our records, you will receive reset instructions.'
+        });
+      },
+      {
+        body: t.Object({
+          email: t.String({ format: 'email' }),
+          phoneNumber: t.String({ minLength: 10 })
+        })
+      }
+    )
   )
 
   // ==================== RESET PASSWORD WITH TOKEN ====================
-  .post(
-    '/reset-password',
-    async ({ body, set, passwordResetService }) => {
-      const resetResult = await passwordResetService.resetPasswordWithToken(
-        body.email,
-        body.token,
-        body.newPassword
-      );
+  .group('', (app) =>
+    app.use(authResetRateLimiter).post(
+      '/reset-password',
+      async ({ body, set, passwordResetService }) => {
+        const resetResult = await passwordResetService.resetPasswordWithToken(
+          body.email,
+          body.token,
+          body.newPassword
+        );
 
-      if (!resetResult.success) {
-        set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, resetResult.error);
+        if (!resetResult.success) {
+          set.status = 400;
+          return errorResponse(GEN_ERRORS.INVALID_INPUT, resetResult.error);
+        }
+
+        return successResponse({ message: 'Password has been reset successfully' });
+      },
+      {
+        body: t.Object({
+          email: t.String({ format: 'email' }),
+          token: t.String({ minLength: 32 }),
+          newPassword: t.String({ minLength: configs.AUTH.MIN_PASSWORD_LENGTH })
+        })
       }
-
-      return successResponse({ message: 'Password has been reset successfully' });
-    },
-    {
-      body: t.Object({
-        email: t.String({ format: 'email' }),
-        token: t.String({ minLength: 32 }),
-        newPassword: t.String({ minLength: configs.AUTH.MIN_PASSWORD_LENGTH })
-      })
-    }
+    )
   )
 
   // ==================== FORCE CHANGE PASSWORD ====================

@@ -5,27 +5,25 @@
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { sessionAuthPlugin, servicesPlugin } from '@plugins';
-import { permissionPlugin } from '@plugins/guards';
-import { configs } from '../../configs';
+import { servicesPlugin, sessionAuthPlugin } from '@plugins';
+import { requireAuth } from '@/core/http/require-auth';
+import { parseOffsetPagination } from '@/core/http/pagination';
 
 export const ActivityController = new Elysia({ prefix: '/activity' })
   .use(servicesPlugin)
   .use(sessionAuthPlugin)
-  .use(permissionPlugin)
 
   // Get current user's activity logs
   .get(
     '/',
     async ({ user, query, set, activityService }) => {
-      if (!user) {
-        set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      const auth = requireAuth(user, set);
+      if ('error' in auth) {
+        return auth.error;
       }
-      const limit = query.limit ? Math.min(parseInt(query.limit), configs.PAGINATION.MAX_LIMIT) : configs.PAGINATION.DEFAULT_LIMIT;
-      const offset = query.offset ? parseInt(query.offset) : 0;
+      const { limit, offset } = parseOffsetPagination(query);
 
-      const result = await activityService.getLogsForUser(user!.id, { limit, offset });
+      const result = await activityService.getLogsForUser(auth.user.id, { limit, offset });
       return successResponse({
         logs: result.logs,
         pagination: {
@@ -46,10 +44,10 @@ export const ActivityController = new Elysia({ prefix: '/activity' })
 
   // Get recent activity summary
   .get('/recent', async ({ user, set, activityService }) => {
-    if (!user) {
-      set.status = 401;
-      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+    const auth = requireAuth(user, set);
+    if ('error' in auth) {
+      return auth.error;
     }
-    const logs = await activityService.getRecentActivity(user.id, 10); // 10 is fine for "recent" summary
+    const logs = await activityService.getRecentActivity(auth.user.id, 10); // 10 is fine for "recent" summary
     return successResponse({ logs });
   });

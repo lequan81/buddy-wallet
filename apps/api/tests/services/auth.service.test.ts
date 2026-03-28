@@ -37,9 +37,15 @@ describe('AuthService (Unit Tests with DI)', () => {
 
   beforeEach(() => {
     mockDb = createMockDb();
+    const mockDebtRepo = { linkDebtsToUser: async () => undefined } as any;
     const mockEmailService = {} as any;
     const mockVerificationService = {} as any;
-    authService = new AuthService(mockDb as any, mockEmailService, mockVerificationService);
+    authService = new AuthService(
+      mockDb as any,
+      mockDebtRepo,
+      mockEmailService,
+      mockVerificationService
+    );
   });
 
   describe('input validation', () => {

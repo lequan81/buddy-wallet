@@ -1,8 +1,21 @@
-import { eq, and, or, sql, desc, count, inArray, lte } from 'drizzle-orm';
-import type { ImportLog, User, Debt } from '@repo/db';
-import { importLogs, users, debts } from '@repo/db';
+import {
+  eq,
+  and,
+  or,
+  desc,
+  count,
+  inArray,
+  lte,
+  importLogs,
+  users,
+  debts,
+  type User,
+  type Debt
+} from '@repo/db';
 import type { IImportExportRepository } from '@repo/types';
 import type { DbClient } from '@/types';
+
+type ImportLog = typeof importLogs.$inferSelect;
 
 export class DrizzleImportExportRepository implements IImportExportRepository {
   constructor(private readonly db: DbClient) {}
@@ -26,6 +39,16 @@ export class DrizzleImportExportRepository implements IImportExportRepository {
         .where(and(eq(importLogs.id, id), eq(importLogs.userId, userId)))
         .get()) || null
     );
+  }
+
+  async getLogsByIds(ids: string[], userId: string): Promise<ImportLog[]> {
+    if (ids.length === 0) return [];
+
+    return this.db
+      .select()
+      .from(importLogs)
+      .where(and(eq(importLogs.userId, userId), inArray(importLogs.id, ids)))
+      .all();
   }
 
   async getLogsPaginated(
@@ -56,18 +79,25 @@ export class DrizzleImportExportRepository implements IImportExportRepository {
   }
 
   async deleteLogsByStatus(userId: string, status: string, olderThan: Date): Promise<number> {
-    const result = await this.db
+    const whereClause = and(
+      eq(importLogs.userId, userId),
+      eq(importLogs.status, status as typeof importLogs.$inferSelect.status),
+      lte(importLogs.createdAt, olderThan)
+    );
+
+    const rows = await this.db
+      .select({ id: importLogs.id })
+      .from(importLogs)
+      .where(whereClause)
+      .all();
+
+    if (rows.length === 0) return 0;
+
+    await this.db
       .delete(importLogs)
-      .where(
-        and(
-          eq(importLogs.userId, userId),
-          eq(importLogs.status, status as any),
-          lte(importLogs.createdAt, olderThan)
-        )
-      );
-    // SQLite doesn't always return rows affected in a standard way through Drizzle for delete
-    // but we return something indicative.
-    return 1; 
+      .where(whereClause);
+
+    return rows.length;
   }
 
   async findUsersByIdentifiers(identifiers: string[]): Promise<Pick<User, 'id' | 'email' | 'phoneNumber'>[]> {

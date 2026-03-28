@@ -3,6 +3,12 @@ import { importCache, isRedisAvailable, getClient } from '@plugins/redis';
 import { logger } from '@repo/logger';
 import type { WorkerJobPayload, JobType, JobPayload } from '@repo/types';
 
+const sanitizeFileName = (value: string | undefined): string => {
+  const raw = (value || '').trim();
+  if (!raw) return 'unnamed';
+  return raw.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || 'unnamed';
+};
+
 export class JobsService {
   private jobTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
@@ -16,7 +22,7 @@ export class JobsService {
 
   async addJob(type: JobType, payload: JobPayload): Promise<string> {
     const jobId = randomUUIDv7('base64url');
-    const fileName = payload.file ? payload.file.name : payload.fileName;
+    const fileName = sanitizeFileName(payload.file ? payload.file.name : payload.fileName);
 
     // FIX ENOENT:
     // Elysia (via Bun) mounts incoming multipart File uploads onto the volatile OS Temp directory.

@@ -27,7 +27,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 		// If the import is still pending/processing, also fetch current progress
 		let progress = null;
-		if (importLog && 'status' in importLog && (importLog.status === 'pending' || importLog.status === 'processing' || importLog.status === 'preview')) {
+		if (
+			importLog &&
+			'status' in importLog &&
+			(importLog.status === 'pending' ||
+				importLog.status === 'queued' ||
+				importLog.status === 'processing' ||
+				importLog.status === 'preview')
+		) {
 			const { data: progressRes, error: progressErr } = await api.v1.import.progress({ logId: id }).get();
 			if (!progressErr && progressRes && 'success' in progressRes && progressRes.success) {
 				progress = progressRes;

@@ -166,7 +166,7 @@ export class DrizzleSessionRepository implements ISessionRepository {
       .set({
         status: 'revoked',
         revokedAt: new Date(),
-        revokedReason: reason
+        revokedReason: reason as Session['revokedReason']
       })
       .where(eq(sessions.id, id));
   }
@@ -204,7 +204,7 @@ export class DrizzleSessionRepository implements ISessionRepository {
       .set({
         status: 'revoked',
         revokedAt: new Date(),
-        revokedReason: reason
+        revokedReason: reason as Session['revokedReason']
       })
       .where(
         and(

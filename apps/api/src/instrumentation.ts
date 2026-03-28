@@ -14,7 +14,7 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import type { SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { ExportResultCode, type ExportResult } from '@opentelemetry/core';
 import { logger } from '@repo/logger';
-import { traceStore } from './utils/trace-store';
+import { traceStore } from './utils/trace-store.utils';
 
 const isDev = Bun.env.NODE_ENV !== 'production';
 const serviceName = Bun.env.OTEL_SERVICE_NAME || 'buddy-wallet-api';

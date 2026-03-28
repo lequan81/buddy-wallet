@@ -25,7 +25,11 @@ export class BankAccountService {
         await this.bankRepo.setPrimary('', data.userId); // Empty ID means just unset others
       }
 
-      const account = await this.bankRepo.create(data);
+      const account = await this.bankRepo.create({
+        ...data,
+        accountName: data.accountName ?? null,
+        isDefault: data.isDefault ?? false
+      });
 
       log.debug('BANK', 'Account added', { userId: data.userId, bankCode: data.bankCode });
 

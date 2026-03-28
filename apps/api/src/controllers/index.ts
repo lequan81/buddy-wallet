@@ -9,4 +9,3 @@ export * from './system/traces.controller';
 export * from './storage/upload.controller';
 export * from './notification/push.controller';
 export * from './bank/bank.controller';
-export * from './debt/proof.controller';
