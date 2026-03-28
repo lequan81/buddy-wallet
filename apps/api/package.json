@@ -19,6 +19,7 @@
     "@repo/permissions": "workspace:*",
     "@repo/types": "workspace:*",
     "@repo/utils": "workspace:*",
+    "@repo/schemas": "workspace:*",
     "@repo/validation": "workspace:*",
     "@elysiajs/bearer": "^1.4.3",
     "@elysiajs/cookie": "^0.8.0",

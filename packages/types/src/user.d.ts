@@ -1,3 +1,4 @@
+import type { BaseResult } from './base';
 import type { User as DBUser } from '@repo/db';
 
 export type CurrentUser = Pick<DBUser, 'id' | 'role' | 'phoneNumber' | 'email'> & { permissions: string[] };
@@ -24,14 +25,11 @@ export interface SafeUser extends Omit<
   updatedAt: Date | string | null;
 }
 
-export interface UserResult {
-  success: boolean;
-  error?: string;
+export interface UserResult extends BaseResult {
   user?: SafeUser;
   users?: SafeUser[];
   isActive?: boolean;
   permissions?: string[];
-  message?: string;
 }
 
 export interface UserWithNotifications {

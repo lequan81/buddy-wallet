@@ -5,13 +5,14 @@
  * Handles HTTP concerns (cookies, headers, status codes) only.
  */
 import { Elysia, t } from 'elysia';
+import { RegisterSchema, LoginSchema } from '@repo/schemas';
 import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { sessionAuthPlugin } from '../plugins/auth';
-import { authRateLimiter } from '../plugins/middleware';
-import { sessionCache, jwtBlacklist, isRedisAvailable } from '../plugins/redis';
-import { configs } from '../configs';
-import { getClientIP, hashToken } from '../utils';
-import { servicesPlugin } from '../plugins/services.plugin';
+import { sessionAuthPlugin } from '@plugins/auth';
+import { authRateLimiter } from '@plugins/middleware';
+import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
+import { configs } from '@/configs';
+import { getClientIP, hashToken } from '@utils';
+import { servicesPlugin } from '@plugins/services.plugin';
 
 export const AuthController = new Elysia({ prefix: '/auth' })
   .use(servicesPlugin)
@@ -49,12 +50,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
       return successResponse({ user: result.user });
     },
     {
-      body: t.Object({
-        name: t.String({ minLength: 2 }),
-        phoneNumber: t.String({ minLength: 10 }),
-        email: t.Optional(t.String({ format: 'email' })),
-        password: t.String({ minLength: 8 })
-      })
+      body: RegisterSchema
     }
   )
 
@@ -126,10 +122,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
       });
     },
     {
-      body: t.Object({
-        email: t.String(),
-        password: t.String()
-      })
+      body: LoginSchema
     }
   )
 

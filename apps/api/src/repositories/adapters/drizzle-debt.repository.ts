@@ -8,16 +8,15 @@ import {
   debts,
   users,
   eq,
-  or,
-  and,
   ne,
   gte,
   desc,
+  and,
+  or,
   count,
-  isNull,
+  isNull
 } from '@repo/db';
-
-import { DEBT_STATUS } from '@repo/types';
+import { configs } from '@/configs';
 import type { DebtStatus } from '@repo/types';
 import type { DbClient } from '@/types';
 import type { PaginatedResult } from '@repo/types';
@@ -55,7 +54,13 @@ export class DrizzleDebtRepository implements IDebtRepository {
   }
 
   async findMany(options: DebtFilterOptions): Promise<PaginatedResult<DebtEntity>> {
-    const { limit = 50, offset = 0, status, involvedUserId, includeDeleted } = options;
+    const { 
+      limit = configs.PAGINATION.DEFAULT_LIMIT, 
+      offset = 0, 
+      status, 
+      involvedUserId, 
+      includeDeleted 
+    } = options;
 
     // Build where clause
     let where: ReturnType<typeof and> | ReturnType<typeof or> | undefined;
@@ -104,10 +109,14 @@ export class DrizzleDebtRepository implements IDebtRepository {
       .all();
 
     return {
+      success: true,
       data: data.map((d: typeof data[0]) => this.toEntity(d)),
-      total,
-      limit,
-      offset
+      pagination: {
+        page: Math.floor(offset / limit) + 1,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
     };
   }
 
@@ -160,6 +169,41 @@ export class DrizzleDebtRepository implements IDebtRepository {
   async update(id: string, data: UpdateDebtData): Promise<DebtEntity | null> {
     const result = await this.db.update(debts).set(data).where(eq(debts.id, id)).returning();
     return result.length > 0 ? this.toEntity(result[0]) : null;
+  }
+
+  async linkToUser(userId: string, phoneNumber: string): Promise<void> {
+    const now = new Date();
+    // Link debtor
+    await this.db
+      .update(debts)
+      .set({ debtorId: userId, updatedAt: now })
+      .where(and(eq(debts.debtorPhone, phoneNumber), isNull(debts.debtorId)));
+
+    // Link creditor
+    await this.db
+      .update(debts)
+      .set({ creditorId: userId, updatedAt: now })
+      .where(and(eq(debts.creditorPhone, phoneNumber), isNull(debts.creditorId)));
+  }
+
+  async countByUserId(userId: string): Promise<{ total: number; pending: number; completed: number }> {
+    const stats = await this.db
+      .select({
+        status: debts.status,
+        count: count()
+      })
+      .from(debts)
+      .where(or(eq(debts.creditorId, userId), eq(debts.debtorId, userId)))
+      .groupBy(debts.status)
+      .all();
+
+    const result = { total: 0, pending: 0, completed: 0 };
+    for (const s of stats) {
+      result.total += s.count;
+      if (s.status === 'pending') result.pending += s.count;
+      if (s.status === 'paid') result.completed += s.count;
+    }
+    return result;
   }
 
   async softDelete(id: string, deletedAt: Date): Promise<boolean> {

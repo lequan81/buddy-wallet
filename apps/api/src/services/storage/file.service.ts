@@ -1,4 +1,4 @@
-import { fileMetadata, debts, eq, and } from '@repo/db';
+import { type FileMetadata, type FileType } from '@repo/db';
 import { cache } from '@/plugins/redis';
 import { log } from '@repo/logger';
 import {
@@ -8,10 +8,8 @@ import {
   PROOF_TMP_DIR
 } from '@repo/config';
 import { isValidImageBytes } from '@repo/utils';
-import type { DbClient } from '@/types';
-import type { FileType, FileStatus, FileMetadata } from '@repo/db';
 import { DiskStorageService } from './storage.service';
-import type { IStorageService } from '@/types';
+import type { IStorageService, IFileRepository, IDebtRepository } from '@/types';
 import { ImageService } from './image.service';
 
 const IMAGE_CACHE_TTL = 3600; // 1 hour
@@ -22,7 +20,8 @@ export class FileService {
   private imageService: ImageService;
 
   constructor(
-    private db: DbClient,
+    private readonly fileRepo: IFileRepository,
+    private readonly debtRepo: IDebtRepository,
     uploadStorage?: IStorageService,
     proofStorage?: IStorageService,
     imageService?: ImageService
@@ -79,7 +78,9 @@ export class FileService {
 
       // Metadata
       const now = new Date();
-      const metadata: typeof fileMetadata.$inferInsert = {
+      const status = (type === 'qr_code' ? 'approved' : 'pending') as string;
+
+      const metadata: any = {
         id,
         filename,
         originalName: file.name,
@@ -88,28 +89,26 @@ export class FileService {
         storagePath: relativePath,
         uploadedById: userId,
         fileType: type,
-        relatedDebtId,
-        status: type === 'qr_code' ? 'approved' : 'pending',
-        createdAt: now
+        relatedDebtId: relatedDebtId || null,
+        status,
+        createdAt: now,
+        reviewedById: null,
+        reviewedAt: null,
+        rejectionReason: null
       };
 
       try {
-        this.db.insert(fileMetadata).values(metadata).run();
+        await this.fileRepo.create(metadata);
 
         // Update debt proof tracking if this is a payment proof
         if (type === 'payment_proof' && relatedDebtId) {
-          const debt = this.db.select().from(debts).where(eq(debts.id, relatedDebtId)).get();
+          const debt = await this.debtRepo.findById(relatedDebtId);
           if (debt) {
-            this.db
-              .update(debts)
-              .set({
-                hasPendingProof: true,
-                proofCount: (debt.proofCount || 0) + 1,
-                lastProofUploadedAt: now,
-                updatedAt: now
-              })
-              .where(eq(debts.id, relatedDebtId))
-              .run();
+            await this.debtRepo.update(relatedDebtId, {
+              hasPendingProof: true,
+              proofCount: (debt.proofCount || 0) + 1,
+              lastProofUploadedAt: now
+            });
             log.debug('FILE', 'Updated debt proof tracking', { debtId: relatedDebtId });
           }
         }
@@ -138,13 +137,13 @@ export class FileService {
     mimeType?: string;
     metadata?: FileMetadata;
   }> {
-    const metadata = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
+    const metadata = await this.fileRepo.findById(fileId);
     if (!metadata) return { success: false, error: 'File not found' };
 
     // Ownership / relationship check
     if (!isAdmin && metadata.uploadedById !== requestingUserId) {
       if (metadata.relatedDebtId) {
-        const debt = this.db.select().from(debts).where(eq(debts.id, metadata.relatedDebtId)).get();
+        const debt = await this.debtRepo.findById(metadata.relatedDebtId);
         if (!debt || (debt.debtorId !== requestingUserId && debt.creditorId !== requestingUserId)) {
           return { success: false, error: 'Access denied' };
         }
@@ -184,36 +183,15 @@ export class FileService {
   }
 
   async getUserQRCodes(userId: string): Promise<FileMetadata[]> {
-    return this.db
-      .select()
-      .from(fileMetadata)
-      .where(and(eq(fileMetadata.uploadedById, userId), eq(fileMetadata.fileType, 'qr_code')))
-      .all();
+    return this.fileRepo.findByUserIdAndType(userId, 'qr_code');
   }
 
   async getPendingProofs(debtId: string): Promise<FileMetadata[]> {
-    return this.db
-      .select()
-      .from(fileMetadata)
-      .where(
-        and(
-          eq(fileMetadata.relatedDebtId, debtId),
-          eq(fileMetadata.fileType, 'payment_proof'),
-          eq(fileMetadata.status, 'pending')
-        )
-      )
-      .all();
+    return this.fileRepo.findByDebtIdAndType(debtId, 'payment_proof', 'pending');
   }
 
   async getProofsForDebt(debtId: string): Promise<FileMetadata[]> {
-    return this.db
-      .select()
-      .from(fileMetadata)
-      .where(
-        and(eq(fileMetadata.relatedDebtId, debtId), eq(fileMetadata.fileType, 'payment_proof'))
-      )
-      .orderBy(fileMetadata.createdAt)
-      .all();
+    return this.fileRepo.findByDebtIdAndType(debtId, 'payment_proof');
   }
 
   async approveProof(
@@ -226,53 +204,31 @@ export class FileService {
     debtId?: string;
     uploaderId?: string;
   }> {
-    const file = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
+    const file = await this.fileRepo.findById(fileId);
 
     if (!file) return { success: false, error: 'File not found' };
     if (file.fileType !== 'payment_proof') return { success: false, error: 'Not a payment proof' };
     if (file.status !== 'pending') return { success: false, error: 'Already reviewed' };
     if (!file.relatedDebtId) return { success: false, error: 'No related debt found' };
 
-    const debt = this.db.select().from(debts).where(eq(debts.id, file.relatedDebtId)).get();
+    const debt = await this.debtRepo.findById(file.relatedDebtId);
     if (!debt) return { success: false, error: 'Related debt not found' };
 
     if (debt.creditorId !== reviewerId) {
       return { success: false, error: 'Only creditor can approve payment proofs' };
     }
 
-    this.db
-      .update(fileMetadata)
-      .set({
-        status: 'approved' as FileStatus,
-        reviewedById: reviewerId,
-        reviewedAt: new Date()
-      })
-      .where(eq(fileMetadata.id, fileId))
-      .run();
+    await this.fileRepo.updateStatus(fileId, 'approved', reviewerId);
 
     // Recalculate pending proofs for this debt
-    const remainingPending = this.db
-      .select()
-      .from(fileMetadata)
-      .where(
-        and(
-          eq(fileMetadata.relatedDebtId, file.relatedDebtId),
-          eq(fileMetadata.fileType, 'payment_proof'),
-          eq(fileMetadata.status, 'pending')
-        )
-      )
-      .all();
+    const remainingPending = await this.fileRepo.findByDebtIdAndType(file.relatedDebtId, 'payment_proof', 'pending');
 
     // Check if all proofs are now approved (no pending left)
     const allProofsApproved = remainingPending.length === 0;
 
     // Clear hasPendingProof if no more pending proofs
     if (allProofsApproved) {
-      this.db
-        .update(debts)
-        .set({ hasPendingProof: false })
-        .where(eq(debts.id, file.relatedDebtId))
-        .run();
+      await this.debtRepo.update(file.relatedDebtId, { hasPendingProof: false });
       log.debug('FILE', 'Cleared hasPendingProof for debt', { debtId: file.relatedDebtId });
     }
 
@@ -290,30 +246,21 @@ export class FileService {
     reviewerId: string,
     reason?: string
   ): Promise<{ success: boolean; error?: string; debtId?: string; uploaderId?: string }> {
-    const file = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
+    const file = await this.fileRepo.findById(fileId);
 
     if (!file) return { success: false, error: 'File not found' };
     if (file.fileType !== 'payment_proof') return { success: false, error: 'Not a payment proof' };
     if (file.status !== 'pending') return { success: false, error: 'Already reviewed' };
     if (!file.relatedDebtId) return { success: false, error: 'No related debt found' };
 
-    const debt = this.db.select().from(debts).where(eq(debts.id, file.relatedDebtId)).get();
+    const debt = await this.debtRepo.findById(file.relatedDebtId);
     if (!debt) return { success: false, error: 'Related debt not found' };
 
     if (debt.creditorId !== reviewerId) {
       return { success: false, error: 'Only creditor can reject payment proofs' };
     }
 
-    this.db
-      .update(fileMetadata)
-      .set({
-        status: 'rejected' as FileStatus,
-        reviewedById: reviewerId,
-        reviewedAt: new Date(),
-        rejectionReason: reason
-      })
-      .where(eq(fileMetadata.id, fileId))
-      .run();
+    await this.fileRepo.updateStatus(fileId, 'rejected', reviewerId, reason);
 
     log.debug('FILE', 'Proof rejected', { fileId, reviewerId, reason });
     return {
@@ -324,14 +271,14 @@ export class FileService {
   }
 
   async deleteFile(fileId: string, userId: string): Promise<{ success: boolean; error?: string }> {
-    const file = this.db.select().from(fileMetadata).where(eq(fileMetadata.id, fileId)).get();
+    const file = await this.fileRepo.findById(fileId);
     if (!file) return { success: false, error: 'File not found' };
     if (file.uploadedById !== userId) return { success: false, error: 'Not authorized' };
 
     const targetStorage =
       file.fileType === 'payment_proof' ? this.proofStorage : this.uploadStorage;
     await targetStorage.delete(file.storagePath);
-    this.db.delete(fileMetadata).where(eq(fileMetadata.id, fileId)).run();
+    await this.fileRepo.deleteById(fileId);
     await cache.del(`file:${fileId}`);
 
     log.debug('FILE', 'Deleted', { fileId });

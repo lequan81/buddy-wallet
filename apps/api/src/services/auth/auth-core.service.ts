@@ -8,8 +8,8 @@
  * 
  * Dependencies: db, emailService, emailVerificationService
  */
-import { randomUUIDv7 } from 'bun';
-import { users, debts, eq, and, isNull, type NewUser } from '@repo/db';
+import { type User } from '@repo/db';
+import type { IUserRepository, IDebtRepository } from '@repo/types';
 import { DEFAULT_USER_PERMISSIONS } from '@repo/permissions';
 import { configs } from '../../configs';
 import {
@@ -19,10 +19,9 @@ import {
   toSafeUser
 } from '@utils';
 import { logger } from '@repo/logger';
-import type { DbClient } from '@/types';
-import type { RegisterInput, AuthResult } from '@/types';
 import type { EmailService } from '@services/email/email.service';
 import type { EmailVerificationService } from '@services/email/email-verification.service';
+import type { RegisterInput, AuthResult } from '@/types';
 import { dbCircuitBreaker, DatabaseError as _DatabaseError } from '../../utils/database';
 
 /**
@@ -30,9 +29,10 @@ import { dbCircuitBreaker, DatabaseError as _DatabaseError } from '../../utils/d
  */
 export class AuthCoreService {
   constructor(
-    private db: DbClient,
-    private emailService: EmailService,
-    private emailVerificationService: EmailVerificationService
+    private readonly userRepo: IUserRepository,
+    private readonly debtRepo: IDebtRepository,
+    private readonly emailService: EmailService,
+    private readonly emailVerificationService: EmailVerificationService
   ) {}
 
   /**
@@ -40,17 +40,7 @@ export class AuthCoreService {
    */
   private async linkDebtsToUser(userId: string, phoneNumber: string) {
     await dbCircuitBreaker.execute(async () =>
-      this.db
-        .update(debts)
-        .set({ debtorId: userId, updatedAt: new Date() })
-        .where(and(eq(debts.debtorPhone, phoneNumber), isNull(debts.debtorId)))
-    );
-
-    await dbCircuitBreaker.execute(async () =>
-      this.db
-        .update(debts)
-        .set({ creditorId: userId, updatedAt: new Date() })
-        .where(and(eq(debts.creditorPhone, phoneNumber), isNull(debts.creditorId)))
+      this.debtRepo.linkToUser(userId, phoneNumber)
     );
   }
 
@@ -84,44 +74,33 @@ export class AuthCoreService {
       }
 
       // Check phone uniqueness
-      const existingPhone = this.db
-        .select()
-        .from(users)
-        .where(eq(users.phoneNumber, normalizedPhone))
-        .get();
+      const existingPhone = await this.userRepo.findByPhone(normalizedPhone);
       if (existingPhone) {
         return { success: false, error: 'Phone number already registered' };
       }
-
+      
       // Check email uniqueness if provided
       if (email) {
-        const existingEmail = await dbCircuitBreaker.execute(async () =>
-          this.db.select().from(users).where(eq(users.email, email)).get()
-        );
+        const existingEmail = await this.userRepo.findByEmail(email);
         if (existingEmail) {
           return { success: false, error: 'Email already registered' };
         }
       }
 
       const hashedPassword = await Bun.password.hash(password, configs.AUTH.ARGON2_OPTIONS);
-      const userId = randomUUIDv7('base64url');
-
-      let newUser: typeof users.$inferSelect;
+      let newUser: User;
       try {
         const result = await dbCircuitBreaker.execute(async () =>
-          this.db
-            .insert(users)
-            .values({
-              name,
-              email: email || null,
-              phoneNumber: normalizedPhone,
-              password: hashedPassword,
-              permissions: DEFAULT_USER_PERMISSIONS,
-              temporaryPasswordUsed: false
-            } as NewUser)
-            .returning()
+          this.userRepo.create({
+            name,
+            email: email || null,
+            phoneNumber: normalizedPhone,
+            password: hashedPassword,
+            permissions: DEFAULT_USER_PERMISSIONS,
+            temporaryPasswordUsed: false
+          } as any)
         );
-        newUser = result[0];
+        newUser = result;
       } catch (error) {
         if (error instanceof _DatabaseError) {
           return {
@@ -132,7 +111,7 @@ export class AuthCoreService {
         throw error;
       }
 
-      await this.linkDebtsToUser(userId, normalizedPhone);
+      await this.linkDebtsToUser(newUser.id, normalizedPhone);
 
       // Send verification OTP email if user has email
       if (newUser?.email) {

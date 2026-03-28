@@ -29,7 +29,7 @@ import type {
   CreateDebtInput,
   CurrentUser,
   ExpiryOption,
-  PaginationOptions,
+  ApiPaginationOptions as PaginationOptions,
   PaginatedResult,
   DebtDetails
 } from '@repo/types';
@@ -104,10 +104,8 @@ export class DebtServices {
       involvedUserId: hasViewAllPermission ? undefined : userId
     });
     return {
-      data: result.data.map(toDebtDetails),
-      total: result.total,
-      limit: result.limit,
-      offset: result.offset
+      ...result,
+      data: result.data.map(toDebtDetails)
     };
   }
 
@@ -121,10 +119,8 @@ export class DebtServices {
       involvedUserId: userId
     });
     return {
-      data: result.data.map(toDebtDetails),
-      total: result.total,
-      limit: result.limit,
-      offset: result.offset
+      ...result,
+      data: result.data.map(toDebtDetails)
     };
   }
 

@@ -4,12 +4,10 @@
  * Handles Web Push notification subscriptions and sending.
  * Uses web-push library with VAPID authentication.
  */
-import { randomUUIDv7 } from 'bun';
 import webpush from 'web-push';
-import { pushSubscriptions, eq, and, sql } from '@repo/db';
-import { configs } from '@/configs';
 import { logger } from '@repo/logger';
-import type { DbClient } from '@/types';
+import type { INotificationRepository } from '@repo/types';
+import { configs } from '@/configs';
 import type { PushPayload, SubscribeInput, SendResult } from '@/types/push';
 
 // Configure web-push with VAPID keys (only if valid keys are provided)
@@ -39,7 +37,7 @@ if (hasValidVapidKeys) {
 }
 
 export class PushService {
-  constructor(private db: DbClient) {}
+  constructor(private notificationRepo: INotificationRepository) {}
 
   /**
    * Check if push notifications are configured
@@ -63,52 +61,9 @@ export class PushService {
     input: SubscribeInput
   ): Promise<{ success: boolean; subscriptionId?: string; error?: string }> {
     try {
-      // Check if subscription already exists for this endpoint
-      const existing = this.db
-        .select()
-        .from(pushSubscriptions)
-        .where(eq(pushSubscriptions.endpoint, input.endpoint))
-        .get();
-
-      if (existing) {
-        // Update existing subscription
-        await this.db
-          .update(pushSubscriptions)
-          .set({
-            userId,
-            p256dhKey: input.keys.p256dh,
-            authKey: input.keys.auth,
-            expirationTime: input.expirationTime ? new Date(input.expirationTime) : null,
-            deviceName: input.deviceName || existing.deviceName,
-            deviceType: input.deviceType || existing.deviceType,
-            isActive: true,
-            failedAttempts: 0,
-            updatedAt: new Date()
-          })
-          .where(eq(pushSubscriptions.id, existing.id));
-
-        return { success: true, subscriptionId: existing.id };
-      }
-
-      // Create new subscription
-      const id = randomUUIDv7('base64url');
-      await this.db.insert(pushSubscriptions).values({
-        id,
-        userId,
-        endpoint: input.endpoint,
-        p256dhKey: input.keys.p256dh,
-        authKey: input.keys.auth,
-        expirationTime: input.expirationTime ? new Date(input.expirationTime) : null,
-        deviceName: input.deviceName,
-        deviceType: input.deviceType,
-        isActive: true,
-        failedAttempts: 0,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-
-      logger.app(`Push subscription created`, { userId, subscriptionId: id });
-      return { success: true, subscriptionId: id };
+      const subscriptionId = await this.notificationRepo.upsertSubscription(userId, input);
+      logger.app(`Push subscription created/updated`, { userId, subscriptionId });
+      return { success: true, subscriptionId };
     } catch (error) {
       logger.error(`Failed to create push subscription`, { userId, error: String(error) });
       return { success: false, error: 'Failed to save subscription' };
@@ -123,10 +78,7 @@ export class PushService {
     endpoint: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      await this.db
-        .delete(pushSubscriptions)
-        .where(and(eq(pushSubscriptions.userId, userId), eq(pushSubscriptions.endpoint, endpoint)));
-
+      await this.notificationRepo.deleteSubscription(userId, endpoint);
       return { success: true };
     } catch (error) {
       logger.error(`Failed to unsubscribe`, { userId, error: String(error) });
@@ -138,18 +90,15 @@ export class PushService {
    * Get all subscriptions for a user
    */
   async getUserSubscriptions(userId: string) {
-    return this.db
-      .select({
-        id: pushSubscriptions.id,
-        deviceName: pushSubscriptions.deviceName,
-        deviceType: pushSubscriptions.deviceType,
-        isActive: pushSubscriptions.isActive,
-        createdAt: pushSubscriptions.createdAt,
-        lastUsedAt: pushSubscriptions.lastUsedAt
-      })
-      .from(pushSubscriptions)
-      .where(eq(pushSubscriptions.userId, userId))
-      .all();
+    const subs = await this.notificationRepo.getSubscriptionsByUserId(userId, false);
+    return subs.map(s => ({
+      id: s.id,
+      deviceName: s.deviceName,
+      deviceType: s.deviceType,
+      isActive: s.isActive,
+      createdAt: s.createdAt,
+      lastUsedAt: s.lastUsedAt
+    }));
   }
 
   /**
@@ -160,11 +109,7 @@ export class PushService {
       return { success: false, sent: 0, failed: 0, errors: ['Push not configured'] };
     }
 
-    const subscriptions = this.db
-      .select()
-      .from(pushSubscriptions)
-      .where(and(eq(pushSubscriptions.userId, userId), eq(pushSubscriptions.isActive, true)))
-      .all();
+    const subscriptions = await this.notificationRepo.getSubscriptionsByUserId(userId, true);
 
     if (subscriptions.length === 0) {
       return { success: true, sent: 0, failed: 0 };
@@ -205,14 +150,10 @@ export class PushService {
         try {
           await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
 
-          // Update last used timestamp
-          await this.db
-            .update(pushSubscriptions)
-            .set({
-              lastUsedAt: new Date(),
-              failedAttempts: 0
-            })
-            .where(eq(pushSubscriptions.id, sub.id));
+          await this.notificationRepo.updateSubscriptionStatus(sub.id, {
+            lastUsedAt: new Date(),
+            failedAttempts: 0
+          });
 
           return { success: true, subscriptionId: sub.id };
         } catch (error: unknown) {
@@ -221,22 +162,14 @@ export class PushService {
           // Handle expired or invalid subscriptions
           if (statusCode === 404 || statusCode === 410) {
             logger.app(`Removing expired subscription`, { subscriptionId: sub.id });
-            await this.db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
+            await this.notificationRepo.deleteById(sub.id);
           } else {
-            // Increment failed attempts
             const newAttempts = sub.failedAttempts + 1;
-            if (newAttempts >= configs.PUSH.MAX_FAILED_ATTEMPTS) {
-              // Deactivate subscription after too many failures
-              await this.db
-                .update(pushSubscriptions)
-                .set({ isActive: false, failedAttempts: newAttempts })
-                .where(eq(pushSubscriptions.id, sub.id));
-            } else {
-              await this.db
-                .update(pushSubscriptions)
-                .set({ failedAttempts: newAttempts })
-                .where(eq(pushSubscriptions.id, sub.id));
-            }
+            const isActive = newAttempts < configs.PUSH.MAX_FAILED_ATTEMPTS;
+            await this.notificationRepo.updateSubscriptionStatus(sub.id, {
+              isActive,
+              failedAttempts: newAttempts
+            });
           }
 
           throw error;
@@ -261,11 +194,7 @@ export class PushService {
       return { success: false, sent: 0, failed: 0, errors: ['Push not configured'] };
     }
 
-    const subscriptions = this.db
-      .select()
-      .from(pushSubscriptions)
-      .where(eq(pushSubscriptions.isActive, true))
-      .all();
+    const subscriptions = await this.notificationRepo.getAllActiveSubscriptions();
 
     if (subscriptions.length === 0) {
       return { success: true, sent: 0, failed: 0 };
@@ -278,18 +207,7 @@ export class PushService {
    * Cleanup inactive/expired subscriptions
    */
   async cleanup(): Promise<number> {
-    await this.db
-      .delete(pushSubscriptions)
-      .where(eq(pushSubscriptions.isActive, false));
-
-    // Return count of deleted subscriptions (approximate)
-    const deletedCount = await this.db
-      .select({ count: sql<number>`COUNT(${pushSubscriptions.id})`.as('count') })
-      .from(pushSubscriptions)
-      .where(eq(pushSubscriptions.isActive, false))
-      .get();
-    
-    return deletedCount?.count || 0;
+    return this.notificationRepo.cleanupInactive(30); // 30 days is a good default
   }
 
   /**

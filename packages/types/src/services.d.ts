@@ -1,8 +1,9 @@
-/// <reference types="./debt" />
-/// <reference types="./user" />
-/// <reference types="./session" />
-/// <reference types="./api" />
-/// <reference types="./device" />
+import type { BaseResult, BaseResult as ResetResult } from './base.js';
+import type { SafeUser, UserResult } from './user.js';
+import type { DebtStatus, DebtDirection, DebtDetails, DebtResult, StatusUpdateResult, CreateDebtInput } from './debt.js';
+import type { PaginationOptions, PaginatedResult, ExpiryOption } from './api.js';
+import type { DeviceInfo, ClientHints, Coordinates, ClientLocation } from './device.js';
+import type { SessionInfo } from './session.js';
 
 // Auth Types
 export interface RegisterInput {
@@ -18,20 +19,17 @@ export interface LoginInput {
   otp?: string;
   userAgent?: string | null;
   clientIP?: string | null;
-  clientHints?: import('./device').ClientHints;
-  coordinates?: import('./device').Coordinates | null;
-  clientLocation?: import('./device').ClientLocation;
+  clientHints?: ClientHints;
+  coordinates?: Coordinates | null;
+  clientLocation?: ClientLocation;
 }
 
-export interface AuthResult {
-  success: boolean;
+export interface AuthResult extends BaseResult {
   accessToken?: string;
   refreshToken?: string;
   sessionId?: string;
   expiresIn?: number;
-  user?: import('./user').SafeUser;
-  error?: string;
-  code?: string;
+  user?: SafeUser;
   isNewUser?: boolean;
   mustChangePassword?: boolean;
 }
@@ -42,10 +40,8 @@ export interface JwtService {
 }
 
 // Session Types
-export interface RefreshSessionResult {
-  success: boolean;
-  error?: string;
-  user?: import('./user').SafeUser;
+export interface RefreshSessionResult extends BaseResult {
+  user?: SafeUser;
   accessToken?: string;
   refreshToken?: string;
   expiresIn?: number;
@@ -61,13 +57,13 @@ export interface RequestInfo {
 export interface IAuthService {
   register(input: RegisterInput): Promise<AuthResult>;
   login(input: LoginInput, jwt: JwtService): Promise<AuthResult & { sessionId?: string }>;
-  logout(refreshToken: string, userId?: string): Promise<{ success: boolean; error?: string }>;
+  logout(refreshToken: string, userId?: string): Promise<BaseResult>;
   changePassword(
     userId: string,
     currentPassword: string,
     newPassword: string,
     currentSessionId?: string
-  ): Promise<{ success: boolean; error?: string }>;
+  ): Promise<BaseResult>;
 }
 
 export interface ISessionService {
@@ -79,13 +75,13 @@ export interface ISessionService {
   getUserSessions(
     userId: string,
     currentRefreshToken?: string
-  ): Promise<{ sessions: import('./session').SessionInfo[]; currentSessionId: string | null }>;
+  ): Promise<{ sessions: SessionInfo[]; currentSessionId: string | null }>;
   revokeSession(
     sessionId: string,
     userId: string,
     currentRefreshToken?: string
-  ): Promise<{ success: boolean; error?: string; isCurrent?: boolean }>;
-  revokeAllSessions(userId: string): Promise<{ success: boolean; count: number }>;
+  ): Promise<BaseResult & { isCurrent?: boolean }>;
+  revokeAllSessions(userId: string): Promise<BaseResult & { count: number }>;
 }
 
 
@@ -93,26 +89,34 @@ export interface IDebtService {
   getDebtsForUser(
     userId: string,
     hasViewAllPermission: boolean,
-    options?: import('./api').PaginationOptions
-  ): Promise<import('./api').PaginatedResult<import('./debt').DebtDetails>>;
-  getDebtsByUserId(userId: string, options?: import('./api').PaginationOptions): Promise<import('./api').PaginatedResult<import('./debt').DebtDetails>>;
+    options?: ApiPaginationOptions
+  ): Promise<PaginatedResult<DebtDetails>>;
+  getDebtsByUserId(userId: string, options?: ApiPaginationOptions): Promise<PaginatedResult<DebtDetails>>;
   countActiveDebtsForPhone(phone: string): Promise<number>;
-  getDebtById(debtId: string): Promise<import('./debt').DebtDetails | undefined>;
-  createDebt(input: import('./debt').CreateDebtInput & { expiryOption?: import('./api').ExpiryOption; confirmDuplicate?: boolean }, currentUser: import('./user').SafeUser): Promise<import('./debt').DebtResult>;
-  updateDebtStatus(debtId: string, newStatus: import('./debt').DebtStatus, currentUser: import('./user').SafeUser): Promise<import('./debt').StatusUpdateResult>;
+  getDebtById(debtId: string): Promise<DebtDetails | undefined>;
+  createDebt(input: CreateDebtInput & { expiryOption?: ExpiryOption; confirmDuplicate?: boolean }, currentUser: SafeUser): Promise<DebtResult>;
+  updateDebtStatus(debtId: string, newStatus: DebtStatus, currentUser: SafeUser): Promise<StatusUpdateResult>;
 }
 
 export interface IUserService {
   getAllUsers(options?: {
     limit?: number;
     offset?: number;
-  }): Promise<{ users: import('./user').SafeUser[]; total: number; hasMore: boolean }>;
-  getUserById(userId: string): Promise<import('./user').UserResult>;
-  toggleUserStatus(userId: string): Promise<import('./user').UserResult>;
-  updateUserPermissions?(userId: string, permissions: string[]): Promise<import('./user').UserResult>;
+  }): Promise<PaginatedResult<SafeUser>>;
+  getUserById(userId: string): Promise<UserResult>;
+  toggleUserStatus(userId: string): Promise<UserResult>;
+  updateUserPermissions?(userId: string, permissions: string[]): Promise<UserResult>;
+  updateProfile(
+    userId: string,
+    updates: {
+      name?: string;
+      email?: string;
+      phoneNumber?: string;
+      emailNotificationsEnabled?: boolean;
+      pushNotificationsEnabled?: boolean;
+    }
+  ): Promise<UserResult>;
+  canReceivePush(userId: string): Promise<boolean>;
 }
 
-export interface ResetResult {
-  success: boolean;
-  error?: string;
-}
+export type { ResetResult };

@@ -5,8 +5,8 @@
  */
 
 import { Elysia } from 'elysia';
-import { traceStore } from '../utils/trace-store';
-import { configs } from '../configs';
+import { traceStore } from '@utils/trace-store';
+import { configs } from '@/configs';
 
 const isDev = configs.APP.IS_DEV;
 

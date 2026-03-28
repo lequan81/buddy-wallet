@@ -7,10 +7,15 @@
  * NOTE: Controllers should use the DI plugin (servicesPlugin) instead.
  */
 import { db } from '@repo/db';
+// No unused imports
 
 // Import Service Classes
 import { SessionService as SessionServiceClass } from './user/session.service';
 import { UserService as UserServiceClass } from './user/user.service';
+import { DrizzleUserRepository, DrizzleSessionRepository } from '@/repositories/adapters/drizzle-user.repository';
+import { DrizzleActivityRepository } from '@/repositories/adapters/drizzle-activity.repository';
+import { DrizzleNotificationRepository } from '@/repositories/adapters/drizzle-notification.repository';
+import { DrizzleBankAccountRepository } from '@/repositories/adapters/drizzle-bank-account.repository';
 import { ExportService as ExportServiceClass } from './import-export/export.service';
 import { ImportService as ImportServiceClass } from './import-export/import.service';
 import { FileService as FileServiceClass } from './storage/file.service';
@@ -30,11 +35,18 @@ export { CleanupService } from './system/cleanup.service';
 // Re-export types from centralized type system
 export type { DbClient, JwtService, CacheService } from '../types';
 
+// Core Repositories
+const userRepository = new DrizzleUserRepository(db);
+const sessionRepository = new DrizzleSessionRepository(db);
+const activityRepository = new DrizzleActivityRepository(db);
+const notificationRepository = new DrizzleNotificationRepository(db);
+const bankAccountRepository = new DrizzleBankAccountRepository(db);
+
 // Singleton instances (for non-DI contexts: worker, scripts, cron)
-export const SessionService = new SessionServiceClass(db);
-export const PushService = new PushServiceClass(db);
-export const ActivityService = new ActivityServiceClass(db);
-export const UserService = new UserServiceClass(db);
+export const SessionService = new SessionServiceClass(sessionRepository, userRepository);
+export const PushService = new PushServiceClass(notificationRepository);
+export const ActivityService = new ActivityServiceClass(activityRepository);
+export const UserService = new UserServiceClass(userRepository, sessionRepository);
 export const EmailVerificationService = new EmailVerificationServiceClass(db);
 export const EmailService = new EmailServiceClass();
 export const PasswordResetService = new PasswordResetServiceClass(db, EmailService);
@@ -45,4 +57,4 @@ export const ImportLoggerService = new ImportLoggerServiceClass(db);
 export const ImportService = new ImportServiceClass(db, SpreadsheetService, ImportLoggerService);
 export const ExportService = new ExportServiceClass(db);
 export const FileService = new FileServiceClass(db);
-export const BankAccountService = new BankAccountServiceClass(db);
+export const BankAccountService = new BankAccountServiceClass(bankAccountRepository);

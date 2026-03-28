@@ -10,8 +10,8 @@
  * Dependencies: db
  */
 import { randomUUIDv7 } from 'bun';
-import { users, sessions, eq, or } from '@repo/db';
 import { configs } from '../../configs';
+import type { IUserRepository, ISessionRepository } from '@repo/types';
 import {
   hashToken,
   parseUserAgent,
@@ -19,7 +19,7 @@ import {
   toSafeUser
 } from '@utils';
 import { logger } from '@repo/logger';
-import type { DbClient, JwtService } from '@/types';
+import type { JwtService } from '@/types';
 import type { LoginInput, AuthResult } from '@/types';
 
 // Dummy hash for timing attack mitigation (pre-calculated at startup)
@@ -39,7 +39,10 @@ function generateRefreshToken(): string {
  * AuthSecurityService - Login security and session creation
  */
 export class AuthSecurityService {
-  constructor(private db: DbClient) {}
+  constructor(
+    private readonly userRepo: IUserRepository,
+    private readonly sessionRepo: ISessionRepository
+  ) {}
 
   /**
    * Login a user with security checks
@@ -53,11 +56,9 @@ export class AuthSecurityService {
       logger.auth(`Login attempt`, { identifier });
 
       // Find user by email OR phone number
-      const user = this.db
-        .select()
-        .from(users)
-        .where(or(eq(users.email, identifier), eq(users.phoneNumber, identifier)))
-        .get();
+      const user = identifier.includes('@') 
+        ? await this.userRepo.findByEmailWithPassword(identifier)
+        : await this.userRepo.findByPhoneWithPassword(identifier);
 
       // Check lockout status
       if (user && user.isLocked && user.lockoutUntil && user.lockoutUntil > new Date()) {
@@ -86,15 +87,12 @@ export class AuthSecurityService {
         const attempts = (user.failedLoginAttempts || 0) + 1;
         const shouldLock = attempts >= 5;
 
-        await this.db
-          .update(users)
-          .set({
-            failedLoginAttempts: attempts,
-            lastFailedLoginAt: new Date(),
-            isLocked: shouldLock,
-            lockoutUntil: shouldLock ? new Date(Date.now() + 15 * 60 * 1000) : null
-          })
-          .where(eq(users.id, user.id));
+        await this.userRepo.updateLockoutStatus(
+          user.id,
+          attempts,
+          shouldLock,
+          shouldLock ? new Date(Date.now() + 15 * 60 * 1000) : null
+        );
 
         if (shouldLock) {
           logger.security(`Account locked due to too many failed attempts`, { userId: user.id });
@@ -106,15 +104,8 @@ export class AuthSecurityService {
       logger.auth(`Login successful`, { userId: user.id });
 
       // Reset failed attempts on success
-      if (user.failedLoginAttempts > 0 || user.isLocked) {
-        await this.db
-          .update(users)
-          .set({
-            failedLoginAttempts: 0,
-            isLocked: false,
-            lockoutUntil: null
-          })
-          .where(eq(users.id, user.id));
+      if ((user.failedLoginAttempts || 0) > 0 || user.isLocked) {
+        await this.userRepo.resetFailedAttempts(user.id);
       }
 
       // Parse device info
@@ -147,10 +138,9 @@ export class AuthSecurityService {
       const sessionId = randomUUIDv7('base64url');
 
       // Store session
-      await this.db.insert(sessions).values({
+      await this.sessionRepo.create({
         id: sessionId,
         userId: user.id,
-        accessToken: null,
         accessTokenHash,
         accessTokenExpiresAt,
         refreshToken: refreshTokenHash,
@@ -158,12 +148,11 @@ export class AuthSecurityService {
         status: 'active',
         deviceName: deviceInfo.deviceName,
         deviceType: deviceInfo.deviceType,
-        location: location,
+        location: location as any,
         userAgent: userAgent || null,
         ipAddress: clientIP || null,
-        lastActiveAt: new Date(),
-        createdAt: new Date()
-      });
+        lastActiveAt: new Date()
+      } as any);
 
       return {
         success: true,

@@ -4,7 +4,7 @@
  * All shared types and interfaces for the API
  */
 
-// Re-export all types from shared packages
+// Re-export all types from shared packages and local modules
 export * from './rate-limit';
 export * from './trace';
 export * from './services/common';
@@ -22,35 +22,21 @@ export * from './services/user';
 export * from './services/vietqr';
 export * from '@repo/types';
 
+// Standard Foundation (Shared)
+export type { 
+  BaseResult, 
+  ApiResponse, 
+  PaginatedResult as PaginatedResponse, 
+  JWTPayload,
+  PaginationOptions 
+} from '@repo/types';
+
 // Service Types - re-export from @repo/types
 export type { EmailFrom, EmailOptions, EmailSendResult } from '@repo/types';
 export type { JobType, JobPayload } from '@repo/types';
 
 // App type (exported from index.ts)
 import type { Elysia } from 'elysia';
-
-/**
- * Paginated response
- */
-export interface PaginatedResponse<T> extends ApiResponse<T[]> {
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-}
-
-/**
- * JWT Payload structure
- */
-export interface JWTPayload {
-  id: string;
-  phoneNumber: string;
-  sessionVersion: number;
-  iat?: number;
-  exp?: number;
-}
 
 /**
  * Request context with authenticated user

@@ -35,39 +35,60 @@ import { AuthSessionService } from '@/services/auth/auth-session.service';
 
 // Debt Service — Hexagonal Architecture
 import { DebtServices } from '@/services/debt/debt.service';
+// Repositories
 import { DrizzleDebtRepository } from '@/repositories/adapters/drizzle-debt.repository';
+import { DrizzleUserRepository, DrizzleSessionRepository } from '@/repositories/adapters/drizzle-user.repository';
+import { DrizzleActivityRepository } from '@/repositories/adapters/drizzle-activity.repository';
+import { DrizzleNotificationRepository } from '@/repositories/adapters/drizzle-notification.repository';
+import { DrizzleBankAccountRepository } from '@/repositories/adapters/drizzle-bank-account.repository';
+import { DrizzleImportExportRepository } from '@/repositories/adapters/drizzle-import-export.repository';
+import { DrizzleFileRepository } from '@/repositories/adapters/drizzle-file.repository';
+import { DrizzleEmailVerificationRepository } from '@/repositories/adapters/drizzle-email-verification.repository';
 
-// Create base service instances
-const pushService = new PushServiceClass(db);
-const activityService = new ActivityServiceClass(db);
+// Activity & Notification (Core Repositories)
+const activityRepository = new DrizzleActivityRepository(db);
+const notificationRepository = new DrizzleNotificationRepository(db);
+
+const activityService = new ActivityServiceClass(activityRepository);
+const pushService = new PushServiceClass(notificationRepository);
 const emailService = new EmailServiceClass();
 
 // Debt Service — Single unified service via repository pattern
 const debtRepository = new DrizzleDebtRepository(db);
 const debtService = new DebtServices(debtRepository, pushService, activityService);
 
+// Repositories (Singleton instances)
+const userRepository = new DrizzleUserRepository(db);
+const sessionRepository = new DrizzleSessionRepository(db);
+const bankAccountRepository = new DrizzleBankAccountRepository(db);
+const importExportRepository = new DrizzleImportExportRepository(db);
+const fileRepository = new DrizzleFileRepository(db);
+const emailVerificationRepository = new DrizzleEmailVerificationRepository(db);
+
 // Email Services
-const emailVerificationService = new EmailVerificationServiceClass(db);
-const passwordResetService = new PasswordResetServiceClass(db, emailService);
+const emailVerificationService = new EmailVerificationServiceClass(emailVerificationRepository, userRepository);
+const passwordResetService = new PasswordResetServiceClass(userRepository, emailService);
 
 // Auth Services (Split - SRP)
-const authCoreService = new AuthCoreService(db, emailService, emailVerificationService);
-const authSecurityService = new AuthSecurityService(db);
-const authSessionService = new AuthSessionService(db);
+const authCoreService = new AuthCoreService(userRepository, debtRepository, emailService, emailVerificationService);
+const authSecurityService = new AuthSecurityService(userRepository, sessionRepository);
+const authSessionService = new AuthSessionService(userRepository, sessionRepository);
 
 // Import & Export Services
 const spreadsheetService = new SpreadsheetServiceClass();
-const importLoggerService = new ImportLoggerServiceClass(db);
-const importService = new ImportServiceClass(db, spreadsheetService, importLoggerService);
-const exportService = new ExportServiceClass(db);
+const importLoggerService = new ImportLoggerServiceClass(importExportRepository);
+const importService = new ImportServiceClass(importExportRepository, spreadsheetService, importLoggerService);
+const exportService = new ExportServiceClass(debtRepository, userRepository);
 
-// Other Services
-const sessionService = new SessionServiceClass(db);
-const userService = new UserServiceClass(db);
-const bankAccountService = new BankAccountServiceClass(db);
+// Existing repositories are now initialized above
+
+const sessionService = new SessionServiceClass(sessionRepository, userRepository);
+const userService = new UserServiceClass(userRepository, sessionRepository);
+const bankAccountService = new BankAccountServiceClass(bankAccountRepository);
+
 const vietqrService = new VietQRServiceClass();
 const jobsService = new JobsServiceClass();
-const fileService = new FileServiceClass(db);
+const fileService = new FileServiceClass(fileRepository, debtRepository);
 
 // Define the services object for decoration
 export const services = {

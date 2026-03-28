@@ -10,58 +10,12 @@ import { sessionAuthPlugin, accessControlPlugin, servicesPlugin } from '@plugins
 import { permissionPlugin } from '@plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
 import { getClientIP } from '@utils';
+import { configs } from '../../configs';
+import {
+  UpdateProfileSchema,
+  PaginationQuerySchema
+} from '@repo/schemas';
 
-// Helper functions to convert responses to Response objects for Elysia
-const _createErrorResponse = (error: { code: string; message: string }, details?: string, status: number = 400) => {
-  return new Response(JSON.stringify(errorResponse(error, details)), {
-    status,
-    headers: { 'Content-Type': 'application/json' }
-  });
-};
-
-const createSuccessResponse = <T extends object>(data?: T, status: number = 200) => {
-  return new Response(JSON.stringify(successResponse(data)), {
-    status,
-    headers: { 'Content-Type': 'application/json' }
-  });
-};
-
-const NullableString = t.Union([t.String(), t.Null()]);
-const NullableDateString = t.Union([t.String(), t.Null()]);
-
-const UserSchema = t.Object({
-  id: t.String(),
-  name: t.String(),
-  email: NullableString,
-  phoneNumber: NullableString,
-  role: t.String(),
-  permissions: t.Array(t.String()),
-  isActive: t.Boolean(),
-  emailVerified: t.Optional(t.Boolean()),
-  emailNotificationsEnabled: t.Optional(t.Boolean()),
-  pushNotificationsEnabled: t.Optional(t.Boolean()),
-  mustChangePassword: t.Optional(t.Boolean()),
-  createdAt: NullableDateString,
-  updatedAt: NullableDateString
-});
-
-const PaginationSchema = t.Object({
-  total: t.Number(),
-  limit: t.Number(),
-  offset: t.Number(),
-  hasMore: t.Boolean()
-});
-
-const UsersListResponseSchema = t.Object({
-  success: t.Literal(true),
-  users: t.Array(UserSchema),
-  pagination: PaginationSchema
-});
-
-const UserResponseSchema = t.Object({
-  success: t.Literal(true),
-  user: UserSchema
-});
 
 export const UsersController = new Elysia({ prefix: '/users' })
   .use(servicesPlugin)
@@ -114,13 +68,7 @@ export const UsersController = new Elysia({ prefix: '/users' })
       return successResponse({ user: result.user, message: result.message });
     },
     {
-      body: t.Object({
-        name: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
-        email: t.Optional(t.String({ format: 'email' })),
-        phoneNumber: t.Optional(t.String({ pattern: '^\\+?[1-9]\\d{1,14}$' })),
-        emailNotificationsEnabled: t.Optional(t.Boolean()),
-        pushNotificationsEnabled: t.Optional(t.Boolean())
-      }),
+      body: UpdateProfileSchema,
       checkPermission: PERMISSIONS.USER_UPDATE_PROFILE
     }
   )
@@ -129,26 +77,17 @@ export const UsersController = new Elysia({ prefix: '/users' })
   .get(
     '/',
     async ({ query, userService }) => {
-      const limit = query.limit ? Math.min(parseInt(query.limit), 100) : 50;
+      const limit = query.limit ? Math.min(parseInt(query.limit), configs.PAGINATION.MAX_LIMIT) : configs.PAGINATION.DEFAULT_LIMIT;
       const offset = query.offset ? parseInt(query.offset) : 0;
       const result = await userService.getAllUsers({ limit, offset });
-      return createSuccessResponse({
-        users: result.users,
-        pagination: {
-          total: result.total,
-          limit,
-          offset,
-          hasMore: result.hasMore
-        }
+      return successResponse({
+        users: result.data,
+        pagination: result.pagination
       });
     },
     {
       checkPermission: PERMISSIONS.ADMIN_MANAGE_USERS,
-      query: t.Object({
-        limit: t.Optional(t.String()),
-        offset: t.Optional(t.String())
-      }),
-      response: { 200: UsersListResponseSchema }
+      query: PaginationQuerySchema
     }
   )
 
@@ -160,15 +99,14 @@ export const UsersController = new Elysia({ prefix: '/users' })
 
       if (!result.success) {
         set.status = 404;
-        return _createErrorResponse(BE_ERRORS.USER_NOT_FOUND);
+        return errorResponse(BE_ERRORS.USER_NOT_FOUND);
       }
 
-      return createSuccessResponse({ user: result.user });
+      return successResponse({ user: result.user });
     },
     {
       params: t.Object({ id: t.String() }),
-      ensureRelatedUser: 'id',
-      response: { 200: UserResponseSchema }
+      ensureRelatedUser: 'id'
     }
   )
 

@@ -5,9 +5,8 @@
  * for email verification flow.
  */
 import { randomUUIDv7 } from 'bun';
-import { emailVerifications, users, eq, and, desc } from '@repo/db';
 import { hashToken } from '@utils';
-import type { DbClient } from '@/types';
+import type { IEmailVerificationRepository, IUserRepository } from '@repo/types';
 import type { CreateOtpResult, VerifyOtpResult, ResendOtpResult } from '@/types';
 
 // OTP Configuration
@@ -20,7 +19,10 @@ const OTP_MAX_ATTEMPTS = 5;
  * EmailVerificationService class with dependency injection
  */
 export class EmailVerificationService {
-  constructor(private db: DbClient) {}
+  constructor(
+    private readonly emailVerificationRepo: IEmailVerificationRepository,
+    private readonly userRepo: IUserRepository
+  ) {}
 
   /**
    * Generate a 6-digit OTP
@@ -39,19 +41,10 @@ export class EmailVerificationService {
     const expiresAt = new Date(now.getTime() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
     // Invalidate any existing unverified OTPs for this user/email
-    await this.db
-      .update(emailVerifications)
-      .set({ verified: true }) // Mark as used/expired
-      .where(
-        and(
-          eq(emailVerifications.userId, userId),
-          eq(emailVerifications.email, email),
-          eq(emailVerifications.verified, false)
-        )
-      );
+    await this.emailVerificationRepo.invalidateExisting(userId, email);
 
     // Create new OTP record
-    await this.db.insert(emailVerifications).values({
+    await this.emailVerificationRepo.create({
       id: randomUUIDv7('base64url'),
       userId,
       email,
@@ -59,9 +52,7 @@ export class EmailVerificationService {
       expiresAt,
       attempts: 0,
       maxAttempts: OTP_MAX_ATTEMPTS,
-      verified: false,
-      lastSentAt: now,
-      createdAt: now
+      verified: false
     });
 
     return { success: true, otp };
@@ -75,12 +66,7 @@ export class EmailVerificationService {
     const now = new Date();
 
     // Find the latest unverified OTP for this email
-    const verification = this.db
-      .select()
-      .from(emailVerifications)
-      .where(and(eq(emailVerifications.email, email), eq(emailVerifications.verified, false)))
-      .orderBy(desc(emailVerifications.createdAt))
-      .get();
+    const verification = await this.emailVerificationRepo.findLatestUnverified(email);
 
     if (!verification) {
       return { success: false, error: 'No pending verification found' };
@@ -97,10 +83,7 @@ export class EmailVerificationService {
     }
 
     // Increment attempts
-    await this.db
-      .update(emailVerifications)
-      .set({ attempts: verification.attempts + 1 })
-      .where(eq(emailVerifications.id, verification.id));
+    await this.emailVerificationRepo.updateAttempts(verification.id, verification.attempts + 1);
 
     // Verify OTP hash
     if (verification.otpHash !== otpHash) {
@@ -112,16 +95,10 @@ export class EmailVerificationService {
     }
 
     // Mark verification as complete
-    await this.db
-      .update(emailVerifications)
-      .set({ verified: true })
-      .where(eq(emailVerifications.id, verification.id));
+    await this.emailVerificationRepo.markVerified(verification.id);
 
     // Update user's emailVerified status
-    await this.db
-      .update(users)
-      .set({ emailVerified: true, updatedAt: now })
-      .where(eq(users.id, verification.userId));
+    await this.userRepo.update(verification.userId, { emailVerified: true });
 
     return { success: true };
   }
@@ -134,7 +111,7 @@ export class EmailVerificationService {
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
     // Get user to find their email
-    const user = this.db.select().from(users).where(eq(users.id, userId)).get();
+    const user = await this.userRepo.findById(userId);
 
     if (!user || !user.email) {
       return { success: false, error: 'User has no email registered' };
@@ -145,13 +122,9 @@ export class EmailVerificationService {
     }
 
     // Check resend count in last hour
-    const recentVerifications = this.db
-      .select()
-      .from(emailVerifications)
-      .where(and(eq(emailVerifications.userId, userId), eq(emailVerifications.email, user.email)))
-      .all();
+    const recentVerifications = await this.emailVerificationRepo.findAllByUserIdAndEmail(userId, user.email);
 
-    const recentCount = recentVerifications.filter((v: typeof emailVerifications.$inferSelect) => v.createdAt > oneHourAgo).length;
+    const recentCount = recentVerifications.filter((v: any) => v.createdAt > oneHourAgo).length;
 
     if (recentCount >= OTP_MAX_RESENDS_PER_HOUR) {
       return {
@@ -163,7 +136,7 @@ export class EmailVerificationService {
 
     // Check cooldown from last send
     const lastVerification = recentVerifications.sort(
-      (a: typeof emailVerifications.$inferSelect, b: typeof emailVerifications.$inferSelect) => b.lastSentAt.getTime() - a.lastSentAt.getTime()
+      (a: any, b: any) => b.lastSentAt.getTime() - a.lastSentAt.getTime()
     )[0];
 
     if (lastVerification) {
@@ -197,25 +170,19 @@ export class EmailVerificationService {
     emailVerified: boolean;
     pendingVerification: boolean;
   }> {
-    const user = this.db.select().from(users).where(eq(users.id, userId)).get();
+    const user = await this.userRepo.findById(userId);
 
     if (!user) {
       return { email: null, emailVerified: false, pendingVerification: false };
     }
 
     // Check if there's a pending verification
-    const pendingVerification = this.db
-      .select()
-      .from(emailVerifications)
-      .where(and(eq(emailVerifications.userId, userId), eq(emailVerifications.verified, false)))
-      .get();
+    const pendingCount = await this.emailVerificationRepo.getPendingCount(userId);
 
     return {
       email: user.email,
       emailVerified: user.emailVerified,
-      pendingVerification: Boolean(
-        pendingVerification && pendingVerification.expiresAt > new Date()
-      )
+      pendingVerification: pendingCount > 0
     };
   }
 }

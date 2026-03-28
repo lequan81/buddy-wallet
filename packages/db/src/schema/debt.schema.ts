@@ -1,6 +1,8 @@
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 import { users } from './user.schema';
 
+export type DebtStatus = 'pending' | 'confirmed' | 'paid' | 'disputed' | 'cancelled';
+
 /**
  * Debts table with phone-based linking
  * - debtorPhone/creditorPhone: Primary identifiers (always required)
@@ -25,7 +27,7 @@ export const debts = sqliteTable('debts', {
   // Debt details
   amount: integer('amount').notNull(), // Amount in smallest currency unit
   description: text('description'),
-  status: text('status').notNull().default('pending'), // pending, confirmed, paid, disputed
+  status: text('status').notNull().default('pending').$type<DebtStatus>(), // pending, confirmed, paid, disputed
 
   // Confirmation tracking (for two-party verification)
   confirmedByCreditor: integer('confirmed_by_creditor', { mode: 'boolean' }).notNull().default(false),

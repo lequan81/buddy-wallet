@@ -1,21 +1,12 @@
-/// <reference types="./bank" />
-/// <reference types="./debt" />
+import type { BaseResult, PaginationOptions as BasePaginationOptions } from './base.js';
+import type { DebtStatus } from './debt.js';
 
-export interface BankResponse {
-  success: boolean;
+export interface BankResponse extends BaseResult {
   banks: import('./bank').VietQRBank[];
 }
 
-export interface AccountsResponse {
-  success: boolean;
+export interface AccountsResponse extends BaseResult {
   accounts: import('./bank').BankAccount[];
-}
-
-export interface ApiResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  code?: string;
 }
 
 /** Helper type for API error handling across the web app. */
@@ -36,12 +27,6 @@ export interface Pagination {
 export interface PaginationMeta extends Pagination {
   total: number;
   hasMore: boolean;
-}
-
-/** Standard paginated list result shape. */
-export interface PaginatedResult<T> extends Pagination {
-  data: T[];
-  total: number;
 }
 
 /** Cursor pagination request shape. */
@@ -65,8 +50,8 @@ export interface CursorPaginatedResult<T> extends CursorPaginationMeta {
 export type ExpiryOption = '7d' | '30d' | '90d' | 'never';
 
 /** Standard pagination options for queries. */
-export interface PaginationOptions extends Partial<Pagination> {
-  status?: import('./debt').DebtStatus | 'all';
+export interface ApiPaginationOptions extends BasePaginationOptions {
+  status?: DebtStatus | 'all';
 }
 
 
@@ -90,7 +75,7 @@ export interface Debt {
   id: string;
   description: string;
   amount: number;
-  status: import('./debt').DebtStatus;
+  status: DebtStatus;
   createdAt: string;
   creditorId?: string;
   debtorId?: string;

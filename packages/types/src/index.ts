@@ -1,3 +1,4 @@
+export type * from './base.js';
 export type * from './debt.js';
 export * from './debt-constants.js';
 export type * from './user.js';
@@ -13,3 +14,4 @@ export type * from './device.js';
 export type * from './push.js';
 export type * from './email.js';
 export type * from './job.js';
+export * from './repositories';

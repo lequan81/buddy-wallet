@@ -44,5 +44,51 @@ export const configs = {
     VAPID_PRIVATE_KEY: optionalEnv('VAPID_PRIVATE_KEY', ''),
     VAPID_SUBJECT: optionalEnv('VAPID_SUBJECT', 'mailto:support@buddywallet.app'),
     MAX_FAILED_ATTEMPTS: getEnvInt('PUSH_MAX_FAILED_ATTEMPTS', 5)
+  },
+  PAGINATION: {
+    DEFAULT_LIMIT: 50,
+    MAX_LIMIT: 100,
+  },
+  RATE_LIMITS: {
+    STRICT: {
+      windowMs: 60 * 1000,
+      maxRequests: 5,
+      message: 'Too many requests. Please wait before trying again.'
+    },
+    AUTH: {
+      windowMs: 60 * 1000,
+      maxRequests: 10,
+      message: 'Too many authentication attempts. Please wait before trying again.'
+    },
+    STANDARD: {
+      windowMs: 60 * 1000,
+      maxRequests: 100,
+      message: 'Rate limit exceeded. Please slow down.'
+    },
+    BURST: {
+      windowMs: 10 * 1000,
+      maxRequests: 30,
+      message: 'Too many requests in a short time. Please slow down.'
+    },
+    UPLOAD: {
+      windowMs: 60 * 1000,
+      maxRequests: 10,
+      message: 'Upload limit exceeded. Please wait before uploading more files.'
+    },
+    DOWNLOAD: {
+      windowMs: 1000 * 60,
+      maxRequests: 100,
+      message: 'Download limit exceeded. Please slow down.'
+    },
+    BROADCAST: {
+      windowMs: 60 * 1000,
+      maxRequests: 1,
+      message: 'Broadcast limit exceeded. Maximum 1 broadcast per minute.'
+    },
+    DELETE: {
+      windowMs: 60 * 1000,
+      maxRequests: 20,
+      message: 'Too many delete requests. Please slow down.'
+    }
   }
 };

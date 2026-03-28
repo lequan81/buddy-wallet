@@ -5,10 +5,10 @@
  */
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
-import { permissionPlugin } from '../plugins/guards';
+import { permissionPlugin } from '@plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
-import { broadcastRateLimiter } from '../plugins/middleware';
-import { servicesPlugin } from '../plugins/services.plugin';
+import { broadcastRateLimiter } from '@plugins/middleware';
+import { servicesPlugin } from '@plugins/services.plugin';
 
 export const PushController = new Elysia({ prefix: '/push' })
   .use(servicesPlugin)

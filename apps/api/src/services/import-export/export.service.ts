@@ -4,9 +4,8 @@
  * Handles data export: user debts and admin exports.
  * Uses constructor injection for testability.
  */
-import { debts, users, eq, or } from '@repo/db';
 import ExcelJS from 'exceljs';
-import type { DbClient } from '@/types';
+import type { IDebtRepository, IUserRepository } from '@repo/types';
 import type { ExportFormat, ExportResult } from '@/types';
 
 /**
@@ -30,32 +29,29 @@ function maskPhoneNumber(phone: string | null): string {
  * ExportService class with dependency injection
  */
 export class ExportService {
-  constructor(private db: DbClient) {}
+  constructor(
+    private readonly debtRepo: IDebtRepository,
+    private readonly userRepo: IUserRepository
+  ) {}
 
   /**
    * Export user's own debts
    */
   async exportUserDebts(userId: string, format: ExportFormat = 'xlsx'): Promise<ExportResult> {
     // Fetch debts where user is debtor OR creditor
-    const userDebts = await this.db
-      .select()
-      .from(debts)
-      .where(or(eq(debts.debtorId, userId), eq(debts.creditorId, userId)))
-      .all();
+    const paginatedResult = await this.debtRepo.findMany({ involvedUserId: userId, limit: 10000 }); // Large limit for export
+    const userDebts = paginatedResult.data;
 
     if (userDebts.length === 0) {
       return { success: false, error: 'No debts to export' };
     }
 
-    // Get all users for mapping
-    const allUsers = await this.db
-      .select({ id: users.id, email: users.email, name: users.name })
-      .from(users)
-      .all();
+    // Get all relevant users for mapping (simplified: fetch all active for now)
+    const allUsers = await this.userRepo.findPaginated(10000, 0);
     const userMap = new Map(allUsers.map((u) => [u.id, { email: u.email, name: u.name }]));
 
     // Format data
-    const data = userDebts.map((d) => {
+    const data = userDebts.map((d: any) => {
       const debtor = userMap.get(d.debtorId ?? '') || { email: d.debtorPhone, name: d.debtorPhone };
       const creditor = userMap.get(d.creditorId ?? '') || {
         email: d.creditorPhone,
@@ -69,7 +65,7 @@ export class ExportService {
         Person: isCreditor ? debtor.name || debtor.email : creditor.name || creditor.email,
         Amount: d.amount,
         Status: d.status,
-        Description: d.description || ''
+        Description: (d as any).description || ''
       };
     });
 
@@ -80,33 +76,31 @@ export class ExportService {
    * Export all debts (admin)
    */
   async exportAllDebts(format: ExportFormat = 'xlsx'): Promise<ExportResult> {
-    const allDebts = await this.db.select().from(debts).all();
+    const paginatedResult = await this.debtRepo.findMany({ involvedUserId: 'ADMIN_ALL', limit: 50000 });
+    const allDebts = paginatedResult.data;
 
     if (allDebts.length === 0) {
       return { success: false, error: 'No debts to export' };
     }
 
-    const allUsers = await this.db
-      .select({ id: users.id, email: users.email, name: users.name, phone: users.phoneNumber })
-      .from(users)
-      .all();
+    const allUsers = await this.userRepo.findPaginated(10000, 0);
     const userMap = new Map(allUsers.map((u) => [u.id, u]));
 
-    const data = allDebts.map((d) => {
-      const debtor = userMap.get(d.debtorId ?? '');
-      const creditor = userMap.get(d.creditorId ?? '');
+    const data = allDebts.map((d: any) => {
+      const debtor = userMap.get(d.debtorId ?? '') as any;
+      const creditor = userMap.get(d.creditorId ?? '') as any;
 
       return {
         ID: d.id,
         Debtor: debtor?.name || debtor?.email || d.debtorPhone || d.debtorId || '',
-        'Debtor Phone': maskPhoneNumber(debtor?.phone || d.debtorPhone || ''),
+        'Debtor Phone': maskPhoneNumber(debtor?.phoneNumber || d.debtorPhone || ''),
         Creditor: creditor?.name || creditor?.email || d.creditorPhone || d.creditorId || '',
-        'Creditor Phone': maskPhoneNumber(creditor?.phone || d.creditorPhone || ''),
+        'Creditor Phone': maskPhoneNumber(creditor?.phoneNumber || d.creditorPhone || ''),
         Amount: d.amount,
         Status: d.status,
-        Description: d.description || '',
-        Created: d.createdAt ? new Date(d.createdAt).toISOString() : '',
-        Updated: d.updatedAt ? new Date(d.updatedAt).toISOString() : ''
+        Description: (d as any).description || '',
+        Created: (d as any).createdAt ? new Date((d as any).createdAt).toISOString() : '',
+        Updated: (d as any).updatedAt ? new Date((d as any).updatedAt).toISOString() : ''
       };
     });
 

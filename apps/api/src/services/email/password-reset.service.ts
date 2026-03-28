@@ -7,11 +7,11 @@
  * 3. Send via email
  * 4. Force password change on login
  */
-import { users, eq, and } from '@repo/db';
+import { normalizePhoneNumber } from '@utils';
 import { configs } from '@/configs';
 import { log } from '@repo/logger';
-import { normalizePhoneNumber } from '@utils';
-import type { DbClient, ResetResult } from '@/types';
+import type { IUserRepository } from '@repo/types';
+import type { ResetResult } from '@/types';
 import { EmailService } from './email.service';
 
 import * as crypto from 'node:crypto';
@@ -26,7 +26,10 @@ function generateResetToken(): string {
 }
 
 export class PasswordResetService {
-  constructor(private db: DbClient, private emailService: EmailService) {}
+  constructor(
+    private readonly userRepo: IUserRepository,
+    private readonly emailService: EmailService
+  ) {}
 
   /**
    * Request password reset
@@ -39,11 +42,7 @@ export class PasswordResetService {
     }
 
     // Find user with matching email AND phone
-    const user = this.db
-      .select()
-      .from(users)
-      .where(and(eq(users.email, email), eq(users.phoneNumber, normalizedPhone)))
-      .get();
+    const user = await this.userRepo.findByEmailAndPhone(email, normalizedPhone);
 
     if (!user) {
       // SECURITY: Don't reveal if email/phone exists - use generic message
@@ -78,17 +77,12 @@ export class PasswordResetService {
     const expiresAt = new Date(Date.now() + TEMP_PASSWORD_EXPIRY_HOURS * 60 * 60 * 1000);
 
     // Update user with token hash
-    this.db
-      .update(users)
-      .set({
-        temporaryPassword: hashedToken,
-        temporaryPasswordExpires: expiresAt,
-        mustChangePassword: false, // We don't force login with temp password anymore
-        temporaryPasswordUsed: false,
-        updatedAt: new Date()
-      })
-      .where(eq(users.id, user.id))
-      .run();
+    await this.userRepo.update(user.id, {
+      temporaryPassword: hashedToken,
+      temporaryPasswordExpires: expiresAt,
+      mustChangePassword: false, // We don't force login with temp password anymore
+      temporaryPasswordUsed: false
+    });
 
     const resetLink = `${configs.APP.WEB_URL}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
 
@@ -121,7 +115,7 @@ export class PasswordResetService {
     token: string,
     newPassword: string
   ): Promise<ResetResult> {
-    const user = this.db.select().from(users).where(eq(users.email, email)).get();
+    const user = await this.userRepo.findByEmail(email);
 
     if (!user || (user.isLocked && !user.lockoutUntil)) {
       return { success: false, error: 'Invalid or expired reset link' };
@@ -150,24 +144,19 @@ export class PasswordResetService {
     // Update password and clear temp fields
     const hashedPassword = await Bun.password.hash(newPassword, configs.AUTH.ARGON2_OPTIONS);
 
-    this.db
-      .update(users)
-      .set({
-        password: hashedPassword,
-        temporaryPassword: null,
-        temporaryPasswordExpires: null,
-        temporaryPasswordUsed: false,
-        mustChangePassword: false,
-        lastPasswordChangeAt: new Date(),
-        sessionVersion: users.sessionVersion, // Could increment if we wanted to log out existing sessions
-        updatedAt: new Date(),
-        // Clear automatic lockouts to restore account access
-        isLocked: false,
-        lockoutUntil: null,
-        failedLoginAttempts: 0
-      })
-      .where(eq(users.id, user.id))
-      .run();
+    await this.userRepo.update(user.id, {
+      password: hashedPassword,
+      temporaryPassword: null,
+      temporaryPasswordExpires: null,
+      temporaryPasswordUsed: false,
+      mustChangePassword: false,
+      lastPasswordChangeAt: new Date(),
+      sessionVersion: (user.sessionVersion || 1) + 1, // Optional jump
+      // Clear automatic lockouts to restore account access
+      isLocked: false,
+      lockoutUntil: null,
+      failedLoginAttempts: 0
+    });
 
     log.info('PASSWORD_RESET', 'Password reset completed via token', { userId: user.id });
     return { success: true };
@@ -179,20 +168,14 @@ export class PasswordResetService {
   async completeReset(userId: string, newPassword: string): Promise<ResetResult> {
     const hashedPassword = await Bun.password.hash(newPassword, configs.AUTH.ARGON2_OPTIONS);
 
-    this.db
-      .update(users)
-      .set({
-        password: hashedPassword,
-        temporaryPassword: null,
-        temporaryPasswordExpires: null,
-        temporaryPasswordUsed: false,
-        mustChangePassword: false,
-        lastPasswordChangeAt: new Date(),
-        sessionVersion: users.sessionVersion,
-        updatedAt: new Date()
-      })
-      .where(eq(users.id, userId))
-      .run();
+    await this.userRepo.update(userId, {
+      password: hashedPassword,
+      temporaryPassword: null,
+      temporaryPasswordExpires: null,
+      temporaryPasswordUsed: false,
+      mustChangePassword: false,
+      lastPasswordChangeAt: new Date()
+    });
 
     log.info('PASSWORD_RESET', 'Password reset completed', { userId });
     return { success: true };

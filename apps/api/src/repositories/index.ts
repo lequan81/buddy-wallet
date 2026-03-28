@@ -17,3 +17,7 @@ export type {
 
 // Adapters
 export { DrizzleDebtRepository } from './adapters/drizzle-debt.repository';
+export { DrizzleUserRepository, DrizzleSessionRepository } from './adapters/drizzle-user.repository';
+export { DrizzleActivityRepository } from './adapters/drizzle-activity.repository';
+export { DrizzleBankAccountRepository } from './adapters/drizzle-bank-account.repository';
+export { DrizzleNotificationRepository } from './adapters/drizzle-notification.repository';

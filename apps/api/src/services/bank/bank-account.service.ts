@@ -3,13 +3,12 @@
  *
  * Handles CRUD operations for user bank accounts.
  */
-import { bankAccounts, eq, desc } from '@repo/db';
 import { log } from '@repo/logger';
-import type { DbClient } from '@/types';
+import type { IBankAccountRepository } from '@repo/types';
 import type { BankAccount, NewBankAccount } from '@repo/db';
 
 export class BankAccountService {
-  constructor(private db: DbClient) {}
+  constructor(private bankRepo: IBankAccountRepository) {}
 
   /**
    * Add a new bank account
@@ -23,31 +22,16 @@ export class BankAccountService {
     try {
       // If new account is default, unset existing default
       if (data.isDefault) {
-        await this.db
-          .update(bankAccounts)
-          .set({ isDefault: false })
-          .where(eq(bankAccounts.userId, data.userId))
-          .run();
+        await this.bankRepo.setPrimary('', data.userId); // Empty ID means just unset others
       }
 
-      // Generate ID
-      const id = Bun.randomUUIDv7();
-      const now = new Date();
-
-      const newAccount: typeof bankAccounts.$inferInsert = {
-        ...data,
-        id,
-        createdAt: now,
-        updatedAt: now
-      };
-
-      this.db.insert(bankAccounts).values(newAccount).run();
+      const account = await this.bankRepo.create(data);
 
       log.debug('BANK', 'Account added', { userId: data.userId, bankCode: data.bankCode });
 
       return {
         success: true,
-        account: newAccount as BankAccount
+        account
       };
     } catch (err) {
       log.error('BANK', 'Failed to add account', { error: String(err) });
@@ -69,7 +53,7 @@ export class BankAccountService {
     account?: BankAccount;
   }> {
     try {
-      const account = this.db.select().from(bankAccounts).where(eq(bankAccounts.id, id)).get();
+      const account = await this.bankRepo.findById(id);
 
       if (!account) {
         return { success: false, error: 'Account not found' };
@@ -79,27 +63,12 @@ export class BankAccountService {
         return { success: false, error: 'Not authorized' };
       }
 
-      // If updating to default, unset existing default
+      // If updating to default, handle it via repo
       if (data.isDefault) {
-        await this.db
-          .update(bankAccounts)
-          .set({ isDefault: false })
-          .where(eq(bankAccounts.userId, userId))
-          .run();
+        await this.bankRepo.setPrimary(id, userId);
       }
 
-      const updateData = {
-        ...data,
-        updatedAt: new Date()
-      };
-
-      this.db
-        .update(bankAccounts)
-        .set(updateData)
-        .where(eq(bankAccounts.id, id))
-        .run();
-
-      const updatedAccount = this.db.select().from(bankAccounts).where(eq(bankAccounts.id, id)).get();
+      const updatedAccount = await this.bankRepo.update(id, data);
 
       log.debug('BANK', 'Account updated', { id, userId });
 
@@ -117,12 +86,7 @@ export class BankAccountService {
    * Get all bank accounts for a user
    */
   async getUserBankAccounts(userId: string): Promise<BankAccount[]> {
-    return this.db
-      .select()
-      .from(bankAccounts)
-      .where(eq(bankAccounts.userId, userId))
-      .orderBy(desc(bankAccounts.isDefault), desc(bankAccounts.createdAt))
-      .all();
+    return this.bankRepo.findByUserId(userId);
   }
 
   /**
@@ -132,7 +96,7 @@ export class BankAccountService {
     id: string,
     userId: string
   ): Promise<{ success: boolean; error?: string }> {
-    const account = this.db.select().from(bankAccounts).where(eq(bankAccounts.id, id)).get();
+    const account = await this.bankRepo.findById(id);
 
     if (!account) {
       return { success: false, error: 'Account not found' };
@@ -142,7 +106,7 @@ export class BankAccountService {
       return { success: false, error: 'Not authorized' };
     }
 
-    this.db.delete(bankAccounts).where(eq(bankAccounts.id, id)).run();
+    await this.bankRepo.delete(id);
     log.debug('BANK', 'Account deleted', { id, userId });
 
     return { success: true };

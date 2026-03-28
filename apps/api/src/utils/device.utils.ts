@@ -4,32 +4,13 @@
  */
 import type { Server } from 'bun';
 import { logger } from '@repo/logger';
+import { isPrivateIP, isLocalhost, getClientIP as getIP } from './ip.utils';
 import type { DeviceInfo, ClientHints } from '../types/device';
 
 // In-memory cache for IP/coordinate lookups (avoids redundant external calls)
 const locationCache = new Map<string, { value: string; expires: number }>();
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
-/**
- * Private IP ranges for RFC 1918
- */
-const PRIVATE_IP_PATTERNS = [
-  /^10\./, // 10.0.0.0/8
-  /^192\.168\./, // 192.168.0.0/16
-  /^172\.(1[6-9]|2\d|3[0-1])\./, // 172.16.0.0/12
-  /^127\./, // Loopback
-  /^::1$/, // IPv6 loopback
-  /^fc00:/, // IPv6 private
-  /^fe80:/ // IPv6 link-local
-];
-
-function isPrivateIP(ip: string): boolean {
-  return PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(ip));
-}
-
-function isLocalhost(ip: string): boolean {
-  return ip === '127.0.0.1' || ip === '::1' || ip === 'localhost';
-}
 
 /**
  * Parse user agent string to extract device information
@@ -248,53 +229,10 @@ export async function getLocationFromIP(
 }
 
 /**
- * Extract client IP from request headers
- * Handles various proxy headers
+ * Extract client IP from request headers - Proxy to ip.utils
  */
 export function getClientIP(request: Request, server?: Server<unknown> | null): string | null {
-  // Check common proxy headers (in order of preference)
-  const headers = [
-    'cf-connecting-ip', // Cloudflare (most reliable for public IP)
-    'x-real-ip', // Nginx
-    'x-forwarded-for', // Standard proxy header
-    'x-client-ip', // Apache
-    'true-client-ip' // Akamai
-  ];
-
-  for (const header of headers) {
-    const value = request.headers.get(header);
-    if (value) {
-      // Get the first IP in the chain (original client)
-      const ip = value.split(',')[0].trim();
-      if (ip && !isPrivateIP(ip)) {
-        return ip; // Return public IP immediately
-      }
-    }
-  }
-
-  // Fallback to socket IP if server instance is passed
-  if (server?.requestIP) {
-    const socketIP = server.requestIP(request)?.address;
-    if (socketIP && !isPrivateIP(socketIP)) {
-      return socketIP;
-    }
-  }
-
-  // If no public IP found, check for private IPs (for local development)
-  for (const header of headers) {
-    const value = request.headers.get(header);
-    if (value) {
-      const ip = value.split(',')[0].trim();
-      if (ip) return ip;
-    }
-  }
-
-  if (server?.requestIP) {
-    const socketIP = server.requestIP(request)?.address;
-    if (socketIP) return socketIP;
-  }
-
-  return null;
+  return getIP(request, server);
 }
 
 // Re-export ClientHints type for use in other modules

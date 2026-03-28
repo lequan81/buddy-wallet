@@ -5,7 +5,6 @@
  * Uses constructor injection for testability.
  */
 import { randomUUIDv7 } from 'bun';
-import { users, debts, importLogs, eq, or, and, lte, desc, inArray, count } from '@repo/db';
 import {
   isValidImportFile,
   ACCEPTED_IMPORT_EXTENSIONS,
@@ -19,7 +18,7 @@ import type { SpreadsheetService } from './spreadsheet.service';
 import type { ImportLoggerService } from './import-logger.service';
 import { configs } from '@/configs';
 import { logger } from '@repo/logger';
-import type { DbClient } from '@/types';
+import type { IImportExportRepository } from '@repo/types';
 import type { CurrentUser, ImportRow } from '@/types';
 
 /**
@@ -27,9 +26,9 @@ import type { CurrentUser, ImportRow } from '@/types';
  */
 export class ImportService {
   constructor(
-    private db: DbClient,
-    private spreadsheetService: SpreadsheetService,
-    private importLoggerService: ImportLoggerService
+    private readonly importRepo: IImportExportRepository,
+    private readonly spreadsheetService: SpreadsheetService,
+    private readonly importLoggerService: ImportLoggerService
   ) {}
 
   /**
@@ -46,13 +45,19 @@ export class ImportService {
     }
 
     logger.info(`[ImportService] Creating import log for job ${id}`);
-    await this.db.insert(importLogs).values({
+    await this.importRepo.createLog({
       id,
       userId,
       fileName: file.name,
       fileSize: file.size,
       status: 'pending',
-      createdAt: new Date()
+      previewLogId: null,
+      totalRows: null,
+      importedCount: null,
+      errorCount: null,
+      errors: null,
+      config: null,
+      completedAt: null
     });
 
     try {
@@ -81,17 +86,14 @@ export class ImportService {
 
       const autoMapping = this.spreadsheetService.detectColumnMapping(allRows[0] || [], columnHeaders);
 
-      await this.db
-        .update(importLogs)
-        .set({
-          totalRows: allRows.length,
-          config: JSON.stringify({
-            previewData: previewData.slice(0, 20),
-            columnHeaders,
-            autoMapping
-          })
+      await this.importRepo.updateLog(id, {
+        totalRows: allRows.length,
+        config: JSON.stringify({
+          previewData: previewData.slice(0, 20),
+          columnHeaders,
+          autoMapping
         })
-        .where(eq(importLogs.id, id));
+      });
 
       const result = {
         success: true,
@@ -141,7 +143,7 @@ export class ImportService {
     }
 
     const id: string = logId || randomUUIDv7('base64url');
-    await this.db.insert(importLogs).values({
+    await this.importRepo.createLog({
       id,
       userId: currentUser.id,
       fileName: file.name,
@@ -149,14 +151,15 @@ export class ImportService {
       status: 'processing',
       previewLogId: previewLogId || null,
       config: JSON.stringify(config),
-      createdAt: new Date()
+      totalRows: null,
+      importedCount: null,
+      errorCount: null,
+      errors: null,
+      completedAt: null
     });
 
     if (previewLogId) {
-      await this.db
-        .update(importLogs)
-        .set({ status: 'processing' })
-        .where(eq(importLogs.id, previewLogId));
+      await this.importRepo.updateLog(previewLogId, { status: 'processing' });
     }
 
     // Validate mapping: name and amount are required
@@ -215,10 +218,7 @@ export class ImportService {
         const chunkSize = BACKEND_CONSTANTS.CHUNK_SIZE;
         for (let i = 0; i < identifiersArray.length; i += chunkSize) {
           const chunk = identifiersArray.slice(i, i + chunkSize);
-          const foundUsers = await this.db
-            .select()
-            .from(users)
-            .where(or(inArray(users.email, chunk), inArray(users.phoneNumber, chunk)));
+          const foundUsers = await this.importRepo.findUsersByIdentifiers(chunk);
           for (const u of foundUsers) {
             if (u.email) userCache.set(u.email, { id: u.id, phone: u.phoneNumber });
             if (u.phoneNumber) userCache.set(u.phoneNumber, { id: u.id, phone: u.phoneNumber });
@@ -306,20 +306,17 @@ export class ImportService {
       }
 
       if (newDebts.length > 0) {
-        await this.db.insert(debts).values(newDebts);
+        await this.importRepo.createDebtsBatch(newDebts as any[]);
       }
 
-      await this.db
-        .update(importLogs)
-        .set({
-          status: 'success',
-          totalRows: allRows.length,
-          importedCount: newDebts.length,
-          errorCount: errors.length,
-          errors: errors.length > 0 ? JSON.stringify(errors) : null,
-          completedAt: new Date()
-        })
-        .where(eq(importLogs.id, id));
+      await this.importRepo.updateLog(id, {
+        status: 'success',
+        totalRows: allRows.length,
+        importedCount: newDebts.length,
+        errorCount: errors.length,
+        errors: errors.length > 0 ? JSON.stringify(errors) : null,
+        completedAt: new Date()
+      });
 
       if (isRedisAvailable()) {
         await importCache.setProgress(id, {
@@ -344,10 +341,7 @@ export class ImportService {
       logger.error('[ImportService] Error processing file:', { error: String(err) });
       await this.importLoggerService.updateLogStatus(id, 'failed', [String(err)]);
       if (previewLogId) {
-        await this.db
-          .update(importLogs)
-          .set({ status: 'failed' })
-          .where(eq(importLogs.id, previewLogId));
+        await this.importRepo.updateLog(previewLogId, { status: 'failed' });
       }
       return { success: false, error: String(err) };
     }
@@ -382,24 +376,20 @@ export class ImportService {
     // 2. Fallback to DB for missing keys (older jobs)
     const missingIds = logIds.filter((id) => !results[id]);
     if (missingIds.length > 0) {
-      const logs = await this.db
-        .select()
-        .from(importLogs)
-        .where(
-          and(or(...missingIds.map((id) => eq(importLogs.id, id))), eq(importLogs.userId, userId))
-        );
-
-      for (const log of logs) {
-        results[log.id] = {
-          success: true,
-          current: log.importedCount || 0,
-          total: log.totalRows || 0,
-          status: log.status,
-          errors: log.errors ? JSON.parse(log.errors) : undefined,
-          percentage: log.totalRows
-            ? Math.round(((log.importedCount || 0) / log.totalRows) * 100)
-            : 0
-        };
+      for (const id of missingIds) {
+        const log = await this.importRepo.getLogById(id, userId);
+        if (log) {
+          results[id] = {
+            success: true,
+            current: log.importedCount || 0,
+            total: log.totalRows || 0,
+            status: log.status,
+            errors: log.errors ? JSON.parse(log.errors) : undefined,
+            percentage: log.totalRows
+              ? Math.round(((log.importedCount || 0) / log.totalRows) * 100)
+              : 0
+          };
+        }
       }
     }
 
@@ -422,11 +412,7 @@ export class ImportService {
       }
     }
 
-    const log = await this.db
-      .select()
-      .from(importLogs)
-      .where(and(eq(importLogs.id, logId), eq(importLogs.userId, userId)))
-      .get();
+    const log = await this.importRepo.getLogById(logId, userId);
 
     if (!log) {
       return { success: false, error: 'Import log not found' };
@@ -448,15 +434,7 @@ export class ImportService {
    */
   async cleanupStaleLogs(userId: string): Promise<{ success: boolean }> {
     const cutoff = new Date(Date.now() - configs.IMPORT.STALE_LOG_LIFETIME);
-    await this.db
-      .delete(importLogs)
-      .where(
-        and(
-          eq(importLogs.userId, userId),
-          eq(importLogs.status, 'pending'),
-          lte(importLogs.createdAt, cutoff)
-        )
-      );
+    await this.importRepo.deleteLogsByStatus(userId, 'pending', cutoff);
     return { success: true };
   }
 
@@ -466,31 +444,15 @@ export class ImportService {
   async getLogs(userId: string, page: number = 1, limit: number = 10) {
     const offset = (page - 1) * limit;
 
-    const [logs, total] = await Promise.all([
-      this.db
-        .select()
-        .from(importLogs)
-        .where(eq(importLogs.userId, userId))
-        .orderBy(desc(importLogs.createdAt), desc(importLogs.id))
-        .limit(limit)
-        .offset(offset),
-
-      this.db
-        .select({ count: count() })
-        .from(importLogs)
-        .where(eq(importLogs.userId, userId))
-        .get()
-    ]);
-
-    const totalCount = total?.count ?? 0;
+    const { logs, total } = await this.importRepo.getLogsPaginated(userId, limit, offset);
 
     return {
       success: true,
       logs: logs,
-      total: totalCount,
+      total: total,
       page,
       limit,
-      totalPages: Math.max(1, Math.ceil(totalCount / limit))
+      totalPages: Math.max(1, Math.ceil(total / limit))
     };
   }
 
@@ -503,11 +465,8 @@ export class ImportService {
     if (!trimmed) return null;
     if (cache.has(trimmed)) return cache.get(trimmed)!;
 
-    const found = await this.db
-      .select()
-      .from(users)
-      .where(or(eq(users.email, trimmed), eq(users.phoneNumber, trimmed)))
-      .get();
+    const foundUsers = await this.importRepo.findUsersByIdentifiers([trimmed]);
+    const found = foundUsers[0];
 
     if (found) {
       const res = { id: found.id, phone: found.phoneNumber };
@@ -521,11 +480,7 @@ export class ImportService {
    * Get single import log by ID
    */
   async getLogById(id: string, userId: string) {
-    const log = await this.db
-      .select()
-      .from(importLogs)
-      .where(and(eq(importLogs.id, id), eq(importLogs.userId, userId)))
-      .get();
+    const log = await this.importRepo.getLogById(id, userId);
 
     if (!log) return null;
 

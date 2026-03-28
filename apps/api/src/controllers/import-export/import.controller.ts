@@ -4,49 +4,25 @@
  * Thin controller that delegates to ImportService via DI.
  * Handles HTTP concerns (validation, response) only.
  */
-import { Elysia, t, type TSchema } from 'elysia';
+import { Elysia, t } from 'elysia';
+import {
+  PreviewImportSchema,
+  StartImportSchema,
+  ProgressSSEQuerySchema,
+  ProgressBatchBodySchema,
+  LogsQuerySchema
+} from '@repo/schemas';
 import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { sessionAuthPlugin, accessControlPlugin, servicesPlugin } from '@plugins';
 import { deleteRateLimiter } from '@plugins/middleware';
 import { logger } from '@repo/logger';
+import { configs } from '../../configs';
 import { MAX_IMPORT_FILE_SIZE, ACCEPTED_IMPORT_MIME_TYPES } from '@repo/config';
 import { isValidSpreadsheetBytes } from '@repo/utils';
 import type { ImportConfig } from '@/types';
-import { configs } from '@/configs';
 
 
 
-// Helper to parse JSON string to object
-// useful for handling multipart/form-data where JSON is sent as string
-const StringToJSON = <T extends TSchema>(schema: T) =>
-  t.Union([
-    // Case 1: Already parsed object (Elysia/Bun might do this automatically)
-    schema,
-    // Case 2: JSON String (needs parsing)
-    t
-      .Transform(t.String())
-      .Decode((value) => {
-        try {
-          return JSON.parse(value);
-        } catch {
-          throw new Error('Invalid JSON format');
-        }
-      })
-      .Encode((value) => JSON.stringify(value))
-  ]);
-
-// SECURITY: Validation schema for import config
-const ImportConfigSchema = t.Object({
-  mapping: t.Object({
-    name: t.String({ minLength: 1 }),
-    amount: t.String({ minLength: 1 }),
-    phone: t.Optional(t.String({ pattern: '^\\d+$' })),
-    email: t.Optional(t.String()),
-    description: t.Optional(t.String()),
-    dueDate: t.Optional(t.String())
-  }),
-  startRow: t.Number({ minimum: 1 })
-});
 
 export const ImportController = new Elysia({ prefix: '/import' })
   .use(servicesPlugin)
@@ -112,17 +88,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
       }
     },
     {
-      body: t.Object({
-        file: t.File({
-          type: [
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-excel',
-            'text/csv',
-            'application/csv'
-          ],
-          maxSize: '5m'
-        })
-      })
+      body: PreviewImportSchema
     }
   )
 
@@ -187,20 +153,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
       }
     },
     {
-      body: t.Object({
-        file: t.File({
-          type: [
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-excel',
-            'text/csv',
-            'application/csv'
-          ],
-          maxSize: '5m'
-        }),
-        // Automatically parse JSON string from FormData and validate against schema
-        config: StringToJSON(ImportConfigSchema),
-        previewLogId: t.Optional(t.String())
-      })
+      body: StartImportSchema
     }
   )
 
@@ -217,7 +170,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
 
     // Also trigger system-wide cleanup of zombie processing logs (safe as it checks >1h)
     // This helps users fix "stuck" jobs without needing admin access
-    const { CleanupService } = await import('../services/system/cleanup.service');
+    const { CleanupService } = await import('../../services/system/cleanup.service');
     await CleanupService.cleanupStaleProcessingLogs();
 
     return successResponse({ message: 'Cleanup completed' });
@@ -317,9 +270,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
       });
     },
     {
-      query: t.Object({
-        logIds: t.Optional(t.String())
-      })
+      query: ProgressSSEQuerySchema
     }
   )
 
@@ -342,7 +293,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
       const result = await importService.getProgressBatch(logIds, user.id);
       return successResponse(result);
     },
-    { body: t.Object({ logIds: t.Array(t.String()) }) }
+    { body: ProgressBatchBodySchema }
   )
 
 
@@ -360,7 +311,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
       const page = parseInt(query.page || '1');
-      const limit = parseInt(query.limit || '10');
+      const limit = query.limit ? Math.min(parseInt(query.limit), configs.PAGINATION.MAX_LIMIT) : configs.PAGINATION.DEFAULT_LIMIT;
 
       // Cleanup is handled by 15-minute cron in index.ts
 
@@ -370,10 +321,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
       return successResponse(result);
     },
     {
-      query: t.Object({
-        page: t.Optional(t.String()),
-        limit: t.Optional(t.String())
-      })
+      query: LogsQuerySchema
     }
   )
 

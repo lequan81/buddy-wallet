@@ -1,4 +1,5 @@
-import type { Debt } from '@repo/db';
+import type { BaseResult } from './base.js';
+import type { Debt, DebtStatus } from '@repo/db';
 
 /**
  * DebtDetails represents the exact JSON payload sent over the wire.
@@ -16,7 +17,7 @@ export interface DebtDetails extends Omit<Debt, 'createdAt' | 'updatedAt' | 'cre
   deletedAt: string | null;
 }
 
-export type DebtStatus = 'pending' | 'confirmed' | 'paid' | 'disputed' | 'cancelled';
+export type { DebtStatus };
 export type DebtDirection = 'LEND' | 'BORROW';
 
 export interface CreateDebtInput {
@@ -26,19 +27,12 @@ export interface CreateDebtInput {
   direction: DebtDirection;
 }
 
-export interface DebtResult {
-  success: boolean;
-  error?: string;
-  code?: string;
-  message?: string;
+export interface DebtResult extends BaseResult {
   debt?: DebtDetails;
   debts?: DebtDetails[];
 }
 
-export interface StatusUpdateResult {
-  success: boolean;
-  error?: string;
-  code?: string;
+export interface StatusUpdateResult extends BaseResult {
   debt?: DebtDetails;
   previousStatus?: DebtStatus;
   newStatus?: DebtStatus;

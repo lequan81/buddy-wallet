@@ -4,26 +4,24 @@
  * Handles file uploads for QR codes and payment proofs.
  */
 import { Elysia, t } from 'elysia';
-import { permissionPlugin } from '../plugins/guards';
+import {
+  UploadQRSchema,
+  UploadPaymentProofSchema,
+  RejectProofSchema
+} from '@repo/schemas';
+import { permissionPlugin } from '@plugins/guards';
 import {
   uploadRateLimiter,
   deleteRateLimiter,
   fileDownloadRateLimiter
-} from '../plugins/middleware';
+} from '@plugins/middleware';
 import { PERMISSIONS } from '@repo/permissions';
-import { BE_ERRORS, errorResponse } from '@repo/errors';
-import { getClientIP } from '../utils';
-import { servicesPlugin, services } from '../plugins/services.plugin';
+import { BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
+import { getClientIP } from '@utils';
+import { servicesPlugin } from '@plugins/services.plugin';
 
 import { formatVND } from '@repo/utils';
 
-// Helper to check if user can receive push notifications
-async function canReceivePush(userId: string, userService: typeof services.userService): Promise<boolean> {
-  const result = await userService.getUserById(userId);
-  if (!result.user) return false;
-  // Must have verified email AND push enabled
-  return result.user.emailVerified === true && result.user.pushNotificationsEnabled === true;
-}
 
 export const UploadController = new Elysia({ prefix: '/upload' })
   .use(servicesPlugin)
@@ -46,23 +44,17 @@ export const UploadController = new Elysia({ prefix: '/upload' })
             return result;
           }
 
-          return {
-            success: true,
+          return successResponse({
             file: {
               id: result.file!.id,
               filename: result.file!.filename,
               size: result.file!.sizeBytes,
               url: `/upload/file/${result.file!.id}`
             }
-          };
+          });
         },
         {
-          body: t.Object({
-            file: t.File({
-              type: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
-              maxSize: '4m'
-            })
-          }),
+          body: UploadQRSchema,
           checkPermission: PERMISSIONS.DEBT_CREATE // User can upload QR
         }
       )
@@ -96,7 +88,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
 
           // Send notification to creditor that proof was uploaded
           if (debt.creditorId && debt.creditorId !== user!.id) {
-            const canNotify = await canReceivePush(debt.creditorId, userService);
+            const canNotify = await userService.canReceivePush(debt.creditorId);
             if (canNotify) {
               pushService.sendToUser(debt.creditorId, {
                 title: 'Payment Proof Uploaded',
@@ -117,8 +109,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
             userAgent: request.headers.get('user-agent') || undefined
           });
 
-          return {
-            success: true,
+          return successResponse({
             file: {
               id: result.file!.id,
               filename: result.file!.filename,
@@ -126,16 +117,11 @@ export const UploadController = new Elysia({ prefix: '/upload' })
               status: result.file!.status,
               url: `/upload/file/${result.file!.id}`
             }
-          };
+          });
         },
         {
           params: t.Object({ debtId: t.String() }),
-          body: t.Object({
-            file: t.File({
-              type: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
-              maxSize: '4m'
-            })
-          }),
+          body: UploadPaymentProofSchema,
           checkPermission: PERMISSIONS.DEBT_VIEW_OWN
         }
       )
@@ -173,8 +159,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
         '/my-qr',
         async ({ user, fileService }) => {
           const qrCodes = await fileService.getUserQRCodes(user!.id);
-          return {
-            success: true,
+          return successResponse({
             files: qrCodes.map((f: typeof qrCodes[0]) => ({
               id: f.id,
               filename: f.filename,
@@ -182,7 +167,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
               url: `/upload/file/${f.id}`,
               createdAt: f.createdAt
             }))
-          };
+          });
         },
         { checkPermission: PERMISSIONS.DEBT_VIEW_OWN }
       )
@@ -204,8 +189,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
           }
 
           const proofs = await fileService.getPendingProofs(debtId);
-          return {
-            success: true,
+          return successResponse({
             files: proofs.map((f: typeof proofs[0]) => ({
               id: f.id,
               filename: f.filename,
@@ -215,7 +199,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
               uploadedById: f.uploadedById,
               createdAt: f.createdAt
             }))
-          };
+          });
         },
         {
           params: t.Object({ debtId: t.String() }),
@@ -241,7 +225,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
 
           // Send notification to proof uploader that their proof was approved
           if (result.uploaderId && result.uploaderId !== user!.id) {
-            const canNotify = await canReceivePush(result.uploaderId, userService);
+            const canNotify = await userService.canReceivePush(result.uploaderId);
             if (canNotify) {
               pushService.sendToUser(result.uploaderId, {
                 title: 'Proof Approved',
@@ -262,12 +246,11 @@ export const UploadController = new Elysia({ prefix: '/upload' })
             userAgent: request.headers.get('user-agent') || undefined
           });
 
-          return {
-            success: true,
+          return successResponse({
             message: 'Proof approved',
             allProofsApproved: result.allProofsApproved,
             debtId: result.debtId
-          };
+          });
         },
         {
           params: t.Object({ id: t.String() }),
@@ -286,7 +269,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
 
           // Send notification to proof uploader that their proof was rejected
           if (result.uploaderId && result.uploaderId !== user!.id) {
-            const canNotify = await canReceivePush(result.uploaderId, userService);
+            const canNotify = await userService.canReceivePush(result.uploaderId);
             if (canNotify) {
               const reasonText = body.reason ? `: ${body.reason}` : '';
               pushService.sendToUser(result.uploaderId, {
@@ -308,13 +291,11 @@ export const UploadController = new Elysia({ prefix: '/upload' })
             userAgent: request.headers.get('user-agent') || undefined
           });
 
-          return { success: true, message: 'Proof rejected' };
+          return successResponse({ message: 'Proof rejected' });
         },
         {
           params: t.Object({ id: t.String() }),
-          body: t.Object({
-            reason: t.Optional(t.String({ maxLength: 500 }))
-          }),
+          body: RejectProofSchema,
           checkPermission: PERMISSIONS.DEBT_VIEW_OWN
         }
       )
@@ -340,7 +321,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
             userAgent: request.headers.get('user-agent') || undefined
           });
 
-          return { success: true, message: 'File deleted' };
+          return successResponse({ message: 'File deleted' });
         },
         {
           params: t.Object({ id: t.String() }),

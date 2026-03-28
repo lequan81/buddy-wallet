@@ -1,10 +1,9 @@
-import { importLogs, eq } from '@repo/db';
 import { importCache, isRedisAvailable } from '@plugins/redis';
 import type { ImportProgress } from '@plugins/redis';
-import type { DbClient } from '@/types';
+import type { IImportExportRepository } from '@repo/types';
 
 export class ImportLoggerService {
-  constructor(private db: DbClient) {}
+  constructor(private readonly importRepo: IImportExportRepository) {}
 
   async updateLogStatus(
     logId: string,
@@ -13,10 +12,7 @@ export class ImportLoggerService {
     result?: unknown
   ): Promise<void> {
     // Update DB
-    await this.db
-      .update(importLogs)
-      .set({ status, errors: JSON.stringify(errors) })
-      .where(eq(importLogs.id, logId));
+    await this.importRepo.updateLog(logId, { status, errors: JSON.stringify(errors) });
 
     // Update Redis
     if (isRedisAvailable()) {

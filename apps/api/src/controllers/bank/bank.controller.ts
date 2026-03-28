@@ -4,12 +4,13 @@
  * Handles bank account management and VietQR integration.
  */
 import { Elysia, t } from 'elysia';
-import { BE_ERRORS, GEN_ERRORS, errorResponse } from '@repo/errors';
-import { permissionPlugin } from '../plugins/guards';
+import { UpdateBankAccountSchema } from '@repo/schemas';
+import { BE_ERRORS, GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
+import { permissionPlugin } from '@plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
 import { insertBankAccountSchema } from '@repo/db';
-import { getClientIP } from '../utils';
-import { servicesPlugin } from '../plugins/services.plugin';
+import { getClientIP } from '@utils';
+import { servicesPlugin } from '@plugins/services.plugin';
 
 export const BankController = new Elysia({ prefix: '/banks' })
   .use(servicesPlugin)
@@ -21,7 +22,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
     '/list',
     async ({ vietqrService }) => {
       const banks = await vietqrService.getBanks();
-      return { success: true, banks };
+      return successResponse({ banks });
     },
     {
       detail: {
@@ -39,7 +40,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
         return errorResponse(GEN_ERRORS.UNAUTHORIZED);
       }
       const accounts = await bankAccountService.getUserBankAccounts(user.id);
-      return { success: true, accounts };
+      return successResponse({ accounts });
     },
     {
       checkPermission: PERMISSIONS.DEBT_VIEW_OWN // Reusing basic permission
@@ -74,7 +75,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
         userAgent: request.headers.get('user-agent') || undefined
       });
 
-      return { success: true, account: result.account };
+      return successResponse({ account: result.account });
     },
     {
       body: insertBankAccountSchema,
@@ -108,18 +109,11 @@ export const BankController = new Elysia({ prefix: '/banks' })
         userAgent: request.headers.get('user-agent') || undefined
       });
 
-      return { success: true, account: result.account };
+      return successResponse({ account: result.account });
     },
     {
       params: t.Object({ id: t.String() }),
-      body: t.Object({
-        bankCode: t.Optional(t.String()),
-        bankName: t.Optional(t.String()),
-        bankBin: t.Optional(t.String()),
-        accountNumber: t.Optional(t.String()),
-        accountName: t.Optional(t.String()),
-        isDefault: t.Optional(t.Boolean())
-      }),
+      body: UpdateBankAccountSchema,
       checkPermission: PERMISSIONS.DEBT_CREATE
     }
   )
@@ -133,8 +127,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
       // For now, we allow seeing bank accounts if you know the userId (needed for QR gen)
       const accounts = await bankAccountService.getUserBankAccounts(userId);
       // Only return necessary info
-      return {
-        success: true,
+      return successResponse({
         accounts: accounts.map((a) => ({
           id: a.id,
           bankCode: a.bankCode,
@@ -144,7 +137,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
           accountName: a.accountName,
           isDefault: a.isDefault
         }))
-      };
+      });
     },
     {
       params: t.Object({ userId: t.String() }),
@@ -196,7 +189,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
         debtId: debt.id
       });
 
-      return { success: true, qrUrl };
+      return successResponse({ qrUrl });
     },
     {
       params: t.Object({ debtId: t.String() }),
@@ -228,7 +221,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
         userAgent: request.headers.get('user-agent') || undefined
       });
 
-      return { success: true, message: 'Bank account deleted' };
+      return successResponse({ message: 'Bank account deleted' });
     },
     {
       params: t.Object({ id: t.String() }),

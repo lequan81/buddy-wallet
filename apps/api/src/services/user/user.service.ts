@@ -5,19 +5,19 @@
  * Uses constructor injection for testability.
  * Implements IUserService interface for LSP compliance.
  */
-import { users, sessions, eq, and, ne, count } from '@repo/db';
 import { userCache, isRedisAvailable } from '@plugins/redis';
 import { toSafeUser } from '@utils';
-import type { DbClient } from '@/types';
-import type { SafeUser, UserResult } from '@/types';
-import type { IUserService } from '@/types';
+import type { SafeUser, UserResult, PaginatedResult, IUserService, IUserRepository, ISessionRepository } from '@repo/types';
 
 /**
  * UserService class with dependency injection
  * Implements IUserService for LSP compliance
  */
 export class UserService implements IUserService {
-  constructor(private db: DbClient) {}
+  constructor(
+    private readonly userRepo: IUserRepository,
+    private readonly sessionRepo: ISessionRepository
+  ) {}
 
   /**
    * Get all users (admin only) with pagination
@@ -27,23 +27,27 @@ export class UserService implements IUserService {
    */
   async getAllUsers(
     options: { limit?: number; offset?: number } = {}
-  ): Promise<{ users: SafeUser[]; total: number; hasMore: boolean }> {
+  ): Promise<PaginatedResult<SafeUser>> {
     const { limit = 50, offset = 0 } = options;
 
     // Get total count
-    const countResult = await this.db.select({ count: count() }).from(users).get();
-    const total = countResult?.count ?? 0;
+    const total = await this.userRepo.countAll();
 
     // Get paginated results
-    const paginatedUsers = await this.db.select().from(users).limit(limit).offset(offset).all();
+    const paginatedUsers = await this.userRepo.findPaginated(limit, offset);
 
     // Strip passwords and sensitive data
     const safeUsers = paginatedUsers.map(toSafeUser);
 
     return {
-      users: safeUsers,
-      total,
-      hasMore: offset + safeUsers.length < total
+      success: true,
+      data: safeUsers,
+      pagination: {
+        page: Math.floor(offset / limit) + 1,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
     };
   }
 
@@ -59,7 +63,7 @@ export class UserService implements IUserService {
       }
     }
 
-    const user = await this.db.select().from(users).where(eq(users.id, userId)).get();
+    const user = await this.userRepo.findById(userId);
 
     if (!user) {
       return { success: false, error: 'User not found' };
@@ -80,7 +84,7 @@ export class UserService implements IUserService {
    * Toggle user active status and revoke sessions if deactivating
    */
   async toggleUserStatus(userId: string): Promise<UserResult> {
-    const targetUser = await this.db.select().from(users).where(eq(users.id, userId)).get();
+    const targetUser = await this.userRepo.findById(userId);
 
     if (!targetUser) {
       return { success: false, error: 'User not found' };
@@ -88,21 +92,11 @@ export class UserService implements IUserService {
 
     const newStatus = !targetUser.isActive;
 
-    await this.db
-      .update(users)
-      .set({ isActive: newStatus, updatedAt: new Date() })
-      .where(eq(users.id, userId));
+    await this.userRepo.updateStatus(userId, newStatus);
 
     // If deactivating, revoke all active sessions
     if (!newStatus) {
-      await this.db
-        .update(sessions)
-        .set({
-          status: 'revoked',
-          revokedAt: new Date(),
-          revokedReason: 'admin_revoke'
-        })
-        .where(and(eq(sessions.userId, userId), eq(sessions.status, 'active')));
+      await this.sessionRepo.revokeActiveSessionsForUser(userId);
     }
 
     // Invalidate user cache
@@ -111,9 +105,8 @@ export class UserService implements IUserService {
     }
 
     // Fetch the updated user to return
-    const safeUser = toSafeUser(
-      (await this.db.select().from(users).where(eq(users.id, userId)).get())!
-    );
+    const updatedUser = await this.userRepo.findById(userId);
+    const safeUser = toSafeUser(updatedUser!);
 
     return {
       success: true,
@@ -149,7 +142,7 @@ export class UserService implements IUserService {
     }
 
     // Get current user to verify they exist
-    const currentUser = await this.db.select().from(users).where(eq(users.id, userId)).get();
+    const currentUser = await this.userRepo.findById(userId);
 
     if (!currentUser) {
       return { success: false, error: 'User not found' };
@@ -162,11 +155,7 @@ export class UserService implements IUserService {
 
     // Check for phone number uniqueness if being updated
     if (updates.phoneNumber && updates.phoneNumber !== currentUser.phoneNumber) {
-      const existingUser = await this.db
-        .select()
-        .from(users)
-        .where(and(eq(users.phoneNumber, updates.phoneNumber), ne(users.id, userId)))
-        .get();
+      const existingUser = await this.userRepo.findByPhone(updates.phoneNumber, userId);
 
       if (existingUser) {
         return { success: false, error: 'Phone number already in use' };
@@ -175,11 +164,7 @@ export class UserService implements IUserService {
 
     // Check for email uniqueness if being updated
     if (updates.email && updates.email !== currentUser.email) {
-      const existingUser = await this.db
-        .select()
-        .from(users)
-        .where(and(eq(users.email, updates.email), ne(users.id, userId)))
-        .get();
+      const existingUser = await this.userRepo.findByEmail(updates.email, userId);
 
       if (existingUser) {
         return { success: false, error: 'Email already in use' };
@@ -209,15 +194,12 @@ export class UserService implements IUserService {
     }
 
     // Update user in database
-    await this.db.update(users).set(updateData).where(eq(users.id, userId));
+    const updatedUser = await this.userRepo.update(userId, updateData);
 
     // Invalidate user cache
     if (isRedisAvailable()) {
       await userCache.del(userId);
     }
-
-    // Fetch the updated user to return
-    const updatedUser = await this.db.select().from(users).where(eq(users.id, userId)).get();
 
     if (!updatedUser) {
       return { success: false, error: 'Failed to fetch updated user' };
@@ -230,5 +212,17 @@ export class UserService implements IUserService {
       user: safeUser as SafeUser,
       message: 'Profile updated successfully'
     };
+  }
+
+  /**
+   * Check if user can receive push notifications
+   * (Standardized logic used by multiple controllers)
+   */
+  async canReceivePush(userId: string): Promise<boolean> {
+    const result = await this.getUserById(userId);
+    if (!result.user) return false;
+    
+    // Must have verified email AND push enabled
+    return result.user.emailVerified === true && result.user.pushNotificationsEnabled === true;
   }
 }
