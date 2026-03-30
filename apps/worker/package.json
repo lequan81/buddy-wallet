@@ -3,16 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
+    "dev": "powershell -NoProfile -Command \"bun --cwd (Resolve-Path ../..).Path --env-file (Resolve-Path ../../apps/api/.env).Path --watch (Resolve-Path ../../apps/worker/src/index.ts).Path\"",
     "build": "bun build src/index.ts --outdir=dist --target=bun --packages external --sourcemap --minify",
     "start": "bun run dist/index.js",
-    "clean": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\""
+    "clean": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\"",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@repo/config": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/logger": "workspace:*",
     "@repo/types": "workspace:*",
+    "@repo/utils": "workspace:*",
     "exceljs": "^4.4.0"
   },
   "devDependencies": {

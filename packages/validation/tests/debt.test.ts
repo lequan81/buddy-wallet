@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { safeParse } from 'valibot';
 import { CreateDebtInputSchema } from '../src/debt';
-import { DEBT_MIN_AMOUNT, DEBT_MAX_AMOUNT } from '@repo/config';
+import { SHARED_CONSTANTS } from '@repo/config/shared';
 
 describe('Validation: CreateDebt', () => {
   test('should accept valid input', () => {
     const input = {
-      amount: DEBT_MIN_AMOUNT + 1000,
+      amount: SHARED_CONSTANTS.DEBT.MIN_AMOUNT + 1000,
       description: 'Dinner',
       counterpartyPhone: '0912345678',
       direction: 'LEND'
@@ -17,7 +17,7 @@ describe('Validation: CreateDebt', () => {
 
   test('should reject amount below minimum', () => {
     const input = {
-      amount: DEBT_MIN_AMOUNT - 1,
+      amount: SHARED_CONSTANTS.DEBT.MIN_AMOUNT - 1,
       description: 'Too small',
       counterpartyPhone: '0912345678',
       direction: 'BORROW'
@@ -25,13 +25,13 @@ describe('Validation: CreateDebt', () => {
     const result = safeParse(CreateDebtInputSchema, input);
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.issues[0].message).toContain(`Minimum amount is ${DEBT_MIN_AMOUNT}`);
+      expect(result.issues[0].message).toContain(`Minimum amount is ${SHARED_CONSTANTS.DEBT.MIN_AMOUNT}`);
     }
   });
 
   test('should reject amount above maximum', () => {
     const input = {
-      amount: DEBT_MAX_AMOUNT + 1,
+      amount: SHARED_CONSTANTS.DEBT.MAX_AMOUNT + 1,
       description: 'Too big',
       counterpartyPhone: '0912345678',
       direction: 'LEND'
@@ -39,7 +39,7 @@ describe('Validation: CreateDebt', () => {
     const result = safeParse(CreateDebtInputSchema, input);
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.issues[0].message).toContain(`Maximum amount is ${DEBT_MAX_AMOUNT}`);
+      expect(result.issues[0].message).toContain(`Maximum amount is ${SHARED_CONSTANTS.DEBT.MAX_AMOUNT}`);
     }
   });
 

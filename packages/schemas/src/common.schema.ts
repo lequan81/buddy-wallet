@@ -12,7 +12,6 @@ export const ErrorResponseSchema = t.Object({
     details: t.Optional(t.String())
   })
 });
-import { SafeUserSchema } from './user.schema';
 
 export const PaginationSchema = t.Object({
   page: t.Number(),
@@ -24,10 +23,4 @@ export const PaginationSchema = t.Object({
 export const PaginationQuerySchema = t.Object({
   limit: t.Optional(t.String()),
   offset: t.Optional(t.String())
-});
-
-export const UsersListResponseSchema = t.Object({
-  success: t.Literal(true),
-  users: t.Array(SafeUserSchema),
-  pagination: PaginationSchema
 });

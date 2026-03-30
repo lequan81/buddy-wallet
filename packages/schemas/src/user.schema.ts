@@ -1,5 +1,5 @@
 import { t } from 'elysia';
-import { NullableString, NullableDateString } from './common.schema';
+import { NullableString, NullableDateString, PaginationSchema } from './common.schema';
 export const SafeUserSchema = t.Object({
   id: t.String(),
   name: t.String(),
@@ -19,6 +19,12 @@ export const SafeUserSchema = t.Object({
 export const UserResponseSchema = t.Object({
   success: t.Literal(true),
   user: SafeUserSchema
+});
+
+export const UsersListResponseSchema = t.Object({
+  success: t.Literal(true),
+  users: t.Array(SafeUserSchema),
+  pagination: PaginationSchema
 });
 
 export const UpdateProfileSchema = t.Object({

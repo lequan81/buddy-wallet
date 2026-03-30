@@ -1,4 +1,6 @@
 import type { DetectedMapping } from '@/types';
+import { Workbook } from 'exceljs';
+import { Readable } from 'node:stream';
 
 export class SpreadsheetService {
   /**
@@ -58,9 +60,6 @@ export class SpreadsheetService {
         return cells;
       });
     }
-
-    const { Workbook } = await import('exceljs');
-    const { Readable } = await import('node:stream');
 
     const allRows: string[][] = [];
     const workbook = new Workbook();

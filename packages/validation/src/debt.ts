@@ -1,11 +1,11 @@
 import * as v from 'valibot';
-import { SHARED_CONSTANTS } from '@repo/config/shared';
+import { SHARED_CONSTANTS } from '@repo/config';
 import { phoneSchema } from './auth';
 
 export const amountSchema = v.pipe(
   v.number('Amount must be a number'),
-  v.minValue(SHARED_CONSTANTS.DEBT_MIN_AMOUNT, `Minimum amount is ${SHARED_CONSTANTS.DEBT_MIN_AMOUNT}`),
-  v.maxValue(SHARED_CONSTANTS.DEBT_MAX_AMOUNT, `Maximum amount is ${SHARED_CONSTANTS.DEBT_MAX_AMOUNT}`)
+  v.minValue(SHARED_CONSTANTS.DEBT.MIN_AMOUNT, `Minimum amount is ${SHARED_CONSTANTS.DEBT.MIN_AMOUNT}`),
+  v.maxValue(SHARED_CONSTANTS.DEBT.MAX_AMOUNT, `Maximum amount is ${SHARED_CONSTANTS.DEBT.MAX_AMOUNT}`)
 );
 
 export const amountClientSchema = v.pipe(

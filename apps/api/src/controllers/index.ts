@@ -5,7 +5,6 @@ export * from './import-export/export.controller';
 export * from './import-export/import.controller';
 export * from './system/public.controller';
 export * from './user/users.controller';
-export * from './system/traces.controller';
 export * from './storage/upload.controller';
 export * from './notification/push.controller';
 export * from './bank/bank.controller';

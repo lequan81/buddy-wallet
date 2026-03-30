@@ -1,7 +1,7 @@
 /**
  * Session Cache Module
  */
-import { hashToken } from '../../../utils';
+import { hashToken } from '@/utils/crypto.utils';
 import { cache } from '../../../plugins/redis/cache';
 
 const SESSION_CACHE_TTL = parseInt(Bun.env.REDIS_SESSION_TTL || '1800');

@@ -1,9 +1,9 @@
 import { Elysia, type Context } from 'elysia';
 import { logger } from '@repo/logger';
-import { getClientIP } from '../../utils/ip.utils';
-import { cache, isRedisAvailable } from '../redis';
-import { configs } from '../../configs';
-import type { RateLimitEntry, RateLimitConfig } from '../../types';
+import { getClientIP } from '@utils/ip.utils';
+import { cache, isRedisAvailable } from '@plugins/redis';
+import { configs } from '@/configs';
+import type { RateLimitEntry, RateLimitConfig } from '@/types';
 
 // In-memory fallback store (used when Redis is not available)
 const rateLimitStore = new Map<string, RateLimitEntry>();

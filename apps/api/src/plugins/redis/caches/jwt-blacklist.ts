@@ -1,7 +1,7 @@
 /**
  * JWT Blacklist Cache Module
  */
-import { hashToken } from '../../../utils';
+import { hashToken } from '@/utils/crypto.utils';
 import { cache } from '../../../plugins/redis/cache';
 
 const JWT_BLACKLIST_TTL = parseInt(Bun.env.REDIS_JWT_BLACKLIST_TTL || '604800');

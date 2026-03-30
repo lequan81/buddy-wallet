@@ -1,8 +1,8 @@
 {
   "name": "@repo/config",
   "version": "1.0.0",
-  "main": "./index.ts",
-  "types": "./index.ts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "scripts": {
     "lint": "eslint . --max-warnings 0",
     "check-types": "bunx tsc --noEmit"
@@ -18,20 +18,56 @@
   },
   "exports": {
     ".": {
-      "types": "./index.ts",
-      "default": "./index.ts"
-    },
-    "./frontend": {
-      "types": "./frontend.ts",
-      "default": "./frontend.ts"
-    },
-    "./backend": {
-      "types": "./backend.ts",
-      "default": "./backend.ts"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
     },
     "./shared": {
-      "types": "./shared.ts",
-      "default": "./shared.ts"
+      "types": "./src/shared/index.ts",
+      "default": "./src/shared/index.ts"
+    },
+    "./shared/*": {
+      "types": "./src/shared/*.ts",
+      "default": "./src/shared/*.ts"
+    },
+    "./auth": {
+      "types": "./src/auth/index.ts",
+      "default": "./src/auth/index.ts"
+    },
+    "./auth/*": {
+      "types": "./src/auth/*.ts",
+      "default": "./src/auth/*.ts"
+    },
+    "./import": {
+      "types": "./src/import/index.ts",
+      "default": "./src/import/index.ts"
+    },
+    "./import/*": {
+      "types": "./src/import/*.ts",
+      "default": "./src/import/*.ts"
+    },
+    "./storage": {
+      "types": "./src/storage/index.ts",
+      "default": "./src/storage/index.ts"
+    },
+    "./storage/*": {
+      "types": "./src/storage/*.ts",
+      "default": "./src/storage/*.ts"
+    },
+    "./app": {
+      "types": "./src/app/index.ts",
+      "default": "./src/app/index.ts"
+    },
+    "./app/*": {
+      "types": "./src/app/*.ts",
+      "default": "./src/app/*.ts"
+    },
+    "./env": {
+      "types": "./src/env/index.ts",
+      "default": "./src/env/index.ts"
+    },
+    "./env/*": {
+      "types": "./src/env/*.ts",
+      "default": "./src/env/*.ts"
     }
   }
 }

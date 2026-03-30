@@ -122,3 +122,24 @@ export function formatDate(
       return d.toLocaleString();
   }
 }
+
+/**
+ * Sanitize a filename to be safe for storage.
+ */
+export const sanitizeFileName = (value: string | undefined): string => {
+  const raw = (value || '').trim();
+  if (!raw) return 'unnamed';
+  return raw.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || 'unnamed';
+};
+
+/**
+ * Converts an Excel column letter (e.g., 'A', 'AB') to a 1-based index.
+ */
+export const colLetterToIndex = (col: string): number => {
+  const letterPart = col.includes(':') ? col.split(':')[0].toUpperCase() : col.toUpperCase();
+  let idx = 0;
+  for (let i = 0; i < letterPart.length; i++) {
+    idx = idx * 26 + (letterPart.charCodeAt(i) - 64);
+  }
+  return idx;
+};

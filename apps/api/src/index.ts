@@ -18,7 +18,6 @@ import {
   ImportController,
   PublicController,
   UsersController,
-  TracesController,
   PushController,
   BankController,
   UploadController
@@ -27,10 +26,19 @@ import { telemetry } from './instrumentation';
 import { logger } from '@repo/logger';
 import { requireAuth } from '@/core/http/require-auth';
 import { getStorageReadiness } from '@/core/health/storage-readiness';
+import { randomUUIDv7 } from 'bun';
 
 // Cleanup jobs run via external worker/timer entrypoint.
 
 export const app = new Elysia()
+  // Global Request ID
+  .derive(({ request }) => {
+    const requestId = request.headers.get('X-Request-ID') || randomUUIDv7();
+    return { requestId };
+  })
+  .onAfterHandle(({ requestId, set }) => {
+    set.headers['X-Request-ID'] = requestId;
+  })
   // Global error handler - ensures all errors return proper JSON
   .onError(({ code, error, set }) => {
     logger.app('Global error caught', { code, error: String(error) });
@@ -125,9 +133,7 @@ export const app = new Elysia()
       storage,
       timestamp: new Date().toISOString()
     };
-  })
-  // Trace viewer (dev only)
-  .use(TracesController);
+  });
 
 // Only listen if run directly (not imported)
 if (import.meta.main) {

@@ -1,0 +1,11 @@
+import { SHARED_CONSTANTS } from '../shared';
+import { getEnvInt } from '../env';
+
+/**
+ * File Import Constants
+ */
+export const IMPORT_CONFIG = {
+  MAX_ROWS: getEnvInt('IMPORT_MAX_ROWS', SHARED_CONSTANTS.IMPORT.MAX_ROWS),
+  STALE_LOG_LIFETIME: getEnvInt('IMPORT_STALE_LOG_LIFETIME', SHARED_CONSTANTS.IMPORT.STALE_LOG_LIFETIME),
+  CHUNK_SIZE: getEnvInt('IMPORT_CHUNK_SIZE', SHARED_CONSTANTS.IMPORT.CHUNK_SIZE),
+} as const;

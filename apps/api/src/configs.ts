@@ -1,150 +1,95 @@
-// Bun automatically loads .env files - no dotenv needed
-import { validateSecretStrength, optionalEnv, getEnvBool, getEnvInt } from '@repo/config';
+import { 
+  BACKEND_CONSTANTS, 
+  validateSecretStrength, 
+  optionalEnv, 
+  getEnvBool, 
+  getEnvInt,
+  SHARED_CONSTANTS
+} from '@repo/config';
 
 /**
- * Validate JWT secret strength using shared validation rules
+ * Startup Validation - Ensures environment is ready
  */
-function validateJWTSecretOnStartup(secret: string) {
-  const validation = validateSecretStrength(secret);
-  if (!validation.isValid && Bun.env.NODE_ENV === 'production') {
-    throw new Error(`[ERROR] JWT_SECRET security issues:\n  - ${validation.issues.join('\n  - ')}`);
-  } else if (validation.issues.length > 0) {
-    console.warn(`[WARN] JWT_SECRET security warnings:\n  - ${validation.issues.join('\n  - ')}`);
+const nodeEnv = Bun.env.NODE_ENV || 'development';
+const isProd = nodeEnv === 'production';
+
+// Validation helper
+function validateEnv() {
+  const jwtSecret = Bun.env.JWT_SECRET;
+  if (!jwtSecret && isProd) {
+    throw new Error('[ERROR] JWT_SECRET is required in production');
+  } else if (!jwtSecret) {
+    console.warn('[WARN] JWT_SECRET not set. Using insecure default.');
+  } else {
+    const validation = validateSecretStrength(jwtSecret);
+    if (!validation.isValid) {
+      if (isProd) throw new Error(`[ERROR] JWT_SECRET security issues:\n  - ${validation.issues.join('\n  - ')}`);
+      console.warn(`[WARN] JWT_SECRET security issues:\n  - ${validation.issues.join('\n  - ')}`);
+    }
+  }
+
+  if (!Bun.env.DATABASE_URL && isProd) {
+    throw new Error('[ERROR] DATABASE_URL is required in production');
   }
 }
 
-const jwtSecret = optionalEnv('JWT_SECRET', 'dev-secret-change-in-production');
-validateJWTSecretOnStartup(jwtSecret);
-const csrfSecret = optionalEnv('CSRF_SECRET', jwtSecret);
-if (csrfSecret === jwtSecret) {
-  console.warn('[WARN] CSRF_SECRET not set. Falling back to JWT_SECRET is allowed but not recommended.');
-}
+// Run validation immediately on import
+validateEnv();
 
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const BURST_WINDOW_MS = 10 * 1000;
-
-const nodeEnv = Bun.env.NODE_ENV || 'development';
-const s3Endpoint = optionalEnv('S3_ENDPOINT', '');
-const s3Region = optionalEnv('S3_REGION', '');
-const s3Bucket = optionalEnv('S3_BUCKET', '');
-const s3AccessKeyId = optionalEnv('S3_ACCESS_KEY_ID', '');
-const s3SecretAccessKey = optionalEnv('S3_SECRET_ACCESS_KEY', '');
-const s3PublicBaseUrl = optionalEnv('S3_PUBLIC_BASE_URL', '');
-const s3ForcePathStyle = getEnvBool('S3_FORCE_PATH_STYLE', true);
-const debtCheckCountToken = optionalEnv('DEBT_CHECK_COUNT_TOKEN', '');
-
-const missingStorageEnv: string[] = [];
-if (!s3Endpoint) missingStorageEnv.push('S3_ENDPOINT');
-if (!s3Region) missingStorageEnv.push('S3_REGION');
-if (!s3Bucket) missingStorageEnv.push('S3_BUCKET');
-if (!s3AccessKeyId) missingStorageEnv.push('S3_ACCESS_KEY_ID');
-if (!s3SecretAccessKey) missingStorageEnv.push('S3_SECRET_ACCESS_KEY');
-
-if (missingStorageEnv.length > 0) {
-  console.warn(`[WARN] S3 storage env warnings:\n  - ${missingStorageEnv.join('\n  - ')}`);
-}
-
+/**
+ * Minified Config Definition
+ * 
+ * Priorities:
+ * 1. .env variables (highest)
+ * 2. BACKEND_CONSTANTS / SHARED_CONSTANTS (fallbacks)
+ */
 export const configs = {
   APP: {
     NODE_ENV: nodeEnv,
     PORT: optionalEnv('PORT', '3000'),
     WEB_URL: optionalEnv('WEB_URL', 'http://localhost:5173'),
-    IS_DEV: nodeEnv !== 'production'
+    IS_DEV: !isProd
   },
   AUTH: {
-    JWT_SECRET: jwtSecret,
-    CSRF_SECRET: csrfSecret,
+    JWT_SECRET: optionalEnv('JWT_SECRET', 'dev-secret-change-in-production'),
+    CSRF_SECRET: optionalEnv('CSRF_SECRET', optionalEnv('JWT_SECRET', '')),
     ACCESS_TOKEN_LIFETIME: getEnvInt('ACCESS_TOKEN_LIFETIME', 900000),
     REFRESH_TOKEN_LIFETIME: getEnvInt('REFRESH_TOKEN_LIFETIME', 7776000000),
-    JWT_BLACKLIST_SECONDS: getEnvInt('JWT_BLACKLIST_SECONDS', 900),
-    MIN_PASSWORD_LENGTH: getEnvInt('MIN_PASSWORD_LENGTH', 8),
-    ARGON2_OPTIONS: {
-      algorithm: 'argon2id' as const,
+    PASSWORD_MIN_LENGTH: getEnvInt('MIN_PASSWORD_LENGTH', SHARED_CONSTANTS.USER.PASSWORD_MIN_LENGTH),
+    ARGON2: {
       memoryCost: getEnvInt('ARGON2_MEMORY_COST', 65536),
       timeCost: getEnvInt('ARGON2_TIME_COST', 3)
     }
   },
   IMPORT: {
-    MAX_ROWS: getEnvInt('IMPORT_MAX_ROWS', 1000),
-    STALE_LOG_LIFETIME: getEnvInt('IMPORT_STALE_LOG_LIFETIME', 86400000)
-  },
-  PUSH: {
-    VAPID_PUBLIC_KEY: optionalEnv('VAPID_PUBLIC_KEY', ''),
-    VAPID_PRIVATE_KEY: optionalEnv('VAPID_PRIVATE_KEY', ''),
-    VAPID_SUBJECT: optionalEnv('VAPID_SUBJECT', 'mailto:support@buddywallet.app'),
-    MAX_FAILED_ATTEMPTS: getEnvInt('PUSH_MAX_FAILED_ATTEMPTS', 5)
+    MAX_ROWS: getEnvInt('IMPORT_MAX_ROWS', SHARED_CONSTANTS.IMPORT.MAX_ROWS),
+    STALE_LOG_LIFETIME: getEnvInt('IMPORT_STALE_LOG_LIFETIME', SHARED_CONSTANTS.IMPORT.STALE_LOG_LIFETIME),
+    CHUNK_SIZE: getEnvInt('IMPORT_CHUNK_SIZE', SHARED_CONSTANTS.IMPORT.CHUNK_SIZE)
   },
   STORAGE: {
-    S3_ENDPOINT: s3Endpoint,
-    S3_REGION: s3Region,
-    S3_BUCKET: s3Bucket,
-    S3_ACCESS_KEY_ID: s3AccessKeyId,
-    S3_SECRET_ACCESS_KEY: s3SecretAccessKey,
-    S3_PUBLIC_BASE_URL: s3PublicBaseUrl,
-    S3_FORCE_PATH_STYLE: s3ForcePathStyle
-  },
-  SECURITY: {
-    DEBT_CHECK_COUNT_TOKEN: debtCheckCountToken
+    S3_ENDPOINT: optionalEnv('S3_ENDPOINT', ''),
+    S3_REGION: optionalEnv('S3_REGION', ''),
+    S3_BUCKET: optionalEnv('S3_BUCKET', ''),
+    S3_ACCESS_KEY_ID: optionalEnv('S3_ACCESS_KEY_ID', ''),
+    S3_SECRET_ACCESS_KEY: optionalEnv('S3_SECRET_ACCESS_KEY', ''),
+    S3_FORCE_PATH_STYLE: getEnvBool('S3_FORCE_PATH_STYLE', true)
   },
   PAGINATION: {
-    DEFAULT_LIMIT: 50,
-    MAX_LIMIT: 100
+    DEFAULT_LIMIT: getEnvInt('PAGINATION_DEFAULT_LIMIT', SHARED_CONSTANTS.PAGINATION.DEFAULT_SIZE),
+    MAX_LIMIT: getEnvInt('PAGINATION_MAX_LIMIT', SHARED_CONSTANTS.PAGINATION.MAX_SIZE)
   },
   RATE_LIMITS: {
-    STRICT: {
-      windowMs: RATE_LIMIT_WINDOW_MS,
-      maxRequests: 5,
-      message: 'Too many requests. Please wait before trying again.'
-    },
-    AUTH: {
-      windowMs: RATE_LIMIT_WINDOW_MS,
-      maxRequests: 10,
-      message: 'Too many authentication attempts. Please wait before trying again.'
-    },
-    AUTH_RECOVERY: {
-      windowMs: RATE_LIMIT_WINDOW_MS,
-      maxRequests: getEnvInt('AUTH_RECOVERY_MAX_REQUESTS', 5),
-      message: 'Too many password recovery attempts. Please wait before trying again.'
-    },
-    AUTH_RESET: {
-      windowMs: RATE_LIMIT_WINDOW_MS,
-      maxRequests: getEnvInt('AUTH_RESET_MAX_REQUESTS', 5),
-      message: 'Too many password reset attempts. Please wait before trying again.'
-    },
-    AUTH_OTP: {
-      windowMs: RATE_LIMIT_WINDOW_MS,
-      maxRequests: getEnvInt('AUTH_OTP_MAX_REQUESTS', 5),
-      message: 'Too many OTP requests. Please wait before trying again.'
-    },
-    STANDARD: {
-      windowMs: RATE_LIMIT_WINDOW_MS,
-      maxRequests: 100,
-      message: 'Rate limit exceeded. Please slow down.'
-    },
-    BURST: {
-      windowMs: BURST_WINDOW_MS,
-      maxRequests: 30,
-      message: 'Too many requests in a short time. Please slow down.'
-    },
-    UPLOAD: {
-      windowMs: RATE_LIMIT_WINDOW_MS,
-      maxRequests: 10,
-      message: 'Upload limit exceeded. Please wait before uploading more files.'
-    },
-    DOWNLOAD: {
-      windowMs: RATE_LIMIT_WINDOW_MS,
-      maxRequests: 100,
-      message: 'Download limit exceeded. Please slow down.'
-    },
-    BROADCAST: {
-      windowMs: RATE_LIMIT_WINDOW_MS,
-      maxRequests: 1,
-      message: 'Broadcast limit exceeded. Maximum 1 broadcast per minute.'
-    },
-    DELETE: {
-      windowMs: RATE_LIMIT_WINDOW_MS,
-      maxRequests: 20,
-      message: 'Too many delete requests. Please slow down.'
+    STANDARD: { windowMs: 60000, maxRequests: 100 },
+    STRICT: { windowMs: 60000, maxRequests: 5 },
+    AUTH: { windowMs: 60000, maxRequests: 10 },
+    UPLOAD: { 
+      windowMs: BACKEND_CONSTANTS.RATE_LIMITS.UPLOAD.windowMs, 
+      maxRequests: BACKEND_CONSTANTS.RATE_LIMITS.UPLOAD.requests 
     }
   }
-};
+} as const;
+
+// Storage validation logging
+if (isProd && (!configs.STORAGE.S3_ENDPOINT || !configs.STORAGE.S3_BUCKET)) {
+  console.warn('[STORAGE] S3 is not fully configured. Some features may be disabled.');
+}

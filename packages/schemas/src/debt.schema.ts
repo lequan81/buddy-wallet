@@ -1,5 +1,5 @@
 import { t } from 'elysia';
-import { DEBT_STATUS, DEBT_DIRECTION } from '@repo/types';
+import { DEBT_STATUS, DEBT_DIRECTION } from '@repo/config';
 import { NullableString, NullableDateString, NullableNumber, PaginationSchema } from './common.schema';
 
 export const DebtStatusSchema = t.Union([

@@ -5,7 +5,7 @@
  * These are pure functions: no I/O, no state, deterministic.
  * Returns error result or null (null = valid).
  */
-import { DEBT_MIN_AMOUNT, DEBT_MAX_AMOUNT } from '@repo/config';
+import { SHARED_CONSTANTS } from '@repo/config';
 import { CreateDebtInputSchema, safeParse } from '@repo/validation';
 import { normalizePhoneNumber } from '@utils/phone';
 import type { DebtResult, CreateDebtInput } from '@repo/types';
@@ -18,11 +18,11 @@ export function validateAmount(amount: number): DebtResult | null {
   if (typeof amount !== 'number' || Number.isNaN(amount)) {
     return { success: false, error: 'Amount must be a valid number', code: 'INVALID_AMOUNT' };
   }
-  if (amount < DEBT_MIN_AMOUNT) {
-    return { success: false, error: `Minimum debt amount is ${DEBT_MIN_AMOUNT}`, code: 'AMOUNT_TOO_LOW' };
+  if (amount < SHARED_CONSTANTS.DEBT.MIN_AMOUNT) {
+    return { success: false, error: `Minimum debt amount is ${SHARED_CONSTANTS.DEBT.MIN_AMOUNT}`, code: 'AMOUNT_TOO_LOW' };
   }
-  if (amount > DEBT_MAX_AMOUNT) {
-    return { success: false, error: `Maximum debt amount is ${DEBT_MAX_AMOUNT}`, code: 'AMOUNT_TOO_HIGH' };
+  if (amount > SHARED_CONSTANTS.DEBT.MAX_AMOUNT) {
+    return { success: false, error: `Maximum debt amount is ${SHARED_CONSTANTS.DEBT.MAX_AMOUNT}`, code: 'AMOUNT_TOO_HIGH' };
   }
   return null;
 }

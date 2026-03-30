@@ -1,13 +1,29 @@
 import { randomUUIDv7 } from 'bun';
 import { importCache, isRedisAvailable, getClient } from '@plugins/redis';
+import { STORAGE_CONFIG, BACKEND_CONSTANTS } from '@repo/config';
 import { logger } from '@repo/logger';
+import { sanitizeFileName, toOptional } from '@repo/utils';
 import type { WorkerJobPayload, JobType, JobPayload } from '@repo/types';
 
-const sanitizeFileName = (value: string | undefined): string => {
-  const raw = (value || '').trim();
-  if (!raw) return 'unnamed';
-  return raw.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120) || 'unnamed';
-};
+const importObjectPrefix = STORAGE_CONFIG.IMPORT_OBJECT_PREFIX.replace(/^\/+|\/+$/g, '') || 'imports';
+
+const s3Client = new Bun.S3Client({
+  endpoint: toOptional(STORAGE_CONFIG.ENDPOINT),
+  region: toOptional(STORAGE_CONFIG.REGION),
+  bucket: toOptional(STORAGE_CONFIG.BUCKET),
+  accessKeyId: toOptional(STORAGE_CONFIG.ACCESS_KEY_ID),
+  secretAccessKey: toOptional(STORAGE_CONFIG.SECRET_ACCESS_KEY),
+  virtualHostedStyle: !STORAGE_CONFIG.FORCE_PATH_STYLE
+});
+
+const isS3Configured = (): boolean =>
+  Boolean(
+    STORAGE_CONFIG.BUCKET &&
+      STORAGE_CONFIG.ENDPOINT &&
+      STORAGE_CONFIG.REGION &&
+      STORAGE_CONFIG.ACCESS_KEY_ID &&
+      STORAGE_CONFIG.SECRET_ACCESS_KEY
+  );
 
 export class JobsService {
   private jobTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
@@ -23,34 +39,22 @@ export class JobsService {
   async addJob(type: JobType, payload: JobPayload): Promise<string> {
     const jobId = randomUUIDv7('base64url');
     const fileName = sanitizeFileName(payload.file ? payload.file.name : payload.fileName);
-
-    // FIX ENOENT:
-    // Elysia (via Bun) mounts incoming multipart File uploads onto the volatile OS Temp directory.
-    // The *instant* this HTTP handler returns a Response, Bun deletes that `bun-xxxx` OS file natively.
-    // Because JobsService launches background tracking tasks, we MUST eagerly detach the file
-    // into a stable RAM-based `<Blob>` synchronously before yielding back to the HTTP router!
-    let tempFilePath: string | undefined;
+    let storageKey: string | undefined;
 
     if (payload.file) {
-      const fs = await import('node:fs/promises');
-      const path = await import('node:path');
-      const { UPLOAD_TMP_DIR } = await import('@repo/config');
+      if (isS3Configured()) {
+        storageKey = `${importObjectPrefix}/${jobId}-${fileName}`;
+        await s3Client.write(storageKey, payload.file);
 
-      try {
-        await fs.mkdir(UPLOAD_TMP_DIR, { recursive: true });
-      } catch (e) {
-        if ((e as { code?: string }).code !== 'EEXIST') throw e;
-      }
-
-      tempFilePath = path.join(UPLOAD_TMP_DIR, `${jobId}-${fileName}`);
-
-      // Persist the file safely to the stable local tmp directory using Bun's native optimized I/O
-      await Bun.write(tempFilePath, payload.file);
-
-      // Eagerly verify the file was actually saved to disk
-      const stats = await fs.stat(tempFilePath).catch(() => null);
-      if (!stats) {
-        throw new Error(`Critical I/O Error: Failed to flush upload to disk at ${tempFilePath}`);
+        const file = s3Client.file(storageKey);
+        if (!(await file.exists())) {
+          throw new Error(
+            `Critical I/O Error: Failed to persist upload object at key ${storageKey}`
+          );
+        }
+      } else {
+        logger.error('[JobsService] Storage Unavailable: S3 is not configured and local fallback is disabled.');
+        throw new Error('Import service is temporarily unavailable (Storage not configured). Please contact support.');
       }
     }
 
@@ -63,7 +67,7 @@ export class JobsService {
       fileName: fileName || 'unnamed',
       config: payload.config as { mapping: import('@repo/types').ColumnMapping; startRow: number } | undefined,
       previewLogId: payload.previewLogId,
-      tempFilePath
+      storageKey
     };
 
     if (isRedisAvailable()) {
@@ -86,8 +90,8 @@ export class JobsService {
             fileName || '',
             'createdAt',
             Date.now().toString(),
-            'tempFilePath',
-            tempFilePath || ''
+            'storageKey',
+            storageKey || ''
           ]),
           redis.send('EXPIRE', [`job:${jobId}`, '3600']),
           redis.send('RPUSH', ['import_jobs', JSON.stringify(workerPayload)])
@@ -100,14 +104,15 @@ export class JobsService {
       logger.error(`[JobsService] Cannot enqueue job ${jobId}, redis is not available.`);
     }
 
+    const timeoutMs = BACKEND_CONSTANTS.JOBS.TIMEOUT_MS || 600000;
     const timeout = setTimeout(
       () => {
-        logger.warn(`[JobsService] Job ${jobId} timed out after 10m.`);
+        logger.warn(`[JobsService] Job ${jobId} timed out after ${timeoutMs / 1000 / 60}m.`);
         if (isRedisAvailable()) {
           importCache
             .setProgress(jobId, {
               status: 'failed',
-              errors: ['Job timed out after 10 minutes'],
+              errors: [`Job timed out after ${timeoutMs / 1000 / 60} minutes`],
               current: 0,
               total: 0
             })
@@ -117,7 +122,7 @@ export class JobsService {
         }
         this.jobTimeouts.delete(jobId);
       },
-      10 * 60 * 1000
+      timeoutMs
     );
 
     this.jobTimeouts.set(jobId, timeout);
@@ -127,7 +132,7 @@ export class JobsService {
 
   /**
    * Cancel a pending job.
-   * Verifies ownership, removes from queue, cleans up temp file.
+   * Verifies ownership, removes from queue, and cleans up uploaded object.
    */
   async cancelJob(jobId: string, userId: string): Promise<{ success: boolean; error?: string }> {
     if (!isRedisAvailable()) {
@@ -180,10 +185,14 @@ export class JobsService {
       })
     ]);
 
-    // Clean up temp file
-    if (metaObj.tempFilePath) {
-      const fs = await import('node:fs/promises');
-      await fs.unlink(metaObj.tempFilePath).catch(() => {});
+    // Clean up uploaded object
+    if (metaObj.storageKey) {
+      await s3Client.delete(metaObj.storageKey).catch((error: unknown) => {
+        logger.warn(`[JobsService] Failed to delete object for cancelled job ${jobId}`, {
+          error: String(error),
+          storageKey: metaObj.storageKey
+        });
+      });
     }
 
     this.clearJobTimeout(jobId);
