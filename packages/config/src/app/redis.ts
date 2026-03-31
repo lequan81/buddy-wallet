@@ -26,10 +26,3 @@ export const buildRedisUrl = (): string => {
   
   return `${protocol}://${auth}${REDIS_CONFIG.HOST}:${REDIS_CONFIG.PORT}`;
 };
-
-/**
- * Get standard Redis options for Bun.RedisClient
- */
-export const getRedisOptions = () => ({
-  tls: REDIS_CONFIG.TLS ? {} : undefined
-});

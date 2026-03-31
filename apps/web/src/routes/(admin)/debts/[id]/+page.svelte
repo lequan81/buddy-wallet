@@ -23,7 +23,8 @@
 	import DebtStatusBadge from '$lib/components/DebtStatusBadge.svelte';
 	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
-	import { type DebtDetails, DEBT_STATUS } from '@repo/types';
+	import type { DebtDetails } from '@repo/types';
+	import { DEBT_STATUS } from '@repo/config';
 
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 	let debt = $derived(data.debt as DebtDetails | null);

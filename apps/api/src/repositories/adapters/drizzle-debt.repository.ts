@@ -18,7 +18,8 @@ import {
   sql
 } from '@repo/db';
 import { configs } from '@/configs';
-import { DEBT_STATUS, type DebtStatus } from '@repo/types';
+import type { DebtStatus } from '@repo/types';
+import { DEBT_STATUS } from '@repo/config';
 import type { DbClient } from '@/types';
 import type { PaginatedResult } from '@repo/types';
 import type {

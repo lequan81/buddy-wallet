@@ -6,7 +6,7 @@
  */
 import type { Debt } from '@repo/db';
 import type { DebtStatus } from '@/types';
-import { DEBT_STATUS } from '@repo/types';
+import { DEBT_STATUS } from '@repo/config';
 import type { IDebtState, TransitionContext } from '@/types/debt.d';
 import { log } from '@repo/logger';
 

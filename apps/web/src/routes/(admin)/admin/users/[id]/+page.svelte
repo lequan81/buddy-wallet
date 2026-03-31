@@ -4,7 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { formatCurrency, formatDate } from '@repo/utils';
-	import { DEBT_STATUS } from '@repo/types';
+	import { DEBT_STATUS } from '@repo/config';
 
 	let { data, form } = $props();
 

@@ -1,5 +1,7 @@
 export * from './status';
 export * from './direction';
+export * from './security';
+export * from './banks';
 
 /**
  * Shared Business Constants
@@ -58,4 +60,47 @@ export const IMPORT_DB_FIELDS = [
   { key: 'email', required: false },
   { key: 'description', required: false },
   { key: 'dueDate', required: false }
+] as const;
+
+/**
+ * Debt Constants (Legacy aliases for easier import)
+ */
+export const MAX_PENDING_DEBTS = SHARED_CONSTANTS.USER.MAX_PENDING_DEBTS;
+export const DUPLICATE_CHECK_DAYS = SHARED_CONSTANTS.DEBT.DUPLICATE_CHECK_DAYS;
+export const DUPLICATE_AMOUNT_TOLERANCE = SHARED_CONSTANTS.DEBT.DUPLICATE_TOLERANCE;
+export const MAX_BATCH_DELETE_SIZE = SHARED_CONSTANTS.DEBT.MAX_BATCH_DELETE;
+export const MIN_DEBT_AMOUNT = SHARED_CONSTANTS.DEBT.MIN_AMOUNT;
+
+/**
+ * File Import Helpers
+ */
+export const ACCEPTED_IMPORT_EXTENSIONS = SHARED_CONSTANTS.IMPORT.ACCEPTED_EXTENSIONS;
+export const ACCEPTED_IMPORT_MIME_TYPES = SHARED_CONSTANTS.IMPORT.ACCEPTED_MIME_TYPES;
+export const MAX_IMPORT_FILE_SIZE = SHARED_CONSTANTS.IMPORT.MAX_FILE_SIZE;
+
+export function isValidImportFile(filename: string): boolean {
+  const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+  return (ACCEPTED_IMPORT_EXTENSIONS as readonly string[]).includes(ext);
+}
+
+/**
+ * Frontend Constants - Shared across web app
+ */
+export const FRONTEND_CONSTANTS = {
+  TOAST_DURATION_MS: 3000,
+  ANIMATION_DURATION_MS: 200,
+  MAX_UPLOAD_SIZE_MB: 5
+} as const;
+
+/**
+ * Image Storage Constants
+ */
+export const MAX_IMAGE_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+export const ACCEPTED_IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif'
 ] as const;

@@ -17,7 +17,8 @@
 	import FinancialSummary from '$lib/components/dashboard/FinancialSummary.svelte';
 	import { cn } from '$lib/utils';
 	import { formatCurrency } from '@repo/utils';
-	import { type Debt, DEBT_STATUS } from '@repo/types';
+	import type { Debt } from '@repo/types';
+	import { DEBT_STATUS } from '@repo/config';
 	import DebtStatusBadge from '$lib/components/DebtStatusBadge.svelte';
 	import CreateDebtModal from '$lib/components/dashboard/CreateDebtModal.svelte';
 	import { createDashboardState } from './dashboard.svelte';

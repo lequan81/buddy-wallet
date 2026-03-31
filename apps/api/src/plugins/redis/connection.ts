@@ -5,7 +5,7 @@
  */
 import { RedisClient } from 'bun';
 import { log } from '@repo/logger';
-import { REDIS_CONFIG, buildRedisUrl, getRedisOptions } from '@repo/config';
+import { REDIS_CONFIG, buildRedisUrl } from '@repo/config';
 import { circuitBreaker } from './circuit-breaker';
 
 // Connection state
@@ -28,7 +28,7 @@ export async function initRedis(): Promise<boolean> {
   }
 
   try {
-    const client = new RedisClient(redisUrl, getRedisOptions());
+    const client = new RedisClient(redisUrl);
 
     client.onconnect = () => {
       log.debug('REDIS', 'Connected via TCP');

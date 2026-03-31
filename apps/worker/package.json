@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "powershell -NoProfile -Command \"bun --cwd (Resolve-Path ../..).Path --env-file (Resolve-Path ../../apps/api/.env).Path --watch (Resolve-Path ../../apps/worker/src/index.ts).Path\"",
+    "dev": "bun --env-file ../api/.env --watch src/index.ts",
     "build": "bun build src/index.ts --outdir=dist --target=bun --packages external --sourcemap --minify",
     "start": "bun run dist/index.js",
     "clean": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\"",

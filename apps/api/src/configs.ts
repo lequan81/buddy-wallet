@@ -82,10 +82,23 @@ export const configs = {
     STANDARD: { windowMs: 60000, maxRequests: 100 },
     STRICT: { windowMs: 60000, maxRequests: 5 },
     AUTH: { windowMs: 60000, maxRequests: 10 },
+    AUTH_RECOVERY: { windowMs: 15 * 60 * 1000, maxRequests: 5 },
+    AUTH_RESET: { windowMs: 15 * 60 * 1000, maxRequests: 10 },
+    AUTH_OTP: { windowMs: 10 * 60 * 1000, maxRequests: 5 },
+    BURST: { windowMs: 10000, maxRequests: 30 },
     UPLOAD: { 
       windowMs: BACKEND_CONSTANTS.RATE_LIMITS.UPLOAD.windowMs, 
       maxRequests: BACKEND_CONSTANTS.RATE_LIMITS.UPLOAD.requests 
-    }
+    },
+    DOWNLOAD: { windowMs: 60000, maxRequests: 100 },
+    BROADCAST: { windowMs: 60000, maxRequests: 1 },
+    DELETE: { windowMs: 60000, maxRequests: 20 }
+  },
+  PUSH: {
+    VAPID_PUBLIC_KEY: optionalEnv('VAPID_PUBLIC_KEY', ''),
+    VAPID_PRIVATE_KEY: optionalEnv('VAPID_PRIVATE_KEY', ''),
+    VAPID_SUBJECT: optionalEnv('VAPID_SUBJECT', 'mailto:example@yourdomain.com'),
+    MAX_FAILED_ATTEMPTS: getEnvInt('PUSH_MAX_FAILED_ATTEMPTS', 3)
   }
 } as const;
 

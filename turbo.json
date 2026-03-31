@@ -14,8 +14,8 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "outputLogs": "new-only",
-      "passThroughEnv": ["NODE_ENV", "PORT", "VITE_API_URL", "VITE_WEB_URL", "REDIS_HOST", "REDIS_PORT", "REDIS_PASSWORD", "REDIS_TLS", "DATABASE_URL"]
+      "outputLogs": "new-only"
+      // "passThroughEnv": ["NODE_ENV", "PORT", "VITE_API_URL", "VITE_WEB_URL", "REDIS_HOST", "REDIS_PORT", "REDIS_PASSWORD", "REDIS_TLS", "DATABASE_URL"]
     },
     "lint": { "dependsOn": ["^lint"], "cache": true },
     "check": { "dependsOn": ["^check"], "cache": true },

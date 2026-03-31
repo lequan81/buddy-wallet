@@ -33,7 +33,7 @@ import type {
   PaginatedResult,
   DebtDetails
 } from '@repo/types';
-import { DEBT_STATUS, DEBT_DIRECTION } from '@repo/types';
+import { DEBT_STATUS, DEBT_DIRECTION } from '@repo/config';
 import type { IDebtRepository, DebtEntity } from '@/repositories';
 import { PushService } from '@/services/notification/push.service';
 import { ActivityService } from '@/services/activity/activity.service';

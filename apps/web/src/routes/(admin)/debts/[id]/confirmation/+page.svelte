@@ -4,7 +4,7 @@
 	import { Button } from '@repo/ui/components/ui/button';
 	import { cn } from '$lib/utils';
 	import { formatCurrency } from '@repo/utils';
-	import { DEBT_STATUS } from '@repo/types';
+	import { DEBT_STATUS } from '@repo/config';
 
 	let { data } = $props();
 

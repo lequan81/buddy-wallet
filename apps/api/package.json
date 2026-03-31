@@ -4,12 +4,11 @@
   "scripts": {
     "test": "bun test",
     "lint": "eslint .",
-    "dev": "powershell -NoProfile -Command \"bun --cwd (Resolve-Path ../..).Path --env-file (Resolve-Path ../../apps/api/.env).Path --watch (Resolve-Path ../../apps/api/src/index.ts).Path\"",
+    "dev": "bun --env-file .env --watch src/index.ts",
     "build": "bun build src/index.ts --outdir=dist --target=bun --packages external --sourcemap --minify",
     "start": "bun run dist/index.js",
     "check-types": "bunx tsc --noEmit",
-    "clean": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\"",
-    "storage:migrate:s3": "bun run scripts/storage/migrate-to-s3.ts"
+    "clean": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\""
   },
   "dependencies": {
     "@repo/config": "workspace:*",

@@ -1,6 +1,6 @@
 import { RedisClient } from 'bun';
 import { logger } from '@repo/logger';
-import { REDIS_CONFIG, buildRedisUrl, getRedisOptions } from '@repo/config';
+import { REDIS_CONFIG, buildRedisUrl } from '@repo/config';
 import { withRetry } from '@repo/utils';
 import type { ImportProgress } from '@repo/types';
 
@@ -29,7 +29,7 @@ export async function initRedis(): Promise<boolean> {
     async () => {
       let client: RedisClient | null = null;
       try {
-        client = new RedisClient(redisUrl, getRedisOptions());
+        client = new RedisClient(redisUrl);
 
         client.onconnect = () => {
           logger.info('[Redis] Connected');

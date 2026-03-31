@@ -1,5 +1,5 @@
 import type { CurrentUser } from '@repo/types';
-import { DEBT_STATUS } from '@repo/types';
+import { DEBT_STATUS } from '@repo/config';
 
 interface DebtLike {
 	uploadedById: string;
