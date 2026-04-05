@@ -13,7 +13,8 @@ import { logger } from '@repo/logger';
  * Startup Validation - Ensures environment is ready
  */
 const nodeEnv = Bun.env.NODE_ENV || 'development';
-const isProd = nodeEnv === 'production';
+const isProduction = nodeEnv === 'production';
+const isDevelopment = nodeEnv !== 'production';
 const isTest = nodeEnv === 'test';
 
 let envValidated = false;
@@ -54,7 +55,7 @@ export const configs = {
     NODE_ENV: nodeEnv,
     PORT: optionalEnv('PORT', '3000'),
     WEB_URL: optionalEnv('WEB_URL', 'http://localhost:5173'),
-    IS_DEV: !isProd
+    IS_DEV: isDevelopment
   },
   AUTH: {
     JWT_SECRET: jwtSecret,
@@ -119,6 +120,6 @@ export const configs = {
 } as const;
 
 // Storage validation logging
-if (isProd && (!configs.STORAGE.S3_ENDPOINT || !configs.STORAGE.S3_BUCKET)) {
+if (isProduction && (!configs.STORAGE.S3_ENDPOINT || !configs.STORAGE.S3_BUCKET)) {
   logger.warn('S3 is not fully configured. Some features may be disabled.');
 }

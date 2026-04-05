@@ -10,6 +10,12 @@ const getRecentContacts = (data: unknown): string[] => {
 	return Array.isArray(contacts) ? contacts : [];
 };
 
+const hasAccounts = (payload: unknown): boolean => {
+	if (!payload || typeof payload !== 'object') return false;
+	const accounts = (payload as { accounts?: unknown }).accounts;
+	return Array.isArray(accounts) && accounts.length > 0;
+};
+
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) throw redirect(303, '/login');
 
@@ -28,7 +34,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			api.v1.banks.me.get(),
 			api.v1.debts['recent-contacts'].get()
 		]);
-		hasBankAccount = !!(bankRes.data?.success && bankRes.data.accounts && bankRes.data.accounts.length > 0);
+		hasBankAccount = hasAccounts(bankRes.data);
 		recentContacts = getRecentContacts(contactsRes.data as RecentContactsResponse | null);
 	} catch (err) {
 		console.error('[Debt Create] Failed to load data:', err);
@@ -74,7 +80,7 @@ export const actions: Actions = {
 		if (direction === 'LEND') {
 			try {
 				const { data } = await api.v1.banks.me.get();
-				const hasBankAccount = data?.success && data.accounts && data.accounts.length > 0;
+				const hasBankAccount = hasAccounts(data);
 
 				if (!hasBankAccount) {
 					return fail(400, {

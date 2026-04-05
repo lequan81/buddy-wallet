@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { FE_ERRORS } from '@repo/errors';
 import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config';
-import type { PreviewResult, ImportResult, PaginatedResult } from '@repo/types';
+import type { Pagination } from '@repo/types';
 
 export const load: PageServerLoad = async ({ parent, locals, url }) => {
 	// Get server-computed permissions from layout
@@ -25,9 +25,9 @@ export const load: PageServerLoad = async ({ parent, locals, url }) => {
 			query: { page: String(historyPage), limit: '10' }
 		});
 		if (!error && data?.success) {
-			const result = (data as { data?: PaginatedResult<unknown> }).data;
-			logs = result?.data ?? [];
-			const pagination = result?.pagination;
+			const payload = data as { data?: unknown[]; pagination?: Pagination } | null;
+			logs = Array.isArray(payload?.data) ? payload.data : [];
+			const pagination = payload?.pagination;
 			if (pagination) {
 				historyTotalPages = Math.ceil(pagination.total / pagination.limit) || 1;
 			}
@@ -83,18 +83,24 @@ export const actions: Actions = {
 					});
 				}
 
-				const res = data as { success: true; data: PreviewResult & { jobId?: string } } & Record<string, unknown>;
-				const resData = res.data;
+				const res = (data || {}) as Record<string, unknown>;
+				const getString = (key: string): string | undefined =>
+					typeof res[key] === 'string' ? (res[key] as string) : undefined;
+				const getNumber = (key: string): number | undefined =>
+					typeof res[key] === 'number' ? (res[key] as number) : undefined;
 				return {
 					success: true,
 					preview: true,
-					jobId: resData.jobId || (typeof res.jobId === 'string' ? res.jobId : undefined),
-					logId: resData.logId || (typeof res.logId === 'string' ? res.logId : undefined),
-					fileName: resData.fileName,
-					totalRows: resData.totalRows,
-					columnHeaders: resData.columnHeaders,
-					previewData: resData.previewData,
-					autoMapping: resData.autoMapping
+					jobId: getString('jobId'),
+					logId: getString('logId'),
+					fileName: getString('fileName'),
+					totalRows: getNumber('totalRows'),
+					columnHeaders: Array.isArray(res.columnHeaders) ? (res.columnHeaders as string[]) : undefined,
+					previewData: Array.isArray(res.previewData) ? (res.previewData as string[][]) : undefined,
+					autoMapping:
+						res.autoMapping && typeof res.autoMapping === 'object'
+							? (res.autoMapping as Record<string, string>)
+							: undefined
 				};
 			} catch (err) {
 				console.error('[IMPORT PREVIEW FETCH ERROR]:', err);
@@ -158,14 +164,18 @@ export const actions: Actions = {
 					});
 				}
 
-				const res = data as { success: true; data: ImportResult & { jobId?: string } } & Record<string, unknown>;
-				const resData = res.data;
+				const res = (data || {}) as Record<string, unknown>;
 				return {
 					success: true,
-					jobId: resData.jobId || (typeof res.jobId === 'string' ? res.jobId : undefined),
-					logId: resData.logId,
-					imported: resData.imported || resData.importedCount,
-					errors: resData.errors
+					jobId: typeof res.jobId === 'string' ? res.jobId : undefined,
+					logId: typeof res.logId === 'string' ? res.logId : undefined,
+					imported:
+						typeof res.imported === 'number'
+							? res.imported
+							: typeof res.importedCount === 'number'
+								? res.importedCount
+								: undefined,
+					errors: Array.isArray(res.errors) ? (res.errors as string[]) : undefined
 				};
 			} catch (err) {
 				console.error('[IMPORT FETCH ERROR]:', err);

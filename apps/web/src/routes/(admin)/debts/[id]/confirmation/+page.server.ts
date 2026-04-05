@@ -17,7 +17,15 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		return { debt: null, error: 'Unable to fetch debt', status };
 	}
 
-	const debts = data?.success ? data.debts : [];
+	const debts = Array.isArray((data as { data?: unknown[] } | null)?.data)
+		? ((data as { data?: unknown[] }).data as Array<{
+				id: string;
+				creditorId?: string | null;
+				creditorPhone?: string | null;
+				debtorId?: string | null;
+				debtorPhone?: string | null;
+		  }>)
+		: [];
 
 	const debt = debts.find((d: { id: string }) => d.id === params.id);
 

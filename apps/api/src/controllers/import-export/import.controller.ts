@@ -55,7 +55,6 @@ export const ImportController = new Elysia({ prefix: '/import' })
         return apiResponse({
           ok: true,
           data: {
-          success: true,
           jobId,
           message: 'File is being analyzed in background'
         }});
@@ -95,7 +94,6 @@ export const ImportController = new Elysia({ prefix: '/import' })
         return apiResponse({
           ok: true,
           data: {
-          success: true,
           jobId,
           message: 'Import started in background'
         }});

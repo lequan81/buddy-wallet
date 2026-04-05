@@ -6,11 +6,6 @@ const extractDebt = (payload: unknown): DebtDetails | null => {
 	if (!payload || typeof payload !== 'object') return null;
 	const directDebt = (payload as { debt?: unknown }).debt;
 	if (directDebt) return directDebt as DebtDetails;
-	const nested = (payload as { data?: unknown }).data;
-	if (nested && typeof nested === 'object') {
-		const nestedDebt = (nested as { debt?: unknown }).debt;
-		return nestedDebt ? (nestedDebt as DebtDetails) : null;
-	}
 	return null;
 };
 
@@ -52,7 +47,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	// If I am the creditor, I want to see pending proofs.
 	if (isCreditor) {
 		const { data: proofsData } = await api.v1.upload['pending-proofs']({ debtId: debt.id }).get();
-		pendingProofs = (proofsData as any)?.data || [];
+		pendingProofs = ((proofsData as { files?: typeof pendingProofs } | null)?.files || []);
 	}
 
 	return {

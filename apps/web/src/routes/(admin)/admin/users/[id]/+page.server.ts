@@ -17,14 +17,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		return { targetUser: null, debts: [], error: 'User not found' };
 	}
 
-	// API returns { success: true, data: { user: {...} } }
+	// API returns { success: true, user: {...} }
 	const user = userData?.user || null;
 
 	// Fetch user's debts
 	const { data: debtsData } = await locals.api.v1.debts.user({ userId: params.id }).get();
 
-	// API returns { success: true, data: { debts: [...] } }
-	const debts = debtsData?.debts || [];
+	// API returns paginated debts at top-level: { success: true, data: [...], pagination: {...} }
+	const debts = (debtsData as { data?: unknown[] } | null)?.data || [];
 
 	return { targetUser: user, debts };
 };

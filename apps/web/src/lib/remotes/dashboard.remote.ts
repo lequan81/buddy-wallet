@@ -56,8 +56,8 @@ export const getDashboardSecondaryData = query(async () => {
 			locals.api.v1.banks.me.get(),
 			locals.api.v1.debts['recent-contacts'].get()
 		]);
-		const bankData = bankRes.data as unknown as { accounts: unknown[] };
-		hasBankAccount = !!(bankRes.data?.success && bankData?.accounts && bankData.accounts.length > 0);
+		const bankData = bankRes.data as unknown as { accounts?: unknown[] } | null;
+		hasBankAccount = Array.isArray(bankData?.accounts) && bankData.accounts.length > 0;
 		recentContacts = (contactsRes.data as unknown as { contacts: string[] })?.contacts || [];
 	} catch (err) {
 		console.error('[Dashboard] Failed to load bank/contacts:', err);

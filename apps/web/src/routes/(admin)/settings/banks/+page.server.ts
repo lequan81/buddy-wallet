@@ -15,8 +15,8 @@ export const load: PageServerLoad = async ({
 		api.v1.banks.me.get()
 	]);
 
-	const banks = banksRes.data?.success ? banksRes.data.banks : [];
-	const accounts = myAccountsRes.data?.success ? myAccountsRes.data.accounts : [];
+	const banks = (banksRes.data as { banks?: unknown[] } | null)?.banks || [];
+	const accounts = (myAccountsRes.data as { accounts?: unknown[] } | null)?.accounts || [];
 
 	return {
 		banks,
