@@ -33,16 +33,24 @@ export function validateAmount(amount: number): DebtResult | null {
  * Returns parsed output or DebtResult error.
  */
 export function validateCreateDebtInput(input: CreateDebtInput): 
-  | { success: true; data: { amount: number; description: string; phoneNumber: string; direction: string } }
+  | { success: true; data: { amount: number; description: string; counterpartyPhone: string; direction: string } }
   | { success: false; error: DebtResult } {
-  const parseResult = safeParse(CreateDebtInputSchema, input);
+  const normalizedInput = {
+    ...input,
+    counterpartyPhone:
+      input.counterpartyPhone ||
+      (input as CreateDebtInput & { phoneNumber?: string }).phoneNumber ||
+      ''
+  };
+
+  const parseResult = safeParse(CreateDebtInputSchema, normalizedInput);
   if (!parseResult.success) {
     return {
       success: false,
       error: {
         success: false,
         error: parseResult.issues[0].message,
-        code: 'VALIDATION_ERROR'
+        code: GEN_ERRORS.VALIDATION.code
       }
     };
   }

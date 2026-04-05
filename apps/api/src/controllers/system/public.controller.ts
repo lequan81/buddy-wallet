@@ -9,7 +9,7 @@ import { strictRateLimiter } from '@plugins/middleware';
 import { normalizePhoneNumber, maskPhone } from '@utils/phone';
 import { servicesPlugin } from '@plugins';
 import { configs } from '@/configs';
-import { errorResponse, GEN_ERRORS, successResponse } from '@repo/errors';
+import { apiResponse, GEN_ERRORS } from '@repo/errors';
 import * as crypto from 'crypto';
 
 export const PublicController = new Elysia({ prefix: '/public' })
@@ -25,7 +25,7 @@ export const PublicController = new Elysia({ prefix: '/public' })
       const normalizedPhone = normalizePhoneNumber(phoneNumber);
       if (!normalizedPhone) {
         set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, 'Invalid phone number format');
+        return apiResponse({ ok: false, error: GEN_ERRORS.INVALID_INPUT, details: 'Invalid phone number format' });
       }
 
       // Mitigate Phone Enumeration: Option A (Captcha/Signed Token)
@@ -33,7 +33,11 @@ export const PublicController = new Elysia({ prefix: '/public' })
         const captchaToken = request.headers.get('x-captcha-token');
         if (!captchaToken) {
           set.status = 403;
-          return errorResponse(GEN_ERRORS.FORBIDDEN, 'Captcha token required to prevent enumeration');
+          return apiResponse({
+            ok: false,
+            error: GEN_ERRORS.FORBIDDEN,
+            details: 'Captcha token required to prevent enumeration'
+          });
         }
         
         try {
@@ -49,11 +53,15 @@ export const PublicController = new Elysia({ prefix: '/public' })
           const outcome = await res.json() as { success: boolean };
           if (!outcome.success) {
             set.status = 403;
-            return errorResponse(GEN_ERRORS.FORBIDDEN, 'Invalid captcha token');
+            return apiResponse({ ok: false, error: GEN_ERRORS.FORBIDDEN, details: 'Invalid captcha token' });
           }
         } catch {
           set.status = 503;
-          return errorResponse(GEN_ERRORS.UNKNOWN, 'Captcha verification service unavailable');
+          return apiResponse({
+            ok: false,
+            error: GEN_ERRORS.UNKNOWN,
+            details: 'Captcha verification service unavailable'
+          });
         }
       }
 
@@ -73,12 +81,14 @@ export const PublicController = new Elysia({ prefix: '/public' })
         }
       }
 
-      return successResponse({
+      return apiResponse({
+        ok: true,
+        data: {
         phone: maskPhone(normalizedPhone),
         found: count > 0,
         count: canShowCount ? count : null,
         countRedacted: shouldIncludeCount && !canShowCount
-      });
+      }});
     },
     {
       query: t.Object({

@@ -16,11 +16,22 @@ import {
 } from '@plugins/middleware';
 import { permissionPlugin, servicesPlugin, sessionAuthPlugin } from '@plugins';
 import { PERMISSIONS } from '@repo/permissions';
-import { BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
+import { BE_ERRORS, GEN_ERRORS, apiResponse } from '@repo/errors';
 import { getClientIP } from '@utils';
 
 import { formatVND } from '@repo/utils';
 import { requireAuth } from '@/core/http/require-auth';
+import { isFailureResult } from '@/core/http/result-helper';
+
+const mapFileServiceError = (error?: string) => {
+  if (!error) return GEN_ERRORS.UNKNOWN;
+  if (error.includes('File too large')) return BE_ERRORS.FILE_TOO_LARGE;
+  if (error.includes('Invalid file type')) return BE_ERRORS.FILE_INVALID_TYPE;
+  if (error.includes('Invalid image')) return BE_ERRORS.FILE_CONTENT_MISMATCH;
+  if (error === 'File not found') return BE_ERRORS.FILE_NOT_FOUND;
+  if (error === 'Access denied' || error === 'Not authorized') return BE_ERRORS.FILE_PERMISSION_DENIED;
+  return GEN_ERRORS.INVALID_INPUT;
+};
 
 
 export const UploadController = new Elysia({ prefix: '/upload' })
@@ -45,19 +56,25 @@ export const UploadController = new Elysia({ prefix: '/upload' })
 
           const result = await fileService.uploadFile(file, auth.user.id, 'qr_code');
 
-          if (!result.success) {
+          if (isFailureResult(result)) {
             set.status = 400;
-            return result;
+            return apiResponse({
+              ok: false,
+              error: mapFileServiceError(result.error),
+              details: result.error
+            });
           }
 
-          return successResponse({
+          return apiResponse({
+            ok: true,
+            data: {
             file: {
               id: result.file!.id,
               filename: result.file!.filename,
               size: result.file!.sizeBytes,
               url: `/upload/file/${result.file!.id}`
             }
-          });
+          }});
         },
         {
           body: UploadQRSchema,
@@ -76,7 +93,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
           const debt = await debtService.getDebtById(debtId);
           if (!debt) {
             set.status = 404;
-            return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+            return apiResponse({ ok: false, error: BE_ERRORS.DEBT_NOT_FOUND });
           }
 
           // SECURITY FIX 1: Use user ID for authorization (not phoneNumber)
@@ -86,15 +103,19 @@ export const UploadController = new Elysia({ prefix: '/upload' })
 
           if (!isDebtor && !isCreditor) {
             set.status = 403;
-            return errorResponse(BE_ERRORS.DEBT_PERMISSION_DENIED);
+            return apiResponse({ ok: false, error: BE_ERRORS.DEBT_PERMISSION_DENIED });
           }
 
           const file = body.file;
           const result = await fileService.uploadFile(file, auth.user.id, 'payment_proof', debtId);
 
-          if (!result.success) {
+          if (isFailureResult(result)) {
             set.status = 400;
-            return result;
+            return apiResponse({
+              ok: false,
+              error: mapFileServiceError(result.error),
+              details: result.error
+            });
           }
 
           // Send notification to creditor that proof was uploaded
@@ -120,7 +141,9 @@ export const UploadController = new Elysia({ prefix: '/upload' })
             userAgent: request.headers.get('user-agent') || undefined
           });
 
-          return successResponse({
+          return apiResponse({
+            ok: true,
+            data: {
             file: {
               id: result.file!.id,
               filename: result.file!.filename,
@@ -128,7 +151,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
               status: result.file!.status,
               url: `/upload/file/${result.file!.id}`
             }
-          });
+          }});
         },
         {
           params: t.Object({ debtId: t.String() }),
@@ -153,11 +176,15 @@ export const UploadController = new Elysia({ prefix: '/upload' })
           const isAdmin = user?.role === 'admin';
           const result = await fileService.getFile(id, auth.user.id, isAdmin);
 
-          if (!result.success) {
+          if (isFailureResult(result)) {
             set.status = result.error === 'Access denied' ? 403 : 404;
-            return errorResponse(
-              result.error === 'Access denied' ? BE_ERRORS.FILE_PERMISSION_DENIED : BE_ERRORS.FILE_NOT_FOUND
-            );
+            return apiResponse({
+              ok: false,
+              error:
+                result.error === 'Access denied'
+                  ? BE_ERRORS.FILE_PERMISSION_DENIED
+                  : BE_ERRORS.FILE_NOT_FOUND
+            });
           }
 
           set.headers['Content-Type'] = result.mimeType!;
@@ -179,7 +206,9 @@ export const UploadController = new Elysia({ prefix: '/upload' })
           }
 
           const qrCodes = await fileService.getUserQRCodes(auth.user.id);
-          return successResponse({
+          return apiResponse({
+            ok: true,
+            data: {
             files: qrCodes.map((f: typeof qrCodes[0]) => ({
               id: f.id,
               filename: f.filename,
@@ -187,7 +216,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
               url: `/upload/file/${f.id}`,
               createdAt: f.createdAt
             }))
-          });
+          }});
         },
         { checkPermission: PERMISSIONS.DEBT_VIEW_OWN }
       )
@@ -203,18 +232,24 @@ export const UploadController = new Elysia({ prefix: '/upload' })
           const debt = await debtService.getDebtById(debtId);
           if (!debt) {
             set.status = 404;
-            return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+            return apiResponse({ ok: false, error: BE_ERRORS.DEBT_NOT_FOUND });
           }
 
           // SECURITY FIX 1: Use user ID for authorization (not phoneNumber)
           const isCreditor = debt.creditorId === auth.user.id;
           if (!isCreditor) {
             set.status = 403;
-            return errorResponse(BE_ERRORS.FILE_PERMISSION_DENIED, 'Only creditor can view pending proofs');
+            return apiResponse({
+              ok: false,
+              error: BE_ERRORS.FILE_PERMISSION_DENIED,
+              details: 'Only creditor can view pending proofs'
+            });
           }
 
           const proofs = await fileService.getPendingProofs(debtId);
-          return successResponse({
+          return apiResponse({
+            ok: true,
+            data: {
             files: proofs.map((f: typeof proofs[0]) => ({
               id: f.id,
               filename: f.filename,
@@ -224,7 +259,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
               uploadedById: f.uploadedById,
               createdAt: f.createdAt
             }))
-          });
+          }});
         },
         {
           params: t.Object({ debtId: t.String() }),
@@ -248,9 +283,13 @@ export const UploadController = new Elysia({ prefix: '/upload' })
 
           const result = await fileService.approveProof(id, auth.user.id);
 
-          if (!result.success) {
+          if (isFailureResult(result)) {
             set.status = 400;
-            return result;
+            return apiResponse({
+              ok: false,
+              error: mapFileServiceError(result.error),
+              details: result.error
+            });
           }
 
           // Send notification to proof uploader that their proof was approved
@@ -276,11 +315,13 @@ export const UploadController = new Elysia({ prefix: '/upload' })
             userAgent: request.headers.get('user-agent') || undefined
           });
 
-          return successResponse({
+          return apiResponse({
+            ok: true,
+            data: {
             message: 'Proof approved',
             allProofsApproved: result.allProofsApproved,
             debtId: result.debtId
-          });
+          }});
         },
         {
           params: t.Object({ id: t.String() }),
@@ -297,9 +338,13 @@ export const UploadController = new Elysia({ prefix: '/upload' })
 
           const result = await fileService.rejectProof(id, auth.user.id, body.reason);
 
-          if (!result.success) {
+          if (isFailureResult(result)) {
             set.status = 400;
-            return result;
+            return apiResponse({
+              ok: false,
+              error: mapFileServiceError(result.error),
+              details: result.error
+            });
           }
 
           // Send notification to proof uploader that their proof was rejected
@@ -326,7 +371,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
             userAgent: request.headers.get('user-agent') || undefined
           });
 
-          return successResponse({ message: 'Proof rejected' });
+          return apiResponse({ ok: true, data: { message: 'Proof rejected' } });
         },
         {
           params: t.Object({ id: t.String() }),
@@ -344,12 +389,16 @@ export const UploadController = new Elysia({ prefix: '/upload' })
 
           const result = await fileService.deleteFile(id, auth.user.id);
 
-          if (!result.success) {
+          if (isFailureResult(result)) {
             set.status = result.error === 'Not authorized' ? 403 : 400;
-            return errorResponse(
-              result.error === 'Not authorized' ? BE_ERRORS.FILE_PERMISSION_DENIED : BE_ERRORS.FILE_NOT_FOUND,
-              result.error
-            );
+            return apiResponse({
+              ok: false,
+              error:
+                result.error === 'Not authorized'
+                  ? BE_ERRORS.FILE_PERMISSION_DENIED
+                  : BE_ERRORS.FILE_NOT_FOUND,
+              details: result.error
+            });
           }
 
           await activityService.log({
@@ -361,7 +410,7 @@ export const UploadController = new Elysia({ prefix: '/upload' })
             userAgent: request.headers.get('user-agent') || undefined
           });
 
-          return successResponse({ message: 'File deleted' });
+          return apiResponse({ ok: true, data: { message: 'File deleted' } });
         },
         {
           params: t.Object({ id: t.String() }),

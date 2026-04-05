@@ -4,7 +4,7 @@
  * Provides endpoints for viewing user activity logs.
  */
 import { Elysia, t } from 'elysia';
-import { successResponse } from '@repo/errors';
+import { apiResponse } from '@repo/errors';
 import { servicesPlugin, sessionAuthPlugin } from '@plugins';
 import { ErrorResponseSchema, ActivityListResponseSchema, RecentActivityResponseSchema } from '@repo/schemas';
 import { requireAuth } from '@/core/http/require-auth';
@@ -71,7 +71,7 @@ export const ActivityController = new Elysia({ prefix: '/activity' })
       createdAt: log.createdAt.toISOString()
     }));
 
-    return successResponse({ data: logsWithTarget });
+    return apiResponse({ ok: true, data: { data: logsWithTarget } });
   }, {
     response: {
       200: RecentActivityResponseSchema,

@@ -54,3 +54,50 @@ export function parseCSV(text: string): string[][] {
 
   return rows.filter(row => row.some(cell => cell.trim().length > 0));
 }
+
+/**
+ * Convert spreadsheet column label to 0-based index.
+ * Supports labels like "A", "AA", and "A:Amount".
+ */
+export function colToZeroBasedIndex(col: string): number {
+  const letterPart = col.includes(':') ? col.split(':')[0].toUpperCase() : col.toUpperCase();
+  let idx = 0;
+  for (let i = 0; i < letterPart.length; i++) {
+    idx = idx * 26 + (letterPart.charCodeAt(i) - 64);
+  }
+  return idx - 1;
+}
+
+/**
+ * Convert 0-based index to spreadsheet column label.
+ */
+export function indexToColumnLetter(idx: number): string {
+  let result = '';
+  let n = idx;
+  while (n >= 0) {
+    result = String.fromCharCode((n % 26) + 65) + result;
+    n = Math.floor(n / 26) - 1;
+  }
+  return result;
+}
+
+/**
+ * Escape a CSV cell using RFC-4180 style quotes.
+ */
+export function escapeCSVCell(value: unknown): string {
+  const normalized = String(value ?? '');
+  return `"${normalized.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Build a CSV string from tabular object rows.
+ */
+export function buildCSV(rows: Record<string, unknown>[]): string {
+  if (rows.length === 0) return '';
+
+  const keys = Object.keys(rows[0]);
+  const header = keys.map((key) => escapeCSVCell(key)).join(',');
+  const body = rows.map((row) => keys.map((key) => escapeCSVCell(row[key])).join(','));
+
+  return [header, ...body].join('\n');
+}

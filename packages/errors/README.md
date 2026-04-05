@@ -169,20 +169,20 @@ Centralized error codes shared between frontend and backend. All API responses u
 ## Usage
 
 ```typescript
-import { BE_ERRORS, GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
+import { BE_ERRORS, GEN_ERRORS, apiResponse } from '@repo/errors';
 
 // In controllers:
 if (!user) {
   set.status = 401;
-  return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+  return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
 }
 
 // With details:
 if (!debt) {
   set.status = 404;
-  return errorResponse(BE_ERRORS.DEBT_NOT_FOUND, `Debt ID: ${id}`);
+  return apiResponse({ ok: false, error: BE_ERRORS.DEBT_NOT_FOUND, details: `Debt ID: ${id}` });
 }
 
 // Success:
-return successResponse({ debt });
+return apiResponse({ ok: true, data: { debt } });
 ```

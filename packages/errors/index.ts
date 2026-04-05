@@ -145,6 +145,11 @@ export interface AppError {
   details?: string;
 }
 
+export interface ErrorDefinition {
+  code: string;
+  message: string;
+}
+
 export type ErrorResponse = {
   success: false;
   error: {
@@ -154,7 +159,7 @@ export type ErrorResponse = {
   };
 };
 
-export type SuccessResponse<T = void> = T extends void
+export type SuccessResponse<T = void> = [T] extends [void]
   ? { success: true }
   : { success: true } & T;
 
@@ -195,29 +200,40 @@ export const createError = (
   details
 });
 
-/**
- * Create a standardized error response for API endpoints
- * @param error - Error definition from GEN_ERRORS, BE_ERRORS, or FE_ERRORS
- * @param details - Optional additional details about the error
- */
-export const errorResponse = (
-  error: { code: string; message: string },
-  details?: string
-): ErrorResponse => ({
-  success: false,
-  error: {
-    code: error.code,
-    message: error.message,
-    ...(details && { details })
+export function apiResponse(options: {
+  ok: false;
+  error: ErrorDefinition;
+  details?: string;
+}): ErrorResponse;
+export function apiResponse(options: { ok: true }): SuccessResponse<void>;
+export function apiResponse<T extends object>(options: {
+  ok: true;
+  data: T;
+}): SuccessResponse<T>;
+export function apiResponse(options: {
+  ok: boolean;
+  error?: ErrorDefinition;
+  details?: string;
+  data?: object;
+}): ApiResponse<object | void> {
+  if (!options.ok) {
+    const error = options.error ?? GEN_ERRORS.UNKNOWN;
+    return {
+      success: false,
+      error: {
+        code: error.code,
+        message: error.message,
+        ...(options.details && { details: options.details })
+      }
+    };
   }
-});
 
-/**
- * Create a standardized success response for API endpoints
- * @param data - The response data (must be an object to spread)
- */
-export const successResponse = <T extends object>(data?: T): SuccessResponse<T> => ({
-  success: true,
-  ...(data as T)
-} as SuccessResponse<T>);
+  if (options.data === undefined) {
+    return { success: true } as SuccessResponse<void>;
+  }
 
+  return {
+    success: true,
+    ...options.data
+  } as SuccessResponse<object>;
+}

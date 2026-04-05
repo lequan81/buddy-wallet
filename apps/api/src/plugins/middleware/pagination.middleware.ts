@@ -1,5 +1,6 @@
 import type { Context } from 'elysia';
 import { configs } from '@/configs';
+import { GEN_ERRORS, apiResponse } from '@repo/errors';
 
 const PAGINATION_CONSTRAINTS = {
   DEFAULT_LIMIT: configs.PAGINATION.DEFAULT_LIMIT,
@@ -49,10 +50,11 @@ export const paginationMiddleware = () => {
       (ctx.store as Record<string, unknown>).pagination = validated;
     } catch (error) {
       ctx.set.status = 400;
-      return {
-        success: false,
-        error: (error as Error).message
-      };
+      return apiResponse({
+        ok: false,
+        error: GEN_ERRORS.INVALID_INPUT,
+        details: (error as Error).message
+      });
     }
   };
 };

@@ -18,9 +18,15 @@ export interface ApiErrorValue {
   details?: string;
 }
 
-export type SuccessResponse<T = void> = T extends void
+export interface ElysiaSet {
+  status?: number | string;
+  headers?: unknown;
+  cookie?: Record<string, unknown>;
+}
+
+export type SuccessResponse<T = void> = [T] extends [void]
   ? { success: true }
-  : { success: true; data: T };
+  : { success: true } & T;
 
 export type ErrorResponse = {
   success: false;

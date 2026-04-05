@@ -3,6 +3,7 @@ import { sessionAuthPlugin } from '../auth/session-auth.plugin';
 import { permissionCache, isRedisAvailable } from '../redis';
 import type { Permission } from '@repo/permissions';
 import { logger } from '@repo/logger';
+import { GEN_ERRORS, apiResponse } from '@repo/errors';
 
 export const permissionPlugin = new Elysia()
   .use(sessionAuthPlugin)
@@ -36,10 +37,11 @@ export const permissionPlugin = new Elysia()
         if (!permissions.includes(required)) {
           logger.permission(`Denied: Missing '${required}'`);
           set.status = 403;
-          return {
-            success: false,
-            message: 'Unauthorized Access'
-          };
+          return apiResponse({
+            ok: false,
+            error: GEN_ERRORS.FORBIDDEN,
+            details: 'Missing required permission'
+          });
         }
       });
     }

@@ -375,7 +375,7 @@ export class ImportService {
       const phone = this.getRowValue(row, mapping.phone);
       const email = this.getRowValue(row, mapping.email);
       const description = this.getRowValue(row, mapping.description);
-      const debtorData = await this.resolveUser(phone || email || name, state.userCache);
+      const debtorData = this.resolveUser(phone || email || name, state.userCache);
 
       state.newDebts.push({
         id: randomUUIDv7('base64url'),
@@ -555,24 +555,14 @@ export class ImportService {
     };
   }
 
-  private async resolveUser(
+  private resolveUser(
     identifier: string,
     cache: Map<string, { id: string; phone: string | null }>
-  ): Promise<{ id: string; phone: string | null } | null> {
+  ): { id: string; phone: string | null } | null {
     if (!identifier) return null;
     const trimmed = String(identifier).trim();
     if (!trimmed) return null;
-    if (cache.has(trimmed)) return cache.get(trimmed)!;
-
-    const foundUsers = await this.importRepo.findUsersByIdentifiers([trimmed]);
-    const found = foundUsers[0];
-
-    if (found) {
-      const res = { id: found.id, phone: found.phoneNumber };
-      cache.set(trimmed, res);
-      return res;
-    }
-    return null;
+    return cache.get(trimmed) || null;
   }
 
   /**

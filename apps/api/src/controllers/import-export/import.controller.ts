@@ -12,7 +12,7 @@ import {
   ProgressBatchBodySchema,
   LogsQuerySchema
 } from '@repo/schemas';
-import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
+import { GEN_ERRORS, apiResponse } from '@repo/errors';
 import { accessControlPlugin, servicesPlugin, sessionAuthPlugin } from '@plugins';
 import { logger } from '@repo/logger';
 import type { ImportConfig } from '@/types';
@@ -20,6 +20,7 @@ import { validateImportUploadFile } from '@/services/import-export/import.valida
 import { requireAuth } from '@/core/http/require-auth';
 import { parsePagePagination } from '@/core/http/pagination';
 import { normalizeImportStatus } from '@/core/http/import-status';
+import { isFailureResult } from '@/core/http/result-helper';
 
 
 
@@ -51,14 +52,16 @@ export const ImportController = new Elysia({ prefix: '/import' })
           userId: auth.user.id
         });
 
-        return successResponse({
+        return apiResponse({
+          ok: true,
+          data: {
           success: true,
           jobId,
           message: 'File is being analyzed in background'
-        });
+        }});
       } catch (err) {
         set.status = 503;
-        return errorResponse(GEN_ERRORS.UNKNOWN, String(err));
+        return apiResponse({ ok: false, error: GEN_ERRORS.UNKNOWN, details: String(err) });
       }
     },
     {
@@ -89,15 +92,17 @@ export const ImportController = new Elysia({ prefix: '/import' })
           previewLogId
         });
 
-        return successResponse({
+        return apiResponse({
+          ok: true,
+          data: {
           success: true,
           jobId,
           message: 'Import started in background'
-        });
+        }});
       } catch (err) {
         logger.error('[Import] Failed to start job', { error: String(err) });
         set.status = 503;
-        return errorResponse(GEN_ERRORS.UNKNOWN, String(err));
+        return apiResponse({ ok: false, error: GEN_ERRORS.UNKNOWN, details: String(err) });
       }
     },
     {
@@ -118,19 +123,22 @@ export const ImportController = new Elysia({ prefix: '/import' })
 
       if (!user) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
       }
 
       const result = await importService.getProgress(logId, user.id);
 
-      if (!result.success) {
+      if (isFailureResult(result)) {
         set.status = 404;
-        return errorResponse(GEN_ERRORS.NOT_FOUND, result.error);
+        return apiResponse({ ok: false, error: GEN_ERRORS.NOT_FOUND, details: result.error });
       }
 
-      return successResponse({
-        ...result,
-        status: normalizeImportStatus(result.status as any)
+      return apiResponse({
+        ok: true,
+        data: {
+          ...result,
+          status: normalizeImportStatus(result.status as any)
+        }
       });
     },
     { params: t.Object({ logId: t.String() }) }
@@ -150,7 +158,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
 
       const logIds = query.logIds?.split(',') || [];
       if (logIds.length === 0) {
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, 'logIds required');
+        return apiResponse({ ok: false, error: GEN_ERRORS.INVALID_INPUT, details: 'logIds required' });
       }
 
       // Set SSE headers for browser/proxy compatibility
@@ -240,14 +248,14 @@ export const ImportController = new Elysia({ prefix: '/import' })
 
       if (!user) {
         ctx.set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
       }
 
       const result = await importService.getProgressBatch(logIds, user.id);
       for (const key of Object.keys(result)) {
         result[key].status = normalizeImportStatus(result[key].status as any) as any;
       }
-      return successResponse(result);
+      return apiResponse({ ok: true, data: result });
     },
     { body: ProgressBatchBodySchema }
   )
@@ -273,7 +281,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
       // Let's call the service method we just added
       const result = await importService.getLogs(auth.user.id, page, limit);
 
-      return successResponse(result);
+      return apiResponse({ ok: true, data: result });
     },
     {
       query: LogsQuerySchema
@@ -296,13 +304,13 @@ export const ImportController = new Elysia({ prefix: '/import' })
       }
       const result = await importService.getLogById(id, auth.user.id);
       if (!result) {
-        return errorResponse(GEN_ERRORS.NOT_FOUND, 'Import log not found');
+        return apiResponse({ ok: false, error: GEN_ERRORS.NOT_FOUND, details: 'Import log not found' });
       }
 
       if (result.status) {
         result.status = normalizeImportStatus(result.status as any) as any || result.status;
       }
-      return successResponse(result);
+      return apiResponse({ ok: true, data: result });
     },
     { params: t.Object({ id: t.String() }) }
   )
@@ -322,11 +330,11 @@ export const ImportController = new Elysia({ prefix: '/import' })
         return auth.error;
       }
       const result = await jobsService.cancelJob(jobId, auth.user.id);
-      if (!result.success) {
+      if (isFailureResult(result)) {
         set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+        return apiResponse({ ok: false, error: GEN_ERRORS.INVALID_INPUT, details: result.error });
       }
-      return successResponse({ message: 'Job cancelled', jobId });
+      return apiResponse({ ok: true, data: { message: 'Job cancelled', jobId } });
     },
     { params: t.Object({ jobId: t.String() }) }
   );

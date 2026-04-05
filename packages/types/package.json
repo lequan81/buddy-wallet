@@ -47,14 +47,6 @@
       "types": "./src/notifications/*.d.ts",
       "default": "./src/notifications/*.d.ts"
     },
-    "./repositories": {
-      "types": "./src/repositories/index.d.ts",
-      "default": "./src/repositories/index.d.ts"
-    },
-    "./repositories/*": {
-      "types": "./src/repositories/*.d.ts",
-      "default": "./src/repositories/*.d.ts"
-    },
     "./services": {
       "types": "./src/services/index.d.ts",
       "default": "./src/services/index.d.ts"

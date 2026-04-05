@@ -49,10 +49,3 @@ export interface AuthUser {
   role: string;
   name?: string;
 }
-
-/** Elysia Set context for response control */
-export interface ElysiaSet {
-  status?: number | string;
-  headers?: any;
-  cookie?: Record<string, any>;
-}

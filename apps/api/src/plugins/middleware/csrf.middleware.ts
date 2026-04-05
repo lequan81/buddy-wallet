@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia';
 import { configs } from '../../configs';
 import { logger } from '@repo/logger';
+import { GEN_ERRORS, apiResponse } from '@repo/errors';
 
 // Support comma-separated origins for dev/staging/prod
 const allowedOrigins = configs.APP.WEB_URL.split(',').map((o) => o.trim());
@@ -52,11 +53,7 @@ export const csrfPlugin = new Elysia({ name: 'CSRF_Plugin' })
     if (origin && !allowedOrigins.includes(origin)) {
       logger.csrf(`Blocked - Invalid Origin: ${origin}`);
       set.status = 403;
-      return {
-        success: false,
-        message: 'Invalid Origin',
-        code: 'CSRF_ORIGIN_MISMATCH'
-      };
+      return apiResponse({ ok: false, error: GEN_ERRORS.FORBIDDEN, details: 'Invalid Origin' });
     }
 
     // 3. Referer Check
@@ -64,22 +61,18 @@ export const csrfPlugin = new Elysia({ name: 'CSRF_Plugin' })
     if (referer && !allowedOrigins.some((allowed) => referer.startsWith(allowed))) {
       logger.csrf(`Blocked - Invalid Referer: ${referer}`);
       set.status = 403;
-      return {
-        success: false,
-        message: 'Invalid Referer',
-        code: 'CSRF_REFERER_MISMATCH'
-      };
+      return apiResponse({ ok: false, error: GEN_ERRORS.FORBIDDEN, details: 'Invalid Referer' });
     }
 
     // 4. Fallback: If neither Origin nor Referer is present, block request
     if (!origin && !referer) {
       logger.csrf('Blocked - Missing Origin and Referer');
       set.status = 403;
-      return {
-        success: false,
-        message: 'Missing Origin and Referer',
-        code: 'CSRF_NO_ORIGIN_OR_REFERER'
-      };
+      return apiResponse({
+        ok: false,
+        error: GEN_ERRORS.FORBIDDEN,
+        details: 'Missing Origin and Referer'
+      });
     }
 
     // Origin or Referer is valid

@@ -4,11 +4,12 @@
  * Handles Web Push subscription management and notification sending.
  */
 import { Elysia, t } from 'elysia';
-import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
+import { GEN_ERRORS, apiResponse } from '@repo/errors';
 import { permissionPlugin } from '@plugins/guards';
 import { PERMISSIONS } from '@repo/permissions';
 import { broadcastRateLimiter } from '@plugins/middleware';
 import { servicesPlugin } from '@plugins';
+import { isFailureResult } from '@/core/http/result-helper';
 
 export const PushController = new Elysia({ prefix: '/push' })
   .use(servicesPlugin)
@@ -20,10 +21,14 @@ export const PushController = new Elysia({ prefix: '/push' })
 
     if (!publicKey) {
       set.status = 503;
-      return errorResponse(GEN_ERRORS.UNKNOWN, 'Push notifications not configured');
+      return apiResponse({
+        ok: false,
+        error: GEN_ERRORS.UNKNOWN,
+        details: 'Push notifications not configured'
+      });
     }
 
-    return successResponse({ publicKey });
+    return apiResponse({ ok: true, data: { publicKey } });
   })
 
   // Subscribe to push notifications
@@ -32,7 +37,7 @@ export const PushController = new Elysia({ prefix: '/push' })
     async ({ user, body, set, pushService }) => {
       if (!user) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
       }
 
       const result = await pushService.subscribe(user.id, {
@@ -43,12 +48,12 @@ export const PushController = new Elysia({ prefix: '/push' })
         deviceType: body.deviceType
       });
 
-      if (!result.success) {
+      if (isFailureResult(result)) {
         set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+        return apiResponse({ ok: false, error: GEN_ERRORS.INVALID_INPUT, details: result.error });
       }
 
-      return successResponse({ subscriptionId: result.subscriptionId });
+      return apiResponse({ ok: true, data: { subscriptionId: result.subscriptionId } });
     },
     {
       body: t.Object({
@@ -72,17 +77,17 @@ export const PushController = new Elysia({ prefix: '/push' })
     async ({ user, body, set, pushService }) => {
       if (!user) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
       }
 
       const result = await pushService.unsubscribe(user.id, body.endpoint);
 
-      if (!result.success) {
+      if (isFailureResult(result)) {
         set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+        return apiResponse({ ok: false, error: GEN_ERRORS.INVALID_INPUT, details: result.error });
       }
 
-      return successResponse({ message: 'Unsubscribed successfully' });
+      return apiResponse({ ok: true, data: { message: 'Unsubscribed successfully' } });
     },
     {
       body: t.Object({
@@ -95,18 +100,18 @@ export const PushController = new Elysia({ prefix: '/push' })
   .get('/subscriptions', async ({ user, set, pushService }) => {
     if (!user) {
       set.status = 401;
-      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
     }
 
     const subscriptions = await pushService.getUserSubscriptions(user.id);
-    return successResponse({ subscriptions });
+    return apiResponse({ ok: true, data: { subscriptions } });
   })
 
   // Send test notification (to self)
   .post('/test', async ({ user, set, pushService }) => {
     if (!user) {
       set.status = 401;
-      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
     }
 
     const result = await pushService.sendToUser(user.id, {
@@ -116,16 +121,22 @@ export const PushController = new Elysia({ prefix: '/push' })
       url: '/dashboard'
     });
 
-    if (!result.success && result.sent === 0) {
+    if (isFailureResult(result) && result.sent === 0) {
       set.status = 400;
-      return errorResponse(GEN_ERRORS.INVALID_INPUT, 'No active subscriptions found');
+      return apiResponse({
+        ok: false,
+        error: GEN_ERRORS.INVALID_INPUT,
+        details: 'No active subscriptions found'
+      });
     }
 
-    return successResponse({
+    return apiResponse({
+      ok: true,
+      data: {
       sent: result.sent,
       failed: result.failed,
       message: `Notification sent to ${result.sent} device(s)`
-    });
+    }});
   })
 
   // Admin: Broadcast notification to all users
@@ -141,11 +152,13 @@ export const PushController = new Elysia({ prefix: '/push' })
         requireInteraction: body.requireInteraction
       });
 
-      return successResponse({
+      return apiResponse({
+        ok: true,
+        data: {
         sent: result.sent,
         failed: result.failed,
         message: `Broadcast sent to ${result.sent} device(s)`
-      });
+      }});
     },
     {
       body: t.Object({

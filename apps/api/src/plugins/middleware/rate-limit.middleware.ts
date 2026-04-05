@@ -4,6 +4,7 @@ import { getClientIP } from '@utils/ip.utils';
 import { cache, isRedisAvailable } from '@plugins/redis';
 import { configs } from '@/configs';
 import type { RateLimitEntry, RateLimitConfig } from '@/types';
+import { BE_ERRORS, apiResponse } from '@repo/errors';
 
 // In-memory fallback store (used when Redis is not available)
 const rateLimitStore = new Map<string, RateLimitEntry>();
@@ -162,13 +163,13 @@ export function createRateLimiter(config: RateLimitConfig) {
       if (count > maxRequests) {
         logger.rateLimit(`Exceeded: ${key} (${count}/${maxRequests})`);
         set.status = 429;
-        set.headers['Retry-After'] = String(Math.ceil((resetAt - now) / 1000));
-        return {
-          success: false,
-          message,
-          code: 'RATE_LIMIT_EXCEEDED',
-          retryAfter: Math.ceil((resetAt - now) / 1000)
-        };
+        const retryAfter = Math.ceil((resetAt - now) / 1000);
+        set.headers['Retry-After'] = String(retryAfter);
+        return apiResponse({
+          ok: false,
+          error: BE_ERRORS.RATE_LIMITED,
+          details: `${message}. Retry after ${retryAfter} seconds.`
+        });
       }
     }
   );

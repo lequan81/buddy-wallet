@@ -1,14 +1,12 @@
 import { Elysia } from 'elysia';
-import { configs } from './configs'; // Ensure env is loaded first
+import { configs, validateRuntimeEnv } from './configs';
 import {
   corsPlugin,
   csrfPlugin,
   sessionAuthPlugin,
-  permissionPlugin,
   requestLoggerPlugin,
   redisPlugin,
-  securityHeadersPlugin,
-  servicesPlugin
+  securityHeadersPlugin
 } from './plugins';
 import {
   ActivityController,
@@ -17,6 +15,7 @@ import {
   ExportController,
   ImportController,
   PublicController,
+  TracesController,
   UsersController,
   PushController,
   BankController,
@@ -24,11 +23,13 @@ import {
 } from './controllers';
 import { telemetry } from './instrumentation';
 import { logger } from '@repo/logger';
+import { GEN_ERRORS, apiResponse } from '@repo/errors';
 import { requireAuth } from '@/core/http/require-auth';
 import { getStorageReadiness } from '@/core/health/storage-readiness';
 import { randomUUIDv7 } from 'bun';
 
 // Cleanup jobs run via external worker/timer entrypoint.
+validateRuntimeEnv();
 
 export const app = new Elysia()
   // Global Request ID
@@ -43,29 +44,28 @@ export const app = new Elysia()
   .onError(({ code, error, set }) => {
     logger.app('Global error caught', { code, error: String(error) });
 
-    // Default to 500 for unknown errors
-    const statusCode = typeof set.status === 'number' ? set.status : 500;
-    if (!set.status || statusCode < 400) {
-      set.status =
-        code === 'NOT_FOUND' ? 404 : code === 'VALIDATION' ? 400 : code === 'PARSE' ? 400 : 500;
+    const errorByCode: Record<string, { status: number; error: { code: string; message: string } }> = {
+      NOT_FOUND: { status: 404, error: GEN_ERRORS.NOT_FOUND },
+      VALIDATION: { status: 400, error: GEN_ERRORS.VALIDATION },
+      PARSE: { status: 400, error: GEN_ERRORS.INVALID_INPUT }
+    };
+
+    const mapped = errorByCode[code] ?? { status: 500, error: GEN_ERRORS.UNKNOWN };
+    if (typeof set.status !== 'number' || set.status < 400) {
+      set.status = mapped.status;
     }
 
-    return {
-      success: false,
-      error: code,
-      message: (error as Error)?.message || 'Internal server error'
-    };
+    return apiResponse({ ok: false, error: mapped.error, details: (error as Error)?.message });
   })
   // OpenTelemetry (if enabled)
   .use(telemetry ?? new Elysia())
-  // Services DI (decorate context with all services)
-  .use(servicesPlugin)
   // Redis (if enabled)
   .use(redisPlugin)
   // Request logging
   .use(requestLoggerPlugin)
   // Security headers (CSP, X-Frame-Options, etc.)
   .use(securityHeadersPlugin)
+  .use(TracesController)
   .use(corsPlugin)
   .use(csrfPlugin) // Global CSRF Protection
   .group('/v1', (app) =>
@@ -76,7 +76,6 @@ export const app = new Elysia()
       .use(AuthController)
       .use(PublicController) // /v1/check-debt
       .use(PushController) // Push notifications (vapid-key is public, others check user internally)
-      .use(permissionPlugin)
       // Guarded Routes (Require Authentication)
       .guard(
         {

@@ -8,5 +8,5 @@ export type { DebtStatus, DebtDirection, CreateDebtInput, DebtResult, StatusUpda
 
 /** Debt actor source for mapping from authenticated context */
 export type DebtActorSource = Pick<CurrentUser, 'id' | 'phoneNumber' | 'role' | 'email'> & {
-  permissions: string[];
+  permissions: string[] | null;
 };

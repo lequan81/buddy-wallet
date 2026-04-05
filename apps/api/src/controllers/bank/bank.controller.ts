@@ -5,12 +5,19 @@
  */
 import { Elysia, t } from 'elysia';
 import { UpdateBankAccountSchema } from '@repo/schemas';
-import { BE_ERRORS, GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
+import { BE_ERRORS, GEN_ERRORS, apiResponse } from '@repo/errors';
 import { PERMISSIONS } from '@repo/permissions';
 import { insertBankAccountSchema } from '@repo/db';
 import { getClientIP } from '@utils';
 import { permissionPlugin, servicesPlugin, sessionAuthPlugin } from '@plugins';
 import { requireAuth } from '@/core/http/require-auth';
+import { isFailureResult } from '@/core/http/result-helper';
+
+const bankServiceError = (message?: string) => {
+  if (message === 'Account not found') return BE_ERRORS.BANK_ACCOUNT_NOT_FOUND;
+  if (message === 'Not authorized') return BE_ERRORS.BANK_ACCOUNT_PERMISSION_DENIED;
+  return GEN_ERRORS.UNKNOWN;
+};
 
 export const BankController = new Elysia({ prefix: '/banks' })
   .use(servicesPlugin)
@@ -23,7 +30,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
     '/list',
     async ({ vietqrService }) => {
       const banks = await vietqrService.getBanks();
-      return successResponse({ banks });
+      return apiResponse({ ok: true, data: { banks } });
     },
     {
       detail: {
@@ -41,7 +48,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
         return auth.error;
       }
       const accounts = await bankAccountService.getUserBankAccounts(auth.user.id);
-      return successResponse({ accounts });
+      return apiResponse({ ok: true, data: { accounts } });
     },
     {
       checkPermission: PERMISSIONS.DEBT_VIEW_OWN // Reusing basic permission
@@ -61,9 +68,13 @@ export const BankController = new Elysia({ prefix: '/banks' })
         userId: auth.user.id
       });
 
-      if (!result.success) {
+      if (isFailureResult(result)) {
         set.status = 400;
-        return result;
+        return apiResponse({
+          ok: false,
+          error: bankServiceError(result.error),
+          details: result.error
+        });
       }
 
       await activityService.log({
@@ -76,7 +87,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
         userAgent: request.headers.get('user-agent') || undefined
       });
 
-      return successResponse({ account: result.account });
+      return apiResponse({ ok: true, data: { account: result.account } });
     },
     {
       body: insertBankAccountSchema,
@@ -95,9 +106,13 @@ export const BankController = new Elysia({ prefix: '/banks' })
 
       const result = await bankAccountService.updateBankAccount(id, auth.user.id, body as Record<string, unknown>);
 
-      if (!result.success) {
-        set.status = 400;
-        return result;
+      if (isFailureResult(result)) {
+        set.status = result.error === 'Account not found' ? 404 : 400;
+        return apiResponse({
+          ok: false,
+          error: bankServiceError(result.error),
+          details: result.error
+        });
       }
 
       await activityService.log({
@@ -110,7 +125,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
         userAgent: request.headers.get('user-agent') || undefined
       });
 
-      return successResponse({ account: result.account });
+      return apiResponse({ ok: true, data: { account: result.account } });
     },
     {
       params: t.Object({ id: t.String() }),
@@ -128,7 +143,9 @@ export const BankController = new Elysia({ prefix: '/banks' })
       // For now, we allow seeing bank accounts if you know the userId (needed for QR gen)
       const accounts = await bankAccountService.getUserBankAccounts(userId);
       // Only return necessary info
-      return successResponse({
+      return apiResponse({
+        ok: true,
+        data: {
         accounts: accounts.map((a) => ({
           id: a.id,
           bankCode: a.bankCode,
@@ -138,7 +155,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
           accountName: a.accountName,
           isDefault: a.isDefault
         }))
-      });
+      }});
     },
     {
       params: t.Object({ userId: t.String() }),
@@ -160,7 +177,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
       const debt = await debtService.getDebtById(debtId);
       if (!debt) {
         set.status = 404;
-        return errorResponse(BE_ERRORS.DEBT_NOT_FOUND);
+        return apiResponse({ ok: false, error: BE_ERRORS.DEBT_NOT_FOUND });
       }
 
       // 2. Security check: User must be involved in the debt
@@ -169,21 +186,29 @@ export const BankController = new Elysia({ prefix: '/banks' })
       // If user is debtor => they see QR to pay creditor
       // If user is creditor => they see QR to share with debtor
       if (debt.debtorId !== auth.user.id && debt.creditorId !== auth.user.id) {
-        // TODO: Strict check? For now, relying on DEBT_VIEW_OWN permission which is generic.
-        // Ideally we should check if they have access.
+        set.status = 403;
+        return apiResponse({ ok: false, error: BE_ERRORS.DEBT_PERMISSION_DENIED });
       }
 
       // 3. Get creditor's default bank account
       if (!debt.creditorId) {
         set.status = 400;
-        return errorResponse(BE_ERRORS.DEBT_NOT_FOUND, 'Debt has no creditor assigned');
+        return apiResponse({
+          ok: false,
+          error: BE_ERRORS.DEBT_NOT_FOUND,
+          details: 'Debt has no creditor assigned'
+        });
       }
       const accounts = await bankAccountService.getUserBankAccounts(debt.creditorId);
       const defaultAccount = accounts.find((a: typeof accounts[0]) => a.isDefault) || accounts[0];
 
       if (!defaultAccount) {
         set.status = 400;
-        return errorResponse(BE_ERRORS.BANK_ACCOUNT_NOT_FOUND, 'Creditor has no bank account linked');
+        return apiResponse({
+          ok: false,
+          error: BE_ERRORS.BANK_ACCOUNT_NOT_FOUND,
+          details: 'Creditor has no bank account linked'
+        });
       }
 
       // 4. Generate QR
@@ -195,7 +220,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
         debtId: debt.id
       });
 
-      return successResponse({ qrUrl });
+      return apiResponse({ ok: true, data: { qrUrl } });
     },
     {
       params: t.Object({ debtId: t.String() }),
@@ -213,9 +238,13 @@ export const BankController = new Elysia({ prefix: '/banks' })
       }
       const result = await bankAccountService.deleteBankAccount(id, auth.user.id);
 
-      if (!result.success) {
-        set.status = 404;
-        return result;
+      if (isFailureResult(result)) {
+        set.status = result.error === 'Account not found' ? 404 : 403;
+        return apiResponse({
+          ok: false,
+          error: bankServiceError(result.error),
+          details: result.error
+        });
       }
 
       await activityService.log({
@@ -227,7 +256,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
         userAgent: request.headers.get('user-agent') || undefined
       });
 
-      return successResponse({ message: 'Bank account deleted' });
+      return apiResponse({ ok: true, data: { message: 'Bank account deleted' } });
     },
     {
       params: t.Object({ id: t.String() }),

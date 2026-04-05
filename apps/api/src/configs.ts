@@ -14,9 +14,33 @@ import { logger } from '@repo/logger';
  */
 const nodeEnv = Bun.env.NODE_ENV || 'development';
 const isProd = nodeEnv === 'production';
+const isTest = nodeEnv === 'test';
 
-// Run validation immediately on import
-loadAndValidateEnv();
+let envValidated = false;
+export const validateRuntimeEnv = (): void => {
+  if (envValidated || isTest) {
+    return;
+  }
+  loadAndValidateEnv();
+  envValidated = true;
+};
+
+const resolveRequiredEnv = (key: string, testFallback: string): string => {
+  const value = optionalEnv(key, '');
+  if (value) {
+    return value;
+  }
+  if (isTest) {
+    return testFallback;
+  }
+  return requiredEnv(key);
+};
+
+const jwtSecret = resolveRequiredEnv('JWT_SECRET', 'test-jwt-secret-only-for-tests-0123456789');
+const refreshSecret = resolveRequiredEnv(
+  'JWT_REFRESH_SECRET',
+  'test-refresh-secret-only-for-tests-0123456789'
+);
 
 /**
  * Minified Config Definition
@@ -33,9 +57,9 @@ export const configs = {
     IS_DEV: !isProd
   },
   AUTH: {
-    JWT_SECRET: requiredEnv('JWT_SECRET'),
-    JWT_REFRESH_SECRET: requiredEnv('JWT_REFRESH_SECRET'),
-    CSRF_SECRET: optionalEnv('CSRF_SECRET', requiredEnv('JWT_SECRET')),
+    JWT_SECRET: jwtSecret,
+    JWT_REFRESH_SECRET: refreshSecret,
+    CSRF_SECRET: optionalEnv('CSRF_SECRET', jwtSecret),
     ACCESS_TOKEN_LIFETIME: getEnvInt('ACCESS_TOKEN_LIFETIME', 900000),
     REFRESH_TOKEN_LIFETIME: getEnvInt('REFRESH_TOKEN_LIFETIME', 7776000000),
     JWT_BLACKLIST_SECONDS: getEnvInt('JWT_BLACKLIST_SECONDS', 900),

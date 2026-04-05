@@ -6,7 +6,7 @@
  */
 import { Elysia, t } from 'elysia';
 import { RegisterSchema, LoginSchema } from '@repo/schemas';
-import { GEN_ERRORS, BE_ERRORS, errorResponse, successResponse } from '@repo/errors';
+import { GEN_ERRORS, BE_ERRORS, apiResponse } from '@repo/errors';
 import { sessionAuthPlugin } from '@plugins/auth';
 import {
   authIdentifierRateLimiter,
@@ -19,6 +19,11 @@ import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
 import { configs } from '@/configs';
 import { getClientIP, hashToken, toSafeUser } from '@utils';
 import { servicesPlugin } from '@plugins';
+import { respondFailure, isFailureResult } from '@/core/http/result-helper';
+import {
+  AUTH_REGISTER_ERROR_MAP,
+  DEFAULT_AUTH_REGISTER_FAILURE
+} from '@/core/http/error-maps/auth.error-map';
 
 export const AuthController = new Elysia({ prefix: '/auth' })
   .use(servicesPlugin)
@@ -31,29 +36,25 @@ export const AuthController = new Elysia({ prefix: '/auth' })
     async ({ body, set, authCoreService }) => {
       const result = await authCoreService.register(body);
 
-      if (!result.success) {
+      if (isFailureResult(result)) {
         if (result.error === 'DATABASE_ERROR') {
           set.status = 503;
           set.headers['Retry-After'] = '30';
-          return errorResponse(
-            BE_ERRORS.DB_CONNECTION,
-            'Service unavailable. Please try again later.'
-          );
+          return apiResponse({
+            ok: false,
+            error: BE_ERRORS.DB_CONNECTION,
+            details: 'Service unavailable. Please try again later.'
+          });
         }
 
-        set.status = 400;
-        // Map service errors to standardized error codes
-        const errorMap: Record<string, (typeof BE_ERRORS)[keyof typeof BE_ERRORS]> = {
-          'Invalid phone number format': BE_ERRORS.AUTH_INVALID_PHONE,
-          'Phone number already registered': BE_ERRORS.AUTH_PHONE_EXISTS,
-          'Email already registered': BE_ERRORS.AUTH_EMAIL_EXISTS
-        };
-        const error = errorMap[result.error!] || GEN_ERRORS.INVALID_INPUT;
-        return errorResponse(error, result.error);
+        return respondFailure(set, result, {
+          map: AUTH_REGISTER_ERROR_MAP,
+          fallback: DEFAULT_AUTH_REGISTER_FAILURE
+        });
       }
 
       set.status = 200;
-      return successResponse({ user: result.user });
+      return apiResponse({ ok: true, data: { user: result.user } });
     },
     {
       body: RegisterSchema
@@ -78,18 +79,23 @@ export const AuthController = new Elysia({ prefix: '/auth' })
           jwt
         );
 
-        if (!result.success) {
+        if (isFailureResult(result)) {
           if (result.error === 'DATABASE_ERROR') {
             set.status = 503;
             set.headers['Retry-After'] = '30';
-            return errorResponse(
-              BE_ERRORS.DB_CONNECTION,
-              'Service unavailable. Please try again later.'
-            );
+            return apiResponse({
+              ok: false,
+              error: BE_ERRORS.DB_CONNECTION,
+              details: 'Service unavailable. Please try again later.'
+            });
           }
 
           set.status = 401;
-          return errorResponse(BE_ERRORS.AUTH_INVALID_CREDENTIALS, result.error);
+          return apiResponse({
+            ok: false,
+            error: BE_ERRORS.AUTH_INVALID_CREDENTIALS,
+            details: result.error
+          });
         }
 
         // Set access token cookie (short-lived)
@@ -122,11 +128,13 @@ export const AuthController = new Elysia({ prefix: '/auth' })
         });
 
         set.status = 200;
-        return successResponse({
+        return apiResponse({
+          ok: true,
+          data: {
           user: result.user,
           expiresIn: result.expiresIn,
           mustChangePassword: result.mustChangePassword
-        });
+        }});
       },
       {
         body: LoginSchema
@@ -143,11 +151,15 @@ export const AuthController = new Elysia({ prefix: '/auth' })
       clientIP: getClientIP(request, server)
     });
 
-    if (!result.success) {
+    if (isFailureResult(result)) {
       cookie.session.remove();
       cookie.refresh_token.remove();
       set.status = 401;
-      return errorResponse(BE_ERRORS.AUTH_SESSION_EXPIRED, result.error);
+      return apiResponse({
+        ok: false,
+        error: BE_ERRORS.AUTH_SESSION_EXPIRED,
+        details: result.error
+      });
     }
 
     // Set new access token cookie
@@ -173,17 +185,21 @@ export const AuthController = new Elysia({ prefix: '/auth' })
     }
 
     set.status = 200;
-    return successResponse({
+    return apiResponse({
+      ok: true,
+      data: {
       user: result.user,
       expiresIn: result.expiresIn
-    });
+    }});
   })
 
   // ==================== ME ====================
   .get('/me', async ({ user }) => {
-    return successResponse({
+    return apiResponse({
+      ok: true,
+      data: {
       user: user ? toSafeUser(user) : null
-    });
+    }});
   })
 
   // ==================== LOGOUT ====================
@@ -194,14 +210,14 @@ export const AuthController = new Elysia({ prefix: '/auth' })
     // Security: Require at least one valid token
     if (!refreshToken && !accessToken) {
       set.status = 401;
-      return errorResponse(BE_ERRORS.AUTH_NO_SESSION);
+      return apiResponse({ ok: false, error: BE_ERRORS.AUTH_NO_SESSION });
     }
 
     if (refreshToken) {
       const result = await authSessionService.logout(refreshToken, user?.id);
-      if (!result.success) {
+      if (isFailureResult(result)) {
         set.status = 403;
-        return errorResponse(GEN_ERRORS.FORBIDDEN, result.error);
+        return apiResponse({ ok: false, error: GEN_ERRORS.FORBIDDEN, details: result.error });
       }
 
       // Blacklist the access token
@@ -228,14 +244,14 @@ export const AuthController = new Elysia({ prefix: '/auth' })
     cookie.refresh_token.remove();
 
     set.status = 200;
-    return successResponse();
+    return apiResponse({ ok: true });
   })
 
   // ==================== LOGOUT ALL ====================
   .post('/logout-all', async ({ user, cookie, set, request, server, sessionService, activityService }) => {
     if (!user) {
       set.status = 401;
-      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
     }
 
     await sessionService.revokeAllSessions(user.id);
@@ -254,20 +270,20 @@ export const AuthController = new Elysia({ prefix: '/auth' })
     cookie.refresh_token.remove();
 
     set.status = 200;
-    return successResponse({ message: 'All sessions have been logged out' });
+    return apiResponse({ ok: true, data: { message: 'All sessions have been logged out' } });
   })
 
   // ==================== LIST SESSIONS ====================
   .get('/sessions', async ({ user, cookie, set, sessionService }) => {
     if (!user) {
       set.status = 401;
-      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
     }
 
     const refreshToken = cookie.refresh_token.value as string;
     const result = await sessionService.getUserSessions(user.id, refreshToken);
 
-    return successResponse(result);
+    return apiResponse({ ok: true, data: result });
   })
 
   // ==================== REVOKE SESSION ====================
@@ -276,15 +292,15 @@ export const AuthController = new Elysia({ prefix: '/auth' })
     async ({ user, params, cookie, set, sessionService }) => {
       if (!user) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
       }
 
       const refreshToken = cookie.refresh_token.value as string;
       const result = await sessionService.revokeSession(params.sessionId, user.id, refreshToken);
 
-      if (!result.success) {
+      if (isFailureResult(result)) {
         set.status = 404;
-        return errorResponse(GEN_ERRORS.NOT_FOUND, result.error);
+        return apiResponse({ ok: false, error: GEN_ERRORS.NOT_FOUND, details: result.error });
       }
 
       // If user revoked their current session, clear cookies
@@ -293,7 +309,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
         cookie.refresh_token.remove();
       }
 
-      return successResponse({ message: 'Session revoked' });
+      return apiResponse({ ok: true, data: { message: 'Session revoked' } });
     },
     {
       params: t.Object({
@@ -308,7 +324,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
     async ({ user, body, cookie, set, authSessionService, sessionService }) => {
       if (!user) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
       }
 
       // Get current session ID
@@ -328,14 +344,20 @@ export const AuthController = new Elysia({ prefix: '/auth' })
         currentSessionId || undefined
       );
 
-      if (!result.success) {
+      if (isFailureResult(result)) {
         set.status = 400;
-        return errorResponse(BE_ERRORS.AUTH_PASSWORD_MISMATCH, result.error);
+        return apiResponse({
+          ok: false,
+          error: BE_ERRORS.AUTH_PASSWORD_MISMATCH,
+          details: result.error
+        });
       }
 
-      return successResponse({
+      return apiResponse({
+        ok: true,
+        data: {
         message: 'Password changed successfully. Other sessions have been logged out.'
-      });
+      }});
     },
     {
       body: t.Object({
@@ -352,12 +374,12 @@ export const AuthController = new Elysia({ prefix: '/auth' })
       async ({ body, set, emailVerificationService }) => {
         const result = await emailVerificationService.verifyOtp(body.email, body.otp);
 
-        if (!result.success) {
+        if (isFailureResult(result)) {
           set.status = 400;
-          return errorResponse(GEN_ERRORS.INVALID_INPUT, result.error);
+          return apiResponse({ ok: false, error: GEN_ERRORS.INVALID_INPUT, details: result.error });
         }
 
-        return successResponse({ message: 'Email verified successfully' });
+        return apiResponse({ ok: true, data: { message: 'Email verified successfully' } });
       },
       {
         body: t.Object({
@@ -373,17 +395,17 @@ export const AuthController = new Elysia({ prefix: '/auth' })
     app.use(authOtpRateLimiter).post('/resend-otp', async ({ user, set, emailVerificationService, emailService }) => {
       if (!user) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
       }
 
       const result = await emailVerificationService.resendOtp(user.id);
 
-      if (!result.success) {
+      if (isFailureResult(result)) {
         set.status = 429; // Too Many Requests
         const details = result.retryAfter
           ? `${result.error} Retry after ${result.retryAfter} seconds.`
           : result.error;
-        return errorResponse(BE_ERRORS.RATE_LIMITED, details);
+        return apiResponse({ ok: false, error: BE_ERRORS.RATE_LIMITED, details });
       }
 
       // Send the new OTP via email
@@ -391,7 +413,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
         await emailService.sendOtp(user.email, result.otp, user.name);
       }
 
-      return successResponse({ message: 'Verification code sent' });
+      return apiResponse({ ok: true, data: { message: 'Verification code sent' } });
     })
   )
 
@@ -399,16 +421,18 @@ export const AuthController = new Elysia({ prefix: '/auth' })
   .get('/verification-status', async ({ user, set, emailVerificationService }) => {
     if (!user) {
       set.status = 401;
-      return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+      return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
     }
 
     const status = await emailVerificationService.getVerificationStatus(user.id);
 
-    return successResponse({
+    return apiResponse({
+      ok: true,
+      data: {
       email: status.email,
       emailVerified: status.emailVerified,
       pendingVerification: status.pendingVerification
-    });
+    }});
   })
 
   // ==================== FORGOT PASSWORD ====================
@@ -421,10 +445,12 @@ export const AuthController = new Elysia({ prefix: '/auth' })
         // Always return success to prevent user enumeration
         // The actual result is sent via email
         set.status = 200;
-        return successResponse({
+        return apiResponse({
+          ok: true,
+          data: {
           message:
             'If the email and phone number match our records, you will receive reset instructions.'
-        });
+        }});
       },
       {
         body: t.Object({
@@ -446,12 +472,16 @@ export const AuthController = new Elysia({ prefix: '/auth' })
           body.newPassword
         );
 
-        if (!resetResult.success) {
+        if (isFailureResult(resetResult)) {
           set.status = 400;
-          return errorResponse(GEN_ERRORS.INVALID_INPUT, resetResult.error);
+          return apiResponse({
+            ok: false,
+            error: GEN_ERRORS.INVALID_INPUT,
+            details: resetResult.error
+          });
         }
 
-        return successResponse({ message: 'Password has been reset successfully' });
+        return apiResponse({ ok: true, data: { message: 'Password has been reset successfully' } });
       },
       {
         body: t.Object({
@@ -469,24 +499,32 @@ export const AuthController = new Elysia({ prefix: '/auth' })
     async ({ user, body, set, userService, passwordResetService }) => {
       if (!user) {
         set.status = 401;
-        return errorResponse(GEN_ERRORS.UNAUTHORIZED);
+        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
       }
 
       // Only allow if user has mustChangePassword flag
       const result = await userService.getUserById(user.id);
-      if (!result.success || !result.user?.mustChangePassword) {
+      if (isFailureResult(result) || !result.user?.mustChangePassword) {
         set.status = 403;
-        return errorResponse(GEN_ERRORS.FORBIDDEN, 'Password change not required');
+        return apiResponse({
+          ok: false,
+          error: GEN_ERRORS.FORBIDDEN,
+          details: 'Password change not required'
+        });
       }
 
       const resetResult = await passwordResetService.completeReset(user.id, body.newPassword);
 
-      if (!resetResult.success) {
+      if (isFailureResult(resetResult)) {
         set.status = 400;
-        return errorResponse(GEN_ERRORS.INVALID_INPUT, resetResult.error);
+        return apiResponse({
+          ok: false,
+          error: GEN_ERRORS.INVALID_INPUT,
+          details: resetResult.error
+        });
       }
 
-      return successResponse({ message: 'Password changed successfully' });
+      return apiResponse({ ok: true, data: { message: 'Password changed successfully' } });
     },
     {
       body: t.Object({

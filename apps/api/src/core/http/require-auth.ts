@@ -1,6 +1,6 @@
-import { errorResponse, GEN_ERRORS } from '@repo/errors';
+import { apiResponse, GEN_ERRORS, type ErrorResponse } from '@repo/errors';
 import type { User } from '@repo/db';
-import type { ElysiaSet } from '@/types';
+import type { ElysiaSet } from '@repo/types';
 
 /**
  * Guard helper for authenticated endpoints.
@@ -10,11 +10,11 @@ export function requireAuth(
   user: User | null | undefined,
   set: ElysiaSet,
   message?: string
-): { user: User } | { error: ReturnType<typeof errorResponse> } {
+): { user: User } | { error: ErrorResponse } {
   if (!user) {
     set.status = 401;
     return {
-      error: errorResponse(GEN_ERRORS.UNAUTHORIZED, message)
+      error: apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED, details: message })
     };
   }
 

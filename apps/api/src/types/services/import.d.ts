@@ -52,5 +52,5 @@ export type PreviewBuildResult = {
 /** Result of validating import file upload */
 export type ValidationFailure = {
   status: number;
-  body: ReturnType<typeof import('@repo/errors').errorResponse>;
+  body: import('@repo/errors').ErrorResponse;
 };

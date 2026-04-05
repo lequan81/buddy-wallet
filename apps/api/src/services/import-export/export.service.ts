@@ -5,7 +5,7 @@
  * Uses constructor injection for testability.
  */
 import ExcelJS from 'exceljs';
-import { maskPhone } from '@repo/utils';
+import { buildCSV, escapeCSVCell, maskPhone } from '@repo/utils';
 import { logger } from '@repo/logger';
 import type { IUserRepository, IDebtRepository } from '@/types/repositories';
 import type { ExportFormat, ExportResult } from '@/types';
@@ -99,13 +99,7 @@ export class ExportService {
     format: ExportFormat
   ): Promise<ExportResult> {
     if (format === 'csv') {
-      // CSV: manual generation (no library needed)
-      const keys = Object.keys(data[0] || {});
-      const header = keys.map((k) => `"${k}"`).join(',');
-      const rows = data.map((row) =>
-        keys.map((k) => `"${String(row[k] || '').replace(/"/g, '""')}"`).join(',')
-      );
-      const csvContent = [header, ...rows].join('\n');
+      const csvContent = buildCSV(data);
       const buffer = Buffer.from(csvContent, 'utf-8');
 
       return {
@@ -157,24 +151,13 @@ export class ExportService {
    * - New: 1 debt pagination query + 1 batched user query
    */
   async *streamUserDebtsAsCSV(userId: string): AsyncGenerator<string, void> {
-    const chunkSize = 100;
+    const chunkSize = 1000;
     let offset = 0;
-    const allDebts: Array<{
-      id?: string;
-      debtorId?: string | null;
-      debtorPhone?: string | null;
-      creditorId?: string | null;
-      creditorPhone?: string | null;
-      amount?: number;
-      status?: string;
-      description?: string | null;
-      createdAt?: Date | string | null;
-      updatedAt?: Date | string | null;
-    }> = [];
 
-    // PHASE 1: Collect all debts and unique user IDs
-    logger.info('[Export] Phase 1: Collecting all debts for batching...');
+    // CSV Header
+    yield 'id,debtorId,debtorName,creditorId,creditorName,amount,status,description,createdAt,updatedAt\n';
 
+    let streamedRows = 0;
     while (true) {
       const result = await this.debtRepo.findMany({
         involvedUserId: userId,
@@ -183,65 +166,38 @@ export class ExportService {
       });
 
       const debts = result.data;
-      if (debts.length === 0) break;
+      if (debts.length === 0) {
+        break;
+      }
 
-      allDebts.push(...debts);
-      offset += chunkSize;
+      const userMap = await this.getUserMapForDebts(debts);
+      for (const debt of debts) {
+        const debtor = userMap.get(debt.debtorId ?? '');
+        const creditor = userMap.get(debt.creditorId ?? '');
 
-      // Safety limit to prevent memory exhaustion
-      if (allDebts.length >= 50000) {
-        logger.warn('[Export] Reached safety limit of 50k debts, stopping collection');
+        const row = [
+          escapeCSVCell(debt.id),
+          escapeCSVCell(debt.debtorId || ''),
+          escapeCSVCell(debtor?.name || debtor?.email || debt.debtorPhone || ''),
+          escapeCSVCell(debt.creditorId || ''),
+          escapeCSVCell(creditor?.name || creditor?.email || debt.creditorPhone || ''),
+          escapeCSVCell(debt.amount ?? ''),
+          escapeCSVCell(debt.status || ''),
+          escapeCSVCell(debt.description || ''),
+          escapeCSVCell(debt.createdAt ? new Date(debt.createdAt).toISOString() : ''),
+          escapeCSVCell(debt.updatedAt ? new Date(debt.updatedAt).toISOString() : '')
+        ].join(',');
+        yield `${row}\n`;
+        streamedRows++;
+      }
+
+      offset += debts.length;
+      if (debts.length < chunkSize) {
         break;
       }
     }
 
-    logger.info('[Export] Phase 1 Complete', { totalDebts: allDebts.length });
-
-    if (allDebts.length === 0) {
-      logger.warn('[Export] No debts found for user', { userId });
-      return;
-    }
-
-    // PHASE 2: Batch-fetch all users ONCE (not per chunk!)
-    logger.info('[Export] Phase 2: Batch-fetching all users...');
-    const userMap = await this.getUserMapForDebts(allDebts);
-    logger.info('[Export] Phase 2 Complete', { userCount: userMap.size });
-
-    // PHASE 3: Stream CSV output with pre-fetched user map
-    logger.info('[Export] Phase 3: Streaming CSV output...');
-
-    // CSV Header
-    yield 'id,debtorId,debtorName,creditorId,creditorName,amount,status,description,createdAt,updatedAt\n';
-
-    // CSV Rows (reuse pre-fetched userMap - no additional DB calls!)
-    const csvRows = allDebts
-      .map((debt) => {
-        const debtor = userMap.get(debt.debtorId ?? '');
-        const creditor = userMap.get(debt.creditorId ?? '');
-
-        return [
-          this.csvValue(debt.id),
-          this.csvValue(debt.debtorId || ''),
-          this.csvValue(debtor?.name || debtor?.email || debt.debtorPhone || ''),
-          this.csvValue(debt.creditorId || ''),
-          this.csvValue(creditor?.name || creditor?.email || debt.creditorPhone || ''),
-          this.csvValue(debt.amount ?? ''),
-          this.csvValue(debt.status || ''),
-          this.csvValue(debt.description || ''),
-          this.csvValue(debt.createdAt ? new Date(debt.createdAt).toISOString() : ''),
-          this.csvValue(debt.updatedAt ? new Date(debt.updatedAt).toISOString() : '')
-        ].join(',');
-      })
-      .join('\n');
-
-    yield `${csvRows}\n`;
-
-    logger.info('[Export] Phase 3 Complete', { rowsStreamed: allDebts.length });
-  }
-
-  private csvValue(value: unknown): string {
-    const normalized = String(value ?? '');
-    return `"${normalized.replace(/"/g, '""')}"`;
+    logger.info('[Export] CSV stream complete', { userId, rows: streamedRows });
   }
 
   private async getUserMapForDebts(

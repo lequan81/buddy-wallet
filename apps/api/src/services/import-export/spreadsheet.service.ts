@@ -1,64 +1,27 @@
 import type { DetectedMapping } from '@/types';
 import { Workbook } from 'exceljs';
 import { Readable } from 'node:stream';
+import { colToZeroBasedIndex, indexToColumnLetter, parseCSV } from '@repo/utils';
 
 export class SpreadsheetService {
   /**
    * Convert 'A' or 'A:Amount' to 0-based index.
    */
   colLetterToIndex(col: string): number {
-    const letterPart = col.includes(':') ? col.split(':')[0].toUpperCase() : col.toUpperCase();
-    let idx = 0;
-    for (let i = 0; i < letterPart.length; i++) {
-      idx = idx * 26 + (letterPart.charCodeAt(i) - 64);
-    }
-    return idx - 1;
+    return colToZeroBasedIndex(col);
   }
 
   indexToColLetter(idx: number): string {
-    let result = '';
-    let n = idx;
-    while (n >= 0) {
-      result = String.fromCharCode((n % 26) + 65) + result;
-      n = Math.floor(n / 26) - 1;
-    }
-    return result;
+    return indexToColumnLetter(idx);
   }
 
   async parseToRows(file: File): Promise<string[][]> {
     const isCSV = file.name.toLowerCase().endsWith('.csv');
 
     if (isCSV) {
-      // CSV: use file.text() for native string extraction mapping
+      // CSV: use shared parser for robust quote/newline handling.
       const text = await file.text();
-      const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
-      return lines.map((line) => {
-        const cells: string[] = [];
-        let current = '';
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          const ch = line[i];
-          if (inQuotes) {
-            if (ch === '"' && line[i + 1] === '"') {
-              current += '"';
-              i++;
-            } else if (ch === '"') {
-              inQuotes = false;
-            } else {
-              current += ch;
-            }
-          } else if (ch === '"') {
-            inQuotes = true;
-          } else if (ch === ',') {
-            cells.push(current);
-            current = '';
-          } else {
-            current += ch;
-          }
-        }
-        cells.push(current);
-        return cells;
-      });
+      return parseCSV(text);
     }
 
     const allRows: string[][] = [];

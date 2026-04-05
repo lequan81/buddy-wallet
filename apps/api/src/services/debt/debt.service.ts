@@ -86,7 +86,14 @@ export class DebtService {
   }
 
   /** Fetch debt or return NOT_FOUND error */
-  private async getDebtOrFail(debtId: string): Promise<[DebtEntity, null] | [null, DebtResult]> {
+  private async getDebtOrFail(
+    debtId: string,
+    preloadedDebt?: DebtEntity | null
+  ): Promise<[DebtEntity, null] | [null, DebtResult]> {
+    if (preloadedDebt && preloadedDebt.id === debtId) {
+      return [preloadedDebt, null];
+    }
+
     const debt = await this.debtRepo.findById(debtId);
     if (!debt) return [null, { success: false, error: BE_ERRORS.DEBT_NOT_FOUND.message, code: BE_ERRORS.DEBT_NOT_FOUND.code }];
     return [debt, null];
@@ -174,13 +181,13 @@ export class DebtService {
     options?: { expiryOption?: ExpiryOption; confirmDuplicate?: boolean }
   ): Promise<DebtResult> {
     // ── Zone A: Fail-Fast Validation ──────────────────────────
-    const phoneResult = validatePhones(input.counterpartyPhone, currentUser.phoneNumber);
-    if (!phoneResult.success) return phoneResult.error;
-
     const parseResult = validateCreateDebtInput(input);
     if (!parseResult.success) return parseResult.error;
 
-    const { amount, description, direction } = parseResult.data;
+    const { amount, description, direction, counterpartyPhone } = parseResult.data;
+
+    const phoneResult = validatePhones(counterpartyPhone, currentUser.phoneNumber);
+    if (!phoneResult.success) return phoneResult.error;
 
     const amountErr = validateAmount(amount);
     if (amountErr) return amountErr;
@@ -206,7 +213,12 @@ export class DebtService {
       );
 
       if (duplicates.length > 0) {
-        return { success: false, error: 'Potential duplicate debt found', code: 'DUPLICATE_WARNING', duplicates } as DebtResult;
+        return {
+          success: false,
+          error: BE_ERRORS.DEBT_DUPLICATE_WARNING.message,
+          code: BE_ERRORS.DEBT_DUPLICATE_WARNING.code,
+          duplicates
+        } as DebtResult;
       }
     }
 
@@ -260,7 +272,8 @@ export class DebtService {
   async updateDebt(
     debtId: string,
     data: { description?: string; amount?: number },
-    currentUser: CurrentUser
+    currentUser: CurrentUser,
+    preloadedDebt?: DebtEntity | null
   ): Promise<DebtResult> {
     // Zone A: Validate inputs
     if (data.amount !== undefined) {
@@ -269,7 +282,7 @@ export class DebtService {
     }
 
     // Zone B: Database operations
-    const [debt, err] = await this.getDebtOrFail(debtId);
+    const [debt, err] = await this.getDebtOrFail(debtId, preloadedDebt);
     if (err) return err;
 
     const isAdmin = hasPermission(currentUser.permissions, PERMISSIONS.DEBT_VIEW_ALL);
@@ -303,15 +316,20 @@ export class DebtService {
   async updateDebtStatus(
     debtId: string,
     newStatus: DebtStatus,
-    currentUser: CurrentUser
+    currentUser: CurrentUser,
+    preloadedDebt?: DebtEntity | null
   ): Promise<StatusUpdateResult> {
-    const [debt, err] = await this.getDebtOrFail(debtId);
+    const [debt, err] = await this.getDebtOrFail(debtId, preloadedDebt);
     if (err) return err;
 
     const isAdmin = hasPermission(currentUser.permissions, PERMISSIONS.DEBT_VIEW_ALL);
     const isInvolved = debt.debtorId === currentUser.id || debt.creditorId === currentUser.id;
     if (!isAdmin && !isInvolved) {
-      return { success: false, error: 'You are not a party to this debt' };
+      return {
+        success: false,
+        error: BE_ERRORS.DEBT_PERMISSION_DENIED.message,
+        code: BE_ERRORS.DEBT_PERMISSION_DENIED.code
+      };
     }
 
     const now = new Date();
@@ -346,8 +364,12 @@ export class DebtService {
   }
 
   /** Confirm debt by counterparty */
-  async confirmDebt(debtId: string, currentUser: CurrentUser): Promise<DebtResult> {
-    const [debt, err] = await this.getDebtOrFail(debtId);
+  async confirmDebt(
+    debtId: string,
+    currentUser: CurrentUser,
+    preloadedDebt?: DebtEntity | null
+  ): Promise<DebtResult> {
+    const [debt, err] = await this.getDebtOrFail(debtId, preloadedDebt);
     if (err) return err;
 
     const isCreditor = debt.creditorId === currentUser.id;
@@ -414,14 +436,15 @@ export class DebtService {
   async suggestEdit(
     debtId: string,
     currentUser: CurrentUser,
-    suggestion: { amount?: number; description?: string }
+    suggestion: { amount?: number; description?: string },
+    preloadedDebt?: DebtEntity | null
   ): Promise<DebtResult> {
     // Zone A: Validate inputs
     if (!suggestion.amount && !suggestion.description) {
       return {
         success: false,
         error: 'Must provide at least amount or description to suggest',
-        code: 'VALIDATION_ERROR'
+        code: BE_ERRORS.DEBT_INVALID_STATUS.code
       };
     }
 
@@ -431,7 +454,7 @@ export class DebtService {
     }
 
     // Zone B: Database operations
-    const [debt, err] = await this.getDebtOrFail(debtId);
+    const [debt, err] = await this.getDebtOrFail(debtId, preloadedDebt);
     if (err) return err;
 
     if (debt.creditorId !== currentUser.id && debt.debtorId !== currentUser.id) {
@@ -469,9 +492,10 @@ export class DebtService {
   async respondToSuggestion(
     debtId: string,
     currentUser: CurrentUser,
-    accept: boolean
+    accept: boolean,
+    preloadedDebt?: DebtEntity | null
   ): Promise<DebtResult> {
-    const [debt, err] = await this.getDebtOrFail(debtId);
+    const [debt, err] = await this.getDebtOrFail(debtId, preloadedDebt);
     if (err) return err;
 
     if (debt.uploadedById !== currentUser.id) {
@@ -518,8 +542,12 @@ export class DebtService {
   // ── Delete ────────────────────────────────────────────────────
 
   /** Soft delete a single debt */
-  async deleteDebt(debtId: string, currentUser: CurrentUser): Promise<DebtResult> {
-    const [debt, err] = await this.getDebtOrFail(debtId);
+  async deleteDebt(
+    debtId: string,
+    currentUser: CurrentUser,
+    preloadedDebt?: DebtEntity | null
+  ): Promise<DebtResult> {
+    const [debt, err] = await this.getDebtOrFail(debtId, preloadedDebt);
     if (err) return err;
 
     const isAdmin = hasPermission(currentUser.permissions, PERMISSIONS.DEBT_DELETE_ALL);

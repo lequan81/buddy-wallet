@@ -6,7 +6,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env", ".env*", "bun.lockb"],
+      "inputs": ["$TURBO_DEFAULT$", ".env", ".env*", "bun.lock"],
       "outputs": [".svelte-kit/**", "dist/**", "build/**"],
       "env": ["VITE_API_URL", "VITE_WEB_URL", "PORT"],
       "cache": true

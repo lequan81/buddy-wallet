@@ -5,11 +5,12 @@
  * Handles HTTP concerns (headers, file response) only.
  */
 import { Elysia } from 'elysia';
-import { GEN_ERRORS, BE_ERRORS, errorResponse } from '@repo/errors';
+import { GEN_ERRORS, BE_ERRORS, apiResponse } from '@repo/errors';
 import { accessControlPlugin, servicesPlugin, sessionAuthPlugin } from '@plugins';
 import { getClientIP } from '@utils';
 import type { ExportFormat } from '@/types';
 import { requireAuth } from '@/core/http/require-auth';
+import { isFailureResult } from '@/core/http/result-helper';
 
 export const ExportController = new Elysia({ prefix: '/export' })
   .use(servicesPlugin)
@@ -60,9 +61,9 @@ export const ExportController = new Elysia({ prefix: '/export' })
 
     const result = await exportService.exportUserDebts(auth.user.id, format);
 
-    if (!result.success) {
+    if (isFailureResult(result)) {
       set.status = 404;
-      return errorResponse(BE_ERRORS.EXPORT_NO_DATA);
+      return apiResponse({ ok: false, error: BE_ERRORS.EXPORT_NO_DATA });
     }
 
     await activityService.log({
@@ -84,16 +85,16 @@ export const ExportController = new Elysia({ prefix: '/export' })
   .get('/admin/debts', async ({ user, set, query, request, server, exportService, activityService }) => {
     if (user?.role !== 'admin') {
       set.status = 403;
-      return errorResponse(GEN_ERRORS.FORBIDDEN, 'Admin access required');
+      return apiResponse({ ok: false, error: GEN_ERRORS.FORBIDDEN, details: 'Admin access required' });
     }
 
     const format = ((query as Record<string, unknown>)?.format || 'xlsx') as ExportFormat;
 
     const result = await exportService.exportAllDebts(format);
 
-    if (!result.success) {
+    if (isFailureResult(result)) {
       set.status = 404;
-      return errorResponse(BE_ERRORS.EXPORT_NO_DATA);
+      return apiResponse({ ok: false, error: BE_ERRORS.EXPORT_NO_DATA });
     }
 
     await activityService.log({

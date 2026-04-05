@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia';
 import { db, debts, eq, or, and, type User } from '@repo/db';
+import { BE_ERRORS, GEN_ERRORS, apiResponse } from '@repo/errors';
 
 import { logger } from '@repo/logger';
 
@@ -24,7 +25,7 @@ export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
 
         if (!user) {
           set.status = 401;
-          return { success: false, message: 'Unauthorized' };
+          return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
         }
 
         const targetUserId = params[targetUserIdParamName];
@@ -50,11 +51,11 @@ export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
         // No relationship found
         logger.accessControl(`Denied: User ${user.id} -> User ${targetUserId} (no relationship)`);
         set.status = 403;
-        return {
-          success: false,
-          message: 'Forbidden: You do not have permission to view this user.',
-          code: 'ACCESS_DENIED_NO_RELATIONSHIP'
-        };
+        return apiResponse({
+          ok: false,
+          error: GEN_ERRORS.FORBIDDEN,
+          details: 'You do not have permission to view this user.'
+        });
       });
     },
 
@@ -67,7 +68,7 @@ export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
 
         if (!user) {
           set.status = 401;
-          return { success: false, message: 'Unauthorized' };
+          return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
         }
 
         if (user.role === 'admin') return;
@@ -81,19 +82,17 @@ export const accessControlPlugin = new Elysia({ name: 'Access_Control' })
 
         if (!debt) {
           set.status = 404;
-          return { success: false, message: 'Debt not found' };
+          return apiResponse({ ok: false, error: BE_ERRORS.DEBT_NOT_FOUND });
         }
 
         // Check if user is involved
         if (debt.debtorId !== user.id && debt.creditorId !== user.id) {
           logger.accessControl(`Denied: User ${user.id} not party to debt ${debtId}`);
           set.status = 403;
-          return {
-            success: false,
-            message: 'Forbidden: You are not a party to this debt.',
-            code: 'ACCESS_DENIED_DEBT'
-          };
+          return apiResponse({ ok: false, error: BE_ERRORS.DEBT_PERMISSION_DENIED });
         }
+
+        (context as { relatedDebt?: typeof debt }).relatedDebt = debt;
       });
     }
   }));

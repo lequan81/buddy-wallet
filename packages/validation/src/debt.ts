@@ -23,7 +23,7 @@ export const directionSchema = v.picklist(['BORROW', 'LEND'], 'Invalid direction
 export const CreateDebtInputSchema = v.strictObject({
   amount: amountSchema,
   description: descriptionSchema,
-  phoneNumber: phoneSchema,
+  counterpartyPhone: phoneSchema,
   direction: directionSchema
 });
 
