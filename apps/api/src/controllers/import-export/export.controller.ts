@@ -25,6 +25,39 @@ export const ExportController = new Elysia({ prefix: '/export' })
 
     const format = ((query as Record<string, unknown>)?.format || 'xlsx') as ExportFormat;
 
+    if (format === 'csv') {
+      await activityService.log({
+        userId: auth.user.id,
+        action: 'export',
+        resource: 'export',
+        metadata: { format, filename: `debts_${new Date().toISOString().split('T')[0]}.csv`, mode: 'stream' },
+        ipAddress: getClientIP(request, server) || undefined,
+        userAgent: request.headers.get('user-agent') || undefined
+      });
+
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          try {
+            for await (const chunk of exportService.streamUserDebtsAsCSV(auth.user.id)) {
+              controller.enqueue(encoder.encode(chunk));
+            }
+            controller.close();
+          } catch (error) {
+            controller.error(error);
+          }
+        }
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="debts_${new Date().toISOString().split('T')[0]}.csv"`,
+          'Transfer-Encoding': 'chunked'
+        }
+      });
+    }
+
     const result = await exportService.exportUserDebts(auth.user.id, format);
 
     if (!result.success) {

@@ -7,7 +7,8 @@
  * Requires SMTP credentials in .env file.
  */
 import { describe, expect, it, afterAll } from 'bun:test';
-import { EmailService } from '@/services';
+import { EmailService as EmailServiceClass } from '@/services/email/email.service';
+const EmailService = new EmailServiceClass();
 
 const testEmail = Bun.env.TEST_EMAIL;
 

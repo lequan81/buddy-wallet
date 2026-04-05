@@ -37,3 +37,5 @@ export const importLogs = sqliteTable(
     index('idx_import_logs_user_created_at_id').on(table.userId, table.createdAt, table.id)
   ]
 );
+
+export type ImportLog = typeof importLogs.$inferSelect;

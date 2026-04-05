@@ -51,8 +51,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	// If I am the creditor, I want to see pending proofs.
 	if (isCreditor) {
-		const { data: proofsData } = await api.v1.proofs.debt({ debtId: debt.id }).get();
-		pendingProofs = ((proofsData as Record<string, unknown>)?.data as Record<string, unknown>)?.proofs as typeof pendingProofs || [];
+		const { data: proofsData } = await api.v1.upload['pending-proofs']({ debtId: debt.id }).get();
+		pendingProofs = (proofsData as any)?.data || [];
 	}
 
 	return {

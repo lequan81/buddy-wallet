@@ -5,9 +5,10 @@
  * These are pure functions: no I/O, no state, deterministic.
  * Returns error result or null (null = valid).
  */
+import { BE_ERRORS, GEN_ERRORS } from '@repo/errors';
 import { SHARED_CONSTANTS } from '@repo/config';
 import { CreateDebtInputSchema, safeParse } from '@repo/validation';
-import { normalizePhoneNumber } from '@utils/phone';
+import { normalizePhoneNumber } from '@repo/utils';
 import type { DebtResult, CreateDebtInput } from '@repo/types';
 
 /**
@@ -16,13 +17,13 @@ import type { DebtResult, CreateDebtInput } from '@repo/types';
  */
 export function validateAmount(amount: number): DebtResult | null {
   if (typeof amount !== 'number' || Number.isNaN(amount)) {
-    return { success: false, error: 'Amount must be a valid number', code: 'INVALID_AMOUNT' };
+    return { success: false, error: 'Amount must be a valid number', code: GEN_ERRORS.INVALID_INPUT.code };
   }
   if (amount < SHARED_CONSTANTS.DEBT.MIN_AMOUNT) {
-    return { success: false, error: `Minimum debt amount is ${SHARED_CONSTANTS.DEBT.MIN_AMOUNT}`, code: 'AMOUNT_TOO_LOW' };
+    return { success: false, error: `Minimum debt amount is ${SHARED_CONSTANTS.DEBT.MIN_AMOUNT}`, code: GEN_ERRORS.INVALID_INPUT.code };
   }
   if (amount > SHARED_CONSTANTS.DEBT.MAX_AMOUNT) {
-    return { success: false, error: `Maximum debt amount is ${SHARED_CONSTANTS.DEBT.MAX_AMOUNT}`, code: 'AMOUNT_TOO_HIGH' };
+    return { success: false, error: `Maximum debt amount is ${SHARED_CONSTANTS.DEBT.MAX_AMOUNT}`, code: GEN_ERRORS.INVALID_INPUT.code };
   }
   return null;
 }
@@ -62,8 +63,8 @@ export function validatePhones(
       success: false,
       error: {
         success: false,
-        error: 'Please update your profile with a phone number to create debts.',
-        code: 'PHONE_REQUIRED'
+        error: BE_ERRORS.DEBT_PHONE_REQUIRED.message,
+        code: BE_ERRORS.DEBT_PHONE_REQUIRED.code
       }
     };
   }
@@ -74,8 +75,8 @@ export function validatePhones(
       success: false,
       error: {
         success: false,
-        error: 'Invalid counterparty phone number format',
-        code: 'INVALID_PHONE_FORMAT'
+        error: BE_ERRORS.DEBT_INVALID_PHONE.message,
+        code: BE_ERRORS.DEBT_INVALID_PHONE.code
       }
     };
   }
@@ -86,8 +87,8 @@ export function validatePhones(
       success: false,
       error: {
         success: false,
-        error: 'Cannot create a debt with yourself',
-        code: 'SELF_DEBT_NOT_ALLOWED'
+        error: BE_ERRORS.DEBT_SELF_NOT_ALLOWED.message,
+        code: BE_ERRORS.DEBT_SELF_NOT_ALLOWED.code
       }
     };
   }

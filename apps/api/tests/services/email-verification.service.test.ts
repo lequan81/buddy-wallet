@@ -77,8 +77,8 @@ describe('EmailVerificationService', () => {
   beforeEach(() => {
     mockRepos = createMockRepos();
     service = new EmailVerificationService(
-      mockRepos.emailVerificationRepo as unknown as Parameters<typeof EmailVerificationService>[0],
-      mockRepos.userRepo as unknown as Parameters<typeof EmailVerificationService>[1]
+      mockRepos.emailVerificationRepo as unknown as ConstructorParameters<typeof EmailVerificationService>[0],
+      mockRepos.userRepo as unknown as ConstructorParameters<typeof EmailVerificationService>[1]
     );
   });
 

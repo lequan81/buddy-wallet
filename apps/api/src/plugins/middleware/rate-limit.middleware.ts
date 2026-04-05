@@ -9,14 +9,29 @@ import type { RateLimitEntry, RateLimitConfig } from '@/types';
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
 // Cleanup old entries periodically (only for in-memory store)
-setInterval(() => {
+const cleanupRateLimitStore = () => {
   const now = Date.now();
   for (const [key, entry] of rateLimitStore.entries()) {
     if (entry.resetAt < now) {
       rateLimitStore.delete(key);
     }
   }
-}, 60000); // Cleanup every minute
+};
+
+const cleanupInterval = setInterval(cleanupRateLimitStore, 60000); // Cleanup every minute
+if (typeof cleanupInterval === 'object' && 'unref' in cleanupInterval) {
+  (cleanupInterval as { unref: () => void }).unref();
+}
+
+const stopRateLimitCleanup = () => {
+  clearInterval(cleanupInterval);
+};
+
+if (typeof process !== 'undefined') {
+  process.once('exit', stopRateLimitCleanup);
+  process.once('SIGINT', stopRateLimitCleanup);
+  process.once('SIGTERM', stopRateLimitCleanup);
+}
 
 
 /**
@@ -66,25 +81,25 @@ const safeNormalizeIdentifier = (value: unknown): string | null => {
  */
 export const identifierKeyGenerator =
   (...fields: string[]) =>
-  async (request: Request, ctx?: { user?: { id: string } }): Promise<string> => {
-    const fallback = defaultKeyGenerator(request, ctx);
-    if (request.method !== 'POST' && request.method !== 'PUT' && request.method !== 'PATCH') {
-      return fallback;
-    }
-
-    try {
-      const body = (await request.clone().json()) as Record<string, unknown>;
-      for (const field of fields) {
-        const normalized = safeNormalizeIdentifier(body[field]);
-        if (normalized) {
-          return `id:${field}:${normalized}`;
-        }
+    async (request: Request, ctx?: { user?: { id: string } }): Promise<string> => {
+      const fallback = defaultKeyGenerator(request, ctx);
+      if (request.method !== 'POST' && request.method !== 'PUT' && request.method !== 'PATCH') {
+        return fallback;
       }
-    } catch {
-      // Body may not be JSON; use fallback key.
-    }
-    return fallback;
-  };
+
+      try {
+        const body = (await request.clone().json()) as Record<string, unknown>;
+        for (const field of fields) {
+          const normalized = safeNormalizeIdentifier(body[field]);
+          if (normalized) {
+            return `id:${field}:${normalized}`;
+          }
+        }
+      } catch {
+        // Body may not be JSON; use fallback key.
+      }
+      return fallback;
+    };
 
 /**
  * Create a rate limiting plugin with configurable options
@@ -166,10 +181,10 @@ export function createRateLimiter(config: RateLimitConfig) {
 /**
  * Pre-configured rate limiters for common use cases
  */
- 
+
 // Strict: 5 requests per minute (for sensitive endpoints like public lookup)
 export const strictRateLimiter = createRateLimiter(configs.RATE_LIMITS.STRICT);
- 
+
 // Auth: 10 requests per minute (for login/register)
 export const authRateLimiter = createRateLimiter(configs.RATE_LIMITS.AUTH);
 
@@ -196,21 +211,21 @@ export const authOtpRateLimiter = createRateLimiter({
   ...configs.RATE_LIMITS.AUTH_OTP,
   keyGenerator: identifierKeyGenerator('email')
 });
- 
+
 // Standard: 100 requests per minute (for general API)
 export const standardRateLimiter = createRateLimiter(configs.RATE_LIMITS.STANDARD);
- 
+
 // Burst: 30 requests per 10 seconds (for quick bursts)
 export const burstRateLimiter = createRateLimiter(configs.RATE_LIMITS.BURST);
- 
+
 // Upload: 10 requests per minute (for large file uploads)
 export const uploadRateLimiter = createRateLimiter(configs.RATE_LIMITS.UPLOAD);
- 
+
 // Download/View: 100 requests per minute (for UI image fetching)
 export const fileDownloadRateLimiter = createRateLimiter(configs.RATE_LIMITS.DOWNLOAD);
- 
+
 // Broadcast: 1 request per minute (for admin broadcast notifications)
 export const broadcastRateLimiter = createRateLimiter(configs.RATE_LIMITS.BROADCAST);
- 
+
 // Delete: 20 requests per minute (for file/resource deletion)
 export const deleteRateLimiter = createRateLimiter(configs.RATE_LIMITS.DELETE);

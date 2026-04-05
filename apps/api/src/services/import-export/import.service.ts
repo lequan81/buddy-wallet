@@ -12,12 +12,11 @@ import {
   FRONTEND_CONSTANTS
 } from '@repo/config';
 import { importCache, isRedisAvailable } from '@plugins/redis';
-import type { ImportConfig } from '@/types';
-import type { PreviewResult, ImportResult, ProgressResult } from '@/types';
+import type { ImportConfig, PreviewResult, ImportResult, ProgressResult, ImportRowProcessingState, PreviewBuildResult } from '@/types';
 import type { SpreadsheetService } from './spreadsheet.service';
 import type { ImportLoggerService } from './import-logger.service';
 import { logger } from '@repo/logger';
-import type { IImportExportRepository } from '@repo/types';
+import type { IImportExportRepository } from '@/types/repositories';
 import type { CurrentUser, ImportRow } from '@/types';
 
 /**
@@ -28,7 +27,7 @@ export class ImportService {
     private readonly importRepo: IImportExportRepository,
     private readonly spreadsheetService: SpreadsheetService,
     private readonly importLoggerService: ImportLoggerService
-  ) {}
+  ) { }
 
   /**
    * Preview an import file
@@ -37,12 +36,55 @@ export class ImportService {
     const id: string = logId || randomUUIDv7('base64url');
     logger.info(`[ImportService] Starting previewFile for job ${id}, file: ${file.name}`);
 
-    if (!isValidImportFile(file.name)) {
-      const error = `Invalid format. Accepted: ${ACCEPTED_IMPORT_EXTENSIONS.join(', ')}`;
-      await this.importLoggerService.updateLogStatus(id, 'failed', [error]);
-      return { success: false, error };
+    const invalid = await this.validatePreviewFile(file, id);
+    if (invalid) {
+      return invalid;
     }
 
+    await this.initializePreviewLog(id, userId, file);
+
+    try {
+      logger.info(`[ImportService] Parsing file for job ${id}`);
+      const allRows = await this.spreadsheetService.parseToRows(file);
+      logger.info(`[ImportService] Parsed ${allRows.length} rows for job ${id}`);
+
+      if (allRows.length === 0) {
+        await this.importLoggerService.updateLogStatus(id, 'failed', ['Empty sheet']);
+        return { success: false, error: 'Empty sheet' };
+      }
+
+      const builtPreview = this.buildPreviewData(allRows);
+      await this.updatePreviewLogConfig(id, allRows.length, builtPreview);
+
+      const result: PreviewResult = {
+        success: true,
+        logId: id,
+        fileName: file.name,
+        totalRows: allRows.length,
+        columnHeaders: builtPreview.columnHeaders,
+        previewData: builtPreview.previewData,
+        autoMapping: builtPreview.autoMapping
+      };
+
+      await this.finalizePreviewSuccess(id, allRows.length, result);
+
+      return result;
+    } catch (err) {
+      return this.handlePreviewError(id, err);
+    }
+  }
+
+  private async validatePreviewFile(file: File, id: string): Promise<PreviewResult | null> {
+    if (isValidImportFile(file.name)) {
+      return null;
+    }
+
+    const error = `Invalid format. Accepted: ${ACCEPTED_IMPORT_EXTENSIONS.join(', ')}`;
+    await this.importLoggerService.updateLogStatus(id, 'failed', [error]);
+    return { success: false, error };
+  }
+
+  private async initializePreviewLog(id: string, userId: string, file: File): Promise<void> {
     logger.info(`[ImportService] Creating import log for job ${id}`);
     await this.importRepo.createLog({
       id,
@@ -58,68 +100,63 @@ export class ImportService {
       config: null,
       completedAt: null
     });
+  }
 
-    try {
-      logger.info(`[ImportService] Parsing file for job ${id}`);
-      const allRows = await this.spreadsheetService.parseToRows(file);
-      logger.info(`[ImportService] Parsed ${allRows.length} rows for job ${id}`);
+  private buildPreviewData(allRows: string[][]): PreviewBuildResult {
+    const maxCols = allRows.reduce((max: number, row: string[]) => Math.max(max, row.length), 0);
 
-      if (allRows.length === 0) {
-        await this.importLoggerService.updateLogStatus(id, 'failed', ['Empty sheet']);
-        return { success: false, error: 'Empty sheet' };
-      }
-
-      // Determine column count from widest row
-      const maxCols = allRows.reduce((max: number, row: string[]) => Math.max(max, row.length), 0);
-
-      const columnHeaders: string[] = [];
-      for (let c = 0; c < maxCols; c++) {
-        const letter = this.spreadsheetService.indexToColLetter(c);
-        const headerName = allRows[0]?.[c]?.trim() || '';
-        columnHeaders.push(headerName ? `${letter}:${headerName}` : letter);
-      }
-
-      const previewData = allRows
-        .slice(0, BACKEND_CONSTANTS.PREVIEW_ROWS)
-        .map((row: string[]) => columnHeaders.map((_, i) => String(row[i] ?? '')));
-
-      const autoMapping = this.spreadsheetService.detectColumnMapping(allRows[0] || [], columnHeaders);
-
-      await this.importRepo.updateLog(id, {
-        totalRows: allRows.length,
-        config: JSON.stringify({
-          previewData: previewData.slice(0, 20),
-          columnHeaders,
-          autoMapping
-        })
-      });
-
-      const result = {
-        success: true,
-        logId: id,
-        fileName: file.name,
-        totalRows: allRows.length,
-        columnHeaders,
-        previewData,
-        autoMapping
-      };
-
-      await this.importLoggerService.updateLogStatus(id, 'success', []);
-
-      if (isRedisAvailable()) {
-        await importCache.setProgress(id, {
-          current: allRows.length, // Preview is "done"
-          total: allRows.length,
-          status: 'success',
-          result
-        });
-      }
-
-      return result;
-    } catch (err) {
-      await this.importLoggerService.updateLogStatus(id, 'failed', [String(err)]);
-      return { success: false, error: String(err) };
+    const columnHeaders: string[] = [];
+    for (let c = 0; c < maxCols; c++) {
+      const letter = this.spreadsheetService.indexToColLetter(c);
+      const headerName = allRows[0]?.[c]?.trim() || '';
+      columnHeaders.push(headerName ? `${letter}:${headerName}` : letter);
     }
+
+    const previewData = allRows
+      .slice(0, BACKEND_CONSTANTS.PREVIEW_ROWS)
+      .map((row: string[]) => columnHeaders.map((_, i) => String(row[i] ?? '')));
+
+    const autoMapping = this.spreadsheetService.detectColumnMapping(allRows[0] || [], columnHeaders);
+    return { columnHeaders, previewData, autoMapping };
+  }
+
+  private async updatePreviewLogConfig(
+    id: string,
+    totalRows: number,
+    builtPreview: PreviewBuildResult
+  ): Promise<void> {
+    await this.importRepo.updateLog(id, {
+      totalRows,
+      config: JSON.stringify({
+        previewData: builtPreview.previewData.slice(0, 20),
+        columnHeaders: builtPreview.columnHeaders,
+        autoMapping: builtPreview.autoMapping
+      })
+    });
+  }
+
+  private async finalizePreviewSuccess(
+    id: string,
+    totalRows: number,
+    result: PreviewResult
+  ): Promise<void> {
+    await this.importLoggerService.updateLogStatus(id, 'success', []);
+
+    if (!isRedisAvailable()) {
+      return;
+    }
+
+    await importCache.setProgress(id, {
+      current: totalRows,
+      total: totalRows,
+      status: 'success',
+      result
+    });
+  }
+
+  private async handlePreviewError(id: string, err: unknown): Promise<PreviewResult> {
+    await this.importLoggerService.updateLogStatus(id, 'failed', [String(err)]);
+    return { success: false, error: String(err) };
   }
 
   /**
@@ -142,24 +179,7 @@ export class ImportService {
     }
 
     const id: string = logId || randomUUIDv7('base64url');
-    await this.importRepo.createLog({
-      id,
-      userId: currentUser.id,
-      fileName: file.name,
-      fileSize: file.size,
-      status: 'processing',
-      previewLogId: previewLogId || null,
-      config: JSON.stringify(config),
-      totalRows: null,
-      importedCount: null,
-      errorCount: null,
-      errors: null,
-      completedAt: null
-    });
-
-    if (previewLogId) {
-      await this.importRepo.updateLog(previewLogId, { status: 'processing' });
-    }
+    await this.initializeImportLog(id, file, config, currentUser, previewLogId);
 
     // Validate mapping: name and amount are required
     if (!mapping.name || !mapping.amount) {
@@ -178,172 +198,253 @@ export class ImportService {
       }
 
       const startTime = performance.now();
-      const errors: string[] = [];
-      const newDebts: ImportRow[] = [];
-      const userCache = new Map<string, { id: string; phone: string | null }>();
-      const dataStartIndex = startRow - 1; // 0-based
-      const totalRowsToProcess = allRows.length - dataStartIndex;
+      const state = this.createImportRowProcessingState(allRows.length, startRow);
 
-      if (totalRowsToProcess <= 0) {
+      if (state.totalRowsToProcess <= 0) {
         await this.importLoggerService.updateLogStatus(id, 'failed', [
           'No data rows found (only headers)'
         ]);
         return { success: false, error: 'No data rows found' };
       }
 
-      // Helper to get value from row array by column letter
-      const getRowValue = (row: string[], col: string | undefined): string | undefined => {
-        if (!col) return undefined;
-        const idx = this.spreadsheetService.colLetterToIndex(col.toUpperCase());
-        return idx >= 0 && idx < row.length && row[idx] ? row[idx] : undefined;
-      };
+      await this.preloadUserCache(allRows, mapping, state);
+      await this.setImportStartProgress(id, state.totalRowsToProcess);
+      await this.processRows(allRows, mapping, state, currentUser, id);
 
-      // --- OPTIMIZATION: BATCH USER RESOLUTION ---
-      const uniqueIdentifiers = new Set<string>();
-      for (let i = dataStartIndex; i < allRows.length; i++) {
-        if (i - dataStartIndex > BACKEND_CONSTANTS.MAX_ROWS) break;
-        const row = allRows[i];
-        const name = getRowValue(row, mapping.name);
-        const phone = getRowValue(row, mapping.phone);
-        const email = getRowValue(row, mapping.email);
-        if (phone) uniqueIdentifiers.add(String(phone).trim());
-        if (email) uniqueIdentifiers.add(String(email).trim());
-        if (name && !phone && !email) uniqueIdentifiers.add(String(name).trim());
-      }
-
-      const identifiersArray = Array.from(uniqueIdentifiers).filter(Boolean);
-      if (identifiersArray.length > 0) {
-        // Chunk to avoid SQLite limits string size
-        const chunkSize = BACKEND_CONSTANTS.CHUNK_SIZE;
-        for (let i = 0; i < identifiersArray.length; i += chunkSize) {
-          const chunk = identifiersArray.slice(i, i + chunkSize);
-          const foundUsers = await this.importRepo.findUsersByIdentifiers(chunk);
-          for (const u of foundUsers) {
-            if (u.email) userCache.set(u.email, { id: u.id, phone: u.phoneNumber });
-            if (u.phoneNumber) userCache.set(u.phoneNumber, { id: u.id, phone: u.phoneNumber });
-          }
-        }
-      }
-
-      if (isRedisAvailable()) {
-        await importCache.setProgress(id, {
-          current: 0,
-          total: totalRowsToProcess,
-          status: 'processing',
-          message: 'Starting import...'
-        });
-      }
-
-      let consecutiveEmpty = 0;
-      let lastUpdate = Date.now();
-
-      for (let i = dataStartIndex; i < allRows.length; i++) {
-        const rowCount = i - dataStartIndex;
-        const excelRow = i + 1; // 1-based for user-facing messages
-        const row = allRows[i];
-
-        // Throttled Redis updates (max once per second) to prevent rate limiting
-        const now = Date.now();
-        if (now - lastUpdate > FRONTEND_CONSTANTS.TOAST_DURATION_MS && isRedisAvailable()) {
-          lastUpdate = now;
-          // Fire-and-forget Redis update to avoid blocking import loop
-          importCache
-            .setProgress(id, {
-              current: rowCount,
-              total: totalRowsToProcess,
-              status: 'processing',
-              message: `Processing row ${rowCount} / ${totalRowsToProcess}...`,
-              errors: errors.length > 0 ? errors.slice(-5) : undefined
-            })
-            .catch((err) => logger.error('[Import] Redis update failed', { error: String(err) }));
-        }
-
-        if (
-          rowCount > BACKEND_CONSTANTS.MAX_ROWS ||
-          consecutiveEmpty > BACKEND_CONSTANTS.MAX_EMPTY_ROWS
-        )
-          break;
-
-        const name = getRowValue(row, mapping.name);
-        const amountRaw = getRowValue(row, mapping.amount);
-
-        if (!name && !amountRaw) {
-          consecutiveEmpty++;
-          continue;
-        }
-        consecutiveEmpty = 0;
-
-        if (!name) {
-          errors.push(`Row ${excelRow}: Missing name`);
-          continue;
-        }
-
-        const amount = parseFloat(String(amountRaw || '0').replace(/[^0-9.-]/g, ''));
-        if (isNaN(amount) || amount <= 0) {
-          errors.push(`Row ${excelRow}: Invalid amount`);
-          continue;
-        }
-
-        const phone = getRowValue(row, mapping.phone);
-        const email = getRowValue(row, mapping.email);
-        const description = getRowValue(row, mapping.description);
-        const debtorData = await this.resolveUser(phone || email || name, userCache);
-
-        newDebts.push({
-          id: randomUUIDv7('base64url'),
-          debtorId: debtorData?.id || null,
-          creditorId: currentUser.id,
-          debtorPhone: phone || debtorData?.phone || name || '',
-          creditorPhone: currentUser.phoneNumber || '',
-          amount,
-          description: description || `Imported: ${name}`,
-          status: 'pending',
-          uploadedById: currentUser.id,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        });
-      }
-
-      if (newDebts.length > 0) {
-        await this.importRepo.createDebtsBatch(newDebts as Parameters<typeof this.importRepo.createDebtsBatch>[0]);
-      }
-
-      await this.importRepo.updateLog(id, {
-        status: 'success',
-        totalRows: allRows.length,
-        importedCount: newDebts.length,
-        errorCount: errors.length,
-        errors: errors.length > 0 ? JSON.stringify(errors) : null,
-        completedAt: new Date()
-      });
-
-      if (isRedisAvailable()) {
-        await importCache.setProgress(id, {
-          current: totalRowsToProcess,
-          total: totalRowsToProcess,
-          status: 'success',
-          message: 'Import completed successfully',
-          result: {
-            imported: newDebts.length,
-            errors: errors.length > 0 ? errors : undefined
-          }
-        });
-      }
+      await this.persistImportRows(state.newDebts);
+      await this.finalizeImportSuccess(id, allRows.length, state);
 
       const endTime = performance.now();
       logger.info(
         `[Benchmark] Job ${id} processing took ${(endTime - startTime).toFixed(2)}ms for ${allRows.length} rows`
       );
 
-      return { success: true, logId: id, imported: newDebts.length, errors };
+      return { success: true, logId: id, imported: state.newDebts.length, errors: state.errors };
     } catch (err) {
-      logger.error('[ImportService] Error processing file:', { error: String(err) });
-      await this.importLoggerService.updateLogStatus(id, 'failed', [String(err)]);
-      if (previewLogId) {
-        await this.importRepo.updateLog(previewLogId, { status: 'failed' });
-      }
-      return { success: false, error: String(err) };
+      return this.handleImportError(id, previewLogId, err);
     }
+  }
+
+  private async initializeImportLog(
+    id: string,
+    file: File,
+    config: ImportConfig,
+    currentUser: CurrentUser,
+    previewLogId?: string
+  ): Promise<void> {
+    await this.importRepo.createLog({
+      id,
+      userId: currentUser.id,
+      fileName: file.name,
+      fileSize: file.size,
+      status: 'processing',
+      previewLogId: previewLogId || null,
+      config: JSON.stringify(config),
+      totalRows: null,
+      importedCount: null,
+      errorCount: null,
+      errors: null,
+      completedAt: null
+    });
+
+    if (previewLogId) {
+      await this.importRepo.updateLog(previewLogId, { status: 'processing' });
+    }
+  }
+
+  private createImportRowProcessingState(totalRows: number, startRow: number): ImportRowProcessingState {
+    const dataStartIndex = startRow - 1;
+    return {
+      errors: [],
+      newDebts: [],
+      userCache: new Map<string, { id: string; phone: string | null }>(),
+      dataStartIndex,
+      totalRowsToProcess: totalRows - dataStartIndex
+    };
+  }
+
+  private getRowValue(row: string[], col: string | undefined): string | undefined {
+    if (!col) return undefined;
+    const idx = this.spreadsheetService.colLetterToIndex(col.toUpperCase());
+    return idx >= 0 && idx < row.length && row[idx] ? row[idx] : undefined;
+  }
+
+  private async preloadUserCache(
+    allRows: string[][],
+    mapping: ImportConfig['mapping'],
+    state: ImportRowProcessingState
+  ): Promise<void> {
+    const uniqueIdentifiers = new Set<string>();
+
+    for (let i = state.dataStartIndex; i < allRows.length; i++) {
+      if (i - state.dataStartIndex > BACKEND_CONSTANTS.MAX_ROWS) break;
+      const row = allRows[i];
+      const name = this.getRowValue(row, mapping.name);
+      const phone = this.getRowValue(row, mapping.phone);
+      const email = this.getRowValue(row, mapping.email);
+      if (phone) uniqueIdentifiers.add(String(phone).trim());
+      if (email) uniqueIdentifiers.add(String(email).trim());
+      if (name && !phone && !email) uniqueIdentifiers.add(String(name).trim());
+    }
+
+    const identifiersArray = Array.from(uniqueIdentifiers).filter(Boolean);
+    if (identifiersArray.length === 0) {
+      return;
+    }
+
+    const chunkSize = BACKEND_CONSTANTS.CHUNK_SIZE;
+    for (let i = 0; i < identifiersArray.length; i += chunkSize) {
+      const chunk = identifiersArray.slice(i, i + chunkSize);
+      const foundUsers = await this.importRepo.findUsersByIdentifiers(chunk);
+      for (const u of foundUsers) {
+        if (u.email) state.userCache.set(u.email, { id: u.id, phone: u.phoneNumber });
+        if (u.phoneNumber) state.userCache.set(u.phoneNumber, { id: u.id, phone: u.phoneNumber });
+      }
+    }
+  }
+
+  private async setImportStartProgress(id: string, totalRowsToProcess: number): Promise<void> {
+    if (!isRedisAvailable()) {
+      return;
+    }
+
+    await importCache.setProgress(id, {
+      current: 0,
+      total: totalRowsToProcess,
+      status: 'processing',
+      message: 'Starting import...'
+    });
+  }
+
+  private async processRows(
+    allRows: string[][],
+    mapping: ImportConfig['mapping'],
+    state: ImportRowProcessingState,
+    currentUser: CurrentUser,
+    id: string
+  ): Promise<void> {
+    let consecutiveEmpty = 0;
+    let lastUpdate = Date.now();
+
+    for (let i = state.dataStartIndex; i < allRows.length; i++) {
+      const rowCount = i - state.dataStartIndex;
+      const excelRow = i + 1;
+      const row = allRows[i];
+
+      const now = Date.now();
+      if (now - lastUpdate > FRONTEND_CONSTANTS.TOAST_DURATION_MS && isRedisAvailable()) {
+        lastUpdate = now;
+        importCache
+          .setProgress(id, {
+            current: rowCount,
+            total: state.totalRowsToProcess,
+            status: 'processing',
+            message: `Processing row ${rowCount} / ${state.totalRowsToProcess}...`,
+            errors: state.errors.length > 0 ? state.errors.slice(-5) : undefined
+          })
+          .catch((err) => logger.error('[Import] Redis update failed', { error: String(err) }));
+      }
+
+      if (
+        rowCount > BACKEND_CONSTANTS.MAX_ROWS ||
+        consecutiveEmpty > BACKEND_CONSTANTS.MAX_EMPTY_ROWS
+      ) {
+        break;
+      }
+
+      const name = this.getRowValue(row, mapping.name);
+      const amountRaw = this.getRowValue(row, mapping.amount);
+
+      if (!name && !amountRaw) {
+        consecutiveEmpty++;
+        continue;
+      }
+      consecutiveEmpty = 0;
+
+      if (!name) {
+        state.errors.push(`Row ${excelRow}: Missing name`);
+        continue;
+      }
+
+      const amount = parseFloat(String(amountRaw || '0').replace(/[^0-9.-]/g, ''));
+      if (isNaN(amount) || amount <= 0) {
+        state.errors.push(`Row ${excelRow}: Invalid amount`);
+        continue;
+      }
+
+      const phone = this.getRowValue(row, mapping.phone);
+      const email = this.getRowValue(row, mapping.email);
+      const description = this.getRowValue(row, mapping.description);
+      const debtorData = await this.resolveUser(phone || email || name, state.userCache);
+
+      state.newDebts.push({
+        id: randomUUIDv7('base64url'),
+        debtorId: debtorData?.id || null,
+        creditorId: currentUser.id,
+        debtorPhone: phone || debtorData?.phone || name || '',
+        creditorPhone: currentUser.phoneNumber || '',
+        amount,
+        description: description || `Imported: ${name}`,
+        status: 'pending',
+        uploadedById: currentUser.id,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
+  }
+
+  private async persistImportRows(newDebts: ImportRow[]): Promise<void> {
+    if (newDebts.length === 0) {
+      return;
+    }
+
+    await this.importRepo.createDebtsBatch(
+      newDebts as Parameters<typeof this.importRepo.createDebtsBatch>[0]
+    );
+  }
+
+  private async finalizeImportSuccess(
+    id: string,
+    totalRows: number,
+    state: ImportRowProcessingState
+  ): Promise<void> {
+    await this.importRepo.updateLog(id, {
+      status: 'success',
+      totalRows,
+      importedCount: state.newDebts.length,
+      errorCount: state.errors.length,
+      errors: state.errors.length > 0 ? JSON.stringify(state.errors) : null,
+      completedAt: new Date()
+    });
+
+    if (!isRedisAvailable()) {
+      return;
+    }
+
+    await importCache.setProgress(id, {
+      current: state.totalRowsToProcess,
+      total: state.totalRowsToProcess,
+      status: 'success',
+      message: 'Import completed successfully',
+      result: {
+        imported: state.newDebts.length,
+        errors: state.errors.length > 0 ? state.errors : undefined
+      }
+    });
+  }
+
+  private async handleImportError(
+    id: string,
+    previewLogId: string | undefined,
+    err: unknown
+  ): Promise<ImportResult> {
+    logger.error('[ImportService] Error processing file:', { error: String(err) });
+    await this.importLoggerService.updateLogStatus(id, 'failed', [String(err)]);
+    if (previewLogId) {
+      await this.importRepo.updateLog(previewLogId, { status: 'failed' });
+    }
+
+    return { success: false, error: String(err) };
   }
 
   /**
@@ -359,14 +460,20 @@ export class ImportService {
 
     // 1. Try Redis first (fastest)
     if (isRedisAvailable()) {
-      for (const id of logIds) {
-        const progress = await importCache.getProgress(id);
+      const progresses = await importCache.getProgressBatch(logIds);
+      for (let i = 0; i < logIds.length; i++) {
+        const id = logIds[i];
+        const progress = progresses[i];
         if (progress) {
           results[id] = {
             success: true,
-            ...progress,
-            percentage: Math.round((progress.current / progress.total) * 100),
-            result: progress.result as PreviewResult | ImportResult | undefined
+            status: progress.status as any,
+            current: progress.current,
+            total: progress.total,
+            percentage: Math.round((progress.current / (progress.total || 1)) * 100),
+            message: progress.message,
+            errors: progress.errors,
+            result: progress.result as any
           };
         }
       }
@@ -381,9 +488,10 @@ export class ImportService {
           success: true,
           current: log.importedCount || 0,
           total: log.totalRows || 0,
-          status: log.status,
+          status: log.status as any,
           errors: log.errors ? JSON.parse(log.errors) : undefined,
-          percentage: log.totalRows ? Math.round(((log.importedCount || 0) / log.totalRows) * 100) : 0
+          percentage: log.totalRows ? Math.round(((log.importedCount || 0) / log.totalRows) * 100) : 0,
+          message: ''
         };
       }
     }
@@ -400,9 +508,13 @@ export class ImportService {
       if (progress) {
         return {
           success: true,
-          ...progress,
-          percentage: Math.round((progress.current / progress.total) * 100),
-          result: progress.result as PreviewResult | ImportResult | undefined
+          status: progress.status as any,
+          current: progress.current,
+          total: progress.total,
+          percentage: Math.round((progress.current / (progress.total || 1)) * 100),
+          message: progress.message,
+          errors: progress.errors,
+          result: progress.result as any
         };
       }
     }
@@ -410,16 +522,17 @@ export class ImportService {
     const log = await this.importRepo.getLogById(logId, userId);
 
     if (!log) {
-      return { success: false, error: 'Import log not found' };
+      return { success: false, error: 'Import log not found', status: 'failed', current: 0, total: 0, percentage: 0 };
     }
 
     return {
       success: true,
       current: log.importedCount || 0,
       total: log.totalRows || 0,
-      status: log.status,
+      status: log.status as any,
       errors: log.errors ? JSON.parse(log.errors) : undefined,
-      percentage: log.totalRows ? Math.round(((log.importedCount || 0) / log.totalRows) * 100) : 0
+      percentage: log.totalRows ? Math.round(((log.importedCount || 0) / log.totalRows) * 100) : 0,
+      message: ''
     };
   }
 
@@ -433,11 +546,12 @@ export class ImportService {
 
     return {
       success: true,
-      logs: logs,
-      total: total,
-      page,
-      limit,
-      totalPages: Math.max(1, Math.ceil(total / limit))
+      data: logs,
+      pagination: {
+        page,
+        limit,
+        total
+      }
     };
   }
 

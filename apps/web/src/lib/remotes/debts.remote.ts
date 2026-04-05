@@ -159,7 +159,7 @@ export const approveProof = form(
 		const { locals } = getRequestEvent();
 		if (!locals.user) error(401, { code: 'UNAUTHORIZED', message: 'Unauthorized' });
 
-		const { data, error: apiError } = await locals.api.v1.proofs({ proofId }).review.patch({ action: 'approved' });
+		const { data, error: apiError } = await locals.api.v1.upload.proof({ id: proofId }).approve.post();
 
 		if (apiError) {
 			const errVal = apiError.value as Record<string, unknown>;
@@ -185,9 +185,7 @@ export const rejectProof = form(
 		const { locals } = getRequestEvent();
 		if (!locals.user) error(401, { code: 'UNAUTHORIZED', message: 'Unauthorized' });
 
-		const ObjectParams: { action: 'rejected', reason?: string } = { action: 'rejected' };
-		if (reason) ObjectParams.reason = reason;
-		const { error: apiError } = await locals.api.v1.proofs({ proofId }).review.patch(ObjectParams);
+		const { error: apiError } = await locals.api.v1.upload.proof({ id: proofId }).reject.post({ reason });
 
 		if (apiError) {
 			const errVal = apiError.value as Record<string, unknown>;
@@ -261,7 +259,7 @@ export const uploadProof = form(
 		const debtId = params.id;
 		if (!debtId) error(400, { code: 'BAD_REQUEST', message: 'Debt ID not found in URL' });
 
-		const { error: apiError } = await locals.api.v1.proofs.debt({ debtId }).post({ file: proof as File });
+		const { error: apiError } = await locals.api.v1.upload['payment-proof']({ debtId }).post({ file: proof as File });
 
 		if (apiError) {
 			const errVal = apiError.value as Record<string, unknown>;

@@ -7,7 +7,7 @@
 import type { Debt } from '@repo/db';
 import type { DebtStatus } from '@/types';
 import { DEBT_STATUS } from '@repo/config';
-import type { IDebtState, TransitionContext } from '@/types/debt.d';
+import type { IDebtState, TransitionContext } from './types';
 import { log } from '@repo/logger';
 
 export class DisputedState implements IDebtState {
@@ -39,26 +39,37 @@ export class DisputedState implements IDebtState {
     // Send notification to the counterparty about dispute
     const notifyUserId = context.userId === debt.creditorId ? debt.debtorId : debt.creditorId;
     if (notifyUserId) {
-      import('../services').then(({ PushService, UserService }) => {
-        UserService.getUserById(context.userId).then((disputer) => {
-          UserService.getUserById(notifyUserId).then((target) => {
-            if (disputer.user && target.user?.pushNotificationsEnabled) {
-              const amount = new Intl.NumberFormat('vi-VN', {
-                style: 'currency',
-                currency: 'VND',
-                maximumFractionDigits: 0
-              }).format(debt.amount);
-
-              PushService.sendToUser(notifyUserId, {
-                title: 'Debt Disputed',
-                body: `${disputer.user.name} has disputed the debt of ${amount} for "${debt.description}". Reason: ${context.reason || 'No reason provided'}`,
-                url: `/debts/${debt.id}`,
-                tag: `debt-disputed-${debt.id}`
-              }).catch(() => {});
-            }
-          });
+      this.notifyCounterparty(debt, context.userId, notifyUserId).catch((error) => {
+        log.error('DEBT_NOTIFICATION_FAILED', String(error), {
+          debtId: debt.id,
+          notifyUserId
         });
       });
+    }
+  }
+
+  private async notifyCounterparty(debt: Debt, disputerId: string, notifyUserId: string): Promise<void> {
+    try {
+      const { services } = await import('../plugins/di/services.plugin');
+      const disputer = await services.userService.getUserById(disputerId);
+      const target = await services.userService.getUserById(notifyUserId);
+
+      if (disputer.user && target.user?.pushNotificationsEnabled) {
+        const amount = new Intl.NumberFormat('vi-VN', {
+          style: 'currency',
+          currency: 'VND',
+          maximumFractionDigits: 0
+        }).format(debt.amount);
+
+        await services.pushService.sendToUser(notifyUserId, {
+          title: 'Debt Disputed',
+          body: `${disputer.user.name} has disputed the debt of ${amount} for "${debt.description}".`,
+          url: `/debts/${debt.id}`,
+          tag: `debt-disputed-${debt.id}`
+        });
+      }
+    } catch (error) {
+      throw new Error(`Failed to notify user ${notifyUserId}: ${String(error)}`);
     }
   }
 

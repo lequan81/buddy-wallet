@@ -7,9 +7,10 @@
 import { Elysia, t } from 'elysia';
 import { strictRateLimiter } from '@plugins/middleware';
 import { normalizePhoneNumber, maskPhone } from '@utils/phone';
-import { servicesPlugin } from '@plugins/services.plugin';
+import { servicesPlugin } from '@plugins';
 import { configs } from '@/configs';
 import { errorResponse, GEN_ERRORS, successResponse } from '@repo/errors';
+import * as crypto from 'crypto';
 
 export const PublicController = new Elysia({ prefix: '/public' })
   .use(servicesPlugin)
@@ -21,21 +22,56 @@ export const PublicController = new Elysia({ prefix: '/public' })
     async ({ query, request, set, debtService }) => {
       const { phoneNumber, includeCount } = query;
 
-      // Validate and normalize phone number
       const normalizedPhone = normalizePhoneNumber(phoneNumber);
       if (!normalizedPhone) {
         set.status = 400;
         return errorResponse(GEN_ERRORS.INVALID_INPUT, 'Invalid phone number format');
       }
 
+      // Mitigate Phone Enumeration: Option A (Captcha/Signed Token)
+      if (configs.SECURITY.TURNSTILE_SECRET) {
+        const captchaToken = request.headers.get('x-captcha-token');
+        if (!captchaToken) {
+          set.status = 403;
+          return errorResponse(GEN_ERRORS.FORBIDDEN, 'Captcha token required to prevent enumeration');
+        }
+        
+        try {
+          const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              secret: configs.SECURITY.TURNSTILE_SECRET,
+              response: captchaToken,
+              remoteip: request.headers.get('cf-connecting-ip') || undefined
+            })
+          });
+          const outcome = await res.json() as { success: boolean };
+          if (!outcome.success) {
+            set.status = 403;
+            return errorResponse(GEN_ERRORS.FORBIDDEN, 'Invalid captcha token');
+          }
+        } catch {
+          set.status = 503;
+          return errorResponse(GEN_ERRORS.UNKNOWN, 'Captcha verification service unavailable');
+        }
+      }
+
       // Use debtService for the lookup
       const count = await debtService.countActiveDebtsForPhone(normalizedPhone);
       const shouldIncludeCount = includeCount === 'true';
       const countToken = request.headers.get('x-debt-check-token') || '';
-      const canShowCount =
-        shouldIncludeCount &&
-        !!configs.SECURITY.DEBT_CHECK_COUNT_TOKEN &&
-        countToken === configs.SECURITY.DEBT_CHECK_COUNT_TOKEN;
+      
+      let canShowCount = false;
+      if (shouldIncludeCount && configs.SECURITY.DEBT_CHECK_COUNT_TOKEN) {
+        // Prevent timing attacks with constant-time comparison
+        if (countToken.length === configs.SECURITY.DEBT_CHECK_COUNT_TOKEN.length) {
+          canShowCount = crypto.timingSafeEqual(
+            Buffer.from(countToken),
+            Buffer.from(configs.SECURITY.DEBT_CHECK_COUNT_TOKEN)
+          );
+        }
+      }
 
       return successResponse({
         phone: maskPhone(normalizedPhone),

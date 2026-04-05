@@ -1,6 +1,6 @@
 import { importCache, isRedisAvailable } from '@plugins/redis';
 import type { ImportProgress } from '@plugins/redis';
-import type { IImportExportRepository } from '@repo/types';
+import type { IImportExportRepository } from '@/types/repositories';
 
 export class ImportLoggerService {
   constructor(private readonly importRepo: IImportExportRepository) {}

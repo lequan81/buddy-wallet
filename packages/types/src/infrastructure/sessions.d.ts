@@ -9,6 +9,8 @@ export interface ClientHints {
 }
 
 export interface Coordinates {
+  lat: number;
+  lon: number;
   latitude: number;
   longitude: number;
 }

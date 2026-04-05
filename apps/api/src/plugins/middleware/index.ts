@@ -19,3 +19,4 @@ export {
 } from './rate-limit.middleware';
 export { requestLoggerPlugin } from './request-logger.middleware';
 export { securityHeadersPlugin } from './security-headers.middleware';
+export { paginationMiddleware, validatePaginationParams } from './pagination.middleware';

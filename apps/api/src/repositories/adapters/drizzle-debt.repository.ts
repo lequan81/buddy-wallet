@@ -28,13 +28,13 @@ import type {
   DebtFilterOptions,
   CreateDebtData,
   UpdateDebtData
-} from '../debt.repository.interface';
+} from '@/types/repositories';
 
 /**
  * Drizzle implementation of DebtRepository
  */
 export class DrizzleDebtRepository implements IDebtRepository {
-  constructor(private db: DbClient) {}
+  constructor(private db: DbClient) { }
 
   private buildWhere(options: Omit<DebtFilterOptions, 'limit' | 'offset'>) {
     const { status, involvedUserId, includeDeleted } = options;
@@ -102,23 +102,40 @@ export class DrizzleDebtRepository implements IDebtRepository {
   }
 
   async findMany(options: DebtFilterOptions): Promise<PaginatedResult<DebtEntity>> {
-    const { limit = configs.PAGINATION.DEFAULT_LIMIT, offset = 0 } = options;
+    const limit = Math.min(
+      Math.max(options.limit ?? configs.PAGINATION.DEFAULT_LIMIT, 1),
+      configs.PAGINATION.MAX_LIMIT
+    );
+    const offset = Math.min(
+      Math.max(options.offset ?? 0, 0),
+      configs.PAGINATION.MAX_OFFSET ?? 50000
+    );
     const where = this.buildWhere(options);
 
-    // Get count
-    const countResult = where
-      ? await this.db.select({ count: count() }).from(debts).where(where).get()
-      : await this.db.select({ count: count() }).from(debts).get();
-    const total = countResult?.count ?? 0;
+    // Parallelize count and data queries
+    const countQuery = where
+      ? this.db.select({ count: count() }).from(debts).where(where).get()
+      : this.db.select({ count: count() }).from(debts).get();
 
-    // Get data
-    let query = this.db.select().from(debts);
-    if (where) query = query.where(where) as typeof query;
-    const data = await query
+    let dataQuery = this.db.select().from(debts);
+    if (where) dataQuery = dataQuery.where(where) as typeof dataQuery;
+    const fetchQuery = dataQuery
       .orderBy(desc(debts.createdAt), desc(debts.id))
       .limit(limit)
       .offset(offset)
       .all();
+
+    const [countRes, dataRes] = await Promise.allSettled([countQuery, fetchQuery]);
+
+    if (countRes.status === 'rejected') {
+      throw new Error(`Database count query failed: ${String(countRes.reason)}`);
+    }
+    if (dataRes.status === 'rejected') {
+      throw new Error(`Database fetch query failed: ${String(dataRes.reason)}`);
+    }
+
+    const total = countRes.value?.count ?? 0;
+    const data = dataRes.value;
 
     return {
       success: true,
@@ -126,8 +143,7 @@ export class DrizzleDebtRepository implements IDebtRepository {
       pagination: {
         page: Math.floor(offset / limit) + 1,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit)
+        total
       }
     };
   }

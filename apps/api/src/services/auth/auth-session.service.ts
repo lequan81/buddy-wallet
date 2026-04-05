@@ -8,7 +8,7 @@
  * Dependencies: db
  */
 import { configs } from '../../configs';
-import type { IUserRepository, ISessionRepository } from '@repo/types';
+import type { IUserRepository, ISessionRepository } from '@/types/repositories';
 import {
   hashToken,
   validatePasswordComplexity,

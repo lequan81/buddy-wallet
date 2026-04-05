@@ -27,6 +27,10 @@ export const importCache = {
     return cache.get<ImportProgress>(`import:${logId}`);
   },
 
+  async getProgressBatch(logIds: string[]) {
+    return cache.mget<ImportProgress>(logIds.map(id => `import:${id}`));
+  },
+
   async del(logId: string) {
     return cache.del(`import:${logId}`);
   }

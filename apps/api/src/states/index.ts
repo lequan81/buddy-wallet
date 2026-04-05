@@ -31,4 +31,4 @@ export type {
   IDebtStateMachine,
   TransitionContext,
   TransitionResult
-} from '@/types/debt.d';
+} from './types';

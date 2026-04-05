@@ -1,5 +1,5 @@
 import { eq, and, desc, fileMetadata, type FileMetadata, type FileStatus } from '@repo/db';
-import type { IFileRepository } from '@repo/types';
+import type { IFileRepository } from '@/types/repositories';
 import type { DbClient } from '@/types';
 
 export class DrizzleFileRepository implements IFileRepository {

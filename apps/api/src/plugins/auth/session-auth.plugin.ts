@@ -40,9 +40,11 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
       return { user: null, sessionId: null };
     }
 
+    // SECURITY: Hash token once per request
+    const tokenHash = await hashToken(token);
+
     // 2. Check JWT blacklist first (fast rejection of revoked tokens)
     if (isRedisAvailable()) {
-      const tokenHash = await hashToken(token); // SECURITY: Hash token for blacklist lookup
       const isBlacklisted = await jwtBlacklist.isBlacklisted(tokenHash);
       if (isBlacklisted) {
         logger.jwt(`Token blacklisted`, { source: tokenSource });
@@ -68,7 +70,7 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
       });
       logSecurityEvent({
         type: 'jwt_tampered',
-        userId: payload.id,
+        userId: payload.id as string,
         details: { reason: 'Invalid issuer or audience', iss: payload.iss, aud: payload.aud }
       });
       return { user: null, sessionId: null };
@@ -78,7 +80,6 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
 
     // 3.5. Check Redis cache first (avoids DB query)
     if (isRedisAvailable()) {
-      const tokenHash = await hashToken(token); // Use hash for cache key
       const cached = await sessionCache.get(tokenHash);
 
       if (cached && cached.userId && cached.sessionId) {
@@ -99,14 +100,12 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
     }
 
     // 3. Validate session is active (not revoked/logged out)
-    const tokenHash = await hashToken(token); // SECURITY: Hash token for database lookup
-
     const session = db
       .select()
       .from(sessions)
       .where(
         and(
-          eq(sessions.userId, payload.id),
+          eq(sessions.userId, payload.id as string),
           eq(sessions.accessTokenHash, tokenHash), // Lookup by hash, not plaintext
           eq(sessions.status, 'active')
         )
@@ -119,7 +118,7 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
     }
 
     // 4. Get user and check account status
-    const user = db.select().from(users).where(eq(users.id, payload.id)).get();
+    const user = db.select().from(users).where(eq(users.id, payload.id as string)).get();
 
     if (!user) {
       logger.auth(`User not found`, { userId: payload.id });
@@ -127,8 +126,6 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
     }
 
     // SECURITY: Validate sessionVersion for instant token invalidation
-    // When user changes password or admin revokes sessions, sessionVersion increments
-    // Old tokens with stale sessionVersion are immediately rejected
     if (payload.sessionVersion !== (user.sessionVersion || 1)) {
       logger.security(`Stale sessionVersion - token invalidated`, {
         userId: user.id,
@@ -138,11 +135,10 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
       });
 
       // Security: Log session hijacking attempt
-      logSessionHijack(user.id, payload.sessionVersion, user.sessionVersion || 1);
+      logSessionHijack(user.id, payload.sessionVersion as number, user.sessionVersion || 1);
 
       // Invalidate cache for this token
       if (isRedisAvailable()) {
-        const tokenHash = await hashToken(token);
         await sessionCache.del(tokenHash);
       }
 
@@ -153,26 +149,35 @@ export const sessionAuthPlugin = new Elysia({ name: 'Session_Auth' })
       logger.auth(`Account deactivated`, { userId: user.id, email: user.email });
       // Invalidate cache if user is deactivated
       if (isRedisAvailable()) {
-        const tokenHash = await hashToken(token);
         await sessionCache.del(tokenHash);
       }
       return { user: null, sessionId: session.id };
     }
 
-    // 5. Update last active timestamp (fire and forget)
-    db.update(sessions).set({ lastActiveAt: new Date() }).where(eq(sessions.id, session.id)).run();
+    // 5. Update last active timestamp (Throttled to once every 5 minutes)
+    const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
+    if (!session.lastActiveAt || session.lastActiveAt < fiveMinsAgo) {
+      // Use the actual session ID from the authenticated session
+      const sid = session.id;
+      
+      // Background non-blocking update
+      Promise.resolve().then(() => {
+        try {
+          db.update(sessions).set({ lastActiveAt: new Date() }).where(eq(sessions.id, sid)).run();
+        } catch (error) {
+          logger.error(`Failed to update lastActiveAt for session ${sid}`, { error: String(error) });
+        }
+      });
+    }
 
     // 6. Cache session data in Redis (reduces future DB queries)
-    // SECURITY: Only cache non-sensitive data. PII (email, phoneNumber) comes from JWT
     if (isRedisAvailable()) {
-      const tokenHash = await hashToken(token);
       await sessionCache.set(tokenHash, {
         userId: user.id,
         sessionId: session.id,
         role: user.role,
         isActive: user.isActive,
         permissions: user.permissions
-        // email and phoneNumber NOT cached - comes from JWT payload
       });
     }
 

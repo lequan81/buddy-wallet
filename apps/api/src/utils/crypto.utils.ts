@@ -1,6 +1,7 @@
 /**
  * Cryptographic utilities for secure token handling
  */
+import { createHash } from 'node:crypto';
 import { containsWeakPattern, SECRET_VALIDATION, type SecretValidationResult } from '@repo/config';
 
 /**
@@ -78,4 +79,12 @@ export function validateJWTSecret(secret: string): SecretValidationResult {
       : 'acceptable';
 
   return { isValid, issues, score };
+}
+
+/**
+ * Redact an identifier (email/phone) for safe logging.
+ * Returns first 12 chars of SHA-256 hash.
+ */
+export function redactIdentifier(value: string): string {
+  return createHash('sha256').update(value.trim().toLowerCase()).digest('hex').slice(0, 12);
 }

@@ -1,6 +1,7 @@
 import { activityLogs, eq, desc, and, gte, lte, count, type ActivityLog, type ActivityResource } from '@repo/db';
 import type { DbClient } from '@/types';
-import type { IActivityRepository, PaginatedResult } from '@repo/types';
+import type { PaginatedResult } from '@repo/types';
+import type { IActivityRepository } from '@/types/repositories';
 import type { ActivityFilters } from '@/types';
 import { randomUUIDv7 } from 'bun';
 
@@ -20,20 +21,31 @@ export class DrizzleActivityRepository implements IActivityRepository {
     const { limit = 50, offset = 0 } = filters;
     const conditions = this.buildConditions(filters);
 
-    const countQuery = await (conditions.length > 0
+    const countPromise = conditions.length > 0
       ? this.db.select({ count: count() }).from(activityLogs).where(and(...conditions)).get()
-      : this.db.select({ count: count() }).from(activityLogs).get());
-    const total = countQuery?.count ?? 0;
+      : this.db.select({ count: count() }).from(activityLogs).get();
 
     const logsQuery = conditions.length > 0
       ? this.db.select().from(activityLogs).where(and(...conditions))
       : this.db.select().from(activityLogs);
 
-    const logs = await logsQuery
+    const logsPromise = logsQuery
       .orderBy(desc(activityLogs.createdAt), desc(activityLogs.id))
       .limit(limit)
       .offset(offset)
-      .all() as ActivityLog[];
+      .all();
+
+    const [countRes, logsRes] = await Promise.allSettled([countPromise, logsPromise]);
+
+    if (countRes.status === 'rejected') {
+      throw new Error(`Database count query failed: ${String(countRes.reason)}`);
+    }
+    if (logsRes.status === 'rejected') {
+      throw new Error(`Database logs query failed: ${String(logsRes.reason)}`);
+    }
+
+    const total = countRes.value?.count ?? 0;
+    const logs = logsRes.value as ActivityLog[];
 
     return {
       success: true,
@@ -41,14 +53,13 @@ export class DrizzleActivityRepository implements IActivityRepository {
       pagination: {
         page: Math.floor(offset / limit) + 1,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit)
+        total
       }
     };
   }
 
   async findManyByUserId(userId: string, filters: ActivityFilters & { limit?: number; offset?: number }): Promise<PaginatedResult<ActivityLog>> {
-    return this.findMany({ ...filters, userId } as any);
+    return this.findMany({ ...filters, userId });
   }
 
   async findByResourceId(resource: ActivityResource, resourceId: string): Promise<ActivityLog[]> {

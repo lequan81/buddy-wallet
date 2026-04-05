@@ -21,7 +21,7 @@ export * from './middleware';
 export * from './redis';
 
 // Access control (combined plugin)
-export { accessControlPlugin } from './access-control.plugin';
+export { accessControlPlugin } from './guards/access-control.plugin';
 
 // Services DI plugin
-export { servicesPlugin, services } from './services.plugin';
+export { servicesPlugin, services } from './di/services.plugin';

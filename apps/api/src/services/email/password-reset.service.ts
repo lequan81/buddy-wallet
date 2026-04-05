@@ -7,12 +7,13 @@
  * 3. Send via email
  * 4. Force password change on login
  */
-import { normalizePhoneNumber } from '@utils';
+import { normalizePhoneNumber, redactIdentifier } from '@utils';
 import { configs } from '@/configs';
 import { log } from '@repo/logger';
-import type { IUserRepository } from '@repo/types';
+import type { IUserRepository } from '@/types/repositories';
 import type { ResetResult } from '@/types';
 import { EmailService } from './email.service';
+import { escapeHtml } from '@utils/html.utils';
 
 import * as crypto from 'node:crypto';
 
@@ -25,13 +26,7 @@ function generateResetToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
-function redactIdentifier(value: string): string {
-  return crypto
-    .createHash('sha256')
-    .update(value.trim().toLowerCase())
-    .digest('hex')
-    .slice(0, 12);
-}
+// Remove local redactIdentifier
 
 export class PasswordResetService {
   constructor(
@@ -151,22 +146,30 @@ export class PasswordResetService {
       return { success: false, error: 'Invalid reset link' };
     }
 
-    // Update password and clear temp fields
+    // Update password and clear temp fields atomically (TOCTOU prevention)
     const hashedPassword = await Bun.password.hash(newPassword, configs.AUTH.ARGON2_OPTIONS);
 
-    await this.userRepo.update(user.id, {
-      password: hashedPassword,
-      temporaryPassword: null,
-      temporaryPasswordExpires: null,
-      temporaryPasswordUsed: false,
-      mustChangePassword: false,
-      lastPasswordChangeAt: new Date(),
-      sessionVersion: (user.sessionVersion || 1) + 1, // Optional jump
-      // Clear automatic lockouts to restore account access
-      isLocked: false,
-      lockoutUntil: null,
-      failedLoginAttempts: 0
-    });
+    const success = await this.userRepo.consumePasswordResetToken!(
+      user.id,
+      user.temporaryPassword,
+      {
+        password: hashedPassword,
+        temporaryPassword: null,
+        temporaryPasswordExpires: null,
+        temporaryPasswordUsed: false,
+        mustChangePassword: false,
+        lastPasswordChangeAt: new Date(),
+        sessionVersion: (user.sessionVersion || 1) + 1,
+        isLocked: false,
+        lockoutUntil: null,
+        failedLoginAttempts: 0
+      }
+    );
+
+    if (!success) {
+      log.warn('PASSWORD_RESET', 'Concurrent reset attempt detected', { userId: user.id });
+      return { success: false, error: 'Reset link has already been used or expired' };
+    }
 
     log.info('PASSWORD_RESET', 'Password reset completed via token', { userId: user.id });
     return { success: true };
@@ -208,7 +211,7 @@ export class PasswordResetService {
       <h1 style="color: white; margin: 0; font-size: 24px;">BuddyWallet</h1>
     </div>
     <div style="padding: 32px;">
-      <p style="color: #374151; font-size: 16px; margin: 0 0 16px;">Hi <strong>${name}</strong>,</p>
+      <p style="color: #374151; font-size: 16px; margin: 0 0 16px;">Hi <strong>${escapeHtml(name)}</strong>,</p>
       <p style="color: #6b7280; font-size: 14px; margin: 0 0 24px;">
         You recently requested to reset your password. Click the button below to set a new password securely:
       </p>

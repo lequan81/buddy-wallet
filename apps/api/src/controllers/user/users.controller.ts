@@ -79,10 +79,7 @@ export const UsersController = new Elysia({ prefix: '/users' })
     async ({ query, userService }) => {
       const { limit, offset } = parseOffsetPagination(query);
       const result = await userService.getAllUsers({ limit, offset });
-      return successResponse({
-        users: result.data,
-        pagination: result.pagination
-      });
+      return successResponse(result);
     },
     {
       checkPermission: PERMISSIONS.ADMIN_MANAGE_USERS,

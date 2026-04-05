@@ -8,13 +8,13 @@
  * - Domain-specific cache helpers
  */
 import { Elysia } from 'elysia';
-import { initRedis, closeRedis, isRedisAvailable, getClient } from './connection';
+import { initRedis, closeRedis, getClient } from './connection';
 import { cache } from './cache';
-import { sessionCache, userCache, permissionCache, importCache, jwtBlacklist } from './caches';
+import { sessionCache } from './caches';
 
 // Re-export everything for consumers
 export { isRedisAvailable, getClient } from './connection';
-export { cache } from './cache';
+export { cache, rawCache } from './cache';
 export { circuitBreaker } from './circuit-breaker';
 export { sessionCache, userCache, permissionCache, importCache, jwtBlacklist } from './caches';
 export type { ImportProgress } from './caches';

@@ -1,11 +1,13 @@
-import type { DebtStatus } from '@repo/config';
-import type { Debt } from '../core/debt';
-import type { PaginatedResult } from '../api/pagination';
+import type { Debt, NewDebt } from '@repo/db';
+import type { DebtStatus, PaginationOptions, PaginatedResult } from '@repo/types';
 
-export interface DebtFilterOptions {
-  page?: number;
-  limit?: number;
-  offset?: number;
+export type DebtEntity = Debt;
+export type CreateDebtData = NewDebt;
+export interface UpdateDebtData extends Partial<Omit<DebtEntity, 'id' | 'createdAt'>> {
+  updatedAt: Date;
+}
+
+export interface DebtFilterOptions extends PaginationOptions {
   status?: DebtStatus | 'all';
   debtorId?: string;
   creditorId?: string;
@@ -15,11 +17,12 @@ export interface DebtFilterOptions {
 }
 
 export interface IDebtRepository {
-  findById(id: string, includeDeleted?: boolean): Promise<Debt | null>;
-  findMany(options: DebtFilterOptions): Promise<PaginatedResult<Debt>>;
+  findById(id: string, includeDeleted?: boolean): Promise<DebtEntity | null>;
+  findByIds(ids: string[], includeDeleted?: boolean): Promise<DebtEntity[]>;
+  findMany(options: DebtFilterOptions): Promise<PaginatedResult<DebtEntity>>;
   count(options: Omit<DebtFilterOptions, 'limit' | 'offset'>): Promise<number>;
-  create(data: Omit<Debt, 'id' | 'createdAt' | 'updatedAt'>): Promise<Debt>;
-  update(id: string, data: Partial<Debt>): Promise<Debt | null>;
+  create(data: CreateDebtData): Promise<DebtEntity>;
+  update(id: string, data: UpdateDebtData): Promise<DebtEntity | null>;
   softDelete(id: string, deletedAt: Date): Promise<boolean>;
   findPotentialDuplicates(
     debtorPhone: string,

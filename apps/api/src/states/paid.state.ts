@@ -7,7 +7,7 @@
 import type { Debt } from '@repo/db';
 import type { DebtStatus } from '@/types';
 import { DEBT_STATUS } from '@repo/config';
-import type { IDebtState, TransitionContext } from '@/types/debt.d';
+import type { IDebtState, TransitionContext } from './types';
 import { log } from '@repo/logger';
 
 export class PaidState implements IDebtState {
@@ -30,27 +30,39 @@ export class PaidState implements IDebtState {
       previousStatus: context.previousStatus
     });
 
-    // Send notification to the counterparty
+    // Send notification to the counterparty (fire-and-forget with error logging)
     const notifyUserId = context.userId === debt.creditorId ? debt.debtorId : debt.creditorId;
     if (notifyUserId) {
-      import('../services').then(({ PushService, UserService }) => {
-        UserService.getUserById(notifyUserId).then((result) => {
-          if (result.user?.pushNotificationsEnabled) {
-            const amount = new Intl.NumberFormat('vi-VN', {
-              style: 'currency',
-              currency: 'VND',
-              maximumFractionDigits: 0
-            }).format(debt.amount);
-
-            PushService.sendToUser(notifyUserId, {
-              title: 'Debt Paid',
-              body: `A debt of ${amount} for "${debt.description}" has been marked as paid.`,
-              url: `/debts/${debt.id}`,
-              tag: `debt-paid-${debt.id}`
-            }).catch(() => {});
-          }
+      this.notifyCounterparty(debt, notifyUserId).catch((error) => {
+        log.error('DEBT_NOTIFICATION_FAILED', String(error), {
+          debtId: debt.id,
+          notifyUserId
         });
       });
+    }
+  }
+
+  private async notifyCounterparty(debt: Debt, userId: string): Promise<void> {
+    try {
+      const { services } = await import('../plugins/di/services.plugin');
+      const result = await services.userService.getUserById(userId);
+
+      if (result.user?.pushNotificationsEnabled) {
+        const amount = new Intl.NumberFormat('vi-VN', {
+          style: 'currency',
+          currency: 'VND',
+          maximumFractionDigits: 0
+        }).format(debt.amount);
+
+        await services.pushService.sendToUser(userId, {
+          title: 'Debt Paid',
+          body: `A debt of ${amount} for "${debt.description}" has been marked as paid.`,
+          url: `/debts/${debt.id}`,
+          tag: `debt-paid-${debt.id}`
+        });
+      }
+    } catch (error) {
+      throw new Error(`Failed to notify user ${userId}: ${String(error)}`);
     }
   }
 

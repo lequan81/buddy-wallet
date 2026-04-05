@@ -61,7 +61,16 @@ export function isTrustedProxy(ip: string | null): boolean {
  * Handles various proxy headers with security validation
  */
 export function getClientIP(request: Request, server?: Server<unknown> | null): string | null {
-  // Check common proxy headers (in order of preference)
+  const socketIP = server?.requestIP?.(request)?.address || null;
+  const isDirectConnection = socketIP && !isTrustedProxy(socketIP);
+
+  // If the connection is direct (not from a trusted proxy like Cloudflare/Nginx),
+  // we must ignore all headers to prevent spoofing and just return the socket IP.
+  if (isDirectConnection) {
+    return socketIP;
+  }
+
+  // Check common proxy headers (in order of preference) since we trust the proxy
   const headers = [
     'cf-connecting-ip', // Cloudflare
     'x-real-ip', // Nginx
@@ -70,35 +79,23 @@ export function getClientIP(request: Request, server?: Server<unknown> | null): 
     'true-client-ip' // Akamai
   ];
 
-  // For security, only trust X-Forwarded-For if it comes from a trusted proxy
-  // This logic is simplified for now but provides a foundation
-  const realIP = request.headers.get('x-real-ip');
-
   for (const header of headers) {
     const value = request.headers.get(header);
     if (value) {
       const ip = value.split(',')[0].trim();
       
-      // If it's X-Forwarded-For, check proxy trust
-      if (header === 'x-forwarded-for' && !isTrustedProxy(realIP)) {
-        continue; // Skip untrusted forwarded header
-      }
-
       if (ip && !isPrivateIP(ip)) {
         return ip; // Return public IP
       }
     }
   }
 
-  // Fallback to socket IP
-  if (server?.requestIP) {
-    const socketIP = server.requestIP(request)?.address;
-    if (socketIP && !isPrivateIP(socketIP)) {
-      return socketIP;
-    }
+  // Fallback to socket IP if no headers are present or all IPs are private
+  if (socketIP && !isPrivateIP(socketIP)) {
+    return socketIP;
   }
 
-  // Final fallback (including private IPs for development)
+  // Final fallback (including private IPs for development if coming from proxy)
   for (const header of headers) {
     const value = request.headers.get(header);
     if (value) {
@@ -107,9 +104,5 @@ export function getClientIP(request: Request, server?: Server<unknown> | null): 
     }
   }
 
-  if (server?.requestIP) {
-    return server.requestIP(request)?.address || null;
-  }
-
-  return null;
+  return socketIP || null;
 }

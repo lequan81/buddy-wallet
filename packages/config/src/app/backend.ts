@@ -8,7 +8,7 @@ import { SHARED_CONSTANTS } from '../shared';
 export const BACKEND_CONSTANTS = {
   // Job Processing
   JOBS: {
-    TIMEOUT_MS: 10 * 60 * 1000, 
+    TIMEOUT_MS: 10 * 60 * 1000,
     PROGRESS_THROTTLE_MS: SHARED_CONSTANTS.IMPORT.CHUNK_SIZE > 100 ? 1000 : 500
   },
 
@@ -17,14 +17,14 @@ export const BACKEND_CONSTANTS = {
     LOCATION_TTL_MS: 60 * 60 * 1000,
     SESSION_TTL_MS: 3 * 60 * 60 * 1000
   },
-  
+
   // Rate Limits
   RATE_LIMITS: {
     FORGOT_PASSWORD: { requests: 5, windowMs: 60 * 60 * 1000 },
     LOGIN: { requests: 10, windowMs: 15 * 60 * 1000 },
     UPLOAD: { requests: 20, windowMs: 60 * 60 * 1000 }
   },
-  
+
   // External Services
   SERVICES: {
     VIETQR_TIMEOUT: 5000,
@@ -41,5 +41,6 @@ export const BACKEND_CONSTANTS = {
   // Legacy/Flat mappings for ImportService
   PREVIEW_ROWS: SHARED_CONSTANTS.IMPORT.PREVIEW_ROWS,
   MAX_ROWS: SHARED_CONSTANTS.IMPORT.MAX_ROWS,
+  MAX_EMPTY_ROWS: SHARED_CONSTANTS.IMPORT.MAX_EMPTY_ROWS,
   CHUNK_SIZE: SHARED_CONSTANTS.IMPORT.CHUNK_SIZE
 } as const;

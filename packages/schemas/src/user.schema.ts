@@ -23,7 +23,7 @@ export const UserResponseSchema = t.Object({
 
 export const UsersListResponseSchema = t.Object({
   success: t.Literal(true),
-  users: t.Array(SafeUserSchema),
+  data: t.Array(SafeUserSchema),
   pagination: PaginationSchema
 });
 

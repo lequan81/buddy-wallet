@@ -20,3 +20,16 @@ export interface BankInfo {
   isTransfer: number;
   swift_code?: string;
 }
+
+export interface BankAccount {
+  id: string;
+  userId: string;
+  bankCode: string;
+  bankName: string;
+  bankBin: string;
+  accountNumber: string;
+  accountName: string | null;
+  isDefault: boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}

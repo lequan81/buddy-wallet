@@ -1,4 +1,5 @@
 import { configs } from '@/configs';
+import { toOptional } from '@repo/utils';
 
 export type StorageReadiness = {
   ready: boolean;
@@ -6,7 +7,7 @@ export type StorageReadiness = {
   reason?: string;
 };
 
-const toOptional = (value: string): string | undefined => (value ? value : undefined);
+// Removed local toOptional
 
 export function getStorageReadinessConfig(): StorageReadiness {
   const missing: string[] = [];

@@ -8,9 +8,11 @@
 import { configs } from '../../configs';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
 import { hashToken, generateSecureToken, toSafeUser } from '@utils';
+import { logger } from '@repo/logger';
 import type { JwtService } from '@/types';
 import type { SessionInfo } from '@/types';
-import type { ISessionService, RequestInfo as _RequestInfo, RefreshSessionResult, ISessionRepository, IUserRepository } from '@repo/types';
+import type { ISessionService, RequestInfo as _RequestInfo, RefreshSessionResult } from '@repo/types';
+import type { ISessionRepository, IUserRepository } from '@/types/repositories';
 
 /**
  * SessionService class with dependency injection
@@ -20,7 +22,7 @@ export class SessionService implements ISessionService {
   constructor(
     private sessionRepo: ISessionRepository,
     private userRepo: IUserRepository
-  ) {}
+  ) { }
 
   /**
    * Refresh an access token using a refresh token
@@ -163,19 +165,40 @@ export class SessionService implements ISessionService {
    * Revoke all sessions for a user
    */
   async revokeAllSessions(userId: string): Promise<{ success: boolean; count: number }> {
-    const revokedSessions = await this.sessionRepo.revokeAllForUser(userId);
+    const revokeResult = (await this.sessionRepo.revokeAllForUser(userId)) as unknown;
+    const revokedSessions = Array.isArray(revokeResult) ? revokeResult : [];
+    const revokedCount = Array.isArray(revokeResult)
+      ? revokeResult.length
+      : typeof revokeResult === 'number'
+        ? revokeResult
+        : 0;
 
-    if (isRedisAvailable()) {
-      await Promise.all(
+    if (isRedisAvailable() && revokedSessions.length > 0) {
+      const cacheResults = await Promise.allSettled(
         revokedSessions.map(async (s) => {
-          if (s.accessTokenHash) {
-            await sessionCache.del(s.accessTokenHash);
-            await jwtBlacklist.add(s.accessTokenHash, configs.AUTH.JWT_BLACKLIST_SECONDS);
+          if (!s.accessTokenHash) {
+            return;
           }
+          await sessionCache.del(s.accessTokenHash);
+          await jwtBlacklist.add(s.accessTokenHash, configs.AUTH.JWT_BLACKLIST_SECONDS);
         })
       );
+
+      const failures = cacheResults.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
+      if (failures.length > 0) {
+        logger.error('Session cache revocation failures', {
+          userId,
+          failedCount: failures.length,
+          reasons: failures.map((f) => f.reason)
+        });
+      }
+
+      return {
+        success: failures.length === 0,
+        count: revokedCount
+      };
     }
 
-    return { success: true, count: revokedSessions.length };
+    return { success: true, count: revokedCount };
   }
 }

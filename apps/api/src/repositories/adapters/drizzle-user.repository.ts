@@ -1,18 +1,44 @@
-import { users, sessions, eq, and, ne, count, gte } from '@repo/db';
+import { users, eq, and, ne, count, inArray } from '@repo/db';
 import type { DbClient } from '@/types';
-import type { IUserRepository, ISessionRepository } from '@repo/types';
-import type { User, Session } from '@repo/db';
+import type { IUserRepository } from '@/types/repositories';
+import type { User } from '@repo/db';
+import { configs } from '@/configs';
 
 export class DrizzleUserRepository implements IUserRepository {
-  constructor(private db: DbClient) {}
+  constructor(private db: DbClient) { }
 
-  async countAll(): Promise<number> {
-    const result = await this.db.select({ count: count() }).from(users).get();
-    return result?.count ?? 0;
+  async findMany(limit: number, offset: number): Promise<{ data: User[]; total: number }> {
+    const safeLimit = Math.min(Math.max(limit, 1), configs.PAGINATION.MAX_LIMIT);
+    const safeOffset = Math.min(Math.max(offset, 0), configs.PAGINATION.MAX_OFFSET ?? 50000);
+
+    const countPromise = this.db.select({ count: count() }).from(users).get();
+    const dataPromise = this.db.select().from(users).limit(safeLimit).offset(safeOffset).all();
+
+    const [countRes, dataRes] = await Promise.allSettled([countPromise, dataPromise]);
+
+    if (countRes.status === 'rejected') {
+      throw new Error(`Database count query failed: ${String((countRes as PromiseRejectedResult).reason)}`);
+    }
+    if (dataRes.status === 'rejected') {
+      throw new Error(`Database data query failed: ${String((dataRes as PromiseRejectedResult).reason)}`);
+    }
+
+    return {
+      data: (dataRes as PromiseFulfilledResult<User[]>).value,
+      total: (countRes as PromiseFulfilledResult<{ count: number }>).value?.count ?? 0
+    };
   }
 
-  async findPaginated(limit: number, offset: number): Promise<User[]> {
-    return this.db.select().from(users).limit(limit).offset(offset).all() as unknown as Promise<User[]>;
+  async findByIds(ids: string[]): Promise<User[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    return this.db
+      .select()
+      .from(users)
+      .where(inArray(users.id, ids))
+      .all() as unknown as Promise<User[]>;
   }
 
   async findById(id: string): Promise<User | null> {
@@ -21,7 +47,7 @@ export class DrizzleUserRepository implements IUserRepository {
   }
 
   async findByPhone(phone: string, excludeId?: string): Promise<User | null> {
-    const where = excludeId 
+    const where = excludeId
       ? and(eq(users.phoneNumber, phone), ne(users.id, excludeId))
       : eq(users.phoneNumber, phone);
     const existing = await this.db.select().from(users).where(where).get();
@@ -29,7 +55,7 @@ export class DrizzleUserRepository implements IUserRepository {
   }
 
   async findByEmail(email: string, excludeId?: string): Promise<User | null> {
-    const where = excludeId 
+    const where = excludeId
       ? and(eq(users.email, email), ne(users.id, excludeId))
       : eq(users.email, email);
     const existing = await this.db.select().from(users).where(where).get();
@@ -39,6 +65,20 @@ export class DrizzleUserRepository implements IUserRepository {
   async update(id: string, data: Partial<User>): Promise<User | null> {
     await this.db.update(users).set(data).where(eq(users.id, id));
     return this.findById(id);
+  }
+
+  async consumePasswordResetToken(id: string, currentHash: string, updates: Partial<User>): Promise<boolean> {
+    const [updated] = await this.db.update(users)
+      .set(updates)
+      .where(
+        and(
+          eq(users.id, id),
+          eq(users.temporaryPassword, currentHash),
+          eq(users.temporaryPasswordUsed, false)
+        )
+      )
+      .returning({ id: users.id });
+    return !!updated;
   }
 
   async updateStatus(id: string, isActive: boolean): Promise<User | null> {
@@ -107,111 +147,3 @@ export class DrizzleUserRepository implements IUserRepository {
   }
 }
 
-export class DrizzleSessionRepository implements ISessionRepository {
-  constructor(private db: DbClient) {}
-
-  async revokeActiveSessionsForUser(userId: string): Promise<void> {
-    await this.db
-      .update(sessions)
-      .set({
-        status: 'revoked',
-        revokedAt: new Date(),
-        revokedReason: 'admin_revoke'
-      })
-      .where(and(eq(sessions.userId, userId), eq(sessions.status, 'active')));
-  }
-
-  async findActiveByRefreshToken(hash: string): Promise<Session | null> {
-    const session = await this.db
-      .select()
-      .from(sessions)
-      .where(
-        and(
-          eq(sessions.refreshToken, hash),
-          eq(sessions.status, 'active'),
-          gte(sessions.refreshTokenExpiresAt, new Date())
-        )
-      )
-      .get();
-    return (session as Session) || null;
-  }
-
-  async update(id: string, data: Partial<Session>): Promise<void> {
-    await this.db.update(sessions).set(data).where(eq(sessions.id, id));
-  }
-
-  async findActiveByUserId(userId: string): Promise<Session[]> {
-    return this.db
-      .select()
-      .from(sessions)
-      .where(and(eq(sessions.userId, userId), eq(sessions.status, 'active')))
-      .orderBy(sessions.lastActiveAt)
-      .all() as Session[];
-  }
-
-  async findActiveByIdAndUser(id: string, userId: string): Promise<Session | null> {
-    const session = await this.db
-      .select()
-      .from(sessions)
-      .where(
-        and(eq(sessions.id, id), eq(sessions.userId, userId), eq(sessions.status, 'active'))
-      )
-      .get();
-    return (session as Session) || null;
-  }
-
-  async revokeById(id: string, reason: string): Promise<void> {
-    await this.db
-      .update(sessions)
-      .set({
-        status: 'revoked',
-        revokedAt: new Date(),
-        revokedReason: reason as Session['revokedReason']
-      })
-      .where(eq(sessions.id, id));
-  }
-
-  async revokeAllForUser(userId: string): Promise<Session[]> {
-    const activeSessions = await this.db
-      .select()
-      .from(sessions)
-      .where(and(eq(sessions.userId, userId), eq(sessions.status, 'active')))
-      .all();
-
-    await this.db
-      .update(sessions)
-      .set({
-        status: 'revoked',
-        revokedAt: new Date(),
-        revokedReason: 'logout_all_devices'
-      })
-      .where(and(eq(sessions.userId, userId), eq(sessions.status, 'active')));
-
-    return activeSessions as unknown as Session[];
-  }
-
-  async create(data: Omit<Session, 'createdAt'>): Promise<void> {
-    const sessionData = {
-      ...data,
-      createdAt: new Date()
-    };
-    await this.db.insert(sessions).values(sessionData as typeof sessions.$inferInsert);
-  }
-
-  async revokeOthers(userId: string, currentSessionId: string, reason: string): Promise<void> {
-    await this.db
-      .update(sessions)
-      .set({
-        status: 'revoked',
-        revokedAt: new Date(),
-        revokedReason: reason as Session['revokedReason']
-      })
-      .where(
-        and(
-          eq(sessions.userId, userId),
-          eq(sessions.status, 'active'),
-          ne(sessions.id, currentSessionId)
-        )
-      );
-  }
-}

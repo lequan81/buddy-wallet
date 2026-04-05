@@ -1,15 +1,14 @@
 import { type FileMetadata, type FileType } from '@repo/db';
-import { cache } from '@/plugins/redis';
+import { cache, rawCache } from '@/plugins/redis';
 import { log } from '@repo/logger';
 import { MAX_IMAGE_FILE_SIZE, ACCEPTED_IMAGE_MIME_TYPES, BACKEND_CONSTANTS } from '@repo/config';
 import { isValidImageBytes } from '@repo/utils';
 import { createStorageServices } from './storage.service';
 import type { IStorageService } from '@/types';
-import type { IFileRepository } from '@repo/types';
-import type { IDebtRepository } from '@/repositories';
+import type { IFileRepository, IDebtRepository } from '@/types/repositories';
 import { ImageService } from './image.service';
 
-const IMAGE_CACHE_TTL_SECONDS = Math.floor(BACKEND_CONSTANTS.LOCATION_TTL_MS / 1000);
+const IMAGE_CACHE_TTL_SECONDS = Math.floor(BACKEND_CONSTANTS.CACHE.LOCATION_TTL_MS / 1000);
 
 export class FileService {
   private uploadStorage: IStorageService;
@@ -158,11 +157,11 @@ export class FileService {
     }
 
     const cacheKey = `file:${fileId}`;
-    const cached = await cache.get<string>(cacheKey);
-    if (cached) {
+    const cachedBuffer = await rawCache.getBuffer(cacheKey);
+    if (cachedBuffer) {
       return {
         success: true,
-        data: Buffer.from(cached, 'base64'),
+        data: cachedBuffer,
         mimeType: metadata.mimeType,
         metadata
       };
@@ -173,7 +172,7 @@ export class FileService {
       const targetStorage =
         metadata.fileType === 'payment_proof' ? this.proofStorage : this.uploadStorage;
       const data = await targetStorage.read(metadata.storagePath);
-      await cache.set(cacheKey, data.toString('base64'), IMAGE_CACHE_TTL_SECONDS);
+      await rawCache.setBuffer(cacheKey, data as Buffer, IMAGE_CACHE_TTL_SECONDS);
 
       return { success: true, data, mimeType: metadata.mimeType, metadata };
     } catch {

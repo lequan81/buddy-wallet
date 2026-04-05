@@ -8,7 +8,26 @@
 import { MAJOR_BANKS_FALLBACK } from '@repo/config';
 import { cache } from '@plugins/redis';
 import { log } from '@repo/logger';
-import type { VietQRBank, VietQRResponse } from '@/types';
+
+/** VietQR bank info returned by the API */
+interface VietQRBank {
+  id: number;
+  name: string;
+  code: string;
+  bin: string;
+  shortName: string;
+  logo: string;
+  transferSupported?: number;
+  lookupSupported?: number;
+  swift_code?: string;
+}
+
+/** VietQR API response envelope */
+interface VietQRResponse {
+  code: string;
+  desc: string;
+  data: VietQRBank[];
+}
 
 const VIETQR_API_URL = 'https://api.vietqr.io/v2/banks';
 const CACHE_TTL = 86400; // 24 hours

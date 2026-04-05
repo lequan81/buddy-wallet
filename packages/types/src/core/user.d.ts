@@ -46,3 +46,17 @@ export interface UserWithNotifications {
   emailNotificationsEnabled: boolean;
   pushNotificationsEnabled: boolean;
 }
+
+export interface Session {
+  id: string;
+  userId: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  lastActiveAt: Date | string;
+  expiresAt: Date | string;
+}
+
+export interface SessionsResponse {
+  sessions: Session[];
+  currentSessionId: string;
+}

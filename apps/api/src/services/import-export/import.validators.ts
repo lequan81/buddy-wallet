@@ -1,11 +1,7 @@
 import { GEN_ERRORS, errorResponse } from '@repo/errors';
 import { MAX_IMPORT_FILE_SIZE, ACCEPTED_IMPORT_MIME_TYPES } from '@repo/config';
 import { isValidSpreadsheetBytes } from '@repo/utils';
-
-type ValidationFailure = {
-  status: number;
-  body: ReturnType<typeof errorResponse>;
-};
+import type { ValidationFailure } from '@/types';
 
 export async function validateImportUploadFile(file: File): Promise<ValidationFailure | null> {
   if (file.size > MAX_IMPORT_FILE_SIZE) {

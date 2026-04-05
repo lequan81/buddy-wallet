@@ -16,7 +16,7 @@ import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
 import { accessControlPlugin, servicesPlugin, sessionAuthPlugin } from '@plugins';
 import { logger } from '@repo/logger';
 import type { ImportConfig } from '@/types';
-import { validateImportUploadFile } from './import-file.utils';
+import { validateImportUploadFile } from '@/services/import-export/import.validators';
 import { requireAuth } from '@/core/http/require-auth';
 import { parsePagePagination } from '@/core/http/pagination';
 import { normalizeImportStatus } from '@/core/http/import-status';
@@ -85,7 +85,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
         const jobId = await jobsService.addJob('import', {
           file,
           config: config as ImportConfig,
-          userId: { id: auth.user.id, phoneNumber: auth.user.phoneNumber },
+          userId: { id: auth.user.id },
           previewLogId
         });
 
@@ -130,7 +130,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
 
       return successResponse({
         ...result,
-        status: normalizeImportStatus(result.status)
+        status: normalizeImportStatus(result.status as any)
       });
     },
     { params: t.Object({ logId: t.String() }) }
@@ -142,7 +142,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
   .get(
     '/progress-sse',
     async (ctx) => {
-      const { query, user, set, importService } = ctx;
+      const { query, user, set, importService, request } = ctx;
       const auth = requireAuth(user, set);
       if ('error' in auth) {
         return auth.error;
@@ -161,16 +161,29 @@ export const ImportController = new Elysia({ prefix: '/import' })
 
       // Use native ReadableStream for SSE - robust and standard compliant
       let interval: ReturnType<typeof setInterval> | null = null;
+      const stopPolling = () => {
+        if (interval !== null) {
+          clearInterval(interval);
+          interval = null;
+        }
+      };
+
       const stream = new ReadableStream({
         async start(controller) {
+          const abortHandler = () => {
+            stopPolling();
+            controller.close();
+          };
+          request.signal.addEventListener('abort', abortHandler, { once: true });
+
           interval = setInterval(async () => {
             try {
               const results = await importService.getProgressBatch(logIds, auth.user.id);
 
               for (const key of Object.keys(results)) {
-                results[key].status = normalizeImportStatus(results[key].status);
+                results[key].status = normalizeImportStatus(results[key].status as any) as any;
               }
-              
+
               // Format as SSE data
               controller.enqueue(`data: ${JSON.stringify(results)}\n\n`);
 
@@ -180,13 +193,15 @@ export const ImportController = new Elysia({ prefix: '/import' })
               );
 
               if (allDone) {
-                if (interval) clearInterval(interval);
+                stopPolling();
                 controller.close();
+                request.signal.removeEventListener('abort', abortHandler);
               }
             } catch (err) {
               logger.error('[Import] SSE stream error', { error: String(err) });
-              if (interval) clearInterval(interval);
+              stopPolling();
               controller.error(err);
+              request.signal.removeEventListener('abort', abortHandler);
             }
           }, 2000);
 
@@ -195,7 +210,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
         },
         cancel() {
           // This is called when the client disconnects
-          if (interval) clearInterval(interval);
+          stopPolling();
         }
       });
 
@@ -230,7 +245,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
 
       const result = await importService.getProgressBatch(logIds, user.id);
       for (const key of Object.keys(result)) {
-        result[key].status = normalizeImportStatus(result[key].status);
+        result[key].status = normalizeImportStatus(result[key].status as any) as any;
       }
       return successResponse(result);
     },
@@ -285,7 +300,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
       }
 
       if (result.status) {
-        result.status = normalizeImportStatus(result.status);
+        result.status = normalizeImportStatus(result.status as any) as any || result.status;
       }
       return successResponse(result);
     },

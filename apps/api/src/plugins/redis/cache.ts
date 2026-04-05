@@ -56,6 +56,38 @@ export const cache = {
   },
 
   /**
+   * Get multiple cached values (mget to prevent N+1 queries)
+   */
+  async mget<T>(keys: string[]): Promise<(T | null)[]> {
+    if (!isRedisAvailable() || keys.length === 0) return keys.map(() => null);
+    try {
+      const client = getClient();
+      if (!client) return keys.map(() => null);
+
+      const namespacedKeys = keys.map(validateCacheKey);
+      const values = await client.mget(...namespacedKeys);
+
+      circuitBreaker.trackCommand(true);
+      
+      return values.map(value => {
+        if (!value) return null;
+        if (typeof value === 'string' && !value.startsWith('{') && !value.startsWith('[') && !value.startsWith('"')) {
+          return null;
+        }
+        try {
+          return JSON.parse(value) as T;
+        } catch {
+          return null;
+        }
+      });
+    } catch (err) {
+      log.debug('REDIS', 'Cache mget failed', { error: String(err) });
+      circuitBreaker.trackCommand(false);
+      return keys.map(() => null);
+    }
+  },
+
+  /**
    * Set cached value with TTL
    */
   async set<T>(key: string, value: T, ttlSeconds: number = DEFAULT_CACHE_TTL): Promise<boolean> {
@@ -149,5 +181,53 @@ export const cache = {
    */
   getStats() {
     return circuitBreaker.getStats();
+  }
+};
+
+/**
+ * Raw Cache for binary data (Images/Files)
+ * Avoids JSON.stringify which bloats Buffers
+ */
+export const rawCache = {
+  async getBuffer(key: string): Promise<Buffer | null> {
+    if (!isRedisAvailable()) return null;
+    try {
+      const client = getClient();
+      if (!client) return null;
+
+      const namespacedKey = validateCacheKey(key);
+      const value = await client.send('GET', [namespacedKey]) as unknown;
+      
+      circuitBreaker.trackCommand(true);
+      
+      if (!value) return null;
+      if (Buffer.isBuffer(value)) return value;
+      if (typeof value === 'string') return Buffer.from(value, 'binary');
+      
+      return null;
+    } catch (err) {
+      log.debug('REDIS', 'Raw Cache get failed', { key, error: String(err) });
+      circuitBreaker.trackCommand(false);
+      return null;
+    }
+  },
+
+  async setBuffer(key: string, buffer: Buffer, ttlSeconds: number = DEFAULT_CACHE_TTL): Promise<boolean> {
+    if (!isRedisAvailable()) return false;
+    try {
+      const client = getClient();
+      if (!client) return false;
+
+      const namespacedKey = validateCacheKey(key);
+      // Send as Buffer directly to store without string manipulation
+      await client.send('SETEX', [namespacedKey, String(ttlSeconds), buffer as unknown as string]);
+
+      circuitBreaker.trackCommand(true);
+      return true;
+    } catch (err) {
+      log.debug('REDIS', 'Raw Cache set failed', { key, error: String(err) });
+      circuitBreaker.trackCommand(false);
+      return false;
+    }
   }
 };

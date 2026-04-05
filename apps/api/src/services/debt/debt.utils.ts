@@ -5,11 +5,13 @@
  * Works with DebtEntity (repository layer) rather than ORM-specific types.
  */
 import type { DebtDetails, ExpiryOption } from '@repo/types';
-import type { DebtEntity } from '../../repositories';
+import type { DebtEntity } from '@/types/repositories';
 
-export const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-const EXPIRY_DAYS: Record<'7d' | '30d' | '90d', number> = {
+const EXPIRY_DAYS: Record<'1d' | '3d' | '7d' | '30d' | '90d', number> = {
+  '1d': 1,
+  '3d': 3,
   '7d': 7,
   '30d': 30,
   '90d': 90
@@ -55,6 +57,7 @@ export function toDebtDetails(entity: DebtEntity): DebtDetails {
     lastProofUploadedAt: entity.lastProofUploadedAt?.toISOString() || null,
     expiresAt: entity.expiresAt?.toISOString() || null,
     suggestedAt: entity.suggestedAt?.toISOString() || null,
+    lastSyncAt: null,
     deletedAt: entity.deletedAt?.toISOString() || null,
   };
 }

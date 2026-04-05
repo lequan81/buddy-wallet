@@ -132,7 +132,7 @@ export class DebtDetailState {
 		this.uploadError = '';
 		this.uploadSuccess = false;
 
-		const res = await api.v1.proofs.debt({ debtId: this.debt.id }).post({ file: this.uploadFile[0] });
+		const res = await api.v1.upload['payment-proof']({ debtId: this.debt.id }).post({ file: this.uploadFile[0] });
 
 		this.isUploading = false;
 		if (res.error) {

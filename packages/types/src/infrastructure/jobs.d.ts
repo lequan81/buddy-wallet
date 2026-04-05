@@ -1,8 +1,6 @@
-/**
- * Job & Worker Types
- */
-export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'success' | 'preview';
-export type JobType = 'import' | 'export' | 'notification' | 'cleanup' | 'sync';
+export type JobStatus = 'pending' | 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'success' | 'preview';
+export type JobType = 'import' | 'preview' | 'export' | 'notification' | 'cleanup' | 'sync';
+export type ImportJobType = 'import' | 'preview';
 
 export interface JobPayload {
   userId: string | { id: string };
@@ -24,12 +22,16 @@ export interface WorkerJobPayload {
 
 export interface BaseJob {
   id: string;
+  jobId?: string; // Some parts use jobId, some use id
   type: JobType;
   status: JobStatus;
-  progress: number;
+  progress: number | { current: number; total: number; percentage: number };
   userId: string;
+  fileName?: string; // Add fileName to top level for easy access
   metadata?: Record<string, unknown> | null;
+  result?: import('../core/import').PreviewResult | import('../core/import').ImportResult;
   error?: string | null;
+  message?: string;
   createdAt: string | Date;
   updatedAt: string | Date;
   startedAt?: string | Date | null;
@@ -37,7 +39,7 @@ export interface BaseJob {
 }
 
 export interface ImportJob extends BaseJob {
-  type: 'import';
+  type: ImportJobType;
   metadata: {
     fileName: string;
     s3Key: string;

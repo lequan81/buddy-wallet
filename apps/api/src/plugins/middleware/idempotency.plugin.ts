@@ -3,7 +3,7 @@
  * Provides idempotency key handling for POST/PUT/PATCH operations
  */
 import { Elysia } from 'elysia';
-import { getIdempotentResponse, storeIdempotentResponse } from '../utils/idempotency.utils';
+import { getIdempotentResponse, storeIdempotentResponse } from '@/utils/idempotency.utils';
 import { logger } from '@repo/logger';
 
 /**

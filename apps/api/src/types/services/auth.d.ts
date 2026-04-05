@@ -33,3 +33,26 @@ export interface ResendOtpResult {
   error?: string;
   retryAfter?: number; // seconds until next resend allowed
 }
+
+/** Result of password reset operations */
+export interface ResetResult {
+  success: boolean;
+  error?: string;
+}
+
+/** Authenticated user from session context */
+export interface AuthUser {
+  id: string;
+  email?: string | null;
+  emailVerified?: boolean;
+  phoneNumber: string;
+  role: string;
+  name?: string;
+}
+
+/** Elysia Set context for response control */
+export interface ElysiaSet {
+  status?: number | string;
+  headers?: any;
+  cookie?: Record<string, any>;
+}

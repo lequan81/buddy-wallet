@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia';
 import { db, debts, eq, or, and, type User } from '@repo/db';
+
 import { logger } from '@repo/logger';
 
 /**

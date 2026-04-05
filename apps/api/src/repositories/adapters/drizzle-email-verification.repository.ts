@@ -1,5 +1,5 @@
 import { eq, and, desc, count, emailVerifications, type EmailVerification } from '@repo/db';
-import type { IEmailVerificationRepository } from '@repo/types';
+import type { IEmailVerificationRepository } from '@/types/repositories';
 import type { DbClient } from '@/types';
 
 export class DrizzleEmailVerificationRepository implements IEmailVerificationRepository {

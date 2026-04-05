@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import type { Pagination } from '@repo/types';
+import type { PaginatedResult, SafeUser, Pagination } from '@repo/types';
 
 export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	// Get server-computed permissions from layout
@@ -22,22 +22,23 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		}
 	});
 
-	if (error) {
+	if (error || !data) {
 		return {
-			users: [],
-			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } as Pagination,
+			users: [] as SafeUser[],
+			pagination: { total: 0, limit: pageSize, page, offset: 0, hasMore: false } as Pagination,
 			page,
 			pageSize,
 			error: 'Failed to fetch users'
 		};
 	}
 
-	// API returns { success: true, data: { users: [...], pagination: {...} } }
+	// API returns SuccessResponse<PaginatedResult<SafeUser>>
+	// which is { success: true, data: SafeUser[], pagination: Pagination }
+	const result = data as unknown as PaginatedResult<SafeUser>;
+
 	return {
-		users: (data as any)?.data?.users || [],
-		pagination:
-			(data as any)?.data?.pagination ||
-			({ total: 0, limit: pageSize, offset: 0, hasMore: false } as Pagination),
+		users: result.data || [],
+		pagination: result.pagination,
 		page,
 		pageSize
 	};

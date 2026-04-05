@@ -1,9 +1,6 @@
 import { errorResponse, GEN_ERRORS } from '@repo/errors';
 import type { User } from '@repo/db';
-
-type SetLike = {
-  status?: number | string;
-};
+import type { ElysiaSet } from '@/types';
 
 /**
  * Guard helper for authenticated endpoints.
@@ -11,7 +8,7 @@ type SetLike = {
  */
 export function requireAuth(
   user: User | null | undefined,
-  set: SetLike,
+  set: ElysiaSet,
   message?: string
 ): { user: User } | { error: ReturnType<typeof errorResponse> } {
   if (!user) {

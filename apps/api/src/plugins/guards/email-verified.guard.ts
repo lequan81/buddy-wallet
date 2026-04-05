@@ -13,16 +13,7 @@
  * since they depend on the `user` context being set.
  */
 import { Elysia } from 'elysia';
-
-// User type for guard context (matches session-auth user)
-interface AuthUser {
-  id: string;
-  email?: string | null;
-  emailVerified?: boolean;
-  phoneNumber: string;
-  role: string;
-  name?: string;
-}
+import type { AuthUser } from '@/types';
 
 /**
  * Plugin that requires verified email to access routes.

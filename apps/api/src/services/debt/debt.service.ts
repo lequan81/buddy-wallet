@@ -34,7 +34,8 @@ import type {
   DebtDetails
 } from '@repo/types';
 import { DEBT_STATUS, DEBT_DIRECTION } from '@repo/config';
-import type { IDebtRepository, DebtEntity } from '@/repositories';
+import { BE_ERRORS } from '@repo/errors';
+import type { IDebtRepository, DebtEntity, UpdateDebtData } from '@/types/repositories';
 import { PushService } from '@/services/notification/push.service';
 import { ActivityService } from '@/services/activity/activity.service';
 import type { PushPayload } from '@/types/push.d';
@@ -46,12 +47,12 @@ import { toDebtDetails, calculateExpiryDate } from './debt.utils';
  * DebtService — All debt operations via Hexagonal Architecture.
  * Stateless: only holds injected dependencies.
  */
-export class DebtServices {
+export class DebtService {
   constructor(
     private readonly debtRepo: IDebtRepository,
     private readonly pushService: PushService | null = null,
     private readonly activityService: ActivityService | null = null
-  ) {}
+  ) { }
 
   // ── Private Helpers (fire-and-forget, never throw) ─────────────
 
@@ -87,7 +88,7 @@ export class DebtServices {
   /** Fetch debt or return NOT_FOUND error */
   private async getDebtOrFail(debtId: string): Promise<[DebtEntity, null] | [null, DebtResult]> {
     const debt = await this.debtRepo.findById(debtId);
-    if (!debt) return [null, { success: false, error: 'Debt not found', code: 'NOT_FOUND' }];
+    if (!debt) return [null, { success: false, error: BE_ERRORS.DEBT_NOT_FOUND.message, code: BE_ERRORS.DEBT_NOT_FOUND.code }];
     return [debt, null];
   }
 
@@ -99,8 +100,10 @@ export class DebtServices {
     hasViewAllPermission: boolean,
     options: PaginationOptions = {}
   ): Promise<PaginatedResult<DebtDetails>> {
+    const status = this.normalizeDebtStatus(options.status);
     const result = await this.debtRepo.findMany({
       ...options,
+      status,
       involvedUserId: hasViewAllPermission ? undefined : userId
     });
     return {
@@ -114,8 +117,10 @@ export class DebtServices {
     userId: string,
     options: PaginationOptions = {}
   ): Promise<PaginatedResult<DebtDetails>> {
+    const status = this.normalizeDebtStatus(options.status);
     const result = await this.debtRepo.findMany({
       ...options,
+      status,
       involvedUserId: userId
     });
     return {
@@ -138,6 +143,22 @@ export class DebtServices {
   /** Count active debts for a phone number (public lookup) */
   async countActiveDebtsForPhone(phone: string): Promise<number> {
     return this.debtRepo.countActiveDebtsForPhone(phone);
+  }
+
+  private normalizeDebtStatus(status: PaginationOptions['status']): DebtStatus | 'all' | undefined {
+    if (
+      status === undefined ||
+      status === 'all' ||
+      status === DEBT_STATUS.PENDING ||
+      status === DEBT_STATUS.CONFIRMED ||
+      status === DEBT_STATUS.PAID ||
+      status === DEBT_STATUS.DISPUTED ||
+      status === DEBT_STATUS.CANCELLED
+    ) {
+      return status as DebtStatus | 'all' | undefined;
+    }
+
+    return undefined;
   }
 
   // ── Create ────────────────────────────────────────────────────
@@ -169,8 +190,8 @@ export class DebtServices {
     if (pendingCount >= MAX_PENDING_DEBTS) {
       return {
         success: false,
-        error: `Too many unconfirmed debts (max ${MAX_PENDING_DEBTS}). Wait for debtors to confirm existing debts.`,
-        code: 'PENDING_DEBT_LIMIT'
+        error: `${BE_ERRORS.DEBT_PENDING_LIMIT.message} (max ${MAX_PENDING_DEBTS})`,
+        code: BE_ERRORS.DEBT_PENDING_LIMIT.code
       };
     }
 
@@ -253,14 +274,14 @@ export class DebtServices {
 
     const isAdmin = hasPermission(currentUser.permissions, PERMISSIONS.DEBT_VIEW_ALL);
     if (!isAdmin && debt.uploadedById !== currentUser.id) {
-      return { success: false, error: 'You can only edit debts you created', code: 'FORBIDDEN' };
+      return { success: false, error: BE_ERRORS.DEBT_PERMISSION_DENIED.message, code: BE_ERRORS.DEBT_PERMISSION_DENIED.code };
     }
 
     if (debt.status !== DEBT_STATUS.PENDING && debt.status !== DEBT_STATUS.DISPUTED) {
       return {
         success: false,
-        error: `Cannot edit debt with status '${debt.status}'. Only pending or disputed debts can be edited.`,
-        code: 'INVALID_STATUS'
+        error: `${BE_ERRORS.DEBT_INVALID_STATUS.message}: '${debt.status}'. Only pending or disputed debts can be edited.`,
+        code: BE_ERRORS.DEBT_INVALID_STATUS.code
       };
     }
 
@@ -333,14 +354,14 @@ export class DebtServices {
     const isDebtor = debt.debtorId === currentUser.id;
 
     if (!isCreditor && !isDebtor) {
-      return { success: false, error: 'You are not involved in this debt', code: 'FORBIDDEN' };
+      return { success: false, error: BE_ERRORS.DEBT_PERMISSION_DENIED.message, code: BE_ERRORS.DEBT_PERMISSION_DENIED.code };
     }
 
     if (debt.uploadedById === currentUser.id) {
       return {
         success: false,
-        error: 'You created this debt and have already confirmed it.',
-        code: 'ALREADY_CONFIRMED'
+        error: BE_ERRORS.DEBT_ALREADY_CONFIRMED.message,
+        code: BE_ERRORS.DEBT_ALREADY_CONFIRMED.code
       };
     }
 
@@ -361,7 +382,7 @@ export class DebtServices {
       (updates.confirmedByDebtor || debt.confirmedByDebtor);
     if (willBeFullyConfirmed) updates.needsConfirmation = false;
 
-    const updatedDebt = await this.debtRepo.update(debtId, updates as import('../../repositories').UpdateDebtData);
+    const updatedDebt = await this.debtRepo.update(debtId, updates as UpdateDebtData);
 
     await this.log(currentUser.id, 'confirm', debtId);
 
@@ -414,13 +435,13 @@ export class DebtServices {
     if (err) return err;
 
     if (debt.creditorId !== currentUser.id && debt.debtorId !== currentUser.id) {
-      return { success: false, error: 'You are not involved in this debt', code: 'FORBIDDEN' };
+      return { success: false, error: BE_ERRORS.DEBT_PERMISSION_DENIED.message, code: BE_ERRORS.DEBT_PERMISSION_DENIED.code };
     }
     if (debt.uploadedById === currentUser.id) {
-      return { success: false, error: 'Creators cannot suggest edits to their own debts', code: 'FORBIDDEN' };
+      return { success: false, error: 'Creators cannot suggest edits to their own debts', code: BE_ERRORS.DEBT_PERMISSION_DENIED.code };
     }
     if (debt.status === DEBT_STATUS.PAID || debt.status === DEBT_STATUS.CANCELLED) {
-      return { success: false, error: 'Cannot suggest edits to completed debts', code: 'INVALID_STATE' };
+      return { success: false, error: BE_ERRORS.DEBT_INVALID_STATE.message, code: BE_ERRORS.DEBT_INVALID_STATE.code };
     }
 
     const now = new Date();
@@ -454,10 +475,10 @@ export class DebtServices {
     if (err) return err;
 
     if (debt.uploadedById !== currentUser.id) {
-      return { success: false, error: 'Only the creator can respond to edit suggestions', code: 'FORBIDDEN' };
+      return { success: false, error: 'Only the creator can respond to edit suggestions', code: BE_ERRORS.DEBT_PERMISSION_DENIED.code };
     }
     if (!debt.suggestedById) {
-      return { success: false, error: 'No pending suggestion', code: 'INVALID_STATE' };
+      return { success: false, error: 'No pending suggestion', code: BE_ERRORS.DEBT_INVALID_STATE.code };
     }
 
     const now = new Date();
@@ -470,10 +491,10 @@ export class DebtServices {
     };
     const updates = accept
       ? {
-          ...clearSuggestion,
-          amount: debt.suggestedAmount ?? debt.amount,
-          description: (debt.suggestedDescription ?? debt.description) || undefined
-        }
+        ...clearSuggestion,
+        amount: debt.suggestedAmount ?? debt.amount,
+        description: (debt.suggestedDescription ?? debt.description) || undefined
+      }
       : clearSuggestion;
 
     const updatedDebt = await this.debtRepo.update(debtId, updates);
@@ -503,7 +524,7 @@ export class DebtServices {
 
     const isAdmin = hasPermission(currentUser.permissions, PERMISSIONS.DEBT_DELETE_ALL);
     if (!isAdmin && debt.uploadedById !== currentUser.id) {
-      return { success: false, error: 'You can only delete debts you created', code: 'FORBIDDEN' };
+      return { success: false, error: 'You can only delete debts you created', code: BE_ERRORS.DEBT_PERMISSION_DENIED.code };
     }
 
     const deleted = await this.debtRepo.softDelete(debtId, new Date());

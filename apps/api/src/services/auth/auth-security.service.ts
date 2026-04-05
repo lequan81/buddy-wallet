@@ -10,14 +10,15 @@
  * Dependencies: db
  */
 import { randomUUIDv7 } from 'bun';
-import { createHash } from 'node:crypto';
 import { configs } from '../../configs';
-import type { IUserRepository, ISessionRepository } from '@repo/types';
+import type { IUserRepository, ISessionRepository } from '@/types/repositories';
 import {
   hashToken,
+  generateSecureToken,
   parseUserAgent,
   getLocationFromIP,
-  toSafeUser
+  toSafeUser,
+  redactIdentifier
 } from '@utils';
 import { logger } from '@repo/logger';
 import type { JwtService } from '@/types';
@@ -36,9 +37,7 @@ function generateRefreshToken(): string {
   return Buffer.from(bytes).toString('base64url');
 }
 
-function redactIdentifier(identifier: string): string {
-  return createHash('sha256').update(identifier.trim().toLowerCase()).digest('hex').slice(0, 12);
-}
+// Remove local redactIdentifier
 
 /**
  * AuthSecurityService - Login security and session creation
@@ -144,7 +143,7 @@ export class AuthSecurityService {
         sessionVersion: user.sessionVersion || 1,
         exp: Math.floor(accessTokenExpiresAt.getTime() / 1000)
       });
-      const refreshToken = generateRefreshToken();
+      const refreshToken = generateSecureToken(32);
       const refreshTokenHash = await hashToken(refreshToken);
       const accessTokenHash = await hashToken(accessToken);
       const sessionId = randomUUIDv7('base64url');

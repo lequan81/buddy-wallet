@@ -12,7 +12,7 @@
 	import { IMPORT_DB_FIELDS } from '@repo/config/shared';
 	import * as m from '$lib/paraglide/messages';
 	import type { UploadState } from '$lib/types';
-	import type { ImportLog, PreviewResult, ProgressResult } from '@repo/types';
+	import type { ImportLog, PreviewResult } from '@repo/types';
 
 	// Components
 	import ImportSkeleton from '$lib/components/import/ImportSkeleton.svelte';
@@ -59,12 +59,16 @@
 		uploadProgress: 0
 	});
 
+	let historyLogs = $state<ImportLog[]>([]);
+	let historyTotalPages = $state(1);
+
+	$effect(() => {
+		historyLogs = (data.logs as ImportLog[]) || [];
+		historyTotalPages = Math.max(1, data.historyTotalPages || 1);
+	});
+
 	let historyPage = $state(1);
 	let selectedLog = $state<ImportLog | null>(null);
-	let history = $state({
-		logs: (data.logs as ImportLog[]) || [],
-		totalPages: Math.max(1, data.historyTotalPages || 1)
-	});
 
 	// Form References
 	let uploadForm = $state<HTMLFormElement>();
@@ -94,8 +98,8 @@
 
 	const hasPreview = $derived(uploadState.previewData.length > 0);
 	const currentJob = $derived(importProgress.getJob(importForm.currentJobId));
-	const logs = $derived(history.logs);
-	const totalHistoryPages = $derived(history.totalPages);
+	const logs = $derived(historyLogs);
+	const totalHistoryPages = $derived(historyTotalPages);
 
 	// === ACTIONS ===
 	const resetUploadState = () => {
@@ -134,10 +138,14 @@
 				throw new Error((error?.value as { message?: string })?.message || 'Failed to load import history.');
 			}
 
-			const payload = response as Record<string, unknown>;
-			history.logs = (payload.logs as ImportLog[]) ?? [];
-			history.totalPages = Math.max(1, Number(payload.totalPages || 1));
-			historyPage = Math.max(1, Math.min(pageNumber, history.totalPages));
+			// response is SuccessResponse<PaginatedResult<ImportLog>>
+			// which is { success: true, data: ImportLog[], pagination: Pagination }
+			const res = response as unknown as { data: ImportLog[]; pagination: { total: number; limit: number } };
+			historyLogs = res.data ?? [];
+			if (res.pagination) {
+				historyTotalPages = Math.ceil(res.pagination.total / res.pagination.limit) || 1;
+			}
+			historyPage = Math.max(1, Math.min(pageNumber, historyTotalPages));
 		} catch (err) {
 			ui.connectionError = err instanceof Error ? err.message : 'Failed to load import history.';
 			ui.showConnectionFallback = true;
@@ -161,7 +169,8 @@
 
 		const threeHoursAgo = Date.now() - 3 * 60 * 60 * 1000;
 		for (const log of logs) {
-			if (log.status === 'processing' || log.status === 'pending' || log.status === 'queued') {
+			const status = log.status as string;
+			if (status === 'processing' || status === 'pending' || status === 'queued') {
 				const logTime = new Date(log.createdAt).getTime();
 				if (logTime > threeHoursAgo) {
 					if (!importProgress.getJob(log.id)) {
@@ -172,9 +181,10 @@
 		}
 
 		const interval = setInterval(() => {
-			const hasActiveJobs = Array.from(importProgress.activeJobs.values()).some((job) =>
-				job.status === 'pending' || job.status === 'queued' || job.status === 'processing'
-			);
+			const hasActiveJobs = Array.from(importProgress.activeJobs.values()).some((job) => {
+				const s = job.status as string;
+				return s === 'pending' || s === 'queued' || s === 'processing';
+			});
 			if (hasActiveJobs) {
 				void fetchLogs(historyPage, { silent: true });
 			}
@@ -194,9 +204,9 @@
 
 	$effect(() => {
 		if (currentJob?.status === 'success' && currentJob.result) {
-			const res = currentJob.result as ProgressResult;
+			const res = currentJob.result;
 			if (currentJob.type === 'preview') {
-				const previewRes = res as unknown as PreviewResult; 
+				const previewRes = res as PreviewResult; 
 				uploadState.status = 'preview-ready';
 				uploadState.fileName = previewRes.fileName || uploadState.fileName;
 				uploadState.totalRows = previewRes.totalRows || 0;

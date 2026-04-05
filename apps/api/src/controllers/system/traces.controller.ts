@@ -11,7 +11,7 @@ import { configs } from '@/configs';
 const isDev = configs.APP.IS_DEV;
 
 // Load HTML template at startup (Bun native file reading)
-const templatePath = new URL('../templates/traces.html', import.meta.url).pathname;
+const templatePath = new URL('../../static/traces.html', import.meta.url).pathname;
 let htmlTemplate: string;
 
 try {

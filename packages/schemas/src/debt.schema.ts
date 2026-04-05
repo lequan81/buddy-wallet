@@ -27,20 +27,23 @@ export const DebtSchema = t.Object({
   debtorConfirmedAt: NullableDateString,
   hasPendingProof: t.Boolean(),
   proofCount: t.Number(),
-  lastProofUploadedAt: NullableDateString,
-  expiresAt: NullableDateString,
+  lastProofUploadedAt: t.Any(),
+  expiresAt: t.Any(),
   suggestedAmount: NullableNumber,
   suggestedDescription: NullableString,
   suggestedById: NullableString,
   suggestedAt: NullableDateString,
-  createdAt: t.String(),
-  updatedAt: t.String(),
-  deletedAt: NullableDateString
+  createdAt: t.Any(),
+  updatedAt: t.Any(),
+  deletedAt: t.Any(),
+  debtor: t.Optional(t.Any()),
+  creditor: t.Optional(t.Any()),
+  uploader: t.Optional(t.Any())
 });
 
 export const DebtListResponseSchema = t.Object({
   success: t.Literal(true),
-  debts: t.Array(DebtSchema),
+  data: t.Array(DebtSchema),
   pagination: PaginationSchema
 });
 
@@ -54,7 +57,7 @@ export const RecentDebtSchema = t.Object({
 
 export const RecentDebtsResponseSchema = t.Object({
   success: t.Literal(true),
-  debts: t.Array(RecentDebtSchema)
+  data: t.Array(RecentDebtSchema)
 });
 
 export const DebtResponseSchema = t.Object({

@@ -4,5 +4,5 @@
  * Single entry point for all debt service exports.
  * Only exports what's actually consumed.
  */
-export { DebtServices } from './debt.service';
-export { toDebtDetails, calculateExpiryDate, MS_PER_DAY } from './debt.utils';
+export { DebtService } from './debt.service';
+export { toDebtDetails, calculateExpiryDate } from './debt.utils';

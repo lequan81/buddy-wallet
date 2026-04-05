@@ -6,8 +6,8 @@
  */
 import { randomUUIDv7 } from 'bun';
 import { hashToken } from '@utils';
-import type { IEmailVerificationRepository, IUserRepository } from '@repo/types';
-import type { CreateOtpResult, VerifyOtpResult, ResendOtpResult } from '@/types';
+import type { CreateOtpResult, VerifyOtpResult, ResendOtpResult } from '@/types/services/auth';
+import type { IEmailVerificationRepository, IUserRepository } from '@/types/repositories';
 
 // OTP Configuration
 const OTP_EXPIRY_MINUTES = 10;
@@ -187,4 +187,4 @@ export class EmailVerificationService {
   }
 }
 
-// Singleton instance for the main app
+

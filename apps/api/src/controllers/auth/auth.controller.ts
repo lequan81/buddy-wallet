@@ -18,7 +18,7 @@ import {
 import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
 import { configs } from '@/configs';
 import { getClientIP, hashToken, toSafeUser } from '@utils';
-import { servicesPlugin } from '@plugins/services.plugin';
+import { servicesPlugin } from '@plugins';
 
 export const AuthController = new Elysia({ prefix: '/auth' })
   .use(servicesPlugin)
@@ -340,7 +340,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
     {
       body: t.Object({
         currentPassword: t.String({ minLength: 1 }),
-        newPassword: t.String({ minLength: configs.AUTH.MIN_PASSWORD_LENGTH })
+        newPassword: t.String({ minLength: configs.AUTH.PASSWORD_MIN_LENGTH })
       })
     }
   )
@@ -457,7 +457,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
         body: t.Object({
           email: t.String({ format: 'email' }),
           token: t.String({ minLength: 32 }),
-          newPassword: t.String({ minLength: configs.AUTH.MIN_PASSWORD_LENGTH })
+          newPassword: t.String({ minLength: configs.AUTH.PASSWORD_MIN_LENGTH })
         })
       }
     )
@@ -490,7 +490,7 @@ export const AuthController = new Elysia({ prefix: '/auth' })
     },
     {
       body: t.Object({
-        newPassword: t.String({ minLength: configs.AUTH.MIN_PASSWORD_LENGTH })
+        newPassword: t.String({ minLength: configs.AUTH.PASSWORD_MIN_LENGTH })
       })
     }
   );

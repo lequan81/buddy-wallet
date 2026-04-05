@@ -16,8 +16,7 @@ export const ErrorResponseSchema = t.Object({
 export const PaginationSchema = t.Object({
   page: t.Number(),
   limit: t.Number(),
-  total: t.Number(),
-  totalPages: t.Number()
+  total: t.Number()
 });
 
 export const PaginationQuerySchema = t.Object({

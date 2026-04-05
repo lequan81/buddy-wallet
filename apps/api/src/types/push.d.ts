@@ -32,13 +32,4 @@ export interface SendResult {
   errors?: string[];
 }
 
-export interface SubscribeInput {
-  endpoint: string;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
-  expirationTime?: number | null;
-  deviceName?: string;
-  deviceType?: 'desktop' | 'mobile' | 'tablet';
-}
+export type SubscribeInput = PushSubscription;

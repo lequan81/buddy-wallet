@@ -34,10 +34,11 @@ import { AuthSecurityService } from '@/services/auth/auth-security.service';
 import { AuthSessionService } from '@/services/auth/auth-session.service';
 
 // Debt Service — Hexagonal Architecture
-import { DebtServices } from '@/services/debt/debt.service';
+import { DebtService } from '@/services/debt/debt.service';
 // Repositories
 import { DrizzleDebtRepository } from '@/repositories/adapters/drizzle-debt.repository';
-import { DrizzleUserRepository, DrizzleSessionRepository } from '@/repositories/adapters/drizzle-user.repository';
+import { DrizzleUserRepository } from '@/repositories/adapters/drizzle-user.repository';
+import { DrizzleSessionRepository } from '@/repositories/adapters/drizzle-session.repository';
 import { DrizzleActivityRepository } from '@/repositories/adapters/drizzle-activity.repository';
 import { DrizzleNotificationRepository } from '@/repositories/adapters/drizzle-notification.repository';
 import { DrizzleBankAccountRepository } from '@/repositories/adapters/drizzle-bank-account.repository';
@@ -55,7 +56,7 @@ const emailService = new EmailServiceClass();
 
 // Debt Service — Single unified service via repository pattern
 const debtRepository = new DrizzleDebtRepository(db);
-const debtService = new DebtServices(debtRepository, pushService, activityService);
+const debtService = new DebtService(debtRepository, pushService, activityService);
 
 // Repositories (Singleton instances)
 const userRepository = new DrizzleUserRepository(db);
@@ -92,7 +93,6 @@ const fileService = new FileServiceClass(fileRepository, debtRepository);
 
 // Define the services object for decoration
 export const services = {
-  db, // Expose db for direct repository-like access in controllers if needed
   // Core services
   sessionService,
   userService,
@@ -112,7 +112,6 @@ export const services = {
 
   // Debt Service (Hexagonal Architecture)
   debtService,
-  debtRepository,
 
   // Auth Services (SRP)
   authCoreService,
@@ -130,7 +129,6 @@ export const servicesPlugin = new Elysia({ name: 'Services' })
 // Extend Elysia type definitions for TypeScript support
 declare module 'elysia' {
   export interface ElysiaContext {
-    db: typeof db;
     sessionService: typeof services.sessionService;
     userService: typeof services.userService;
     exportService: typeof services.exportService;
@@ -146,7 +144,6 @@ declare module 'elysia' {
     spreadsheetService: typeof services.spreadsheetService;
     importLoggerService: typeof services.importLoggerService;
     debtService: typeof services.debtService;
-    debtRepository: typeof services.debtRepository;
     authCoreService: typeof services.authCoreService;
     authSecurityService: typeof services.authSecurityService;
     authSessionService: typeof services.authSessionService;

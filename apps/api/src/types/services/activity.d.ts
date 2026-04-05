@@ -20,6 +20,7 @@ export interface LogActivityInput {
 }
 
 export interface ActivityFilters {
+  userId?: string;
   action?: ActivityAction;
   resource?: ActivityResource;
   resourceId?: string;
@@ -29,8 +30,6 @@ export interface ActivityFilters {
   offset?: number;
 }
 
-export interface ActivityLogResult {
-  logs: ActivityLog[];
-  total: number;
-  hasMore: boolean;
-}
+import type { PaginatedResult } from '@repo/types';
+
+export interface ActivityLogResult extends PaginatedResult<ActivityLog> {}

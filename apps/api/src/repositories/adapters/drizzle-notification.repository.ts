@@ -1,6 +1,6 @@
 import { pushSubscriptions, eq, and, lte } from '@repo/db';
 import type { DbClient } from '@/types';
-import type { INotificationRepository } from '@repo/types';
+import type { INotificationRepository } from '@/types/repositories';
 import type { PushSubscription } from '@repo/db';
 import { randomUUIDv7 } from 'bun';
 

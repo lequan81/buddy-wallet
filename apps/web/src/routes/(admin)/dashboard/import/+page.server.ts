@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { FE_ERRORS } from '@repo/errors';
 import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config';
-import type { ApiResponse, PreviewResult, ImportResult } from '@repo/types';
+import type { PreviewResult, ImportResult, PaginatedResult } from '@repo/types';
 
 export const load: PageServerLoad = async ({ parent, locals, url }) => {
 	// Get server-computed permissions from layout
@@ -24,10 +24,13 @@ export const load: PageServerLoad = async ({ parent, locals, url }) => {
 		const { data, error } = await locals.api.v1.import.logs.get({
 			query: { page: String(historyPage), limit: '10' }
 		});
-		if (!error && data) {
-			const payload = data as Record<string, unknown>;
-			logs = (payload.logs as unknown[]) ?? [];
-			historyTotalPages = (payload.totalPages as number) ?? 1;
+		if (!error && data?.success) {
+			const result = (data as { data?: PaginatedResult<unknown> }).data;
+			logs = result?.data ?? [];
+			const pagination = result?.pagination;
+			if (pagination) {
+				historyTotalPages = Math.ceil(pagination.total / pagination.limit) || 1;
+			}
 		}
 	} catch (err) {
 		console.error('[Import] Failed to load history:', err);
@@ -80,17 +83,18 @@ export const actions: Actions = {
 					});
 				}
 
-				const d = data as ApiResponse<PreviewResult & { jobId?: string }> & Record<string, unknown>;
+				const res = data as { success: true; data: PreviewResult & { jobId?: string } } & Record<string, unknown>;
+				const resData = res.data;
 				return {
 					success: true,
 					preview: true,
-					jobId: d?.data?.jobId || d?.jobId as string,
-					logId: d?.data?.logId || d?.logId,
-					fileName: d?.data?.fileName || d?.fileName,
-					totalRows: d?.data?.totalRows || d?.totalRows,
-					columnHeaders: d?.data?.columnHeaders || d?.columnHeaders,
-					previewData: d?.data?.previewData || d?.previewData,
-					autoMapping: d?.data?.autoMapping || d?.autoMapping
+					jobId: resData.jobId || (typeof res.jobId === 'string' ? res.jobId : undefined),
+					logId: resData.logId || (typeof res.logId === 'string' ? res.logId : undefined),
+					fileName: resData.fileName,
+					totalRows: resData.totalRows,
+					columnHeaders: resData.columnHeaders,
+					previewData: resData.previewData,
+					autoMapping: resData.autoMapping
 				};
 			} catch (err) {
 				console.error('[IMPORT PREVIEW FETCH ERROR]:', err);
@@ -154,13 +158,14 @@ export const actions: Actions = {
 					});
 				}
 
-				const d = data as ApiResponse<ImportResult & { jobId?: string }> & Record<string, unknown>;
+				const res = data as { success: true; data: ImportResult & { jobId?: string } } & Record<string, unknown>;
+				const resData = res.data;
 				return {
 					success: true,
-					jobId: d?.data?.jobId || d?.jobId as string,
-					logId: d?.data?.logId || d?.logId,
-					imported: d?.data?.imported || d?.imported,
-					errors: d?.data?.errors || d?.errors
+					jobId: resData.jobId || (typeof res.jobId === 'string' ? res.jobId : undefined),
+					logId: resData.logId,
+					imported: resData.imported || resData.importedCount,
+					errors: resData.errors
 				};
 			} catch (err) {
 				console.error('[IMPORT FETCH ERROR]:', err);

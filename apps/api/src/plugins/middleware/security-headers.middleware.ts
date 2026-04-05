@@ -40,8 +40,8 @@ export const securityHeadersPlugin = new Elysia({ name: 'Security_Headers' }).on
       "worker-src 'self' blob:"
     ].join('; ');
 
-    // Additional security headers
-    set.headers['X-XSS-Protection'] = '1; mode=block';
+    // HSTS (Strict-Transport-Security) for HTTPS enforcement
+    set.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains; preload';
     set.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin';
 
     // Permissions-Policy - Allow required features

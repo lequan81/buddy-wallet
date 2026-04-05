@@ -1,5 +1,7 @@
 import { configs } from '@/configs';
+import { logger } from '@repo/logger';
 import type { IStorageService } from '@/types';
+import { toOptional } from '@repo/utils';
 
 const UPLOAD_NAMESPACE = 'uploads';
 const PROOF_NAMESPACE = 'proofs';
@@ -7,7 +9,7 @@ const PROOF_NAMESPACE = 'proofs';
 const normalizeStoragePath = (rawPath: string): string =>
   rawPath.replace(/\\/g, '/').replace(/^\/+/, '');
 
-const toOptional = (value: string): string | undefined => (value ? value : undefined);
+// Removed local toOptional
 
 export class S3StorageService implements IStorageService {
   constructor(
@@ -51,7 +53,10 @@ export class S3StorageService implements IStorageService {
     try {
       await this.s3Client.delete(key);
     } catch (error) {
-      console.warn(`Failed to delete file s3://${this.bucket}/${key}:`, error);
+      logger.warn(`Failed to delete file s3://${this.bucket}/${key}`, {
+        key,
+        error: String(error)
+      });
     }
   }
 

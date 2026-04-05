@@ -1,12 +1,8 @@
+import type { ActivityLog, ActivityAction, ActivityResource } from '@repo/db';
+
+export type { ActivityLog, ActivityAction, ActivityResource };
+
 /**
- * Core Activity Types
+ * Core Activity Type (Alias for ActivityLog)
  */
-export interface Activity {
-  id: string;
-  userId: string;
-  type: string;
-  entityId: string | null;
-  entityType: string | null;
-  metadata: Record<string, unknown> | null;
-  createdAt: Date | string;
-}
+export type Activity = ActivityLog;

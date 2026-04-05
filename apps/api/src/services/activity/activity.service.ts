@@ -8,7 +8,7 @@
  */
 // No unused imports
 import { type ActivityLog, type ActivityResource } from '@repo/db';
-import type { IActivityRepository } from '@repo/types';
+import type { IActivityRepository } from '@/types/repositories';
 import type { LogActivityInput, ActivityFilters, ActivityLogResult } from '@/types/services/activity';
 
 /**
@@ -39,10 +39,16 @@ export class ActivityService {
    */
   async getLogsForUser(userId: string, filters: ActivityFilters = {}): Promise<ActivityLogResult> {
     const result = await this.activityRepo.findManyByUserId(userId, filters);
+    const { limit = 50, offset = 0 } = filters;
+
     return {
-      logs: result.data,
-      total: result.pagination.total,
-      hasMore: (filters.offset || 0) + result.data.length < result.pagination.total
+      success: true,
+      data: result.data,
+      pagination: {
+        page: Math.floor(offset / limit) + 1,
+        limit,
+        total: result.pagination.total
+      }
     };
   }
 
@@ -51,10 +57,16 @@ export class ActivityService {
    */
   async getAllLogs(filters: ActivityFilters = {}): Promise<ActivityLogResult> {
     const result = await this.activityRepo.findMany(filters);
+    const { limit = 50, offset = 0 } = filters;
+
     return {
-      logs: result.data,
-      total: result.pagination.total,
-      hasMore: (filters.offset || 0) + result.data.length < result.pagination.total
+      success: true,
+      data: result.data,
+      pagination: {
+        page: Math.floor(offset / limit) + 1,
+        limit,
+        total: result.pagination.total
+      }
     };
   }
 

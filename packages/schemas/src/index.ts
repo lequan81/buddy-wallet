@@ -6,3 +6,4 @@ export * from './auth.schema';
 export * from './bank.schema';
 export * from './import.schema';
 export * from './upload.schema';
+export * from './activity.schema';

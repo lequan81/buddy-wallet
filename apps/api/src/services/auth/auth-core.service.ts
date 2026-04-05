@@ -9,8 +9,7 @@
  * Dependencies: db, emailService, emailVerificationService
  */
 import { type User } from '@repo/db';
-import type { IUserRepository } from '@repo/types';
-import type { IDebtRepository } from '@/repositories';
+import type { IUserRepository, IDebtRepository } from '@/types/repositories';
 import { DEFAULT_USER_PERMISSIONS } from '@repo/permissions';
 import { configs } from '../../configs';
 import {

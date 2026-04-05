@@ -1,11 +1,13 @@
-import { 
-  BACKEND_CONSTANTS, 
-  validateSecretStrength, 
-  optionalEnv, 
-  getEnvBool, 
+import {
+  BACKEND_CONSTANTS,
+  optionalEnv,
+  requiredEnv,
+  loadAndValidateEnv,
+  getEnvBool,
   getEnvInt,
   SHARED_CONSTANTS
 } from '@repo/config';
+import { logger } from '@repo/logger';
 
 /**
  * Startup Validation - Ensures environment is ready
@@ -13,28 +15,8 @@ import {
 const nodeEnv = Bun.env.NODE_ENV || 'development';
 const isProd = nodeEnv === 'production';
 
-// Validation helper
-function validateEnv() {
-  const jwtSecret = Bun.env.JWT_SECRET;
-  if (!jwtSecret && isProd) {
-    throw new Error('[ERROR] JWT_SECRET is required in production');
-  } else if (!jwtSecret) {
-    console.warn('[WARN] JWT_SECRET not set. Using insecure default.');
-  } else {
-    const validation = validateSecretStrength(jwtSecret);
-    if (!validation.isValid) {
-      if (isProd) throw new Error(`[ERROR] JWT_SECRET security issues:\n  - ${validation.issues.join('\n  - ')}`);
-      console.warn(`[WARN] JWT_SECRET security issues:\n  - ${validation.issues.join('\n  - ')}`);
-    }
-  }
-
-  if (!Bun.env.DATABASE_URL && isProd) {
-    throw new Error('[ERROR] DATABASE_URL is required in production');
-  }
-}
-
 // Run validation immediately on import
-validateEnv();
+loadAndValidateEnv();
 
 /**
  * Minified Config Definition
@@ -51,12 +33,16 @@ export const configs = {
     IS_DEV: !isProd
   },
   AUTH: {
-    JWT_SECRET: optionalEnv('JWT_SECRET', 'dev-secret-change-in-production'),
-    CSRF_SECRET: optionalEnv('CSRF_SECRET', optionalEnv('JWT_SECRET', '')),
+    JWT_SECRET: requiredEnv('JWT_SECRET'),
+    JWT_REFRESH_SECRET: requiredEnv('JWT_REFRESH_SECRET'),
+    CSRF_SECRET: optionalEnv('CSRF_SECRET', requiredEnv('JWT_SECRET')),
     ACCESS_TOKEN_LIFETIME: getEnvInt('ACCESS_TOKEN_LIFETIME', 900000),
     REFRESH_TOKEN_LIFETIME: getEnvInt('REFRESH_TOKEN_LIFETIME', 7776000000),
-    PASSWORD_MIN_LENGTH: getEnvInt('MIN_PASSWORD_LENGTH', SHARED_CONSTANTS.USER.PASSWORD_MIN_LENGTH),
-    ARGON2: {
+    JWT_BLACKLIST_SECONDS: getEnvInt('JWT_BLACKLIST_SECONDS', 900),
+    PASSWORD_MIN_LENGTH: getEnvInt('AUTH_PASSWORD_MIN_LENGTH', SHARED_CONSTANTS.USER.PASSWORD_MIN_LENGTH),
+
+    ARGON2_OPTIONS: {
+      algorithm: 'argon2id' as const,
       memoryCost: getEnvInt('ARGON2_MEMORY_COST', 65536),
       timeCost: getEnvInt('ARGON2_TIME_COST', 3)
     }
@@ -72,11 +58,13 @@ export const configs = {
     S3_BUCKET: optionalEnv('S3_BUCKET', ''),
     S3_ACCESS_KEY_ID: optionalEnv('S3_ACCESS_KEY_ID', ''),
     S3_SECRET_ACCESS_KEY: optionalEnv('S3_SECRET_ACCESS_KEY', ''),
+    S3_PUBLIC_BASE_URL: optionalEnv('S3_PUBLIC_BASE_URL', ''),
     S3_FORCE_PATH_STYLE: getEnvBool('S3_FORCE_PATH_STYLE', true)
   },
   PAGINATION: {
     DEFAULT_LIMIT: getEnvInt('PAGINATION_DEFAULT_LIMIT', SHARED_CONSTANTS.PAGINATION.DEFAULT_SIZE),
-    MAX_LIMIT: getEnvInt('PAGINATION_MAX_LIMIT', SHARED_CONSTANTS.PAGINATION.MAX_SIZE)
+    MAX_LIMIT: getEnvInt('PAGINATION_MAX_LIMIT', SHARED_CONSTANTS.PAGINATION.MAX_SIZE),
+    MAX_OFFSET: getEnvInt('PAGINATION_MAX_OFFSET', 50000)
   },
   RATE_LIMITS: {
     STANDARD: { windowMs: 60000, maxRequests: 100 },
@@ -86,9 +74,9 @@ export const configs = {
     AUTH_RESET: { windowMs: 15 * 60 * 1000, maxRequests: 10 },
     AUTH_OTP: { windowMs: 10 * 60 * 1000, maxRequests: 5 },
     BURST: { windowMs: 10000, maxRequests: 30 },
-    UPLOAD: { 
-      windowMs: BACKEND_CONSTANTS.RATE_LIMITS.UPLOAD.windowMs, 
-      maxRequests: BACKEND_CONSTANTS.RATE_LIMITS.UPLOAD.requests 
+    UPLOAD: {
+      windowMs: BACKEND_CONSTANTS.RATE_LIMITS.UPLOAD.windowMs,
+      maxRequests: BACKEND_CONSTANTS.RATE_LIMITS.UPLOAD.requests
     },
     DOWNLOAD: { windowMs: 60000, maxRequests: 100 },
     BROADCAST: { windowMs: 60000, maxRequests: 1 },
@@ -99,10 +87,14 @@ export const configs = {
     VAPID_PRIVATE_KEY: optionalEnv('VAPID_PRIVATE_KEY', ''),
     VAPID_SUBJECT: optionalEnv('VAPID_SUBJECT', 'mailto:example@yourdomain.com'),
     MAX_FAILED_ATTEMPTS: getEnvInt('PUSH_MAX_FAILED_ATTEMPTS', 3)
+  },
+  SECURITY: {
+    DEBT_CHECK_COUNT_TOKEN: optionalEnv('DEBT_CHECK_COUNT_TOKEN', ''),
+    TURNSTILE_SECRET: optionalEnv('TURNSTILE_SECRET', '')
   }
 } as const;
 
 // Storage validation logging
 if (isProd && (!configs.STORAGE.S3_ENDPOINT || !configs.STORAGE.S3_BUCKET)) {
-  console.warn('[STORAGE] S3 is not fully configured. Some features may be disabled.');
+  logger.warn('S3 is not fully configured. Some features may be disabled.');
 }

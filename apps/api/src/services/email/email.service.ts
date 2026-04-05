@@ -8,7 +8,7 @@ import { SmtpTransport } from '@upyo/smtp';
 import { createMessage } from '@upyo/core';
 import { log } from '@repo/logger';
 import { renderOtp, renderWelcome } from '@repo/email-templates';
-import type { EmailFrom, EmailOptions, EmailSendResult } from '@repo/config';
+import type { EmailFrom, EmailOptions, EmailSendResult } from '@repo/types';
 
 const FROM_ADDRESSES: Record<EmailFrom, string> = {
   noreply: Bun.env.SMTP_FROM_NOREPLY || 'no-reply@buddywallet.dpdns.org',
@@ -121,4 +121,4 @@ export class EmailService {
   }
 }
 
-// Singleton instance
+

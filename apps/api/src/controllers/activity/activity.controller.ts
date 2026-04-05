@@ -4,8 +4,9 @@
  * Provides endpoints for viewing user activity logs.
  */
 import { Elysia, t } from 'elysia';
-import { GEN_ERRORS, errorResponse, successResponse } from '@repo/errors';
+import { successResponse } from '@repo/errors';
 import { servicesPlugin, sessionAuthPlugin } from '@plugins';
+import { ErrorResponseSchema, ActivityListResponseSchema, RecentActivityResponseSchema } from '@repo/schemas';
 import { requireAuth } from '@/core/http/require-auth';
 import { parseOffsetPagination } from '@/core/http/pagination';
 
@@ -24,21 +25,31 @@ export const ActivityController = new Elysia({ prefix: '/activity' })
       const { limit, offset } = parseOffsetPagination(query);
 
       const result = await activityService.getLogsForUser(auth.user.id, { limit, offset });
-      return successResponse({
-        logs: result.logs,
-        pagination: {
-          total: result.total,
-          limit,
-          offset,
-          hasMore: result.hasMore
-        }
-      });
+      
+      // Map DB fields to ActivitySchema fields (strict matching)
+      const dataWithTarget = result.data.map(log => ({
+        id: log.id,
+        userId: log.userId,
+        action: log.action,
+        target: log.resource,
+        metadata: log.metadata,
+        createdAt: log.createdAt.toISOString()
+      }));
+
+      return {
+        ...result,
+        data: dataWithTarget
+      };
     },
     {
       query: t.Object({
         limit: t.Optional(t.String()),
         offset: t.Optional(t.String())
-      })
+      }),
+      response: {
+        200: ActivityListResponseSchema,
+        401: ErrorResponseSchema
+      }
     }
   )
 
@@ -48,6 +59,22 @@ export const ActivityController = new Elysia({ prefix: '/activity' })
     if ('error' in auth) {
       return auth.error;
     }
-    const logs = await activityService.getRecentActivity(auth.user.id, 10); // 10 is fine for "recent" summary
-    return successResponse({ logs });
+    const logs = await activityService.getRecentActivity(auth.user.id, 10);
+    
+    // Map DB fields to ActivitySchema fields (strict matching)
+    const logsWithTarget = logs.map(log => ({
+      id: log.id,
+      userId: log.userId,
+      action: log.action,
+      target: log.resource,
+      metadata: log.metadata,
+      createdAt: log.createdAt.toISOString()
+    }));
+
+    return successResponse({ data: logsWithTarget });
+  }, {
+    response: {
+      200: RecentActivityResponseSchema,
+      401: ErrorResponseSchema
+    }
   });

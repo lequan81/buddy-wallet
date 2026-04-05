@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import type { ActivityLog, Pagination } from '@repo/types';
+import type { ActivityLog, Pagination, PaginatedResult } from '@repo/types';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const page = parseInt(url.searchParams.get('page') || '1');
@@ -12,25 +12,22 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		query: { limit: pageSize.toString(), offset: offset.toString() }
 	});
 
-	if (error) {
-		console.error('[Activity] Failed to fetch logs:', Object.assign({}, error));
+	if (error || !data) {
+		console.error('[Activity] Failed to fetch logs:', Object.assign({}, error || {}));
 		return {
 			logs: [] as ActivityLog[],
-			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } as Pagination,
+			pagination: { total: 0, limit: pageSize, page, offset: 0, hasMore: false } as Pagination,
 			page,
 			pageSize,
 			error: 'Failed to fetch activity logs'
 		};
 	}
 
+	const result = data as unknown as PaginatedResult<ActivityLog>;
+
 	return {
-		logs: (data?.success ? data.logs : []) as unknown as ActivityLog[],
-		pagination: (data?.success ? data.pagination : {
-			total: 0,
-			limit: pageSize,
-			offset: 0,
-			hasMore: false
-		}) as Pagination,
+		logs: result.data || [],
+		pagination: result.pagination,
 		page,
 		pageSize
 	};

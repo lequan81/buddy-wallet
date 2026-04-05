@@ -4,7 +4,7 @@
  * Handles CRUD operations for user bank accounts.
  */
 import { log } from '@repo/logger';
-import type { IBankAccountRepository } from '@repo/types';
+import type { IBankAccountRepository } from '@/types/repositories';
 import type { BankAccount, NewBankAccount } from '@repo/db';
 
 export class BankAccountService {

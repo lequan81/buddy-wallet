@@ -1,6 +1,6 @@
 import { bankAccounts, eq, desc, and } from '@repo/db';
 import type { DbClient } from '@/types';
-import type { IBankAccountRepository } from '@repo/types';
+import type { IBankAccountRepository } from '@/types/repositories';
 import type { BankAccount } from '@repo/db';
 
 export class DrizzleBankAccountRepository implements IBankAccountRepository {

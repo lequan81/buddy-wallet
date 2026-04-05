@@ -7,7 +7,7 @@
 import type { Debt } from '@repo/db';
 import type { DebtStatus } from '@/types';
 import { DEBT_STATUS } from '@repo/config';
-import type { IDebtState, TransitionContext } from '@/types/debt.d';
+import type { IDebtState, TransitionContext } from './types';
 import { log } from '@repo/logger';
 
 export class PendingState implements IDebtState {

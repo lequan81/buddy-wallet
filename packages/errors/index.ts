@@ -67,6 +67,9 @@ export const BE_ERRORS = {
   AUTH_INVALID_PHONE: { code: 'BE_016', message: 'Invalid phone number format' },
   AUTH_NO_SESSION: { code: 'BE_017', message: 'No valid session' },
   AUTH_PASSWORD_MISMATCH: { code: 'BE_018', message: 'Current password is incorrect' },
+  AUTH_ACCOUNT_LOCKED: { code: 'BE_019', message: 'Account is locked' },
+  AUTH_WEAK_PASSWORD: { code: 'BE_095', message: 'Password is too weak' },
+  AUTH_COMMON_PASSWORD: { code: 'BE_096', message: 'Password is too common' },
 
   // Email Verification Errors
   EMAIL_OTP_EXPIRED: { code: 'BE_050', message: 'Verification code has expired' },
@@ -91,6 +94,13 @@ export const BE_ERRORS = {
   DEBT_NOT_FOUND: { code: 'BE_035', message: 'Debt not found' },
   DEBT_INVALID_STATUS: { code: 'BE_036', message: 'Invalid status transition' },
   DEBT_PERMISSION_DENIED: { code: 'BE_037', message: 'Not authorized to modify this debt' },
+  DEBT_PENDING_LIMIT: { code: 'BE_038', message: 'Too many unconfirmed debts' },
+  DEBT_DUPLICATE_WARNING: { code: 'BE_039', message: 'Potential duplicate debt found' },
+  DEBT_ALREADY_CONFIRMED: { code: 'BE_090', message: 'Debt already confirmed by creator' },
+  DEBT_INVALID_STATE: { code: 'BE_091', message: 'Invalid debt state for this operation' },
+  DEBT_SELF_NOT_ALLOWED: { code: 'BE_092', message: 'Cannot create a debt with yourself' },
+  DEBT_PHONE_REQUIRED: { code: 'BE_093', message: 'Phone number required to create debts' },
+  DEBT_INVALID_PHONE: { code: 'BE_094', message: 'Invalid counterparty phone number' },
 
   // Rate Limiting
   RATE_LIMITED: { code: 'BE_040', message: 'Too many requests' },
@@ -109,6 +119,10 @@ export const BE_ERRORS = {
   PUSH_SUBSCRIPTION_NOT_FOUND: { code: 'BE_071', message: 'Push subscription not found' },
   PUSH_SEND_FAILED: { code: 'BE_072', message: 'Failed to send push notification' },
   PUSH_INVALID_SUBSCRIPTION: { code: 'BE_073', message: 'Invalid push subscription data' },
+
+  // Session Errors
+  SESSION_NOT_FOUND: { code: 'BE_097', message: 'Session not found or already revoked' },
+  SESSION_EXPIRED: { code: 'BE_098', message: 'Session has expired' },
 
   // Bank Account Errors
   BANK_ACCOUNT_NOT_FOUND: { code: 'BE_080', message: 'Bank account not found' },

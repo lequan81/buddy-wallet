@@ -7,7 +7,8 @@
  */
 import { userCache, isRedisAvailable } from '@plugins/redis';
 import { toSafeUser } from '@utils';
-import type { SafeUser, UserResult, PaginatedResult, IUserService, IUserRepository, ISessionRepository } from '@repo/types';
+import type { SafeUser, UserResult, PaginatedResult, IUserService } from '@repo/types';
+import type { IUserRepository, ISessionRepository } from '@/types/repositories';
 
 /**
  * UserService class with dependency injection
@@ -22,19 +23,13 @@ export class UserService implements IUserService {
   /**
    * Get all users (admin only) with pagination
    */
-  /**
-   * Get all users (admin only) with pagination
-   */
   async getAllUsers(
     options: { limit?: number; offset?: number } = {}
   ): Promise<PaginatedResult<SafeUser>> {
     const { limit = 50, offset = 0 } = options;
 
-    // Get total count
-    const total = await this.userRepo.countAll();
-
-    // Get paginated results
-    const paginatedUsers = await this.userRepo.findPaginated(limit, offset);
+    // Use parallelized findMany from repository
+    const { data: paginatedUsers, total } = await this.userRepo.findMany(limit, offset);
 
     // Strip passwords and sensitive data
     const safeUsers = paginatedUsers.map(toSafeUser);
@@ -45,8 +40,7 @@ export class UserService implements IUserService {
       pagination: {
         page: Math.floor(offset / limit) + 1,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit)
+        total
       }
     };
   }

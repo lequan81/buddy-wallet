@@ -12,13 +12,13 @@ import {
   type User,
   type Debt
 } from '@repo/db';
-import type { IImportExportRepository } from '@repo/types';
+import type { ImportLog } from '@repo/db';
+import type { IImportExportRepository } from '@/types/repositories';
 import type { DbClient } from '@/types';
-
-type ImportLog = typeof importLogs.$inferSelect;
+import { configs } from '@/configs';
 
 export class DrizzleImportExportRepository implements IImportExportRepository {
-  constructor(private readonly db: DbClient) {}
+  constructor(private readonly db: DbClient) { }
 
   async createLog(data: Omit<ImportLog, 'createdAt' | 'deletedAt'>): Promise<void> {
     await this.db.insert(importLogs).values({
@@ -56,14 +56,17 @@ export class DrizzleImportExportRepository implements IImportExportRepository {
     limit: number,
     offset: number
   ): Promise<{ logs: ImportLog[]; total: number }> {
+    const safeLimit = Math.min(Math.max(limit, 1), configs.PAGINATION.MAX_LIMIT);
+    const safeOffset = Math.min(Math.max(offset, 0), configs.PAGINATION.MAX_OFFSET ?? 50000);
+
     const [rows, totalResult] = await Promise.all([
       this.db
         .select()
         .from(importLogs)
         .where(eq(importLogs.userId, userId))
         .orderBy(desc(importLogs.createdAt), desc(importLogs.id))
-        .limit(limit)
-        .offset(offset)
+        .limit(safeLimit)
+        .offset(safeOffset)
         .all(),
       this.db
         .select({ count: count() })
@@ -102,7 +105,7 @@ export class DrizzleImportExportRepository implements IImportExportRepository {
 
   async findUsersByIdentifiers(identifiers: string[]): Promise<Pick<User, 'id' | 'email' | 'phoneNumber'>[]> {
     if (identifiers.length === 0) return [];
-    
+
     return this.db
       .select({
         id: users.id,
@@ -116,7 +119,7 @@ export class DrizzleImportExportRepository implements IImportExportRepository {
 
   async createDebtsBatch(debtsToCreate: Omit<Debt, 'id' | 'createdAt' | 'updatedAt'>[]): Promise<void> {
     if (debtsToCreate.length === 0) return;
-    
+
     // Chunking is handled by Drizzle or can be done manually if needed.
     // Drizzle sqlite-proxy/bun-sqlite handles large inserts.
     await this.db.insert(debts).values(debtsToCreate as any);

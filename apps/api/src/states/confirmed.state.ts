@@ -7,7 +7,7 @@
 import type { Debt } from '@repo/db';
 import type { DebtStatus } from '@/types';
 import { DEBT_STATUS } from '@repo/config';
-import type { IDebtState, TransitionContext } from '@/types/debt.d';
+import type { IDebtState, TransitionContext } from './types';
 import { log } from '@repo/logger';
 
 export class ConfirmedState implements IDebtState {
@@ -34,21 +34,32 @@ export class ConfirmedState implements IDebtState {
     // Send notification to the creator (or counterparty based on who confirmed)
     const notifyUserId = context.userId === debt.creditorId ? debt.debtorId : debt.creditorId;
     if (notifyUserId) {
-      import('../services').then(({ PushService, UserService }) => {
-        UserService.getUserById(context.userId).then((confirmer) => {
-          UserService.getUserById(notifyUserId).then((target) => {
-            if (confirmer.user && target.user?.pushNotificationsEnabled) {
-              PushService.sendDebtConfirmedNotification({
-                userId: notifyUserId,
-                confirmerName: confirmer.user.name,
-                amount: debt.amount,
-                description: debt.description || '',
-                debtId: debt.id
-              }).catch(() => {});
-            }
-          });
+      this.notifyCounterparty(debt, context.userId, notifyUserId).catch((error) => {
+        log.error('DEBT_NOTIFICATION_FAILED', String(error), {
+          debtId: debt.id,
+          notifyUserId
         });
       });
+    }
+  }
+
+  private async notifyCounterparty(debt: Debt, confirmerId: string, notifyUserId: string): Promise<void> {
+    try {
+      const { services } = await import('../plugins/di/services.plugin');
+      const confirmer = await services.userService.getUserById(confirmerId);
+      const target = await services.userService.getUserById(notifyUserId);
+
+      if (confirmer.user && target.user?.pushNotificationsEnabled) {
+        await services.pushService.sendDebtConfirmedNotification({
+          userId: notifyUserId,
+          confirmerName: confirmer.user.name,
+          amount: debt.amount,
+          description: debt.description || '',
+          debtId: debt.id
+        });
+      }
+    } catch (error) {
+      throw new Error(`Failed to notify user ${notifyUserId}: ${String(error)}`);
     }
   }
 

@@ -6,38 +6,43 @@
  */
 import webpush from 'web-push';
 import { logger } from '@repo/logger';
-import type { INotificationRepository } from '@repo/types';
+import type { INotificationRepository } from '@/types/repositories';
 import { configs } from '@/configs';
 import type { PushPayload, SubscribeInput, SendResult } from '@/types/push';
 
-// Configure web-push with VAPID keys (only if valid keys are provided)
-const hasValidVapidKeys =
-  configs.PUSH.VAPID_PUBLIC_KEY &&
-  configs.PUSH.VAPID_PRIVATE_KEY &&
-  configs.PUSH.VAPID_PUBLIC_KEY.length > 20 &&
-  configs.PUSH.VAPID_PRIVATE_KEY.length > 20;
-
-if (hasValidVapidKeys) {
-  try {
-    webpush.setVapidDetails(
-      configs.PUSH.VAPID_SUBJECT,
-      configs.PUSH.VAPID_PUBLIC_KEY,
-      configs.PUSH.VAPID_PRIVATE_KEY
-    );
-    logger.push('Web Push configured with VAPID keys');
-  } catch (error) {
-    logger.error('Failed to configure VAPID keys:', { error: String(error) });
-    logger.warn(
-      'Push notifications will not work. Generate VAPID keys with: bunx web-push generate-vapid-keys'
-    );
-  }
-} else {
-  logger.warn('VAPID keys not configured. Push notifications disabled.');
-  logger.warn('Generate keys with: bunx web-push generate-vapid-keys');
-}
-
 export class PushService {
-  constructor(private notificationRepo: INotificationRepository) {}
+  private readonly PUSH_CHUNK_SIZE = 100;
+  private static vapidConfigured = false;
+
+  constructor(private notificationRepo: INotificationRepository) {
+    if (!PushService.vapidConfigured) {
+      this.configureVapid();
+      PushService.vapidConfigured = true;
+    }
+  }
+
+  private configureVapid(): void {
+    const hasValidKeys =
+      configs.PUSH.VAPID_PUBLIC_KEY &&
+      configs.PUSH.VAPID_PRIVATE_KEY &&
+      configs.PUSH.VAPID_PUBLIC_KEY.length > 20 &&
+      configs.PUSH.VAPID_PRIVATE_KEY.length > 20;
+
+    if (hasValidKeys) {
+      try {
+        webpush.setVapidDetails(
+          configs.PUSH.VAPID_SUBJECT,
+          configs.PUSH.VAPID_PUBLIC_KEY,
+          configs.PUSH.VAPID_PRIVATE_KEY
+        );
+        logger.push('Web Push configured with VAPID keys');
+      } catch (error) {
+        logger.error('Failed to configure VAPID keys:', { error: String(error) });
+      }
+    } else {
+      logger.warn('VAPID keys not configured. Push notifications disabled.');
+    }
+  }
 
   /**
    * Check if push notifications are configured
@@ -131,59 +136,74 @@ export class PushService {
     }>,
     payload: PushPayload
   ): Promise<SendResult> {
-    const results = await Promise.allSettled(
-      subscriptions.map(async (sub) => {
-        const pushSubscription: {
-          endpoint: string;
-          keys: {
-            p256dh: string;
-            auth: string;
+    let sent = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < subscriptions.length; i += this.PUSH_CHUNK_SIZE) {
+      const chunk = subscriptions.slice(i, Math.min(i + this.PUSH_CHUNK_SIZE, subscriptions.length));
+
+      const chunkResults = await Promise.allSettled(
+        chunk.map(async (sub) => {
+          const pushSubscription: {
+            endpoint: string;
+            keys: {
+              p256dh: string;
+              auth: string;
+            };
+          } = {
+            endpoint: sub.endpoint,
+            keys: {
+              p256dh: sub.p256dhKey,
+              auth: sub.authKey
+            }
           };
-        } = {
-          endpoint: sub.endpoint,
-          keys: {
-            p256dh: sub.p256dhKey,
-            auth: sub.authKey
-          }
-        };
 
-        try {
-          await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
+          try {
+            await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
 
-          await this.notificationRepo.updateSubscriptionStatus(sub.id, {
-            lastUsedAt: new Date(),
-            failedAttempts: 0
-          });
-
-          return { success: true, subscriptionId: sub.id };
-        } catch (error: unknown) {
-          const statusCode = (error as { statusCode?: number }).statusCode;
-
-          // Handle expired or invalid subscriptions
-          if (statusCode === 404 || statusCode === 410) {
-            logger.app(`Removing expired subscription`, { subscriptionId: sub.id });
-            await this.notificationRepo.deleteById(sub.id);
-          } else {
-            const newAttempts = sub.failedAttempts + 1;
-            const isActive = newAttempts < configs.PUSH.MAX_FAILED_ATTEMPTS;
             await this.notificationRepo.updateSubscriptionStatus(sub.id, {
-              isActive,
-              failedAttempts: newAttempts
+              lastUsedAt: new Date(),
+              failedAttempts: 0
             });
+
+            return { success: true, subscriptionId: sub.id };
+          } catch (error: unknown) {
+            const statusCode = (error as { statusCode?: number }).statusCode;
+
+            if (statusCode === 404 || statusCode === 410) {
+              logger.app(`Removing expired subscription`, { subscriptionId: sub.id });
+              await this.notificationRepo.deleteById(sub.id);
+            } else {
+              const newAttempts = sub.failedAttempts + 1;
+              const isActive = newAttempts < configs.PUSH.MAX_FAILED_ATTEMPTS;
+              await this.notificationRepo.updateSubscriptionStatus(sub.id, {
+                isActive,
+                failedAttempts: newAttempts
+              });
+            }
+
+            throw error;
           }
+        })
+      );
 
-          throw error;
-        }
-      })
-    );
+      sent += chunkResults.filter((r) => r.status === 'fulfilled').length;
+      const failedInChunk = chunkResults.filter((r) => r.status === 'rejected');
+      failed += failedInChunk.length;
+      errors.push(...failedInChunk.map((r) => String((r as PromiseRejectedResult).reason)));
 
-    const sent = results.filter((r) => r.status === 'fulfilled').length;
-    const failed = results.filter((r) => r.status === 'rejected').length;
-    const errors = results
-      .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-      .map((r) => String(r.reason));
+      if (i + this.PUSH_CHUNK_SIZE < subscriptions.length) {
+        await this.sleep(10);
+      }
+    }
 
-    return { success: sent > 0, sent, failed, errors: errors.length > 0 ? errors : undefined };
+    return {
+      success: sent > 0,
+      sent,
+      failed,
+      errors: errors.length > 0 ? errors.slice(0, 20) : undefined
+    };
   }
 
   /**
@@ -200,7 +220,17 @@ export class PushService {
       return { success: true, sent: 0, failed: 0 };
     }
 
-    return this.sendToSubscriptions(subscriptions, payload);
+    const result = await this.sendToSubscriptions(subscriptions, payload);
+    logger.info('Push broadcast completed', {
+      total: subscriptions.length,
+      sent: result.sent,
+      failed: result.failed
+    });
+    return result;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**

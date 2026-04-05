@@ -10,7 +10,7 @@
  */
 import type { Debt } from '@repo/db';
 import type { DebtStatus } from '@/types';
-import type { IDebtState, IDebtStateMachine, TransitionContext, TransitionResult } from '@/types/debt.d';
+import type { IDebtState, IDebtStateMachine, TransitionContext, TransitionResult } from './types';
 import { log } from '@repo/logger';
 
 // Import all state implementations
