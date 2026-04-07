@@ -32,10 +32,53 @@ import { randomUUIDv7 } from 'bun';
 // Validate environment variables on startup
 validateRuntimeEnv();
 
+/**
+ * Main API Application Instance
+ * Reorganized for "Production-Grade" performance and security:
+ * 1. Global Security/Caching (Outermost layer)
+ * 2. Health Checks (Fast-exit for infrastructure pings)
+ * 3. Infrastructure (Telemetry, Logger, Redis)
+ * 4. Business Logic (Controllers)
+ */
 export const app = new Elysia()
-  // Global ETag (browser caching)
-  .use(etag())
-  // Global Request ID
+  // --- 1. GLOBAL SECURITY & CACHING (The Outermost Onion Layers) ---
+  .use(etag())               // Global ETags to save bandwidth (304 Not Modified)
+  .use(corsPlugin)           // Reject unauthorized origins early
+  .use(csrfPlugin)           // Prevent CSRF attacks globally
+  .use(securityHeadersPlugin)// HSTS, CSP, X-Frame-Options for all responses
+
+  // --- 2. FAST-EXIT ENDPOINTS (No heavy middleware needed) ---
+  .get('/health', () => apiResponse({
+    ok: true,
+    data: {
+      status: 'ok',
+      version: '1.2.4',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString()
+    }
+  }))
+  .get('/health/ready', async ({ set }) => {
+    const storage = await getStorageReadiness();
+    if (!storage.ready) {
+      set.status = 503;
+      return apiResponse({
+        ok: false,
+        error: GEN_ERRORS.NETWORK,
+        details: `Storage degraded: ${JSON.stringify(storage)}`
+      });
+    }
+
+    return apiResponse({
+      ok: true,
+      data: {
+        status: 'ready',
+        storage,
+        timestamp: new Date().toISOString()
+      }
+    });
+  })
+
+  // --- 3. INFRASTRUCTURE & OBSERVABILITY (Legitimate traffic starts here) ---
   .derive(({ request }) => {
     const requestId = request.headers.get('X-Request-ID') || randomUUIDv7();
     return { requestId };
@@ -43,7 +86,7 @@ export const app = new Elysia()
   .onAfterHandle(({ requestId, set }) => {
     set.headers['X-Request-ID'] = requestId;
   })
-  // Global error handler - ensures all errors return proper JSON
+  // Global error handler
   .onError(({ code, error, set }) => {
     logger.app('Global error caught', { code, error: String(error) });
 
@@ -64,17 +107,12 @@ export const app = new Elysia()
       details: (error as Error)?.message 
     });
   })
-  // OpenTelemetry (if enabled)
   .use(telemetry ?? new Elysia())
-  // Redis (if enabled)
   .use(redisPlugin)
-  // Request logging
   .use(requestLoggerPlugin)
-  // Security headers (CSP, X-Frame-Options, etc.)
-  .use(securityHeadersPlugin)
   .use(TracesController)
-  .use(corsPlugin)
-  .use(csrfPlugin) // Global CSRF Protection
+
+  // --- 4. BUSINESS LOGIC (Core API v1) ---
   .group('/v1', (app) =>
     app
       // Session-based authentication (sets user if valid token exists)
@@ -107,6 +145,8 @@ export const app = new Elysia()
             .use(UploadController)
       )
   )
+
+  // --- 5. DEFAULT ROUTE ---
   .get('/', () => apiResponse({
     ok: true,
     data: {
@@ -115,36 +155,7 @@ export const app = new Elysia()
       status: 'running',
       docs: '/health'
     }
-  }))
-  .get('/health', async () => apiResponse({
-    ok: true,
-    data: {
-      status: 'ok',
-      version: '1.2.4',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString()
-    }
-  }))
-  .get('/health/ready', async ({ set }) => {
-    const storage = await getStorageReadiness();
-    if (!storage.ready) {
-      set.status = 503;
-      return apiResponse({
-        ok: false,
-        error: GEN_ERRORS.NETWORK,
-        details: `Storage degraded: ${JSON.stringify(storage)}`
-      });
-    }
-
-    return apiResponse({
-      ok: true,
-      data: {
-        status: 'ready',
-        storage,
-        timestamp: new Date().toISOString()
-      }
-    });
-  });
+  }));
 
 // Only listen if run directly
 if (import.meta.main) {
