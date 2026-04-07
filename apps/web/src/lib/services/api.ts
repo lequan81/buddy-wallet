@@ -3,21 +3,16 @@
  * Centralizes all API-related settings and utilities
  */
 
-import { FRONTEND_CONSTANTS } from '@repo/config/frontend';
 import { treaty } from '@elysiajs/eden';
 import type { App } from '@repo/api';
+import type { ApiResponse } from '@repo/errors';
 
 // Environment-based URLs (works in both SSR and client)
-export const API_URL = import.meta.env.VITE_API_URL || FRONTEND_CONSTANTS.API_BASE_URL;
-export const WEB_URL = import.meta.env.VITE_WEB_URL || FRONTEND_CONSTANTS.WEB_BASE_URL;
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+export const WEB_URL = import.meta.env.VITE_WEB_URL || 'http://localhost:5173';
 
 /**
  * Default headers required for all API requests
- * - Origin/Referer: Required by CSRF protection
- * NOTE: Do NOT set Content-Type here. Eden treaty auto-detects it:
- *   - application/json for JSON bodies
- *   - multipart/form-data for File bodies
- * Hardcoding it breaks file uploads (import preview/import).
  */
 export const getDefaultHeaders = (): HeadersInit => ({
 	Origin: WEB_URL,
@@ -40,44 +35,34 @@ export const getServerHeaders = (cookies: string): HeadersInit => ({
 	Cookie: cookies
 });
 
-/**
- * Default fetch options for API calls
- */
-export const defaultFetchOptions: RequestInit = {
-	credentials: 'include', // Always send cookies
-	headers: getDefaultHeaders()
-};
+// --- Type Flattening Utilities ---
 
 /**
- * Safely parse JSON from a Response, returning null on parse errors
- * Handles cases where the server returns non-JSON (e.g., error strings)
+ * Map an ApiResponse<T> to T by unwrapping it.
  */
-export async function safeJsonParse<T>(response: Response): Promise<T | null> {
-	try {
-		const text = await response.text();
-		if (!text) return null;
+type MapApiResponse<T> = T extends ApiResponse<infer R> ? R : T;
 
-		// Check if it looks like JSON before parsing
-		const trimmed = text.trim();
-		if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
-			console.error('[API] Received non-JSON response:', trimmed.slice(0, 100));
-			return null;
-		}
-
-		return JSON.parse(text) as T;
-	} catch (error) {
-		console.error('[API] JSON parse failed:', error);
-		return null;
-	}
-}
+/**
+ * Recursive type that unwraps ApiResponse envelopes from Eden Treaty results.
+ * This ensures that the frontend sees 'data.user' instead of 'data.data.user'.
+ */
+type FlattenTreaty<T> = T extends (...args: infer Args) => infer R
+	? (...args: Args) => FlattenTreaty<R>
+	: T extends Promise<infer R>
+	? Promise<FlattenTreaty<R>>
+	: T extends { data: infer D; error: infer E; status: infer S; response: infer Res }
+	? { data: MapApiResponse<D>; error: E; status: S; response: Res }
+	: T extends object
+	? { [K in keyof T]: FlattenTreaty<T[K]> }
+	: T;
 
 // Shared refresh logic — single source of truth (prevents dual refresh races)
 import { refreshAccessToken } from './auth-refresh';
 
 /**
- * Create a Treaty client with auto-refresh support
+ * Create a Treaty client with auto-refresh support and response flattening.
  *
- * SECURITY: Automatically refreshes token on 401 errors
+ * This version automatically unwraps { success: true, data: T } into T.
  */
 export const createTreatyClient = (
 	fetcher?: typeof fetch,
@@ -88,53 +73,58 @@ export const createTreatyClient = (
 	const originalFetcher = fetcher || fetch;
 	const autoRefreshEnabled = options?.autoRefresh !== false;
 
-	// Custom fetcher with auto-refresh
-	const autoRefreshFetcher = async (
-		input: RequestInfo | URL,
-		init?: RequestInit
-	): Promise<Response> => {
-		const response = await originalFetcher(input, init);
+	/**
+	 * Custom fetcher that:
+	 * 1. Handles token refresh on 401
+	 * 2. Unwraps the standardized API { success, data } envelope
+	 */
+	const customFetcher = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+		let response = await originalFetcher(input, init);
 
-		// Auto-refresh on 401 (except for refresh endpoint itself)
+		// 1. Auto-refresh on 401
 		const urlString =
 			typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
 		const isRefreshEndpoint = urlString.includes('/auth/refresh');
 
-		if (response.status === 401 && !isRefreshEndpoint) {
-			console.log('[Eden] 401 detected, attempting token refresh...');
-
+		if (response.status === 401 && !isRefreshEndpoint && autoRefreshEnabled) {
 			const refreshSuccess = await refreshAccessToken(originalFetcher, cookies);
-
 			if (refreshSuccess) {
-				// Retry the original request
-				console.log('[Eden] Retrying with new token');
-				return originalFetcher(input, init);
-			} else {
-				// Refresh failed - redirect to login
-				console.log('[Eden] Refresh failed, redirecting to login');
-				if (typeof window !== 'undefined') {
-					window.location.href = `/login?redirectTo=${encodeURIComponent(window.location.pathname)}`;
-				}
+				response = await originalFetcher(input, init);
+			} else if (typeof window !== 'undefined') {
+				window.location.href = `/login?redirectTo=${encodeURIComponent(window.location.pathname)}`;
 			}
 		}
+
+		// 2. Wrap JSON method to unwrap the backend envelope
+		const originalJson = response.json.bind(response);
+		response.json = async () => {
+			const body = await originalJson();
+			// Flatten: if backend returned { success: true, data: ... }, return just the data
+			if (body && typeof body === 'object' && body.success === true && 'data' in body) {
+				return body.data;
+			}
+			return body;
+		};
 
 		return response;
 	};
 
+	const activeFetcher = customFetcher;
 
-	const activeFetcher = autoRefreshEnabled ? autoRefreshFetcher : originalFetcher;
-
-	return treaty<App>(API_URL, {
+	const client = treaty<App>(API_URL, {
 		fetcher: activeFetcher as typeof fetch,
 		fetch: {
-			credentials: 'include' // Send cookies with cross-origin requests
+			credentials: 'include'
 		},
 		headers: {
-			...getDefaultHeaders(), // Always include Origin/Referer for CSRF
+			...getDefaultHeaders(),
 			...(token ? { Authorization: `Bearer ${token}` } : {}),
 			...(cookies ? { Cookie: cookies } : {})
 		}
 	});
+
+	// Cast to flattened type so IDE suggests payload properties directly
+	return client as unknown as FlattenTreaty<typeof client>;
 };
 
 /**

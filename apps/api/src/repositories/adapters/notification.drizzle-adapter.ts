@@ -4,7 +4,7 @@ import type { INotificationRepository } from '@/types/repositories';
 import type { PushSubscription } from '@repo/db';
 import { randomUUIDv7 } from 'bun';
 
-export class DrizzleNotificationRepository implements INotificationRepository {
+export class NotificationDrizzleAdapter implements INotificationRepository {
   constructor(private db: DbClient) {}
 
   async upsertSubscription(userId: string, input: {

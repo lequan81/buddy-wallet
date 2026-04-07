@@ -5,19 +5,14 @@
  */
 import { Elysia, t } from 'elysia';
 import { UpdateBankAccountSchema } from '@repo/schemas';
-import { BE_ERRORS, GEN_ERRORS, apiResponse } from '@repo/errors';
+import { BE_ERRORS, apiResponse } from '@repo/errors';
 import { PERMISSIONS } from '@repo/permissions';
 import { insertBankAccountSchema } from '@repo/db';
 import { getClientIP } from '@utils';
 import { permissionPlugin, servicesPlugin, sessionAuthPlugin } from '@plugins';
-import { requireAuth } from '@/core/http/require-auth';
-import { isFailureResult } from '@/core/http/result-helper';
-
-const bankServiceError = (message?: string) => {
-  if (message === 'Account not found') return BE_ERRORS.BANK_ACCOUNT_NOT_FOUND;
-  if (message === 'Not authorized') return BE_ERRORS.BANK_ACCOUNT_PERMISSION_DENIED;
-  return GEN_ERRORS.UNKNOWN;
-};
+import { isFailureResult, respondFailure } from '@/core/http/result-helper';
+import { resolveActor } from '@/core/http/response.helpers';
+import { BANK_ERROR_MAP, DEFAULT_BANK_FAILURE } from '@/core/http/error-maps/bank.error-map';
 
 export const BankController = new Elysia({ prefix: '/banks' })
   .use(servicesPlugin)
@@ -25,7 +20,6 @@ export const BankController = new Elysia({ prefix: '/banks' })
   .use(permissionPlugin)
 
   // ==================== GET SUPPORTED BANKS ====================
-  // Publicly accessible or authenticated? Let's make it authenticated for now to prevent abuse
   .get(
     '/list',
     async ({ vietqrService }) => {
@@ -43,15 +37,14 @@ export const BankController = new Elysia({ prefix: '/banks' })
   .get(
     '/me',
     async ({ user, set, bankAccountService }) => {
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
-      const accounts = await bankAccountService.getUserBankAccounts(auth.user.id);
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+
+      const accounts = await bankAccountService.getUserBankAccounts(resolved.user.id);
       return apiResponse({ ok: true, data: { accounts } });
     },
     {
-      checkPermission: PERMISSIONS.DEBT_VIEW_OWN // Reusing basic permission
+      checkPermission: PERMISSIONS.DEBT_VIEW_OWN
     }
   )
 
@@ -59,26 +52,24 @@ export const BankController = new Elysia({ prefix: '/banks' })
   .post(
     '/me',
     async ({ user, body, set, request, server, bankAccountService, activityService }) => {
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { user: freshUser } = resolved;
+
       const result = await bankAccountService.addBankAccount({
         ...body,
-        userId: auth.user.id
+        userId: freshUser.id
       });
 
       if (isFailureResult(result)) {
-        set.status = 400;
-        return apiResponse({
-          ok: false,
-          error: bankServiceError(result.error),
-          details: result.error
+        return respondFailure(set, result, {
+          map: BANK_ERROR_MAP,
+          fallback: DEFAULT_BANK_FAILURE
         });
       }
 
       await activityService.log({
-        userId: auth.user.id,
+        userId: freshUser.id,
         action: 'create',
         resource: 'bank_account',
         resourceId: result.account?.id,
@@ -99,24 +90,21 @@ export const BankController = new Elysia({ prefix: '/banks' })
   .patch(
     '/:id',
     async ({ user, params: { id }, body, set, request, server, bankAccountService, activityService }) => {
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { user: freshUser } = resolved;
 
-      const result = await bankAccountService.updateBankAccount(id, auth.user.id, body as Record<string, unknown>);
+      const result = await bankAccountService.updateBankAccount(id, freshUser.id, body as Record<string, unknown>);
 
       if (isFailureResult(result)) {
-        set.status = result.error === 'Account not found' ? 404 : 400;
-        return apiResponse({
-          ok: false,
-          error: bankServiceError(result.error),
-          details: result.error
+        return respondFailure(set, result, {
+          map: BANK_ERROR_MAP,
+          fallback: DEFAULT_BANK_FAILURE
         });
       }
 
       await activityService.log({
-        userId: auth.user.id,
+        userId: freshUser.id,
         action: 'update',
         resource: 'bank_account',
         resourceId: id,
@@ -135,62 +123,50 @@ export const BankController = new Elysia({ prefix: '/banks' })
   )
 
   // ==================== GET USER ACCOUNTS (Public/Shared) ====================
-  // Used for debtors to see creditor's bank info
   .get(
     '/user/:userId',
     async ({ params: { userId }, bankAccountService }) => {
-      // In a strict system, we'd check if requestor has a debt with userId.
-      // For now, we allow seeing bank accounts if you know the userId (needed for QR gen)
       const accounts = await bankAccountService.getUserBankAccounts(userId);
-      // Only return necessary info
       return apiResponse({
         ok: true,
         data: {
-        accounts: accounts.map((a) => ({
-          id: a.id,
-          bankCode: a.bankCode,
-          bankName: a.bankName,
-          bankBin: a.bankBin,
-          accountNumber: a.accountNumber,
-          accountName: a.accountName,
-          isDefault: a.isDefault
-        }))
-      }});
+          accounts: accounts.map((a) => ({
+            id: a.id,
+            bankCode: a.bankCode,
+            bankName: a.bankName,
+            bankBin: a.bankBin,
+            accountNumber: a.accountNumber,
+            accountName: a.accountName,
+            isDefault: a.isDefault
+          }))
+        }
+      });
     },
     {
       params: t.Object({ userId: t.String() }),
-      checkPermission: PERMISSIONS.DEBT_VIEW_OWN // Basic auth required
+      checkPermission: PERMISSIONS.DEBT_VIEW_OWN
     }
   )
 
   // ==================== GENERATE PAYMENT QR ====================
-  // Generate a VietQR code for paying a specific debt
   .get(
     '/qr/:debtId',
     async ({ user, params: { debtId }, set, debtService, bankAccountService, vietqrService }) => {
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { user: freshUser } = resolved;
 
-      // 1. Get debt details
       const debt = await debtService.getDebtById(debtId);
       if (!debt) {
         set.status = 404;
         return apiResponse({ ok: false, error: BE_ERRORS.DEBT_NOT_FOUND });
       }
 
-      // 2. Security check: User must be involved in the debt
-      // Actually, for paying, anyone can pay? Or just debtor?
-      // Let's stick to debt visibility rules.
-      // If user is debtor => they see QR to pay creditor
-      // If user is creditor => they see QR to share with debtor
-      if (debt.debtorId !== auth.user.id && debt.creditorId !== auth.user.id) {
+      if (debt.debtorId !== freshUser.id && debt.creditorId !== freshUser.id) {
         set.status = 403;
         return apiResponse({ ok: false, error: BE_ERRORS.DEBT_PERMISSION_DENIED });
       }
 
-      // 3. Get creditor's default bank account
       if (!debt.creditorId) {
         set.status = 400;
         return apiResponse({
@@ -199,6 +175,7 @@ export const BankController = new Elysia({ prefix: '/banks' })
           details: 'Debt has no creditor assigned'
         });
       }
+      
       const accounts = await bankAccountService.getUserBankAccounts(debt.creditorId);
       const defaultAccount = accounts.find((a: typeof accounts[0]) => a.isDefault) || accounts[0];
 
@@ -211,7 +188,6 @@ export const BankController = new Elysia({ prefix: '/banks' })
         });
       }
 
-      // 4. Generate QR
       const qrUrl = vietqrService.generateDebtPaymentQR({
         bankBin: defaultAccount.bankBin,
         accountNumber: defaultAccount.accountNumber,
@@ -232,23 +208,21 @@ export const BankController = new Elysia({ prefix: '/banks' })
   .delete(
     '/:id',
     async ({ user, params: { id }, set, request, server, bankAccountService, activityService }) => {
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
-      const result = await bankAccountService.deleteBankAccount(id, auth.user.id);
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { user: freshUser } = resolved;
+
+      const result = await bankAccountService.deleteBankAccount(id, freshUser.id);
 
       if (isFailureResult(result)) {
-        set.status = result.error === 'Account not found' ? 404 : 403;
-        return apiResponse({
-          ok: false,
-          error: bankServiceError(result.error),
-          details: result.error
+        return respondFailure(set, result, {
+          map: BANK_ERROR_MAP,
+          fallback: DEFAULT_BANK_FAILURE
         });
       }
 
       await activityService.log({
-        userId: auth.user.id,
+        userId: freshUser.id,
         action: 'delete',
         resource: 'bank_account',
         resourceId: id,

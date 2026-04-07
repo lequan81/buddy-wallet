@@ -24,17 +24,13 @@ export interface ElysiaSet {
   cookie?: Record<string, unknown>;
 }
 
-export type SuccessResponse<T = void> = [T] extends [void]
-  ? { success: true }
-  : { success: true } & T;
+/**
+ * Standardized API Response — Single Unified Type
+ *
+ * Success: { success: true, data: T }
+ * Error:   { success: false, error: { code, message, details? } }
+ */
+export type ApiResponse<T = void> =
+  | { success: true; data: T }
+  | { success: false; error: { code: string; message: string; details?: string } };
 
-export type ErrorResponse = {
-  success: false;
-  error: {
-    code: string;
-    message: string;
-    details?: string;
-  };
-};
-
-export type ApiResponse<T = void> = SuccessResponse<T> | ErrorResponse;

@@ -43,8 +43,10 @@ export const DebtSchema = t.Object({
 
 export const DebtListResponseSchema = t.Object({
   success: t.Literal(true),
-  data: t.Array(DebtSchema),
-  pagination: PaginationSchema
+  data: t.Object({
+    data: t.Array(DebtSchema),
+    pagination: PaginationSchema
+  })
 });
 
 export const RecentDebtSchema = t.Object({
@@ -57,23 +59,31 @@ export const RecentDebtSchema = t.Object({
 
 export const RecentDebtsResponseSchema = t.Object({
   success: t.Literal(true),
-  data: t.Array(RecentDebtSchema)
+  data: t.Object({
+    data: t.Array(RecentDebtSchema)
+  })
 });
 
 export const DebtResponseSchema = t.Object({
   success: t.Literal(true),
-  debt: DebtSchema
+  data: t.Object({
+    debt: DebtSchema
+  })
 });
 
 export const RecentContactsResponseSchema = t.Object({
   success: t.Literal(true),
-  contacts: t.Array(t.String())
+  data: t.Object({
+    contacts: t.Array(t.String())
+  })
 });
 
 export const DeleteAllResponseSchema = t.Object({
   success: t.Literal(true),
-  message: t.String(),
-  deleted: t.Number()
+  data: t.Object({
+    message: t.String(),
+    deleted: t.Number()
+  })
 });
 
 export const DebtQuerySchema = t.Object({

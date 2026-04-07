@@ -84,11 +84,12 @@ export const PublicController = new Elysia({ prefix: '/public' })
       return apiResponse({
         ok: true,
         data: {
-        phone: maskPhone(normalizedPhone),
-        found: count > 0,
-        count: canShowCount ? count : null,
-        countRedacted: shouldIncludeCount && !canShowCount
-      }});
+          phone: maskPhone(normalizedPhone),
+          found: count > 0,
+          count: canShowCount ? count : null,
+          countRedacted: shouldIncludeCount && !canShowCount
+        }
+      });
     },
     {
       query: t.Object({

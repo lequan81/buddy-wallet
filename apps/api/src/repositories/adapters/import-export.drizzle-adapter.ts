@@ -17,7 +17,7 @@ import type { IImportExportRepository } from '@/types/repositories';
 import type { DbClient } from '@/types';
 import { configs } from '@/configs';
 
-export class DrizzleImportExportRepository implements IImportExportRepository {
+export class ImportExportDrizzleAdapter implements IImportExportRepository {
   constructor(private readonly db: DbClient) { }
 
   async createLog(data: Omit<ImportLog, 'createdAt' | 'deletedAt'>): Promise<void> {

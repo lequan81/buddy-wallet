@@ -8,6 +8,7 @@
 import { MAJOR_BANKS_FALLBACK } from '@repo/config';
 import { cache } from '@plugins/redis';
 import { log } from '@repo/logger';
+import { configs } from '@/configs';
 
 /** VietQR bank info returned by the API */
 interface VietQRBank {
@@ -30,7 +31,6 @@ interface VietQRResponse {
 }
 
 const VIETQR_API_URL = 'https://api.vietqr.io/v2/banks';
-const CACHE_TTL = 86400; // 24 hours
 
 export class VietQRService {
   /**
@@ -51,7 +51,7 @@ export class VietQRService {
     // 2. Try VietQR API with timeout
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+      const timeoutId = setTimeout(() => controller.abort(), configs.AUTH.FETCH_TIMEOUT_MS);
 
       const response = await fetch(VIETQR_API_URL, { signal: controller.signal });
       clearTimeout(timeoutId);
@@ -61,7 +61,7 @@ export class VietQRService {
 
         if (result.code === '00' && result.data.length > 0) {
           // Cache fresh data (cache.set handles JSON.stringify internally)
-          await cache.set(cacheKey, result.data, CACHE_TTL);
+          await cache.set(cacheKey, result.data, configs.CACHE.VIETQR_TTL);
           return result.data;
         }
       }

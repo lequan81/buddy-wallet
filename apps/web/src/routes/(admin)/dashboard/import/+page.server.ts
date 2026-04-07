@@ -2,7 +2,6 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { FE_ERRORS } from '@repo/errors';
 import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config';
-import type { Pagination } from '@repo/types';
 
 export const load: PageServerLoad = async ({ parent, locals, url }) => {
 	// Get server-computed permissions from layout
@@ -24,10 +23,9 @@ export const load: PageServerLoad = async ({ parent, locals, url }) => {
 		const { data, error } = await locals.api.v1.import.logs.get({
 			query: { page: String(historyPage), limit: '10' }
 		});
-		if (!error && data?.success) {
-			const payload = data as { data?: unknown[]; pagination?: Pagination } | null;
-			logs = Array.isArray(payload?.data) ? payload.data : [];
-			const pagination = payload?.pagination;
+		if (!error && data) {
+			logs = Array.isArray(data.data) ? data.data : [];
+			const pagination = data.pagination;
 			if (pagination) {
 				historyTotalPages = Math.ceil(pagination.total / pagination.limit) || 1;
 			}
@@ -84,17 +82,14 @@ export const actions: Actions = {
 				}
 
 				const res = (data || {}) as Record<string, unknown>;
-				const getString = (key: string): string | undefined =>
-					typeof res[key] === 'string' ? (res[key] as string) : undefined;
-				const getNumber = (key: string): number | undefined =>
-					typeof res[key] === 'number' ? (res[key] as number) : undefined;
+				
 				return {
 					success: true,
 					preview: true,
-					jobId: getString('jobId'),
-					logId: getString('logId'),
-					fileName: getString('fileName'),
-					totalRows: getNumber('totalRows'),
+					jobId: typeof res.jobId === 'string' ? res.jobId : undefined,
+					logId: typeof res.logId === 'string' ? res.logId : undefined,
+					fileName: typeof res.fileName === 'string' ? res.fileName : undefined,
+					totalRows: typeof res.totalRows === 'number' ? res.totalRows : undefined,
 					columnHeaders: Array.isArray(res.columnHeaders) ? (res.columnHeaders as string[]) : undefined,
 					previewData: Array.isArray(res.previewData) ? (res.previewData as string[][]) : undefined,
 					autoMapping:

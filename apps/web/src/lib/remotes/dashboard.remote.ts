@@ -1,6 +1,5 @@
 import { getRequestEvent, query } from '$app/server';
 import * as v from 'valibot';
-import type { PaginatedResult } from '@repo/types';
 
 export const getDashboardDebts = query(v.object({ statusFilter: v.string(), page: v.number(), pageSize: v.number() }), async ({statusFilter, page, pageSize}) => {
 	const { locals } = getRequestEvent();
@@ -18,13 +17,12 @@ export const getDashboardDebts = query(v.object({ statusFilter: v.string(), page
 	return locals.api.v1.debts
 		.get({ query: debtsQuery })
 		.then(({ data }) => {
-			const result = data as unknown as PaginatedResult<unknown>;
 			return {
-				debts: result?.data || [],
-				pagination: result?.pagination ? {
-					...result.pagination,
+				debts: data?.data || [],
+				pagination: data?.pagination ? {
+					...data.pagination,
 					offset,
-					hasMore: (result.pagination.total > offset + pageSize)
+					hasMore: (data.pagination.total > offset + pageSize)
 				} : { total: 0, limit: pageSize, offset: 0, hasMore: false }
 			};
 		})
@@ -41,7 +39,7 @@ export const getDashboardUsers = query(v.boolean(), async (canManageUsers) => {
 	if (!canManageUsers) return [];
 	return locals.api.v1.users
 		.get()
-		.then(({ data }) => (data as unknown as PaginatedResult<unknown>)?.data || [])
+		.then(({ data }) => data?.data || [])
 		.catch(() => []);
 });
 
@@ -56,9 +54,8 @@ export const getDashboardSecondaryData = query(async () => {
 			locals.api.v1.banks.me.get(),
 			locals.api.v1.debts['recent-contacts'].get()
 		]);
-		const bankData = bankRes.data as unknown as { accounts?: unknown[] } | null;
-		hasBankAccount = Array.isArray(bankData?.accounts) && bankData.accounts.length > 0;
-		recentContacts = (contactsRes.data as unknown as { contacts: string[] })?.contacts || [];
+		hasBankAccount = Array.isArray(bankRes.data?.accounts) && bankRes.data.accounts.length > 0;
+		recentContacts = contactsRes.data?.contacts || [];
 	} catch (err) {
 		console.error('[Dashboard] Failed to load bank/contacts:', err);
 	}
@@ -71,6 +68,6 @@ export const getRecentDebts = query(async () => {
 
 	return locals.api.v1.debts.recent
 		.get()
-		.then((res) => (res.data as unknown as { data: unknown[] })?.data || [])
+		.then((res) => res.data || [])
 		.catch(() => []);
 });

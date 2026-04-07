@@ -150,24 +150,15 @@ export interface ErrorDefinition {
   message: string;
 }
 
-export type ErrorResponse = {
-  success: false;
-  error: {
-    code: string;
-    message: string;
-    details?: string;
-  };
-};
-
-export type SuccessResponse<T = void> = [T] extends [void]
-  ? { success: true }
-  : { success: true } & T;
-
 /**
- * Standardized API Response format
- * All API responses should follow this structure for consistency
+ * Standardized API Response — Single Unified Type
+ *
+ * Success: { success: true, data: T }
+ * Error:   { success: false, error: { code, message, details? } }
  */
-export type ApiResponse<T = void> = ErrorResponse | SuccessResponse<T>;
+export type ApiResponse<T = void> =
+  | { success: true; data: T }
+  | { success: false; error: { code: string; message: string; details?: string } };
 
 // ============================================
 // UTILITIES
@@ -200,22 +191,28 @@ export const createError = (
   details
 });
 
+/**
+ * Create a standardized API response.
+ * 
+ * Success (no data): apiResponse({ ok: true })
+ * Success (with data): apiResponse({ ok: true, data: { user } })
+ * Error: apiResponse({ ok: false, error: BE_ERRORS.NOT_FOUND, details: 'optional' })
+ */
 export function apiResponse(options: {
   ok: false;
   error: ErrorDefinition;
   details?: string;
-}): ErrorResponse;
-export function apiResponse(options: { ok: true }): SuccessResponse<void>;
-export function apiResponse<T extends object>(options: {
+}): ApiResponse<never>;
+export function apiResponse<T>(options: {
   ok: true;
-  data: T;
-}): SuccessResponse<T>;
+  data?: T;
+}): ApiResponse<T>;
 export function apiResponse(options: {
   ok: boolean;
   error?: ErrorDefinition;
   details?: string;
-  data?: object;
-}): ApiResponse<object | void> {
+  data?: unknown;
+}): ApiResponse<unknown> {
   if (!options.ok) {
     const error = options.error ?? GEN_ERRORS.UNKNOWN;
     return {
@@ -228,12 +225,8 @@ export function apiResponse(options: {
     };
   }
 
-  if (options.data === undefined) {
-    return { success: true } as SuccessResponse<void>;
-  }
-
   return {
     success: true,
-    ...options.data
-  } as SuccessResponse<object>;
+    data: options.data ?? null
+  } as ApiResponse<unknown>;
 }

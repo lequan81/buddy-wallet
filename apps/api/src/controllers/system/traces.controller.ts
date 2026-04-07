@@ -7,8 +7,9 @@
 import { Elysia } from 'elysia';
 import { traceStore } from '@utils/trace-store';
 import { configs } from '@/configs';
+import { apiResponse, GEN_ERRORS } from '@repo/errors';
 
-const isDev = configs.APP.IS_DEV;
+const isDev = !configs.APP.IS_PRODUCTION;
 
 // Load HTML template at startup (Bun native file reading)
 const templatePath = new URL('../../static/traces.html', import.meta.url).pathname;
@@ -69,17 +70,28 @@ export const TracesController = new Elysia({ name: 'TracesController' })
   })
   .get('/traces/json', () => {
     if (!isDev) {
-      return { error: 'Not available in production' };
+      return apiResponse({ 
+        ok: false, 
+        error: GEN_ERRORS.FORBIDDEN, 
+        details: 'Not available in production' 
+      });
     }
-    return {
-      stats: traceStore.stats(),
-      traces: traceStore.getAll()
-    };
+    return apiResponse({
+      ok: true,
+      data: {
+        stats: traceStore.stats(),
+        traces: traceStore.getAll()
+      }
+    });
   })
   .post('/traces/clear', () => {
     if (!isDev) {
-      return { error: 'Not available in production' };
+      return apiResponse({ 
+        ok: false, 
+        error: GEN_ERRORS.FORBIDDEN, 
+        details: 'Not available in production' 
+      });
     }
     traceStore.clear();
-    return { success: true, message: 'Traces cleared' };
+    return apiResponse({ ok: true, data: { message: 'Traces cleared' } });
   });

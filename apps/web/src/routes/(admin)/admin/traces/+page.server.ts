@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		return {
-			traces: (data as any)?.traces || []
+			traces: data?.traces || []
 		};
 	} catch (_) {
 		return {

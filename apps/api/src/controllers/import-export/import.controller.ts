@@ -17,28 +17,24 @@ import { accessControlPlugin, servicesPlugin, sessionAuthPlugin } from '@plugins
 import { logger } from '@repo/logger';
 import type { ImportConfig } from '@/types';
 import { validateImportUploadFile } from '@/services/import-export/import.validators';
-import { requireAuth } from '@/core/http/require-auth';
 import { parsePagePagination } from '@/core/http/pagination';
 import { normalizeImportStatus } from '@/core/http/import-status';
 import { isFailureResult } from '@/core/http/result-helper';
-
-
-
+import { resolveActor } from '@/core/http/response.helpers';
 
 export const ImportController = new Elysia({ prefix: '/import' })
   .use(servicesPlugin)
   .use(sessionAuthPlugin)
   .use(accessControlPlugin)
 
-  // Preview endpoint
   // Preview endpoint (Async)
   .post(
     '/preview',
     async ({ user, body, set, jobsService }) => {
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { user: freshUser } = resolved;
+
       const { file } = body;
       const validationError = await validateImportUploadFile(file);
       if (validationError) {
@@ -49,7 +45,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
       try {
         const jobId = await jobsService.addJob('preview', {
           file,
-          userId: auth.user.id
+          userId: freshUser.id
         });
 
         return apiResponse({
@@ -72,10 +68,10 @@ export const ImportController = new Elysia({ prefix: '/import' })
   .post(
     '/debts',
     async ({ user, body, set, jobsService }) => {
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { user: freshUser } = resolved;
+
       const { file, config, previewLogId } = body;
       const validationError = await validateImportUploadFile(file);
       if (validationError) {
@@ -87,7 +83,7 @@ export const ImportController = new Elysia({ prefix: '/import' })
         const jobId = await jobsService.addJob('import', {
           file,
           config: config as ImportConfig,
-          userId: { id: auth.user.id },
+          userId: { id: freshUser.id },
           previewLogId
         });
 
@@ -119,12 +115,10 @@ export const ImportController = new Elysia({ prefix: '/import' })
         importService
       } = ctx;
 
-      if (!user) {
-        set.status = 401;
-        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
-      }
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
 
-      const result = await importService.getProgress(logId, user.id);
+      const result = await importService.getProgress(logId, resolved.user.id);
 
       if (isFailureResult(result)) {
         set.status = 404;
@@ -142,30 +136,26 @@ export const ImportController = new Elysia({ prefix: '/import' })
     { params: t.Object({ logId: t.String() }) }
   )
 
-
   // Get batch import progress (SSE)
-  // Provides real-time updates without polling overhead from client
   .get(
     '/progress-sse',
     async (ctx) => {
       const { query, user, set, importService, request } = ctx;
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { user: freshUser } = resolved;
 
       const logIds = query.logIds?.split(',') || [];
       if (logIds.length === 0) {
         return apiResponse({ ok: false, error: GEN_ERRORS.INVALID_INPUT, details: 'logIds required' });
       }
 
-      // Set SSE headers for browser/proxy compatibility
+      // SSE headers
       set.headers['Content-Type'] = 'text/event-stream';
       set.headers['Cache-Control'] = 'no-cache, no-transform';
       set.headers['Connection'] = 'keep-alive';
       set.headers['X-Accel-Buffering'] = 'no';
 
-      // Use native ReadableStream for SSE - robust and standard compliant
       let interval: ReturnType<typeof setInterval> | null = null;
       const stopPolling = () => {
         if (interval !== null) {
@@ -184,16 +174,14 @@ export const ImportController = new Elysia({ prefix: '/import' })
 
           interval = setInterval(async () => {
             try {
-              const results = await importService.getProgressBatch(logIds, auth.user.id);
+              const results = await importService.getProgressBatch(logIds, freshUser.id);
 
               for (const key of Object.keys(results)) {
                 results[key].status = normalizeImportStatus(results[key].status as any) as any;
               }
 
-              // Format as SSE data
               controller.enqueue(`data: ${JSON.stringify(results)}\n\n`);
 
-              // If all monitored jobs are terminal, stop streaming
               const allDone = Object.values(results).every(
                 (r) => r.status === 'success' || r.status === 'failed' || r.status === 'cancelled'
               );
@@ -210,12 +198,8 @@ export const ImportController = new Elysia({ prefix: '/import' })
               request.signal.removeEventListener('abort', abortHandler);
             }
           }, 2000);
-
-          // Handle client disconnect to clear interval
-          // Bun supports 'close' event on the request/response
         },
         cancel() {
-          // This is called when the client disconnects
           stopPolling();
         }
       });
@@ -234,22 +218,20 @@ export const ImportController = new Elysia({ prefix: '/import' })
   )
 
   // Get batch import progress (HTTP)
-  // Reduces 10+ concurrent requests to 1
   .post(
     '/progress-batch',
     async (ctx) => {
       const {
         body: { logIds },
         user,
+        set,
         importService
       } = ctx;
 
-      if (!user) {
-        ctx.set.status = 401;
-        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED });
-      }
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
 
-      const result = await importService.getProgressBatch(logIds, user.id);
+      const result = await importService.getProgressBatch(logIds, resolved.user.id);
       for (const key of Object.keys(result)) {
         result[key].status = normalizeImportStatus(result[key].status as any) as any;
       }
@@ -258,26 +240,16 @@ export const ImportController = new Elysia({ prefix: '/import' })
     { body: ProgressBatchBodySchema }
   )
 
-
-  // WebSocket removed — use /progress-batch HTTP endpoint instead
-  // (better scalability: no persistent connections, no CPU overhead at scale)
-
-
   // Get import logs
   .get(
     '/logs',
     async (ctx) => {
       const { user, query, set, importService } = ctx;
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      
       const { page, limit } = parsePagePagination(query);
-
-      // Import log lifecycle is handled by worker-side operational scripts.
-
-      // Let's call the service method we just added
-      const result = await importService.getLogs(auth.user.id, page, limit);
+      const result = await importService.getLogs(resolved.user.id, page, limit);
 
       return apiResponse({ ok: true, data: result });
     },
@@ -296,11 +268,10 @@ export const ImportController = new Elysia({ prefix: '/import' })
         params: { id },
         importService
       } = ctx;
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
-      const result = await importService.getLogById(id, auth.user.id);
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+
+      const result = await importService.getLogById(id, resolved.user.id);
       if (!result) {
         return apiResponse({ ok: false, error: GEN_ERRORS.NOT_FOUND, details: 'Import log not found' });
       }
@@ -323,11 +294,10 @@ export const ImportController = new Elysia({ prefix: '/import' })
         set,
         jobsService
       } = ctx;
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
-      const result = await jobsService.cancelJob(jobId, auth.user.id);
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      
+      const result = await jobsService.cancelJob(jobId, resolved.user.id);
       if (isFailureResult(result)) {
         set.status = 400;
         return apiResponse({ ok: false, error: GEN_ERRORS.INVALID_INPUT, details: result.error });

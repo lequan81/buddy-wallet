@@ -14,9 +14,8 @@ import {
   PaginationQuerySchema
 } from '@repo/schemas';
 import { parseOffsetPagination } from '@/core/http/pagination';
-import { requireAuth } from '@/core/http/require-auth';
 import { isFailureResult } from '@/core/http/result-helper';
-
+import { resolveActor } from '@/core/http/response.helpers';
 
 export const UsersController = new Elysia({ prefix: '/users' })
   .use(servicesPlugin)
@@ -26,24 +25,24 @@ export const UsersController = new Elysia({ prefix: '/users' })
 
   // Get current user profile
   .get('/me', async ({ user, set }) => {
-    const auth = requireAuth(user, set);
-    if ('error' in auth) {
-      return auth.error;
-    }
+    const resolved = await resolveActor(user, set);
+    if (!resolved.ok) return resolved.error;
 
-    return apiResponse({ ok: true, data: { user: toSafeUser(auth.user) } });
+    return apiResponse({ 
+      ok: true, 
+      data: { user: toSafeUser(resolved.user) } 
+    });
   })
 
   // Update current user profile
   .patch(
     '/me',
     async ({ user, body, set, request, server, userService, activityService }) => {
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { user: freshUser } = resolved;
 
-      const result = await userService.updateProfile(auth.user.id, {
+      const result = await userService.updateProfile(freshUser.id, {
         name: body.name,
         email: body.email,
         phoneNumber: body.phoneNumber,
@@ -57,16 +56,22 @@ export const UsersController = new Elysia({ prefix: '/users' })
       }
 
       await activityService.log({
-        userId: auth.user.id,
+        userId: freshUser.id,
         action: 'update',
         resource: 'user',
-        resourceId: auth.user.id,
+        resourceId: freshUser.id,
         changes: { after: body },
         ipAddress: getClientIP(request, server) || undefined,
         userAgent: request.headers.get('user-agent') || undefined
       });
 
-      return apiResponse({ ok: true, data: { user: result.user, message: result.message } });
+      return apiResponse({ 
+        ok: true, 
+        data: { 
+          user: toSafeUser(result.user), 
+          message: result.message 
+        } 
+      });
     },
     {
       body: UpdateProfileSchema,
@@ -99,7 +104,10 @@ export const UsersController = new Elysia({ prefix: '/users' })
         return apiResponse({ ok: false, error: BE_ERRORS.USER_NOT_FOUND });
       }
 
-      return apiResponse({ ok: true, data: { user: result.user } });
+      return apiResponse({ 
+        ok: true, 
+        data: { user: toSafeUser(result.user) } 
+      });
     },
     {
       params: t.Object({ id: t.String() }),
@@ -111,10 +119,8 @@ export const UsersController = new Elysia({ prefix: '/users' })
   .patch(
     '/:id/status',
     async ({ user, params: { id }, set, request, server, userService, activityService }) => {
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
 
       const result = await userService.toggleUserStatus(id);
 
@@ -124,7 +130,7 @@ export const UsersController = new Elysia({ prefix: '/users' })
       }
 
       await activityService.log({
-        userId: auth.user.id,
+        userId: resolved.user.id,
         action: 'status_change',
         resource: 'user',
         resourceId: id,
@@ -133,7 +139,13 @@ export const UsersController = new Elysia({ prefix: '/users' })
         userAgent: request.headers.get('user-agent') || undefined
       });
 
-      return apiResponse({ ok: true, data: { user: result.user, message: result.message } });
+      return apiResponse({ 
+        ok: true, 
+        data: { 
+          user: toSafeUser(result.user), 
+          message: result.message 
+        } 
+      });
     },
     {
       params: t.Object({ id: t.String() }),

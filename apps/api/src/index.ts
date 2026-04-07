@@ -28,7 +28,7 @@ import { requireAuth } from '@/core/http/require-auth';
 import { getStorageReadiness } from '@/core/health/storage-readiness';
 import { randomUUIDv7 } from 'bun';
 
-// Cleanup jobs run via external worker/timer entrypoint.
+// Validate environment variables on startup
 validateRuntimeEnv();
 
 export const app = new Elysia()
@@ -55,7 +55,11 @@ export const app = new Elysia()
       set.status = mapped.status;
     }
 
-    return apiResponse({ ok: false, error: mapped.error, details: (error as Error)?.message });
+    return apiResponse({ 
+      ok: false, 
+      error: mapped.error, 
+      details: (error as Error)?.message 
+    });
   })
   // OpenTelemetry (if enabled)
   .use(telemetry ?? new Elysia())
@@ -75,8 +79,8 @@ export const app = new Elysia()
       // Auth routes (login/register work without user, /me/logout need user)
       .use(AuthController)
       .use(PublicController) // /v1/check-debt
-      .use(PushController) // Push notifications (vapid-key is public, others check user internally)
-      // Guarded Routes (Require Authentication)
+      .use(PushController) // Push notifications
+      // Guarded Routes (Require Authentication for the entire group)
       .guard(
         {
           beforeHandle: (ctx) => {
@@ -97,44 +101,53 @@ export const app = new Elysia()
             .use(ExportController)
             .use(ActivityController)
             .use(BankController)
-            .use(UploadController) // File uploads for QR codes and payment proofs
+            .use(UploadController)
       )
   )
-  .get('/', () => ({
-    name: 'Buddy Wallet API',
-    version: '1.2.4',
-    status: 'running',
-    docs: '/health'
+  .get('/', () => apiResponse({
+    ok: true,
+    data: {
+      name: 'Buddy Wallet API',
+      version: '1.2.4',
+      status: 'running',
+      docs: '/health'
+    }
   }))
-  .get('/health', async () => {
-    // Basic health check
-    const base = {
+  .get('/health', async () => apiResponse({
+    ok: true,
+    data: {
       status: 'ok',
       version: '1.2.4',
       uptime: process.uptime(),
       timestamp: new Date().toISOString()
-    };
-    return base;
-  })
+    }
+  }))
   .get('/health/ready', async ({ set }) => {
     const storage = await getStorageReadiness();
     if (!storage.ready) {
       set.status = 503;
-      return {
-        status: 'degraded',
-        storage,
-        timestamp: new Date().toISOString()
-      };
+      return apiResponse({
+        ok: false,
+        error: GEN_ERRORS.NETWORK,
+        data: {
+          status: 'degraded',
+          storage,
+          timestamp: new Date().toISOString()
+        }
+      });
     }
 
-    return {
-      status: 'ready',
-      storage,
-      timestamp: new Date().toISOString()
-    };
+    return apiResponse({
+      ok: true,
+      data: {
+        status: 'ready',
+        storage,
+        timestamp: new Date().toISOString()
+      }
+    });
   });
 
-// Only listen if run directly (not imported)
+// Only listen if run directly
 if (import.meta.main) {
   app.listen(configs.APP.PORT, () => {
     logger.app(`API is running at ${app.server?.hostname}:${app.server?.port}`);

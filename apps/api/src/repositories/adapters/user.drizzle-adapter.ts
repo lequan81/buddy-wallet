@@ -4,7 +4,7 @@ import type { IUserRepository } from '@/types/repositories';
 import type { User } from '@repo/db';
 import { configs } from '@/configs';
 
-export class DrizzleUserRepository implements IUserRepository {
+export class UserDrizzleAdapter implements IUserRepository {
   constructor(private db: DbClient) { }
 
   async findMany(limit: number, offset: number): Promise<{ data: User[]; total: number }> {

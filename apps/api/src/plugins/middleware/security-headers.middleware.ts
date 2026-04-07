@@ -12,7 +12,7 @@ import { configs } from '../../configs';
 
 // Environment-aware allowed domains for connect-src
 const getAllowedConnectSrc = (): string => {
-  if (configs.APP.IS_DEV) {
+  if (!configs.APP.IS_PRODUCTION) {
     return "'self' http://localhost:3000 ws://localhost:*";
   }
   return "'self' https://anonychat.vinaddns.com wss://anonychat.vinaddns.com";

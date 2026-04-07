@@ -2,7 +2,7 @@ import { eq, and, desc, fileMetadata, type FileMetadata, type FileStatus } from 
 import type { IFileRepository } from '@/types/repositories';
 import type { DbClient } from '@/types';
 
-export class DrizzleFileRepository implements IFileRepository {
+export class FileDrizzleAdapter implements IFileRepository {
   constructor(private readonly db: DbClient) {}
 
   async create(data: Omit<FileMetadata, 'createdAt'>): Promise<FileMetadata> {

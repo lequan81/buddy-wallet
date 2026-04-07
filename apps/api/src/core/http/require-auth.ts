@@ -1,4 +1,4 @@
-import { apiResponse, GEN_ERRORS, type ErrorResponse } from '@repo/errors';
+import { apiResponse, GEN_ERRORS, type ApiResponse } from '@repo/errors';
 import type { User } from '@repo/db';
 import type { ElysiaSet } from '@repo/types';
 
@@ -10,7 +10,7 @@ export function requireAuth(
   user: User | null | undefined,
   set: ElysiaSet,
   message?: string
-): { user: User } | { error: ErrorResponse } {
+): { user: User } | { error: ApiResponse<never> } {
   if (!user) {
     set.status = 401;
     return {

@@ -9,6 +9,19 @@ import { servicesPlugin, sessionAuthPlugin } from '@plugins';
 import { ErrorResponseSchema, ActivityListResponseSchema, RecentActivityResponseSchema } from '@repo/schemas';
 import { requireAuth } from '@/core/http/require-auth';
 import { parseOffsetPagination } from '@/core/http/pagination';
+import type { ActivityLog } from '@repo/db';
+
+/** Maps an ActivityLog entity to the API DTO */
+function toActivityDto(log: ActivityLog) {
+  return {
+    id: log.id,
+    userId: log.userId,
+    action: log.action,
+    target: log.resource,
+    metadata: log.metadata,
+    createdAt: log.createdAt.toISOString()
+  };
+}
 
 export const ActivityController = new Elysia({ prefix: '/activity' })
   .use(servicesPlugin)
@@ -25,21 +38,14 @@ export const ActivityController = new Elysia({ prefix: '/activity' })
       const { limit, offset } = parseOffsetPagination(query);
 
       const result = await activityService.getLogsForUser(auth.user.id, { limit, offset });
-      
-      // Map DB fields to ActivitySchema fields (strict matching)
-      const dataWithTarget = result.data.map(log => ({
-        id: log.id,
-        userId: log.userId,
-        action: log.action,
-        target: log.resource,
-        metadata: log.metadata,
-        createdAt: log.createdAt.toISOString()
-      }));
 
-      return {
-        ...result,
-        data: dataWithTarget
-      };
+      return apiResponse({
+        ok: true,
+        data: {
+          ...result,
+          data: result.data.map(toActivityDto)
+        }
+      });
     },
     {
       query: t.Object({
@@ -60,18 +66,11 @@ export const ActivityController = new Elysia({ prefix: '/activity' })
       return auth.error;
     }
     const logs = await activityService.getRecentActivity(auth.user.id, 10);
-    
-    // Map DB fields to ActivitySchema fields (strict matching)
-    const logsWithTarget = logs.map(log => ({
-      id: log.id,
-      userId: log.userId,
-      action: log.action,
-      target: log.resource,
-      metadata: log.metadata,
-      createdAt: log.createdAt.toISOString()
-    }));
 
-    return apiResponse({ ok: true, data: { data: logsWithTarget } });
+    return apiResponse({
+      ok: true,
+      data: { data: logs.map(toActivityDto) }
+    });
   }, {
     response: {
       200: RecentActivityResponseSchema,

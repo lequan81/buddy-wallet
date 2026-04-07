@@ -8,12 +8,10 @@ import { randomUUIDv7 } from 'bun';
 import { hashToken } from '@utils';
 import type { CreateOtpResult, VerifyOtpResult, ResendOtpResult } from '@/types/services/auth';
 import type { IEmailVerificationRepository, IUserRepository } from '@/types/repositories';
+import { configs } from '@/configs';
 
-// OTP Configuration
-const OTP_EXPIRY_MINUTES = 10;
-const OTP_RESEND_COOLDOWN_SECONDS = 60;
-const OTP_MAX_RESENDS_PER_HOUR = 5;
-const OTP_MAX_ATTEMPTS = 5;
+// Configuration aliases for readability
+const { OTP } = configs.AUTH;
 
 /**
  * EmailVerificationService class with dependency injection
@@ -38,7 +36,7 @@ export class EmailVerificationService {
     const otp = this.generateOtp();
     const otpHash = await hashToken(otp);
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + OTP_EXPIRY_MINUTES * 60 * 1000);
+    const expiresAt = new Date(now.getTime() + OTP.EXPIRY_MINUTES * 60 * 1000);
 
     // Invalidate any existing unverified OTPs for this user/email
     await this.emailVerificationRepo.invalidateExisting(userId, email);
@@ -51,7 +49,7 @@ export class EmailVerificationService {
       otpHash,
       expiresAt,
       attempts: 0,
-      maxAttempts: OTP_MAX_ATTEMPTS,
+      maxAttempts: OTP.MAX_ATTEMPTS,
       verified: false
     });
 
@@ -126,7 +124,7 @@ export class EmailVerificationService {
 
     const recentCount = recentVerifications.filter((v: { createdAt: Date }) => v.createdAt > oneHourAgo).length;
 
-    if (recentCount >= OTP_MAX_RESENDS_PER_HOUR) {
+    if (recentCount >= OTP.MAX_RESENDS_PER_HOUR) {
       return {
         success: false,
         error: 'Too many OTP requests. Please try again later.',
@@ -142,11 +140,11 @@ export class EmailVerificationService {
     if (lastVerification) {
       const secondsSinceLastSend = (now.getTime() - lastVerification.lastSentAt.getTime()) / 1000;
 
-      if (secondsSinceLastSend < OTP_RESEND_COOLDOWN_SECONDS) {
+      if (secondsSinceLastSend < OTP.RESEND_COOLDOWN_SECONDS) {
         return {
           success: false,
           error: 'Please wait before requesting a new OTP',
-          retryAfter: Math.ceil(OTP_RESEND_COOLDOWN_SECONDS - secondsSinceLastSend)
+          retryAfter: Math.ceil(OTP.RESEND_COOLDOWN_SECONDS - secondsSinceLastSend)
         };
       }
     }

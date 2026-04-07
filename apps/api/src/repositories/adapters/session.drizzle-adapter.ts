@@ -3,7 +3,7 @@ import type { DbClient } from '@/types';
 import type { ISessionRepository } from '@/types/repositories';
 import type { Session } from '@repo/db';
 
-export class DrizzleSessionRepository implements ISessionRepository {
+export class SessionDrizzleAdapter implements ISessionRepository {
   constructor(private db: DbClient) { }
 
   async findById(id: string): Promise<Session | null> {

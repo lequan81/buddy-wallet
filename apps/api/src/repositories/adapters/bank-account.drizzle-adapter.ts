@@ -3,7 +3,7 @@ import type { DbClient } from '@/types';
 import type { IBankAccountRepository } from '@/types/repositories';
 import type { BankAccount } from '@repo/db';
 
-export class DrizzleBankAccountRepository implements IBankAccountRepository {
+export class BankAccountDrizzleAdapter implements IBankAccountRepository {
   constructor(private db: DbClient) {}
 
   async findById(id: string): Promise<BankAccount | null> {

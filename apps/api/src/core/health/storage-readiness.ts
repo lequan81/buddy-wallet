@@ -49,7 +49,7 @@ export async function getStorageReadiness(): Promise<StorageReadiness> {
     return {
       ready: false,
       missing: [],
-      reason: configs.APP.IS_DEV
+      reason: !configs.APP.IS_PRODUCTION
         ? `S3 connectivity check failed: ${String(error)}`
         : 'S3 connectivity check failed'
     };

@@ -1,4 +1,4 @@
-import { apiResponse, GEN_ERRORS, type ErrorDefinition, type ErrorResponse } from '@repo/errors';
+import { apiResponse, GEN_ERRORS, type ErrorDefinition, type ApiResponse } from '@repo/errors';
 
 export interface ServiceFailureResult {
   success: boolean;
@@ -27,7 +27,7 @@ export function respondFailure(
   set: { status?: number | string },
   result: ServiceFailureResult,
   options: RespondFailureOptions = {}
-): ErrorResponse {
+): ApiResponse<never> {
   const fallback = options.fallback ?? DEFAULT_FAILURE;
   const mapped = (result.code && options.map?.[result.code]) || (result.error && options.map?.[result.error]) || fallback;
 
@@ -50,7 +50,7 @@ export function respondIfFailure(
   set: { status?: number | string },
   result: ServiceFailureResult,
   options: RespondFailureOptions = {}
-): ErrorResponse | null {
+): ApiResponse<never> | null {
   if (!isFailureResult(result)) {
     return null;
   }

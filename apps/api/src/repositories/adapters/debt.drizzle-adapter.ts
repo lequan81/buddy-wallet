@@ -33,7 +33,7 @@ import type {
 /**
  * Drizzle implementation of DebtRepository
  */
-export class DrizzleDebtRepository implements IDebtRepository {
+export class DebtDrizzleAdapter implements IDebtRepository {
   constructor(private db: DbClient) { }
 
   private buildWhere(options: Omit<DebtFilterOptions, 'limit' | 'offset'>) {

@@ -166,12 +166,11 @@ export const approveProof = form(
 			invalid((errVal?.message as string) || (errVal?.details as string) || 'Failed to approve proof');
 		}
 
-		const responseData = data as { allProofsApproved?: boolean; debtId?: string } | null;
 		return {
 			success: true,
 			message: 'Proof approved successfully',
-			allProofsApproved: responseData?.allProofsApproved || false,
-			debtId: responseData?.debtId || null
+			allProofsApproved: data?.allProofsApproved || false,
+			debtId: data?.debtId || null
 		};
 	}
 );

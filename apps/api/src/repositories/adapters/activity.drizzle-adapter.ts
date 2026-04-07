@@ -5,7 +5,7 @@ import type { IActivityRepository } from '@/types/repositories';
 import type { ActivityFilters } from '@/types';
 import { randomUUIDv7 } from 'bun';
 
-export class DrizzleActivityRepository implements IActivityRepository {
+export class ActivityDrizzleAdapter implements IActivityRepository {
   constructor(private db: DbClient) {}
 
   async create(data: Omit<ActivityLog, 'id' | 'createdAt'>): Promise<void> {

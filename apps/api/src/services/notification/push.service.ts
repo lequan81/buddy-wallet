@@ -8,6 +8,7 @@ import webpush from 'web-push';
 import { logger } from '@repo/logger';
 import type { INotificationRepository } from '@/types/repositories';
 import { configs } from '@/configs';
+import { formatVND } from '@repo/utils';
 import type { PushPayload, SubscribeInput, SendResult } from '@/types/push';
 
 export class PushService {
@@ -253,11 +254,7 @@ export class PushService {
   }): Promise<SendResult> {
     const { userId, creatorName, amount, description, debtId, isCreditor } = params;
 
-    const formattedAmount = new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-      maximumFractionDigits: 0
-    }).format(amount);
+    const formattedAmount = formatVND(amount);
 
     const message = isCreditor
       ? `${creatorName} says you owe ${formattedAmount} for "${description}"`
@@ -287,11 +284,7 @@ export class PushService {
   }): Promise<SendResult> {
     const { userId, confirmerName, amount, description, debtId } = params;
 
-    const formattedAmount = new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-      maximumFractionDigits: 0
-    }).format(amount);
+    const formattedAmount = formatVND(amount);
 
     return this.sendToUser(userId, {
       title: 'Debt Confirmed',

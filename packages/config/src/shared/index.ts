@@ -47,6 +47,17 @@ export const SHARED_CONSTANTS = {
     MAX_DAILY_IMPORT_ROWS: 500,
     MAX_PENDING_DEBTS: 200,
     PASSWORD_MIN_LENGTH: 8,
+  },
+
+  // Auth & Security
+  AUTH: {
+    OTP_EXPIRY_MINUTES: 10,
+    OTP_RESEND_COOLDOWN_SECONDS: 60,
+    OTP_MAX_RESENDS_PER_HOUR: 5,
+    OTP_MAX_ATTEMPTS: 5,
+    TEMP_PASSWORD_EXPIRY_HOURS: 24,
+    SESSION_MAX_AGE_SECONDS: 15 * 60, // 15 minutes
+    REFRESH_TOKEN_MAX_AGE_DAYS: 90,
   }
 } as const;
 
@@ -89,7 +100,17 @@ export function isValidImportFile(filename: string): boolean {
 export const FRONTEND_CONSTANTS = {
   TOAST_DURATION_MS: 3000,
   ANIMATION_DURATION_MS: 200,
-  MAX_UPLOAD_SIZE_MB: 5
+  MAX_UPLOAD_SIZE_MB: 5,
+  AUTH_TIMEOUT_MS: 3500
+} as const;
+
+/**
+ * Shared Timeouts & TTLs
+ */
+export const TIMEOUTS = {
+  AUTH_MS: 3500,
+  API_FETCH_MS: 5000,
+  VIETQR_CACHE_TTL: 86400, // 24 hours
 } as const;
 
 /**

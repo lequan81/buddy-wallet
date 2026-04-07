@@ -101,34 +101,20 @@ export class DebtService {
 
   // ── Query Methods ─────────────────────────────────────────────
 
-  /** Get debts for a user (or all if admin) with pagination */
-  async getDebtsForUser(
+  /**
+   * Get debts with pagination.
+   * @param userId - The user to scope debts to
+   * @param options.viewAll - If true, returns ALL debts (admin). Otherwise scopes to userId.
+   */
+  async getDebts(
     userId: string,
-    hasViewAllPermission: boolean,
-    options: PaginationOptions = {}
+    options: PaginationOptions & { viewAll?: boolean } = {}
   ): Promise<PaginatedResult<DebtDetails>> {
     const status = this.normalizeDebtStatus(options.status);
     const result = await this.debtRepo.findMany({
       ...options,
       status,
-      involvedUserId: hasViewAllPermission ? undefined : userId
-    });
-    return {
-      ...result,
-      data: result.data.map(toDebtDetails)
-    };
-  }
-
-  /** Get debts for a specific user (admin) with pagination */
-  async getDebtsByUserId(
-    userId: string,
-    options: PaginationOptions = {}
-  ): Promise<PaginatedResult<DebtDetails>> {
-    const status = this.normalizeDebtStatus(options.status);
-    const result = await this.debtRepo.findMany({
-      ...options,
-      status,
-      involvedUserId: userId
+      involvedUserId: options.viewAll ? undefined : userId
     });
     return {
       ...result,

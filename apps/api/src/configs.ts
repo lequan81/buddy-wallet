@@ -5,7 +5,8 @@ import {
   loadAndValidateEnv,
   getEnvBool,
   getEnvInt,
-  SHARED_CONSTANTS
+  SHARED_CONSTANTS,
+  TIMEOUTS
 } from '@repo/config';
 import { logger } from '@repo/logger';
 
@@ -13,13 +14,10 @@ import { logger } from '@repo/logger';
  * Startup Validation - Ensures environment is ready
  */
 const nodeEnv = Bun.env.NODE_ENV || 'development';
-const isProduction = nodeEnv === 'production';
-const isDevelopment = nodeEnv !== 'production';
-const isTest = nodeEnv === 'test';
 
 let envValidated = false;
 export const validateRuntimeEnv = (): void => {
-  if (envValidated || isTest) {
+  if (envValidated || nodeEnv === 'test') {
     return;
   }
   loadAndValidateEnv();
@@ -31,7 +29,7 @@ const resolveRequiredEnv = (key: string, testFallback: string): string => {
   if (value) {
     return value;
   }
-  if (isTest) {
+  if (nodeEnv === 'test') {
     return testFallback;
   }
   return requiredEnv(key);
@@ -55,7 +53,7 @@ export const configs = {
     NODE_ENV: nodeEnv,
     PORT: optionalEnv('PORT', '3000'),
     WEB_URL: optionalEnv('WEB_URL', 'http://localhost:5173'),
-    IS_DEV: isDevelopment
+    IS_PRODUCTION: nodeEnv === 'production'
   },
   AUTH: {
     JWT_SECRET: jwtSecret,
@@ -65,12 +63,26 @@ export const configs = {
     REFRESH_TOKEN_LIFETIME: getEnvInt('REFRESH_TOKEN_LIFETIME', 7776000000),
     JWT_BLACKLIST_SECONDS: getEnvInt('JWT_BLACKLIST_SECONDS', 900),
     PASSWORD_MIN_LENGTH: getEnvInt('AUTH_PASSWORD_MIN_LENGTH', SHARED_CONSTANTS.USER.PASSWORD_MIN_LENGTH),
+    FETCH_TIMEOUT_MS: getEnvInt('API_FETCH_TIMEOUT_MS', TIMEOUTS.API_FETCH_MS),
 
     ARGON2_OPTIONS: {
       algorithm: 'argon2id' as const,
       memoryCost: getEnvInt('ARGON2_MEMORY_COST', 65536),
       timeCost: getEnvInt('ARGON2_TIME_COST', 3)
+    },
+
+    OTP: {
+      EXPIRY_MINUTES: getEnvInt('AUTH_OTP_EXPIRY_MINUTES', SHARED_CONSTANTS.AUTH.OTP_EXPIRY_MINUTES),
+      RESEND_COOLDOWN_SECONDS: getEnvInt('AUTH_OTP_RESEND_COOLDOWN_SECONDS', SHARED_CONSTANTS.AUTH.OTP_RESEND_COOLDOWN_SECONDS),
+      MAX_RESENDS_PER_HOUR: getEnvInt('AUTH_OTP_MAX_RESENDS_PER_HOUR', SHARED_CONSTANTS.AUTH.OTP_MAX_RESENDS_PER_HOUR),
+      MAX_ATTEMPTS: getEnvInt('AUTH_OTP_MAX_ATTEMPTS', SHARED_CONSTANTS.AUTH.OTP_MAX_ATTEMPTS)
+    },
+    PASSWORD_RESET: {
+      EXPIRY_HOURS: getEnvInt('AUTH_PASSWORD_RESET_EXPIRY_HOURS', SHARED_CONSTANTS.AUTH.TEMP_PASSWORD_EXPIRY_HOURS)
     }
+  },
+  CACHE: {
+    VIETQR_TTL: getEnvInt('CACHE_VIETQR_TTL', 86400)
   },
   IMPORT: {
     MAX_ROWS: getEnvInt('IMPORT_MAX_ROWS', SHARED_CONSTANTS.IMPORT.MAX_ROWS),
@@ -120,6 +132,6 @@ export const configs = {
 } as const;
 
 // Storage validation logging
-if (isProduction && (!configs.STORAGE.S3_ENDPOINT || !configs.STORAGE.S3_BUCKET)) {
+if (configs.APP.IS_PRODUCTION && (!configs.STORAGE.S3_ENDPOINT || !configs.STORAGE.S3_BUCKET)) {
   logger.warn('S3 is not fully configured. Some features may be disabled.');
 }

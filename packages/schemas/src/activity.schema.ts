@@ -12,11 +12,15 @@ export const ActivitySchema = t.Object({
 
 export const ActivityListResponseSchema = t.Object({
   success: t.Literal(true),
-  data: t.Array(ActivitySchema),
-  pagination: PaginationSchema
+  data: t.Object({
+    data: t.Array(ActivitySchema),
+    pagination: PaginationSchema
+  })
 });
 
 export const RecentActivityResponseSchema = t.Object({
   success: t.Literal(true),
-  data: t.Array(ActivitySchema)
+  data: t.Object({
+    data: t.Array(ActivitySchema)
+  })
 });

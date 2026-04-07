@@ -22,27 +22,27 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			throw error(500);
 		}
 
-		// The successful logRes is the log object (with success: true)
-		const importLog = logRes;
+		// The successful logRes is the log object (flattened)
+		const importLog = logRes as Record<string, unknown> | null;
 
 		// If the import is still pending/processing, also fetch current progress
-		let progress = null;
+		let progress: Record<string, unknown> | null = null;
 		if (
 			importLog &&
-			'status' in importLog &&
+			typeof importLog.status === 'string' &&
 			(importLog.status === 'pending' ||
 				importLog.status === 'queued' ||
 				importLog.status === 'processing' ||
 				importLog.status === 'preview')
 		) {
 			const { data: progressRes, error: progressErr } = await api.v1.import.progress({ logId: id }).get();
-			if (!progressErr && progressRes && 'success' in progressRes && progressRes.success) {
-				progress = progressRes;
+			if (!progressErr && progressRes) {
+				progress = progressRes as Record<string, unknown>;
 			}
 		}
 
 		return {
-			importLog: importLog && 'success' in importLog && importLog.success ? importLog : null,
+			importLog,
 			progress,
 			jobId: id
 		};
@@ -91,7 +91,7 @@ export const actions: Actions = {
 					body.previewLogId = previewLogId;
 				}
 
-				const { data, error } = await locals.api.v1.import.debts.post(body as { file: File; config: string; previewLogId?: string });
+				const { data, error } = await locals.api.v1.import.debts.post(body);
 
 				if (error) {
 					const errVal = error.value as { code?: string; message?: string };
@@ -101,13 +101,13 @@ export const actions: Actions = {
 					});
 				}
 
-				const d = data as { jobId?: string; id?: string; logId?: string; importedCount?: number; errors?: string[] };
+				const d = (data || {}) as Record<string, unknown>;
 				return {
 					success: true,
-					jobId: d?.jobId,
-					logId: d?.id || d?.logId,
-					imported: d?.importedCount,
-					errors: d?.errors
+					jobId: typeof d.jobId === 'string' ? d.jobId : undefined,
+					logId: typeof (d.id || d.logId) === 'string' ? (d.id || d.logId) as string : undefined,
+					imported: typeof d.importedCount === 'number' ? d.importedCount : undefined,
+					errors: Array.isArray(d.errors) ? (d.errors as string[]) : undefined
 				};
 			} catch (err) {
 				console.error('[IMPORT FETCH ERROR]:', err);

@@ -25,8 +25,8 @@ export const loginRemote = form(loginSchema, async ({ email, password }) => {
 			invalid(errorMessage);
 		}
 
-		if (data?.success) {
-			if ((data as { mustChangePassword?: boolean })?.mustChangePassword) {
+		if (data) {
+			if (data.mustChangePassword) {
 				throw redirect(303, '/change-password?required=true');
 			}
 

@@ -2,7 +2,7 @@ import { eq, and, desc, count, emailVerifications, type EmailVerification } from
 import type { IEmailVerificationRepository } from '@/types/repositories';
 import type { DbClient } from '@/types';
 
-export class DrizzleEmailVerificationRepository implements IEmailVerificationRepository {
+export class EmailVerificationDrizzleAdapter implements IEmailVerificationRepository {
   constructor(private readonly db: DbClient) {}
 
   async invalidateExisting(userId: string, email: string): Promise<void> {

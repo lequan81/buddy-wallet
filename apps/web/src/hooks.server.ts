@@ -4,10 +4,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { createTreatyClient } from '$lib/services/api';
-
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const AUTH_TIMEOUT_MS = 3500;
+import { FRONTEND_CONSTANTS } from '@repo/config/frontend';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -58,7 +55,7 @@ async function tryGetUser(
 	token: string
 ): Promise<{ user: App.Locals['user']; status: number | undefined }> {
 	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS);
+	const timeout = setTimeout(() => controller.abort(), FRONTEND_CONSTANTS.AUTH_TIMEOUT_MS);
 
 	try {
 		const api = createTreatyClient(
@@ -75,11 +72,10 @@ async function tryGetUser(
 
 		clearTimeout(timeout);
 
-		const payload = data as { user?: App.Locals['user'] | null } | null;
-		const user = payload?.user ?? null;
+		const user = data?.user ?? null;
 
 		// Handle locked account — redirect immediately
-		if (user && (user as any)?.isLocked) {
+		if (user && (user as { isLocked?: boolean }).isLocked) {
 			handleLockedAccount(event, user);
 		}
 
@@ -131,7 +127,7 @@ async function tryRefreshToken(
 	refreshToken: string
 ): Promise<{ user: App.Locals['user']; newSessionToken: string | undefined }> {
 	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS);
+	const timeout = setTimeout(() => controller.abort(), FRONTEND_CONSTANTS.AUTH_TIMEOUT_MS);
 
 	try {
 		const api = createTreatyClient(
@@ -148,17 +144,12 @@ async function tryRefreshToken(
 
 		clearTimeout(timeout);
 
-		if (error) return { user: null, newSessionToken: undefined };
-
-		const refreshPayload = data as { success?: boolean; user?: App.Locals['user'] | null } | null;
-		if (!refreshPayload?.success || !refreshPayload?.user) {
-			return { user: null, newSessionToken: undefined };
-		}
+		if (error || !data?.user) return { user: null, newSessionToken: undefined };
 
 		// Forward new cookies to the browser
 		const newToken = forwardRefreshCookies(event, response);
 
-		return { user: refreshPayload.user, newSessionToken: newToken };
+		return { user: data.user, newSessionToken: newToken };
 	} catch (err) {
 		clearTimeout(timeout);
 		if (isAbortError(err)) return { user: null, newSessionToken: undefined };

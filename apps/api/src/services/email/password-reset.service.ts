@@ -17,7 +17,8 @@ import { escapeHtml } from '@utils/html.utils';
 
 import * as crypto from 'node:crypto';
 
-const TEMP_PASSWORD_EXPIRY_HOURS = 24;
+// Configuration alias for readability
+const { PASSWORD_RESET } = configs.AUTH;
 
 /**
  * Generate a secure random token for password reset
@@ -79,7 +80,7 @@ export class PasswordResetService {
     // Generate reset token
     const token = generateResetToken();
     const hashedToken = await Bun.password.hash(token, configs.AUTH.ARGON2_OPTIONS);
-    const expiresAt = new Date(Date.now() + TEMP_PASSWORD_EXPIRY_HOURS * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET.EXPIRY_HOURS * 60 * 60 * 1000);
 
     // Update user with token hash
     await this.userRepo.update(user.id, {
@@ -95,8 +96,8 @@ export class PasswordResetService {
     const emailResult = await this.emailService.send({
       to: email,
       subject: 'BuddyWallet - Password Reset Request',
-      html: this.generateEmailHtml(user.name, resetLink, TEMP_PASSWORD_EXPIRY_HOURS),
-      text: `Hi ${user.name},\n\nYou requested a password reset. Please click the following link to reset your password:\n\n${resetLink}\n\nThis link expires in ${TEMP_PASSWORD_EXPIRY_HOURS} hours and can only be used once.\n\nIf you didn't request this, please secure your account immediately.\n\nBuddyWallet Team`,
+      html: this.generateEmailHtml(user.name, resetLink, PASSWORD_RESET.EXPIRY_HOURS),
+      text: `Hi ${user.name},\n\nYou requested a password reset. Please click the following link to reset your password:\n\n${resetLink}\n\nThis link expires in ${PASSWORD_RESET.EXPIRY_HOURS} hours and can only be used once.\n\nIf you didn't request this, please secure your account immediately.\n\nBuddyWallet Team`,
       from: 'noreply'
     });
 

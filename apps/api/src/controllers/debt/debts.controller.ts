@@ -5,7 +5,7 @@
  * Uses Elysia decorate() pattern for service injection.
  */
 import { Elysia, t } from 'elysia';
-import { apiResponse, GEN_ERRORS, BE_ERRORS, type ErrorResponse } from '@repo/errors';
+import { apiResponse, GEN_ERRORS, BE_ERRORS } from '@repo/errors';
 import {
   accessControlPlugin,
   permissionPlugin,
@@ -13,7 +13,6 @@ import {
   sessionAuthPlugin
 } from '@plugins';
 import { standardRateLimiter } from '@plugins/middleware';
-import { getUserWithFreshData } from '@plugins/auth';
 import { PERMISSIONS, hasPermission } from '@repo/permissions';
 import {
   ErrorResponseSchema,
@@ -27,14 +26,18 @@ import {
   DeleteBatchDebtSchema
 } from '@repo/schemas';
 import { getClientIP } from '@utils';
-import { getIdempotentResponse, storeIdempotentResponse } from '@/utils/idempotency';
 import { logger } from '@repo/logger';
-import { toCurrentUser } from '@/utils/current-user.mapper';
 import { parseOffsetPagination } from '@/core/http/pagination';
 import { requireAuth } from '@/core/http/require-auth';
 import { isFailureResult, respondFailure } from '@/core/http/result-helper';
 import { DEFAULT_DEBT_FAILURE, DEBT_ERROR_MAP } from '@/core/http/error-maps/debt.error-map';
-import { getIdempotencyKey, setIdempotencyHeaders } from '@/core/http/idempotency';
+import {
+  getIdempotencyKey,
+  setIdempotencyHeaders,
+  getIdempotentResponse,
+  storeIdempotentResponse
+} from '@/core/http/idempotency';
+import { resolveActor } from '@/core/http/response.helpers';
 import type { Debt } from '@repo/db';
 
 type DebtServiceFailure = {
@@ -69,20 +72,21 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       const auth = requireAuth(user, set);
       if ('error' in auth) {
         set.status = 401;
-        return auth.error as any;
+        return auth.error;
       }
 
       const hasViewAll = hasPermission(permissions, PERMISSIONS.DEBT_VIEW_ALL);
       const { limit, offset } = parseOffsetPagination(query);
       const status = query.status || undefined;
 
-      const result = await debtService.getDebtsForUser(auth.user.id, hasViewAll, {
+      const result = await debtService.getDebts(auth.user.id, {
         limit,
         offset,
-        status
+        status,
+        viewAll: hasViewAll
       });
 
-      return apiResponse({ ok: true, data: result }) as any;
+      return apiResponse({ ok: true, data: result });
     },
     {
       checkPermission: PERMISSIONS.DEBT_VIEW_OWN,
@@ -101,12 +105,13 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       const auth = requireAuth(user, set);
       if ('error' in auth) {
         set.status = 401;
-        return auth.error as any;
+        return auth.error;
       }
       const hasViewAll = hasPermission(permissions, PERMISSIONS.DEBT_VIEW_ALL);
-      const result = await debtService.getDebtsForUser(auth.user.id, hasViewAll, {
+      const result = await debtService.getDebts(auth.user.id, {
         limit: 5,
-        offset: 0
+        offset: 0,
+        viewAll: hasViewAll
       });
 
       // Return simplified recent debt data
@@ -118,7 +123,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
         createdAt: (debt.createdAt instanceof Date ? debt.createdAt.toISOString() : String(debt.createdAt))
       }));
 
-      return apiResponse({ ok: true, data: { data: recentDebts } }) as any;
+      return apiResponse({ ok: true, data: { data: recentDebts } });
     },
     {
       checkPermission: PERMISSIONS.DEBT_VIEW_OWN,
@@ -136,7 +141,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
       const { limit, offset } = parseOffsetPagination(query);
       const status = query.status || undefined;
 
-      const result = await debtService.getDebtsByUserId(userId, {
+      const result = await debtService.getDebts(userId, {
         limit,
         offset,
         status
@@ -188,16 +193,15 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   .post(
     '/',
     async ({ debtService, body, user, set, headers }) => {
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { actor } = resolved;
 
       // Check idempotency key first
       const idempotencyKey = getIdempotencyKey(headers);
       if (idempotencyKey) {
         const cached = await getIdempotentResponse<
-          { success: true; debt: unknown } | { success: false; error: ErrorResponse }
+          { success: true; debt: unknown } | { success: false; error: unknown }
         >(idempotencyKey);
         if (cached) {
           logger.info('Idempotency cache hit for debt creation', { key: idempotencyKey });
@@ -208,13 +212,6 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
           return cached.error;
         }
       }
-
-      const freshUser = await getUserWithFreshData(auth.user.id);
-      if (!freshUser) {
-        set.status = 401;
-        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED, details: 'User not found' });
-      }
-      const actor = toCurrentUser(freshUser);
 
       const result = await debtService.createDebt(
         {
@@ -258,17 +255,9 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     '/:id/status',
     async (ctx) => {
       const { debtService, params: { id }, body, user, set } = ctx;
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
-
-      const freshUser = await getUserWithFreshData(auth.user.id);
-      if (!freshUser) {
-        set.status = 401;
-        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED, details: 'User not found' });
-      }
-      const actor = toCurrentUser(freshUser);
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { actor } = resolved;
       const preloadedDebt = getPreloadedDebt(ctx);
 
       const result = await debtService.updateDebtStatus(id, body.status, actor, preloadedDebt);
@@ -291,17 +280,9 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     '/:id',
     async (ctx) => {
       const { debtService, params: { id }, body, user, set } = ctx;
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
-
-      const freshUser = await getUserWithFreshData(auth.user.id);
-      if (!freshUser) {
-        set.status = 401;
-        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED, details: 'User not found' });
-      }
-      const actor = toCurrentUser(freshUser);
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { actor } = resolved;
       const preloadedDebt = getPreloadedDebt(ctx);
 
       const result = await debtService.updateDebt(id, body, actor, preloadedDebt);
@@ -324,17 +305,9 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
   .delete(
     '/batch',
     async ({ debtService, activityService, body, user, set, request, server }) => {
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
-
-      const freshUser = await getUserWithFreshData(auth.user.id);
-      if (!freshUser) {
-        set.status = 401;
-        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED, details: 'User not found' });
-      }
-      const actor = toCurrentUser(freshUser);
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { actor, user: freshUser } = resolved;
 
       if (body.ids.length > 50) {
         set.status = 400;
@@ -422,17 +395,9 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     '/:id',
     async (ctx) => {
       const { debtService, params: { id }, user, set } = ctx;
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
-
-      const freshUser = await getUserWithFreshData(auth.user.id);
-      if (!freshUser) {
-        set.status = 401;
-        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED, details: 'User not found' });
-      }
-      const actor = toCurrentUser(freshUser);
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { actor } = resolved;
       const preloadedDebt = getPreloadedDebt(ctx);
 
       const result = await debtService.deleteDebt(id, actor, preloadedDebt);
@@ -455,17 +420,9 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     '/:id/confirm',
     async (ctx) => {
       const { debtService, params: { id }, user, set } = ctx;
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
-
-      const freshUser = await getUserWithFreshData(auth.user.id);
-      if (!freshUser) {
-        set.status = 401;
-        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED, details: 'User not found' });
-      }
-      const actor = toCurrentUser(freshUser);
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { actor } = resolved;
       const preloadedDebt = getPreloadedDebt(ctx);
 
       const result = await debtService.confirmDebt(id, actor, preloadedDebt);
@@ -493,17 +450,9 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     '/:id/suggest',
     async (ctx) => {
       const { debtService, activityService, params: { id }, body, user, set, request, server } = ctx;
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
-
-      const freshUser = await getUserWithFreshData(auth.user.id);
-      if (!freshUser) {
-        set.status = 401;
-        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED, details: 'User not found' });
-      }
-      const actor = toCurrentUser(freshUser);
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { actor, user: freshUser } = resolved;
       const preloadedDebt = getPreloadedDebt(ctx);
 
       const result = await debtService.suggestEdit(id, actor, body, preloadedDebt);
@@ -536,17 +485,9 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     '/:id/suggestion/respond',
     async (ctx) => {
       const { debtService, activityService, params: { id }, body, user, set, request, server } = ctx;
-      const auth = requireAuth(user, set);
-      if ('error' in auth) {
-        return auth.error;
-      }
-
-      const freshUser = await getUserWithFreshData(auth.user.id);
-      if (!freshUser) {
-        set.status = 401;
-        return apiResponse({ ok: false, error: GEN_ERRORS.UNAUTHORIZED, details: 'User not found' });
-      }
-      const actor = toCurrentUser(freshUser);
+      const resolved = await resolveActor(user, set);
+      if (!resolved.ok) return resolved.error;
+      const { actor, user: freshUser } = resolved;
       const preloadedDebt = getPreloadedDebt(ctx);
 
       const result = await debtService.respondToSuggestion(id, actor, body.accept, preloadedDebt);

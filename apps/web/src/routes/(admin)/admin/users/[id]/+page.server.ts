@@ -23,8 +23,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	// Fetch user's debts
 	const { data: debtsData } = await locals.api.v1.debts.user({ userId: params.id }).get();
 
-	// API returns paginated debts at top-level: { success: true, data: [...], pagination: {...} }
-	const debts = (debtsData as { data?: unknown[] } | null)?.data || [];
+	// API returns paginated debts
+	const debts = debtsData?.data || [];
 
 	return { targetUser: user, debts };
 };
@@ -38,9 +38,10 @@ export const actions: Actions = {
 		const { error, status } = await locals.api.v1.users({ id: params.id }).status.patch();
 
 		if (error) {
+			const errorData = error.value as { error?: { message?: string; details?: string } };
 			const errorMsg =
-				(error.value as any)?.message ||
-				(error.value as any)?.details ||
+				errorData?.error?.message ||
+				errorData?.error?.details ||
 				'Failed to update status';
 			return fail(typeof status === 'number' ? status : 500, { error: errorMsg });
 		}
