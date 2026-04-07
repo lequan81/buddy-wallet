@@ -14,6 +14,7 @@
       "name": "@repo/api",
       "version": "1.0.50",
       "dependencies": {
+        "@bogeychan/elysia-etag": "^0.1.0",
         "@elysiajs/bearer": "^1.4.3",
         "@elysiajs/cookie": "^0.8.0",
         "@elysiajs/cors": "^1.4.1",
@@ -521,6 +522,8 @@
     "@babel/traverse": ["@babel/traverse@7.29.0", "", { "dependencies": { "@babel/code-frame": "^7.29.0", "@babel/generator": "^7.29.0", "@babel/helper-globals": "^7.28.0", "@babel/parser": "^7.29.0", "@babel/template": "^7.28.6", "@babel/types": "^7.29.0", "debug": "^4.3.1" } }, "sha512-4HPiQr0X7+waHfyXPZpWPfWL/J7dcN1mx9gL6WdQVMbPnF3+ZhSMs8tCxN7oHddJE9fhNE7+lxdnlyemKfJRuA=="],
 
     "@babel/types": ["@babel/types@7.29.0", "", { "dependencies": { "@babel/helper-string-parser": "^7.27.1", "@babel/helper-validator-identifier": "^7.28.5" } }, "sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A=="],
+
+    "@bogeychan/elysia-etag": ["@bogeychan/elysia-etag@0.1.0", "", { "peerDependencies": { "elysia": ">= 1.2.10" } }, "sha512-wKRt7I1AYew+Xem5dSSIIuRwr/MRpWa5qWC9CQIq5NKYVI0TvZciWQArKG/MMJ0ibfyFouKETTernU8vY+bYEQ=="],
 
     "@borewit/text-codec": ["@borewit/text-codec@0.2.1", "", {}, "sha512-k7vvKPbf7J2fZ5klGRD9AeKfUvojuZIQ3BT5u7Jfv+puwXkUBUT5PVyMDfJZpy30CBDXGMgw7fguK/lpOMBvgw=="],
 

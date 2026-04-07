@@ -68,7 +68,7 @@ export const UsersController = new Elysia({ prefix: '/users' })
       return apiResponse({ 
         ok: true, 
         data: { 
-          user: toSafeUser(result.user), 
+          user: result.user!, 
           message: result.message 
         } 
       });
@@ -106,7 +106,7 @@ export const UsersController = new Elysia({ prefix: '/users' })
 
       return apiResponse({ 
         ok: true, 
-        data: { user: toSafeUser(result.user) } 
+        data: { user: result.user! } 
       });
     },
     {
@@ -142,7 +142,7 @@ export const UsersController = new Elysia({ prefix: '/users' })
       return apiResponse({ 
         ok: true, 
         data: { 
-          user: toSafeUser(result.user), 
+          user: result.user!, 
           message: result.message 
         } 
       });

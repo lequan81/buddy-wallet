@@ -220,7 +220,7 @@ export function apiResponse(options: {
       error: {
         code: error.code,
         message: error.message,
-        ...(options.details && { details: options.details })
+        ...(options.details ? { details: options.details } : {})
       }
     };
   }

@@ -1,4 +1,5 @@
 import { Elysia } from 'elysia';
+import { etag } from '@bogeychan/elysia-etag';
 import { configs, validateRuntimeEnv } from './configs';
 import {
   corsPlugin,
@@ -32,6 +33,8 @@ import { randomUUIDv7 } from 'bun';
 validateRuntimeEnv();
 
 export const app = new Elysia()
+  // Global ETag (browser caching)
+  .use(etag())
   // Global Request ID
   .derive(({ request }) => {
     const requestId = request.headers.get('X-Request-ID') || randomUUIDv7();
@@ -129,11 +132,7 @@ export const app = new Elysia()
       return apiResponse({
         ok: false,
         error: GEN_ERRORS.NETWORK,
-        data: {
-          status: 'degraded',
-          storage,
-          timestamp: new Date().toISOString()
-        }
+        details: `Storage degraded: ${JSON.stringify(storage)}`
       });
     }
 

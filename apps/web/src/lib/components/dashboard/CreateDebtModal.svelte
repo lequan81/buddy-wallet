@@ -30,7 +30,8 @@
 		initialAmount = '',
 		initialPhone = '',
 		hasBankAccount = true,
-		recentContacts = []
+		recentContacts = [],
+		onSuccess
 	} = $props<{
 		open: boolean;
 		initialDescription?: string;
@@ -38,6 +39,7 @@
 		initialPhone?: string;
 		hasBankAccount?: boolean;
 		recentContacts?: string[];
+		onSuccess?: () => void;
 	}>();
 
 	// --- Consolidated form state ---
@@ -115,6 +117,7 @@
 					toast.success('Debt recorded successfully!');
 					open = false;
 					invalidateAll();
+					onSuccess?.();
 					break;
 				case 'failure':
 					toast.error((result.data?.message as string) || 'Failed to create record');

@@ -16,7 +16,6 @@ import { standardRateLimiter } from '@plugins/middleware';
 import { PERMISSIONS, hasPermission } from '@repo/permissions';
 import {
   ErrorResponseSchema,
-  DebtListResponseSchema,
   RecentDebtsResponseSchema,
   DebtQuerySchema,
   CreateDebtSchema,
@@ -90,11 +89,7 @@ export const DebtsController = new Elysia({ prefix: '/debts' })
     },
     {
       checkPermission: PERMISSIONS.DEBT_VIEW_OWN,
-      query: DebtQuerySchema,
-      response: {
-        200: DebtListResponseSchema,
-        401: ErrorResponseSchema
-      }
+      query: DebtQuerySchema
     }
   )
 
