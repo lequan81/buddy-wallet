@@ -1,6 +1,6 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { api } from '$lib/services/api';
-import type { ImportProgress } from '@repo/types/core/import';
+import type { ImportProgress, ProgressResult } from '@repo/types/core/import';
 import type { ImportJob } from '@repo/types/infrastructure/jobs';
 import {
 	normalizeImportWorkflowState,
@@ -76,9 +76,16 @@ class ImportProgressStore {
 
 		this.sseSource.onmessage = (event) => {
 			try {
-				const data = JSON.parse(event.data) as Record<string, ProgressResult>;
-				console.log('[Import] [SSE] Received update for', Object.keys(data).length, 'jobs');
-				this.applyProgressUpdates(data);
+				const parsed = JSON.parse(event.data) as Record<string, ProgressResult>;
+				// Extract data from API response format: { success: true, data: { logId: ImportProgress } }
+				const progressMap: Record<string, ImportProgress> = {};
+				for (const [id, result] of Object.entries(parsed)) {
+					if (result && typeof result === 'object' && 'data' in result && result.data) {
+						progressMap[id] = result.data as ImportProgress;
+					}
+				}
+				console.log('[Import] [SSE] Received update for', Object.keys(progressMap).length, 'jobs');
+				this.applyProgressUpdates(progressMap);
 				
 				// If all jobs terminal, SSE will be closed by server or we can stop
 				if (this.getPendingJobIds().length === 0) {
@@ -121,8 +128,20 @@ class ImportProgressStore {
 
 				if (!error && data) {
 					console.log('[Import] [Polling] Batch update received');
-					const result = (data as { data?: Record<string, ProgressResult> }).data || data;
-					this.applyProgressUpdates(result as Record<string, ProgressResult>);
+					// Handle API response: could be direct object or wrapped in { data: ... }
+					const result = (data as any)?.data || data as any;
+					
+					// Extract ImportProgress from ProgressResult union
+					const progressMap: Record<string, ImportProgress> = {};
+					for (const [id, item] of Object.entries(result)) {
+						if (item && typeof item === 'object' && 'data' in item && item.data) {
+							progressMap[id] = (item as ProgressResult).data as ImportProgress;
+						} else if (item && typeof item === 'object' && 'status' in item) {
+							// Direct ImportProgress format
+							progressMap[id] = item as ImportProgress;
+						}
+					}
+					this.applyProgressUpdates(progressMap);
 				}
 			} catch {
 				// Retry silently

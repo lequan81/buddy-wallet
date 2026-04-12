@@ -2,7 +2,6 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { DebtDetails } from '@repo/types/core/debt';
 import type { BankAccount } from '@repo/types/core/bank';
-import type { ApiErrorValue } from '@repo/types/api/base';
 
 const extractDebt = (payload: unknown): DebtDetails | null => {
 	if (!payload || typeof payload !== 'object') return null;

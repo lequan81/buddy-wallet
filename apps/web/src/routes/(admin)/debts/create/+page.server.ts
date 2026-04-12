@@ -1,6 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import type { ApiErrorValue } from '@repo/types/api/base';
 
 type RecentContactsResponse = { success: true; items: string[] };
 
