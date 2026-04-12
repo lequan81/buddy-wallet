@@ -58,7 +58,7 @@
 							size="icon"
 							class="h-6 w-6"
 							onclick={() => {
-								for (const job of jobs) importProgress.removeJob(job.jobId);
+								for (const job of jobs) if (job.jobId) importProgress.removeJob(job.jobId);
 							}}
 						>
 							<X class="h-4 w-4" />
@@ -100,14 +100,14 @@
 								</div>
 
 								<div class="mt-1 flex justify-between text-xs text-muted-foreground">
-									{#if job.status === 'processing' && job.progress.total > 0}
+									{#if job.status === 'processing' && typeof job.progress === 'object' && job.progress.total > 0}
 										<span
 											>Processing • {job.progress.current}/{job.progress.total} rows ({job.progress
 												.percentage}%)</span
 										>
 									{:else if job.status === 'success'}
 										<span class="text-green-600 dark:text-green-400"
-											>Complete • {job.progress.current} rows imported</span
+											>Complete • {typeof job.progress === 'object' ? job.progress.current : 0} rows imported</span
 										>
 									{:else if job.status === 'failed'}
 										<span class="text-destructive">Failed</span>
@@ -124,7 +124,7 @@
 											job.status === 'success' && 'bg-green-500',
 											job.status === 'failed' && 'bg-red-500'
 										)}
-										style="width: {job.status === 'failed' ? 100 : job.progress.percentage}%"
+										style="width: {job.status === 'failed' ? 100 : typeof job.progress === 'object' ? job.progress.percentage : 0}%"
 									></div>
 								</div>
 
@@ -154,7 +154,7 @@
 									disabled={job.status === 'processing' || job.status === 'pending'}
 									onclick={(e: MouseEvent) => {
 										e.stopPropagation();
-										importProgress.removeJob(job.jobId);
+										if (job.jobId) importProgress.removeJob(job.jobId);
 									}}
 								>
 									<X class="h-3 w-3" />

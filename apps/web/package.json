@@ -8,6 +8,7 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync; svelte-check --tsconfig ./tsconfig.json",
+		"check-types": "svelte-kit sync; svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync; svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check .; eslint .",
 		"format": "prettier --write .",
@@ -15,7 +16,6 @@
 		"clean": "powershell -Command \"if (Test-Path build) { Remove-Item -Recurse -Force build }; if (Test-Path .svelte-kit) { Remove-Item -Recurse -Force .svelte-kit }\""
 	},
 	"devDependencies": {
-		"@repo/api": "workspace:*",
 		"@repo/eslint-config": "workspace:*",
 		"@repo/typescript-config": "workspace:*",
 		"@repo/ui": "workspace:*",

@@ -1,23 +1,38 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import type { ApiErrorValue } from '@repo/types';
+import type { ApiErrorValue } from '@repo/types/api/base';
 
-type RecentContactsResponse = { success: true; contacts: string[] };
+type RecentContactsResponse = { success: true; items: string[] };
 
 const getRecentContacts = (data: unknown): string[] => {
 	if (!data || typeof data !== 'object') return [];
-	const contacts = (data as { contacts?: unknown }).contacts;
-	return Array.isArray(contacts) ? contacts : [];
+	const items = (data as { items?: unknown }).items;
+	return Array.isArray(items) ? items : [];
 };
 
 const hasAccounts = (payload: unknown): boolean => {
 	if (!payload || typeof payload !== 'object') return false;
-	const accounts = (payload as { accounts?: unknown }).accounts;
-	return Array.isArray(accounts) && accounts.length > 0;
+	const items = (payload as { items?: unknown }).items;
+	return Array.isArray(items) && items.length > 0;
 };
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	if (!locals.user) throw redirect(303, '/login');
+	if (!locals.user) {
+		if (locals.apiOffline) {
+			return {
+				hasBankAccount: false,
+				recentContacts: [],
+				prefill: {
+					description: url.searchParams.get('description') || '',
+					amount: url.searchParams.get('amount') || '',
+					phone: url.searchParams.get('phone') || ''
+				},
+				error: 'Backend API is unavailable'
+			};
+		}
+
+		throw redirect(303, '/login');
+	}
 
 	// User must have a phone number to create debts
 	if (!locals.user.phoneNumber) {
@@ -41,14 +56,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	return {
-    hasBankAccount,
-    recentContacts,
-    prefill: {
-        description: url.searchParams.get('description') || '',
-        amount: url.searchParams.get('amount') || '',
-        phone: url.searchParams.get('phone') || ''
-    }
-};
+		hasBankAccount,
+		recentContacts,
+		prefill: {
+			description: url.searchParams.get('description') || '',
+			amount: url.searchParams.get('amount') || '',
+			phone: url.searchParams.get('phone') || ''
+		}
+	};
 };
 
 export const actions: Actions = {
@@ -61,12 +76,20 @@ export const actions: Actions = {
 		const expiryOption = (formData.get('expiryOption') as string) || 'never';
 		const confirmDuplicate = formData.get('confirmDuplicate') === 'true';
 
+		if (!locals.user) {
+			if (locals.apiOffline) {
+				return fail(503, { message: 'Backend API is unavailable' });
+			}
+
+			throw redirect(303, '/login');
+		}
+
 		// User must have a phone number to create debts
 		// Note: locals.user might be stale if profile updated in same session without re-login logic,
 		// but standard flow updates it. Let's rely on locals for now but ensure we check it.
 		// Actually, locals.user comes from hooks.server.ts which validates session on every request.
 
-		if (!locals.user?.phoneNumber) {
+		if (!locals.user.phoneNumber) {
 			throw redirect(303, '/settings/profile?error=missing_phone');
 		}
 
@@ -105,7 +128,7 @@ export const actions: Actions = {
 			});
 
 			if (error) {
-				const errorObj = error.value as (ApiErrorValue & { duplicates?: unknown[] }) | undefined;
+				const errorObj = error.value as (Record<string, unknown> & { duplicates?: unknown[] }) | undefined;
 
 				// Handle duplicate warning
 				if (status === 409 && errorObj?.code === 'DUPLICATE_WARNING') {
@@ -117,11 +140,11 @@ export const actions: Actions = {
 				}
 
 				const nestedError =
-					typeof errorObj?.error === 'string' ? errorObj?.error : errorObj?.error?.message;
+					typeof errorObj?.error === 'string' ? errorObj?.error : (errorObj?.error as Record<string, unknown>)?.message;
 				const errMsg =
-					errorObj?.details ||
-					errorObj?.message ||
-					nestedError ||
+					(errorObj?.details as string) ||
+					(errorObj?.message as string) ||
+					(nestedError as string) ||
 					'Failed to create debt';
 				return fail(400, { message: errMsg });
 			}

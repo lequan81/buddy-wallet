@@ -1,16 +1,31 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import type { DebtDetails, BankAccount, ApiErrorValue } from '@repo/types';
+import type { DebtDetails } from '@repo/types/core/debt';
+import type { BankAccount } from '@repo/types/core/bank';
+import type { ApiErrorValue } from '@repo/types/api/base';
 
 const extractDebt = (payload: unknown): DebtDetails | null => {
 	if (!payload || typeof payload !== 'object') return null;
-	const directDebt = (payload as { debt?: unknown }).debt;
-	if (directDebt) return directDebt as DebtDetails;
+	const item = (payload as { item?: unknown }).item;
+	if (item) return item as DebtDetails;
 	return null;
 };
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) {
+		if (locals.apiOffline) {
+			return {
+				debt: null,
+				error: 'Backend API is unavailable',
+				isCreditor: false,
+				isDebtor: false,
+				isUploader: false,
+				currentUser: null,
+				creditorBanks: [],
+				pendingProofs: []
+			};
+		}
+
 		throw redirect(302, '/login');
 	}
 
@@ -22,8 +37,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const debt = extractDebt(debtData);
 
 	if (debtError || !debt) {
-		const errVal = debtError?.value as ApiErrorValue | undefined;
-		const errMsg = errVal?.message || errVal?.error;
+		const errVal = debtError?.value as Record<string, unknown> | undefined;
+		const errMsg = (errVal?.message || errVal?.error) as string | undefined;
 		const finalMsg = typeof errMsg === 'string' ? errMsg : (errMsg as { message?: string })?.message || 'Debt not found';
 		return { debt: null, error: finalMsg };
 	}
@@ -41,7 +56,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	// If I am the debtor, I need creditor's bank info to pay
 	if (isDebtor && debt.creditorId) {
 		const { data: bankData } = await api.v1.banks.user({ userId: debt.creditorId }).get();
-		creditorBanks = (bankData?.accounts as unknown as BankAccount[]) || [];
+		creditorBanks = (bankData?.items as unknown as BankAccount[]) || [];
 	}
 
 	// If I am the creditor, I want to see pending proofs.

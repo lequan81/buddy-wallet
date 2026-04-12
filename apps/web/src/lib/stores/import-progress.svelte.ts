@@ -1,6 +1,12 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { api } from '$lib/services/api';
-import type { ImportJob, ProgressResult } from '@repo/types';
+import type { ImportProgress } from '@repo/types/core/import';
+import type { ImportJob } from '@repo/types/infrastructure/jobs';
+import {
+	normalizeImportWorkflowState,
+	isImportWorkflowTerminal,
+	transitionImportWorkflow
+} from '$lib/state-machines/import-workflow.machine';
 
 /**
  * Import Progress Store — HTTP Polling only
@@ -18,12 +24,21 @@ class ImportProgressStore {
 	private sseSource: EventSource | undefined;
 
 	addJob(jobId: string, type: 'preview' | 'import', fileName: string, file?: File) {
+		const initialTransition = transitionImportWorkflow('pending', 'pending');
+		const status = initialTransition.to as ImportJob['status'];
+		const now = new Date();
+
 		this.activeJobs.set(jobId, {
+			id: jobId,
 			jobId,
 			type,
 			fileName,
-			status: 'pending',
-			progress: { current: 0, total: 0, percentage: 0 }
+			status,
+			userId: null,
+			metadata: {},
+			progress: { current: 0, total: 0, percentage: 0 },
+			createdAt: now,
+			updatedAt: now
 		});
 		if (file) {
 			this.fileCache.set(jobId, file);
@@ -118,7 +133,8 @@ class ImportProgressStore {
 	private getPendingJobIds(): string[] {
 		const pendingIds: string[] = [];
 		for (const [id, job] of this.activeJobs) {
-			if (job.status === 'pending' || job.status === 'queued' || job.status === 'processing') {
+			const status = normalizeImportWorkflowState((job.status || 'pending') as string);
+			if (!isImportWorkflowTerminal(status)) {
 				pendingIds.push(id);
 			}
 		}
@@ -147,12 +163,18 @@ class ImportProgressStore {
 	}
 
 	/** Apply progress data from any source (SSE or Polling) */
-	private applyProgressUpdates(data: Record<string, ProgressResult>) {
+	private applyProgressUpdates(data: Record<string, ImportProgress>) {
 		for (const [id, result] of Object.entries(data)) {
 			const job = this.activeJobs.get(id);
 			if (!job) continue;
 
-			job.status = (result.status || 'pending') as ImportJob['status'];
+			const transition = transitionImportWorkflow(job.status as string, result.status || 'pending');
+			if (!transition.allowed) {
+				console.warn('[Import][FSM]', transition.reason);
+			} else {
+				job.status = transition.to as ImportJob['status'];
+			}
+
 			job.progress = {
 				current: result.current || 0,
 				total: result.total || 0,
@@ -160,13 +182,13 @@ class ImportProgressStore {
 			};
 			job.message = result.message;
 
-			if (result.status === 'success') {
+			if (job.status === 'success') {
 				job.result = result.result;
 				// Auto-cleanup preview jobs after 30s
 				if (job.type === 'preview') {
 					setTimeout(() => this.activeJobs.delete(id), 30000);
 				}
-			} else if (result.status === 'failed' || result.status === 'cancelled') {
+			} else if (job.status === 'failed' || job.status === 'cancelled') {
 				job.error = result.errors ? result.errors.join('; ') : 'Unknown error';
 			}
 

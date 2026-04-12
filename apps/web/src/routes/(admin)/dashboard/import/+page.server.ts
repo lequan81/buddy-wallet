@@ -1,19 +1,29 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { FE_ERRORS } from '@repo/errors';
-import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config';
+import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config/shared';
 
 export const load: PageServerLoad = async ({ parent, locals, url }) => {
 	// Get server-computed permissions from layout
 	const { permissions } = await parent();
 
-	// Only users with canImportData can access
-	if (!permissions.canImportData) {
-		throw redirect(303, '/dashboard');
-	}
-
 	const historyPageRaw = Number(url.searchParams.get('historyPage') || '1');
 	const historyPage = Number.isFinite(historyPageRaw) && historyPageRaw > 0 ? historyPageRaw : 1;
+
+	// Only users with canImportData can access
+	if (!permissions.canImportData) {
+		if (locals.apiOffline) {
+			return {
+				acceptedFormats: ACCEPTED_IMPORT_EXTENSIONS,
+				logs: [],
+				historyTotalPages: 1,
+				historyPage,
+				error: 'Backend API is unavailable'
+			};
+		}
+
+		throw redirect(303, '/dashboard');
+	}
 
 	// Fetch selected history page
 	let logs: unknown[] = [];
@@ -24,7 +34,7 @@ export const load: PageServerLoad = async ({ parent, locals, url }) => {
 			query: { page: String(historyPage), limit: '10' }
 		});
 		if (!error && data) {
-			logs = Array.isArray(data.data) ? data.data : [];
+			logs = Array.isArray(data.items) ? data.items : [];
 			const pagination = data.pagination;
 			if (pagination) {
 				historyTotalPages = Math.ceil(pagination.total / pagination.limit) || 1;
@@ -81,21 +91,21 @@ export const actions: Actions = {
 					});
 				}
 
+				// Backend now returns { jobId, message } - preview is async via polling
 				const res = (data || {}) as Record<string, unknown>;
-				
+				const jobId = typeof res.jobId === 'string' ? res.jobId : undefined;
+
+				if (!jobId) {
+					return fail(500, {
+						code: FE_ERRORS.IMPORT_PREVIEW_FAILED.code,
+						message: 'No job ID returned from server'
+					});
+				}
+
 				return {
 					success: true,
 					preview: true,
-					jobId: typeof res.jobId === 'string' ? res.jobId : undefined,
-					logId: typeof res.logId === 'string' ? res.logId : undefined,
-					fileName: typeof res.fileName === 'string' ? res.fileName : undefined,
-					totalRows: typeof res.totalRows === 'number' ? res.totalRows : undefined,
-					columnHeaders: Array.isArray(res.columnHeaders) ? (res.columnHeaders as string[]) : undefined,
-					previewData: Array.isArray(res.previewData) ? (res.previewData as string[][]) : undefined,
-					autoMapping:
-						res.autoMapping && typeof res.autoMapping === 'object'
-							? (res.autoMapping as Record<string, string>)
-							: undefined
+					jobId
 				};
 			} catch (err) {
 				console.error('[IMPORT PREVIEW FETCH ERROR]:', err);
@@ -159,18 +169,20 @@ export const actions: Actions = {
 					});
 				}
 
+				// Backend returns { jobId, message } - import is async via polling
 				const res = (data || {}) as Record<string, unknown>;
+				const jobId = typeof res.jobId === 'string' ? res.jobId : undefined;
+
+				if (!jobId) {
+					return fail(500, {
+						code: 'BE_UNKNOWN',
+						message: 'No job ID returned from server'
+					});
+				}
+
 				return {
 					success: true,
-					jobId: typeof res.jobId === 'string' ? res.jobId : undefined,
-					logId: typeof res.logId === 'string' ? res.logId : undefined,
-					imported:
-						typeof res.imported === 'number'
-							? res.imported
-							: typeof res.importedCount === 'number'
-								? res.importedCount
-								: undefined,
-					errors: Array.isArray(res.errors) ? (res.errors as string[]) : undefined
+					jobId
 				};
 			} catch (err) {
 				console.error('[IMPORT FETCH ERROR]:', err);

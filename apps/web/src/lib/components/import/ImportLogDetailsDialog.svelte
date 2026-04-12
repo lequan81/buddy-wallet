@@ -2,7 +2,7 @@
 	import * as Dialog from '@repo/ui/components/ui/dialog';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { FileSpreadsheet, Settings2, Eye } from '@repo/icons';
-	import type { ImportLog } from '@repo/types';
+	import type { ImportLog } from '@repo/types/core/import';
 	import { formatDate } from '$lib/utils/status';
 	import { goto } from '$app/navigation';
 
@@ -65,7 +65,7 @@
 				</div>
 			</div>
 
-			{#if selectedLog.errors && selectedLog.errorCount > 0}
+			{#if selectedLog.errors && (selectedLog.errorCount ?? 0) > 0}
 				{@const errors = typeof selectedLog.errors === 'string' ? JSON.parse(selectedLog.errors) : selectedLog.errors}
 				<div class="mt-6 border-t pt-4">
 					<h3 class="mb-3 text-sm font-bold uppercase tracking-wider text-muted-foreground">Error Details</h3>

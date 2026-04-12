@@ -7,7 +7,7 @@
 	import ConnectionFallback from '$lib/components/shared/ConnectionFallback.svelte';
 	import { cn } from '$lib/utils';
 	import { getImportStatusColor, formatDate } from '$lib/utils/status';
-	import type { ImportLog } from '@repo/types';
+	import type { ImportLog } from '@repo/types/core/import';
 
 	let {
 		logs,
@@ -156,7 +156,7 @@
 											</Button>
 										{/if}
 
-										{#if log.importedCount > 0}
+										{#if (log.importedCount ?? 0) > 0}
 											<Button
 												variant="ghost"
 												size="icon"
