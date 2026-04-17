@@ -21,6 +21,7 @@ export class Debt {
     public readonly creditorId: string,
     private _status: DebtStatus,
     public readonly createdAt: Date,
+    public readonly updatedAt: Date = new Date(),
     public readonly description?: string
   ) {}
 
@@ -79,6 +80,7 @@ export class Debt {
       this.creditorId,
       'cancelled',
       this.createdAt,
+      new Date(),
       this.description
     );
   }
@@ -99,6 +101,7 @@ export class Debt {
       this.creditorId,
       'confirmed',
       this.createdAt,
+      new Date(),
       this.description
     );
   }
@@ -119,6 +122,7 @@ export class Debt {
       this.creditorId,
       'disputed',
       this.createdAt,
+      new Date(),
       this.description
     );
   }
@@ -139,6 +143,7 @@ export class Debt {
       this.creditorId,
       'paid',
       this.createdAt,
+      new Date(),
       this.description
     );
   }
@@ -161,5 +166,32 @@ export class Debt {
     if (this.creditorId === userId) return 'owed';
     if (this.debtorId === userId) return 'owing';
     return null;
+  }
+
+  /**
+   * Get all possible next states for current status
+   */
+  getPossibleTransitions(): DebtStatus[] {
+    switch (this._status) {
+      case 'pending':
+        return ['confirmed', 'disputed', 'cancelled'];
+      case 'confirmed':
+        return ['paid'];
+      case 'disputed':
+        return ['confirmed', 'cancelled'];
+      case 'paid':
+        return [];
+      case 'cancelled':
+        return [];
+      default:
+        return [];
+    }
+  }
+
+  /**
+   * Check if debt is in a final state (paid or cancelled)
+   */
+  isFinalized(): boolean {
+    return this._status === 'paid' || this._status === 'cancelled';
   }
 }
