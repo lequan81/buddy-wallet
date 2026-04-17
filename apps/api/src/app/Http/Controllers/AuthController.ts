@@ -22,8 +22,6 @@ import {
   DEFAULT_AUTH_REGISTER_FAILURE
 } from '@/lib/http/error-maps';
 import { AuthService } from '@/app/Services/AuthService';
-import { AuthSecurityService } from '@/app/Services/AuthSecurityService';
-import { AuthSessionService } from '@/app/Services/AuthSessionService';
 import { EmailVerificationService } from '@/app/Services/EmailVerificationService';
 import { PasswordResetService } from '@/app/Services/PasswordResetService';
 
@@ -31,8 +29,6 @@ import { PasswordResetService } from '@/app/Services/PasswordResetService';
 export class AuthController {
   constructor(
     @inject(AuthService) private authService: AuthService,
-    @inject(AuthSecurityService) private authSecurityService: AuthSecurityService,
-    @inject(AuthSessionService) private authSessionService: AuthSessionService,
     @inject(EmailVerificationService) private emailVerificationService: EmailVerificationService,
     @inject(PasswordResetService) private passwordResetService: PasswordResetService
   ) {}
@@ -77,7 +73,7 @@ export class AuthController {
               const userAgent = request.headers.get('user-agent') || undefined;
               const clientIP = getClientIP(request, server);
 
-              const result = await this.authSecurityService.login(
+              const result = await this.authService.login(
                 {
                   identifier: body.email,
                   password: body.password,
@@ -206,7 +202,7 @@ export class AuthController {
           }
 
           if (refreshToken) {
-            const result = await this.authSessionService.logout(refreshToken, user?.id);
+            const result = await this.authService.logout(refreshToken, user?.id);
             if (isFailureResult(result)) {
               set.status = 403;
               return apiError(GEN_ERRORS.FORBIDDEN, result.error);
@@ -236,7 +232,7 @@ export class AuthController {
             if (!resolved.ok) return resolved.error;
             const { user: freshUser } = resolved;
 
-            const result = await this.authSessionService.changePassword(
+            const result = await this.authService.changePassword(
               freshUser.id,
               body.currentPassword,
               body.newPassword,

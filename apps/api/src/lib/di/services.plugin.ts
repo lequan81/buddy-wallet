@@ -29,8 +29,6 @@ import { ImportLoggerService } from '@/app/Services/ImportLoggerService';
 
 // Auth Services
 import { AuthService } from '@/app/Services/AuthService';
-import { AuthSecurityService } from '@/app/Services/AuthSecurityService';
-import { AuthSessionService } from '@/app/Services/AuthSessionService';
 
 // Debt Service
 import { DebtService } from '@/app/Services/DebtService';
@@ -67,9 +65,7 @@ const debtService = new DebtService(debtRepository, pushService, activityService
 const emailVerificationService = new EmailVerificationService(emailVerificationRepository, userRepository);
 const passwordResetService = new PasswordResetService(userRepository, emailService);
 
-const authCoreService = new AuthService(userRepository, debtRepository, emailService, emailVerificationService);
-const authSecurityService = new AuthSecurityService(userRepository, sessionRepository);
-const authSessionService = new AuthSessionService(userRepository, sessionRepository);
+const authService = new AuthService(userRepository, debtRepository, sessionRepository, emailService, emailVerificationService);
 
 // Import & Export Services
 const spreadsheetService = new SpreadsheetService();
@@ -103,9 +99,7 @@ export const services = {
   spreadsheetService,
   importLoggerService,
   debtService,
-  authCoreService,
-  authSecurityService,
-  authSessionService,
+  authService,
 } as const;
 
 /**

@@ -22,8 +22,6 @@ import { BankAccountRepository } from '../Repositories/Database/BankAccountRepos
 import { EmailService } from '../Services/EmailService';
 import { EmailVerificationService } from '../Services/EmailVerificationService';
 import { AuthService } from '../Services/AuthService';
-import { AuthSecurityService } from '../Services/AuthSecurityService';
-import { AuthSessionService } from '../Services/AuthSessionService';
 import { UserService } from '../Services/UserService';
 import { SessionService } from '../Services/SessionService';
 import { PasswordResetService } from '../Services/PasswordResetService';
@@ -69,8 +67,6 @@ export class AppServiceProvider {
     container.register(EmailService, { useClass: EmailService });
     container.register(EmailVerificationService, { useClass: EmailVerificationService });
     container.register(AuthService, { useClass: AuthService });
-    container.register(AuthSecurityService, { useClass: AuthSecurityService });
-    container.register(AuthSessionService, { useClass: AuthSessionService });
     container.register(UserService, { useClass: UserService });
     container.register(SessionService, { useClass: SessionService });
     container.register(PasswordResetService, { useClass: PasswordResetService });
