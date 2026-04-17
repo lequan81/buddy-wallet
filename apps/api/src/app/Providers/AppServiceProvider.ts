@@ -4,6 +4,9 @@ import { logger } from '@repo/logger';
 import { STORAGE_CONFIG } from '@repo/config';
 import { toOptional } from '@repo/utils';
 
+// Event Bus
+import { EventServiceProvider } from './EventServiceProvider';
+
 // Repositories
 import { UserRepository } from '../Repositories/Database/UserRepository';
 import { SessionRepository } from '../Repositories/Database/SessionRepository';
@@ -46,6 +49,10 @@ export class AppServiceProvider {
     // 1. Core Dependencies
     container.register('Database', { useValue: db });
     container.register('Logger', { useValue: logger });
+
+    // 1.5 Event Bus
+    const eventServiceProvider = new EventServiceProvider();
+    eventServiceProvider.register();
 
     // 2. Repositories
     container.register('UserRepositoryInterface', { useClass: UserRepository });

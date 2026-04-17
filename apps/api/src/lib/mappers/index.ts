@@ -1,5 +1,8 @@
 /**
- * Data mappers - re-export all mapper functions
+ * Response Mappers Index
+ *
+ * Centralized export of all response transformation functions.
  */
-export * from './debt';
-export * from './user';
+
+export * from './user.mapper';
+export * from './debt.mapper';
