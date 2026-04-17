@@ -8,7 +8,6 @@ import {
   DEBT_STATUS,
   DEBT_DIRECTION
 } from '@repo/config';
-import { debtStateMachine } from '@/app/Models/debtStateMachine'; // TODO: Replace with Debt domain model (April 20)
 import { logger } from '@repo/logger';
 import type {
   DebtStatus,
@@ -22,6 +21,7 @@ import type {
 import { BE_ERRORS } from '@repo/errors';
 import type { Debt as DebtEntity } from '@repo/db';
 import type { DebtRepositoryInterface } from '@/app/Repositories/Contracts/DebtRepositoryInterface';
+import { Debt } from '@/app/Models/Debt';
 import { PushService } from './PushService';
 import { ActivityService } from './ActivityService';
 import { validateAmount, validateCreateDebtInput, validatePhones } from '@lib/validation/debt';
@@ -225,41 +225,71 @@ export class DebtService {
     }
 
     const now = new Date();
-    // Use state machine for validation
-    const transitionResult = await debtStateMachine.transition(
-      debt as any,
-      newStatus,
-      { userId: currentUser.id, permissions: currentUser.permissions as any, timestamp: now }
+
+    // Convert database row to Debt domain model for business logic
+    const debtModel = new Debt(
+      debt.id,
+      debt.amount,
+      debt.currency,
+      debt.debtorId,
+      debt.creditorId,
+      debt.status as DebtStatus,
+      new Date(debt.createdAt),
+      new Date(debt.updatedAt),
+      debt.description
     );
 
-    if (!transitionResult.success) {
+    // Validate transition is possible
+    try {
+      let updatedDebt: Debt;
+
+      switch (newStatus) {
+        case 'confirmed':
+          updatedDebt = debtModel.confirm(currentUser.id);
+          break;
+        case 'disputed':
+          updatedDebt = debtModel.dispute(currentUser.id);
+          break;
+        case 'cancelled':
+          updatedDebt = debtModel.cancel(currentUser.id);
+          break;
+        case 'paid':
+          updatedDebt = debtModel.markAsPaid(currentUser.id);
+          break;
+        default:
+          return {
+            code: 'DEBT_INVALID_STATUS',
+            error: `Invalid status: ${newStatus}`
+          };
+      }
+
+      const updated = await this.debtRepo.update(debtId, {
+        status: updatedDebt.status as any,
+        updatedAt: now
+      });
+      if (!updated) return { code: 'DEBT_NOT_FOUND' };
+
+      await this.activityService.log({
+        userId: currentUser.id,
+        action: newStatus as any,
+        resource: 'debt',
+        resourceId: debtId,
+        changes: { before: { status: debt.status }, after: { status: newStatus } }
+      });
+
+      return {
+        data: {
+          debt: toDebtDetails(updated),
+          previousStatus: debt.status,
+          newStatus
+        }
+      };
+    } catch (error) {
       return {
         code: 'DEBT_INVALID_TRANSITION',
-        error: transitionResult.error,
-        // @ts-expect-error - validTransitions might exist on error result
-        validTransitions: transitionResult.validTransitions
+        error: (error as Error).message
       };
     }
-
-    const updated = await this.debtRepo.update(debtId, { status: newStatus as any, updatedAt: now });
-    if (!updated) return { code: 'DEBT_NOT_FOUND' };
-
-    await this.activityService.log({
-      userId: currentUser.id,
-      action: newStatus as any,
-      resource: 'debt',
-      resourceId: debtId,
-      changes: { before: { status: debt.status }, after: { status: newStatus } }
-    });
-
-    return {
-      data: {
-        debt: toDebtDetails(updated),
-        previousStatus: debt.status,
-        newStatus
-      }
-    };
-  }
 
   async confirmDebt(
     debtId: string,
