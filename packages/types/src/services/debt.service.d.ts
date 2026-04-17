@@ -1,7 +1,6 @@
-import type { DebtStatus } from '@repo/config';
 import type { PaginationOptions as ApiPaginationOptions, PaginatedResult, ExpiryOption } from '../api/pagination';
 import type { SafeUser } from '../core/user';
-import type { DebtDetails, CreateDebtInput, DebtResult, StatusUpdateResult } from '../core/debt';
+import type { DebtDetails, CreateDebtInput, DebtResult, StatusUpdateResult, DebtStatus } from '../core/debt';
 
 export interface IDebtService {
   getDebtsByUserId(userId: string, options?: ApiPaginationOptions): Promise<PaginatedResult<DebtDetails>>;

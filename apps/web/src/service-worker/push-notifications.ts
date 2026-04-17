@@ -221,17 +221,18 @@ sw.addEventListener('pushsubscriptionchange', ((event: Event) => {
 
 // Handle messages from the main application
 sw.addEventListener('message', (event) => {
-	const { type, data } = event.data || {};
+	const { type, data: messageData } = event.data || {};
 
 	switch (type) {
 		case 'SHOW_NOTIFICATION':
 			// Allow app to trigger notifications through service worker
-			if (data?.title) {
-				sw.registration.showNotification(data.title, {
-					body: data.body,
-					icon: data.icon || DEFAULT_NOTIFICATION.icon,
-					badge: data.badge || DEFAULT_NOTIFICATION.badge,
-					data: data.data
+				if (messageData?.title) {
+					const notificationData = messageData.data;
+					sw.registration.showNotification(messageData.title, {
+						body: messageData.body,
+						icon: messageData.icon || DEFAULT_NOTIFICATION.icon,
+						badge: messageData.badge || DEFAULT_NOTIFICATION.badge,
+						data: notificationData
 				});
 			}
 			break;
@@ -254,7 +255,7 @@ sw.addEventListener('message', (event) => {
 		case 'CLEAR_NOTIFICATIONS':
 			// Clear all notifications with optional tag filter
 			event.waitUntil(
-				sw.registration.getNotifications({ tag: data?.tag }).then((notifications) => {
+					sw.registration.getNotifications({ tag: messageData?.tag }).then((notifications) => {
 					notifications.forEach((n) => n.close());
 				})
 			);

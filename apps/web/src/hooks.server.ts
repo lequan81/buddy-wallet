@@ -5,6 +5,7 @@ import { redirect } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { createTreatyClient } from '$lib/services/api';
 import { FRONTEND_CONSTANTS } from '@repo/config/frontend';
+import { createAuthResolutionMachine } from '$lib/state-machines/auth-resolution.machine';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -53,7 +54,7 @@ function isAuthAwarePublicRoute(pathname: string): boolean {
 async function tryGetUser(
 	event: RequestEvent,
 	token: string
-): Promise<{ user: App.Locals['user']; status: number | undefined }> {
+): Promise<{ user: App.Locals['user']; status: number | undefined; timedOut: boolean }> {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), FRONTEND_CONSTANTS.AUTH_TIMEOUT_MS);
 
@@ -72,7 +73,7 @@ async function tryGetUser(
 
 		clearTimeout(timeout);
 
-		const user = data?.user ?? null;
+		const user = !error && (data as any)?.item ? (data as any).item : null;
 
 		// Handle locked account — redirect immediately
 		if (user && (user as { isLocked?: boolean }).isLocked) {
@@ -80,13 +81,13 @@ async function tryGetUser(
 		}
 
 		if (user) {
-			return { user, status };
+			return { user, status, timedOut: false };
 		}
 
-		return { user: null, status: status ?? (error ? 500 : 200) };
+		return { user: null, status: status ?? (error ? 500 : 200), timedOut: false };
 	} catch (err) {
 		clearTimeout(timeout);
-		if (isAbortError(err)) return { user: null, status: undefined };
+		if (isAbortError(err)) return { user: null, status: undefined, timedOut: true };
 		throw err; // Re-throw network errors for the outer catch
 	}
 }
@@ -125,7 +126,7 @@ function handleLockedAccount(
 async function tryRefreshToken(
 	event: RequestEvent,
 	refreshToken: string
-): Promise<{ user: App.Locals['user']; newSessionToken: string | undefined }> {
+): Promise<{ user: App.Locals['user']; newSessionToken: string | undefined; timedOut: boolean }> {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), FRONTEND_CONSTANTS.AUTH_TIMEOUT_MS);
 
@@ -144,15 +145,15 @@ async function tryRefreshToken(
 
 		clearTimeout(timeout);
 
-		if (error || !data?.user) return { user: null, newSessionToken: undefined };
+		if (error || !data || 'error' in data || !(data as any).item) return { user: null, newSessionToken: undefined, timedOut: false };
 
 		// Forward new cookies to the browser
 		const newToken = forwardRefreshCookies(event, response);
 
-		return { user: data.user, newSessionToken: newToken };
+		return { user: (data as any).item, newSessionToken: newToken, timedOut: false };
 	} catch (err) {
 		clearTimeout(timeout);
-		if (isAbortError(err)) return { user: null, newSessionToken: undefined };
+		if (isAbortError(err)) return { user: null, newSessionToken: undefined, timedOut: true };
 		throw err;
 	}
 }
@@ -229,15 +230,19 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	const refreshToken = event.cookies.get('refresh_token');
 	const pathname = event.url.pathname;
 	const isPublic = isPublicRoute(pathname);
+	const authResolution = createAuthResolutionMachine();
 
 	// ── Determine whether to attempt auth ────────────────────────────────
 	const isAuthAware = !isPublic || isAuthAwarePublicRoute(pathname);
 	const shouldAttemptMe = Boolean(currentToken) && isAuthAware;
 	const shouldAttemptRefresh = Boolean(refreshToken) && isAuthAware;
 
+	if (isAuthAware) {
+		authResolution.send('START');
+	}
+
 	// ── Try to resolve user ──────────────────────────────────────────────
 	let user: App.Locals['user'] = null;
-	let apiOffline = false;
 
 	try {
 		// Step 1: Try /me with current session token
@@ -245,10 +250,27 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 			const result = await tryGetUser(event, currentToken);
 			user = result.user;
 
+			if (result.timedOut && !result.user) {
+				authResolution.send('TIMEOUT');
+			}
+
+			if (user) {
+				authResolution.send('USER_RESOLVED');
+			}
+
 			// Step 2: If /me failed (401), try refresh
 			if (!user && result.status === 401 && shouldAttemptRefresh && refreshToken) {
 				const refreshResult = await tryRefreshToken(event, refreshToken);
 				user = refreshResult.user;
+
+				if (refreshResult.timedOut && !refreshResult.user) {
+					authResolution.send('TIMEOUT');
+				}
+
+				if (user) {
+					authResolution.send('USER_RESOLVED');
+				}
+
 				if (refreshResult.newSessionToken) {
 					currentToken = refreshResult.newSessionToken;
 				}
@@ -258,6 +280,15 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		else if (shouldAttemptRefresh && refreshToken) {
 			const refreshResult = await tryRefreshToken(event, refreshToken);
 			user = refreshResult.user;
+
+			if (refreshResult.timedOut && !refreshResult.user) {
+				authResolution.send('TIMEOUT');
+			}
+
+			if (user) {
+				authResolution.send('USER_RESOLVED');
+			}
+
 			if (refreshResult.newSessionToken) {
 				currentToken = refreshResult.newSessionToken;
 			}
@@ -265,9 +296,15 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	} catch (err: unknown) {
 		if (!isAbortError(err)) {
 			console.warn('[WARN] Backend API unavailable');
-			apiOffline = !isPublic;
+			authResolution.send('NETWORK_ERROR');
 		}
 	}
+
+	if (!user && authResolution.getState() === 'resolving') {
+		authResolution.send('NO_USER');
+	}
+
+	const apiOffline = !isPublic && authResolution.getState() === 'offline';
 
 	// ── Populate locals ──────────────────────────────────────────────────
 	event.locals.user = user;
@@ -287,7 +324,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	// ── Redirect guards (flat, early-return) ─────────────────────────────
 
 	// Guard 1: Protected route without auth → login
-	if (!isPublic && !user) {
+	if (!isPublic && !user && !apiOffline) {
 		const redirectTo = encodeURIComponent(pathname);
 		throw redirect(303, `/login?redirectTo=${redirectTo}`);
 	}
@@ -299,7 +336,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	}
 
 	// Guard 3: Non-admin on admin routes → home
-	if (pathname.startsWith('/admin/')) {
+	if (pathname.startsWith('/admin/') && user) {
 		const hasAdminPermission = user?.permissions?.includes('admin:view');
 		if (!hasAdminPermission) {
 			throw redirect(303, '/');

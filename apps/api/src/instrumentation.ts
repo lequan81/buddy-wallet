@@ -37,9 +37,9 @@ class MinimalSpanExporter implements SpanExporter {
         );
         const path = String(
           span.attributes['http.target'] ||
-            span.attributes['url.path'] ||
-            span.attributes['http.route'] ||
-            '/'
+          span.attributes['url.path'] ||
+          span.attributes['http.route'] ||
+          '/'
         );
         const status = Number(
           span.attributes['http.status_code'] || span.attributes['http.response.status_code'] || 0
@@ -59,7 +59,14 @@ class MinimalSpanExporter implements SpanExporter {
           attributes: span.attributes as Record<string, unknown>
         });
 
-        logger.trace(`${method} ${path} ${status} - ${durationMs.toFixed(2)}ms`);
+        const readinessSummary = span.attributes['health.summary.states'];
+        if (path.startsWith('/health') && typeof readinessSummary === 'string') {
+          logger.trace(
+            `${method} ${path} ${status} - ${durationMs.toFixed(2)}ms [deps ${readinessSummary}]`
+          );
+        } else {
+          logger.trace(`${method} ${path} ${status} - ${durationMs.toFixed(2)}ms`);
+        }
       }
       // Store error spans too
       else if (span.status.code === 2) {
@@ -126,13 +133,13 @@ const exporter = createExporter();
 // Create the telemetry plugin
 export const telemetry = exporter
   ? opentelemetry({
-      serviceName,
-      spanProcessors: [
-        isDev
-          ? new SimpleSpanProcessor(exporter) // Immediate export in dev
-          : new BatchSpanProcessor(exporter) // Batched export in prod
-      ]
-    })
+    serviceName,
+    spanProcessors: [
+      isDev
+        ? new SimpleSpanProcessor(exporter) // Immediate export in dev
+        : new BatchSpanProcessor(exporter) // Batched export in prod
+    ]
+  })
   : null;
 
 if (exporter) {

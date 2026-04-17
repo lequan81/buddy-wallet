@@ -19,7 +19,7 @@ declare global {
 			user: {
 				id: string;
 				name: string;
-				email: string;
+				email: string | null;
 				role: string;
 				permissions: string[];
 				phoneNumber: string;

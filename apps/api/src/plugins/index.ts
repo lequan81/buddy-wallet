@@ -25,3 +25,4 @@ export { accessControlPlugin } from './guards/access-control.plugin';
 
 // Services DI plugin
 export { servicesPlugin, services } from './di/services.plugin';
+export { containerPlugin } from './di/container.plugin';

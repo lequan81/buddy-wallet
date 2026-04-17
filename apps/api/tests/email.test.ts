@@ -7,8 +7,16 @@
  * Requires SMTP credentials in .env file.
  */
 import { describe, expect, it, afterAll } from 'bun:test';
-import { EmailService as EmailServiceClass } from '@/services/email/email.service';
-const EmailService = new EmailServiceClass();
+import { EmailService as EmailServiceClass } from '@services/EmailService';
+const EmailService = new EmailServiceClass({
+  host: Bun.env.SMTP_HOST || 'smtp.gmail.com',
+  port: Number(Bun.env.SMTP_PORT || 587),
+  user: Bun.env.SMTP_USER || '',
+  password: Bun.env.SMTP_PASSWORD || Bun.env.SMTP_PASS || '',
+  fromNoReply: Bun.env.SMTP_FROM_NOREPLY || 'no-reply@buddywallet.dpdns.org',
+  fromSupport: Bun.env.SMTP_FROM_SUPPORT || 'support@buddywallet.dpdns.org',
+  poolSize: Number(Bun.env.SMTP_POOL_SIZE || 5)
+});
 
 const testEmail = Bun.env.TEST_EMAIL;
 

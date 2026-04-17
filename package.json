@@ -18,7 +18,8 @@
   "devDependencies": {
     "prettier": "^3.8.1",
     "prettier-plugin-svelte": "^3.5.0",
-    "turbo": "^2.8.12"
+    "turbo": "2.9.5",
+    "typescript": "^6.0.0"
   },
   "engines": {
     "node": ">=18"
@@ -31,6 +32,7 @@
   "overrides": {
     "@sinclair/typebox": "^0.34.0",
     "svelte": "^5.45.6",
-    "tailwindcss": "^4.1.17"
+    "tailwindcss": "^4.1.17",
+    "typescript": "^6.0.0"
   }
 }

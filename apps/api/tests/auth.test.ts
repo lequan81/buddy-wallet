@@ -1,5 +1,5 @@
 import { describe, it, expect, test } from 'bun:test';
-import { configs } from '@/configs';
+import { configs } from '@configs';
 
 describe('Auth Utilities', () => {
   it('Configuration should include Argon2 options', () => {

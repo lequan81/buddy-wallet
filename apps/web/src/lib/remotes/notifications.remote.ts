@@ -9,14 +9,15 @@ export const updateNotifications = form(
 	}),
 	async (data) => {
 		const event = getRequestEvent();
-		const { user, api } = event.locals;
+		const { user, api: locals } = event.locals;
 
 		if (!user) error(401, { code: 'UNAUTHORIZED', message: 'Unauthorized' });
 
 		const emailNotificationsEnabled = data.emailNotificationsEnabled === 'true';
 		const pushNotificationsEnabled = data.pushNotificationsEnabled === 'true';
 
-		const { error: apiError, status } = await api.v1.users.me.patch({
+		const { error: apiError, status } = await (locals as any).api.v1.users.index.patch({
+			id: user?.id || '',
 			emailNotificationsEnabled,
 			pushNotificationsEnabled
 		});

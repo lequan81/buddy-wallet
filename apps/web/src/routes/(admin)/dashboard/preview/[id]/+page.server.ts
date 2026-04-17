@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, type HttpError } from '@sveltejs/kit';
-import { FE_ERRORS } from '@repo/errors';
+import { FE_ERRORS } from '@repo/errors/frontend';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const { id } = params;

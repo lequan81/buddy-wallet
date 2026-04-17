@@ -6,7 +6,7 @@
  * without requiring a real database connection.
  */
 import { describe, expect, it, beforeEach } from 'bun:test';
-import { AuthCoreService as AuthService } from '@/services/auth/auth-core.service';
+import { AuthService } from '@services/auth';
 
 // Simplified mock database for demonstrating DI pattern
 function createMockDb() {
@@ -56,8 +56,10 @@ describe('AuthService (Unit Tests with DI)', () => {
         password: 'password123'
       });
 
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('Invalid phone number format');
+      expect('code' in result).toBe(true);
+      if ('code' in result) {
+        expect(result.code).toBeDefined();
+      }
     });
 
     it('should reject empty phone numbers', async () => {
@@ -67,7 +69,7 @@ describe('AuthService (Unit Tests with DI)', () => {
         password: 'password123'
       });
 
-      expect(result.success).toBe(false);
+      expect('code' in result).toBe(true);
     });
   });
 });

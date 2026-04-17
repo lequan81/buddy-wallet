@@ -1,8 +1,16 @@
 {
   "extends": "@repo/typescript-config/library.json",
   "compilerOptions": {
-    "types": ["bun-types"]
+    "types": [
+      "bun-types",
+      "node"
+    ]
   },
-  "include": ["."],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "."
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

@@ -48,7 +48,7 @@ export const changePassword = form(
 		if (!locals.user) invalid('Unauthorized');
 
 		// The schema matches what the API expects
-		const { data, error } = await locals.api.v1.auth['change-password'].post({
+		const { data, error }: { data: any, error: any } = await locals.api.v1.auth['change-password'].post({
 			currentPassword,
 			newPassword
 		});
@@ -60,7 +60,6 @@ export const changePassword = form(
 
 		return {
 			success: true,
-			// @ts-expect-error Value parsing
 			message: data?.message || 'Password changed successfully'
 		};
 	}

@@ -4,7 +4,7 @@
  * Tests OTP generation, verification, rate limiting, and status checks.
  */
 import { describe, expect, it, beforeEach } from 'bun:test';
-import { EmailVerificationService } from '@/services/email/email-verification.service';
+import { EmailVerificationService } from '@services/email';
 
 function createMockRepos() {
   const emailVerifications: Record<string, unknown>[] = [];

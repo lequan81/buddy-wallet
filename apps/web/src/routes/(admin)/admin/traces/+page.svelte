@@ -42,11 +42,11 @@
 										variant="outline"
 										class={cn(
 											'border-0 text-white',
-											TRACE_STATUS_COLORS[trace.status?.code as keyof typeof TRACE_STATUS_COLORS] ||
+											TRACE_STATUS_COLORS[(trace.status as any)?.code as keyof typeof TRACE_STATUS_COLORS] ||
 												TRACE_STATUS_COLORS.UNSET
 										)}
 									>
-										{trace.status?.code || 'UNSET'}
+										{(trace.status as any)?.code || 'UNSET'}
 									</Badge>
 								</Table.Cell>
 								<Table.Cell>{new Date(trace.timestamp).toLocaleTimeString()}</Table.Cell>

@@ -18,7 +18,7 @@ export const batchDeleteDebts = form(
 			invalid('Cannot delete more than 50 debts at once');
 		}
 
-		const { error: apiError } = await locals.api.v1.debts.batch.delete({ ids });
+		const { error: apiError } = await (locals.api.v1.debts as any).batch.delete({ ids });
 
 		if (apiError) {
 			const errVal = apiError.value as Record<string, unknown>;
@@ -64,7 +64,7 @@ export const deleteAllDebts = form(
 		const { locals } = getRequestEvent();
 		if (!locals.user) error(401, { code: 'UNAUTHORIZED', message: 'Unauthorized' });
 
-		const { data, error: apiError } = await locals.api.v1.debts.all.delete(
+		const { data, error: apiError } = await (locals.api.v1.debts as any).all.delete(
 			{},
 			{ query: { confirm: 'true' } }
 		);
@@ -166,11 +166,12 @@ export const approveProof = form(
 			invalid((errVal?.message as string) || (errVal?.details as string) || 'Failed to approve proof');
 		}
 
+		const responseData = data as any;
 		return {
 			success: true,
 			message: 'Proof approved successfully',
-			allProofsApproved: data?.allProofsApproved || false,
-			debtId: data?.debtId || null
+			allProofsApproved: responseData?.allProofsApproved || false,
+			debtId: responseData?.debtId || null
 		};
 	}
 );

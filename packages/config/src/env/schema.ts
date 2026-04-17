@@ -33,5 +33,6 @@ export interface EnvSchema {
   SMTP_PORT?: number;
   SMTP_USER?: string;
   SMTP_PASSWORD?: string;
-  SMTP_FROM?: string;
+  SMTP_FROM_NOREPLY?: string;
+  SMTP_FROM_SUPPORT?: string;
 }

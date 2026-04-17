@@ -2,7 +2,7 @@
 	import { ArrowDown, ArrowUp, TrendingUp } from '@repo/icons';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { cn } from '$lib/utils';
-	import { formatCurrency } from '@repo/utils';
+	import { formatCurrency } from '@repo/utils/format';
 
 	type Props = {
 		totalOwedToYou: number;

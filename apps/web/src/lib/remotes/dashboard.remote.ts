@@ -14,11 +14,11 @@ export const getDashboardDebts = query(v.object({ statusFilter: v.string(), page
 		debtsQuery.status = statusFilter;
 	}
 
-	return locals.api.v1.debts
+		return (locals.api.v1.debts as any).index
 		.get({ query: debtsQuery })
-		.then(({ data }) => {
+		.then(({ data }: { data: any }) => {
 			return {
-				debts: data?.data || [],
+				debts: (data?.items || []) as any[],
 				pagination: data?.pagination ? {
 					...data.pagination,
 					offset,
@@ -37,9 +37,9 @@ export const getDashboardUsers = query(v.boolean(), async (canManageUsers) => {
 	if (!locals.user) return [];
 
 	if (!canManageUsers) return [];
-	return locals.api.v1.users
+	return (locals.api.v1.users as any).index
 		.get()
-		.then(({ data }) => data?.data || [])
+		.then(({ data }: { data: any }) => (data?.items || []) as any[])
 		.catch(() => []);
 });
 
@@ -51,11 +51,11 @@ export const getDashboardSecondaryData = query(async () => {
 	let recentContacts: string[] = [];
 	try {
 		const [bankRes, contactsRes] = await Promise.all([
-			locals.api.v1.banks.me.get(),
-			locals.api.v1.debts['recent-contacts'].get()
+				(locals.api.v1.banks as any).index.get(),
+				(locals.api.v1.debts as any).index.get({ query: { limit: '10' } })
 		]);
-		hasBankAccount = Array.isArray(bankRes.data?.accounts) && bankRes.data.accounts.length > 0;
-		recentContacts = contactsRes.data?.contacts || [];
+		hasBankAccount = Array.isArray(bankRes.data?.items) && bankRes.data.items.length > 0;
+		recentContacts = contactsRes.data?.items || [];
 	} catch (err) {
 		console.error('[Dashboard] Failed to load bank/contacts:', err);
 	}
@@ -66,8 +66,8 @@ export const getRecentDebts = query(async () => {
 	const { locals } = getRequestEvent();
 	if (!locals.user) return [];
 
-	return locals.api.v1.debts.recent
+	return (locals.api.v1.debts as any).recent
 		.get()
-		.then((res) => res.data || [])
+		.then((res: any) => (res.data?.items || res.items || []) as any[])
 		.catch(() => []);
 });

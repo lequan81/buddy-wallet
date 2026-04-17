@@ -45,8 +45,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	try {
 		const { api } = locals;
 		const [bankRes, contactsRes] = await Promise.all([
-			api.v1.banks.me.get(),
-			api.v1.debts['recent-contacts'].get()
+			(api.v1.banks as any).me.get(),
+			(api.v1.debts as any)['recent-contacts'].get()
 		]);
 		hasBankAccount = hasAccounts(bankRes.data);
 		recentContacts = getRecentContacts(contactsRes.data as RecentContactsResponse | null);
@@ -101,7 +101,7 @@ export const actions: Actions = {
 		// Block LEND debt creation if no bank account
 		if (direction === 'LEND') {
 			try {
-				const { data } = await api.v1.banks.me.get();
+				const { data } = await (api.v1.banks as any).me.get();
 				const hasBankAccount = hasAccounts(data);
 
 				if (!hasBankAccount) {
@@ -117,7 +117,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const { data, error, status } = await api.v1.debts.post({
+			const { data, error, status } = await (locals.api.v1.debts as any).index.post({
 				amount,
 				description,
 				counterpartyPhone,

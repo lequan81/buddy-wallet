@@ -26,6 +26,7 @@ export const debts = sqliteTable('debts', {
 
   // Debt details
   amount: integer('amount').notNull(), // Amount in smallest currency unit
+  currency: text('currency', { length: 3 }).notNull().default('USD'), // ISO 4217 currency code
   description: text('description'),
   status: text('status').notNull().default('pending').$type<DebtStatus>(), // pending, confirmed, paid, disputed
 
@@ -70,10 +71,17 @@ export const debts = sqliteTable('debts', {
   uploadedByIdx: index('idx_debts_uploaded_by').on(table.uploadedById),
 
   // Composite index for date-based queries
-  statusCreatedAtIdx: index('idx_debts_status_created_at').on(table.status, table.createdAt),
   statusCreatedAtIdIdx: index('idx_debts_status_created_at_id').on(table.status, table.createdAt, table.id),
   debtorIdCreatedAtIdIdx: index('idx_debts_debtor_created_at_id').on(table.debtorId, table.createdAt, table.id),
-  creditorIdCreatedAtIdIdx: index('idx_debts_creditor_created_at_id').on(table.creditorId, table.createdAt, table.id)
+  creditorIdCreatedAtIdIdx: index('idx_debts_creditor_created_at_id').on(table.creditorId, table.createdAt, table.id),
+
+  // Cursor-friendly and involved-user list indexes
+  debtorStatusDeletedCreatedIdIdx: index('idx_debts_debtor_status_deleted_created_id')
+    .on(table.debtorId, table.status, table.deletedAt, table.createdAt, table.id),
+  creditorStatusDeletedCreatedIdIdx: index('idx_debts_creditor_status_deleted_created_id')
+    .on(table.creditorId, table.status, table.deletedAt, table.createdAt, table.id),
+  uploadedDeletedCreatedIdIdx: index('idx_debts_uploaded_deleted_created_id')
+    .on(table.uploadedById, table.deletedAt, table.createdAt, table.id)
 }));
 
 export type Debt = typeof debts.$inferSelect;

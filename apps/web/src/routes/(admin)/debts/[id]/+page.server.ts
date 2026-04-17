@@ -38,7 +38,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	if (debtError || !debt) {
 		const errVal = debtError?.value as Record<string, unknown> | undefined;
 		const errMsg = (errVal?.message || errVal?.error) as string | undefined;
-		const finalMsg = typeof errMsg === 'string' ? errMsg : (errMsg as { message?: string })?.message || 'Debt not found';
+		const finalMsg = typeof errMsg === 'string' ? errMsg : 'Debt not found';
 		return { debt: null, error: finalMsg };
 	}
 
@@ -54,7 +54,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	// If I am the debtor, I need creditor's bank info to pay
 	if (isDebtor && debt.creditorId) {
-		const { data: bankData } = await api.v1.banks.user({ userId: debt.creditorId }).get();
+				const { data: bankData } = await (locals.api.v1.banks as any).index.get({ query: { userId: debt.creditorId } });
 		creditorBanks = (bankData?.items as unknown as BankAccount[]) || [];
 	}
 

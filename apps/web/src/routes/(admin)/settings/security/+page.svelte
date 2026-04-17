@@ -123,7 +123,7 @@
 	}
 
 	// Get device icon based on type
-	function getDeviceIcon(deviceType: string | null) {
+	function getDeviceIcon(deviceType: string | null | undefined) {
 		switch (deviceType?.toLowerCase()) {
 			case 'mobile':
 				return Smartphone;

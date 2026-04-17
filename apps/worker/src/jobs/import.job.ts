@@ -31,6 +31,7 @@ export async function processImportJob(payload: WorkerJobPayload) {
       status: 'processing',
       current: 0,
       total: 0,
+      percentage: 0,
       message: 'Fetching file from storage...'
     });
 
@@ -48,8 +49,86 @@ export async function processImportJob(payload: WorkerJobPayload) {
     }
     const fileBuffer = Buffer.from(await sourceFile.arrayBuffer());
 
-    // 2. Parse File
+    // 2. Parse File All Rows
     const allRows = await parseFile(fileBuffer, payload.fileName);
+
+    if (payload.type === 'preview') {
+      setProgress(jobId, {
+        status: 'processing',
+        current: 50,
+        total: allRows.length,
+        percentage: 50,
+        message: 'Detecting columns and caching data...'
+      });
+
+      const maxCols = allRows.reduce((max: number, row: string[]) => Math.max(max, row.length), 0);
+      const columnHeaders: string[] = [];
+      const indexToColLetter = (idx: number): string => {
+        let temp = idx;
+        let let_ = '';
+        while (temp >= 0) {
+          let_ = String.fromCharCode((temp % 26) + 65) + let_;
+          temp = Math.floor(temp / 26) - 1;
+        }
+        return let_;
+      };
+
+      for (let c = 0; c < maxCols; c++) {
+        const letter = indexToColLetter(c);
+        const headerName = allRows[0]?.[c]?.trim() || '';
+        columnHeaders.push(headerName ? `${letter}:${headerName}` : letter);
+      }
+
+      const autoMapping: any = { name: '', amount: '', phone: '', email: '', description: '', dueDate: '' };
+      const headerRow = allRows[0] || [];
+      headerRow.forEach((header, i) => {
+        const h = String(header).toLowerCase().trim();
+        const col = columnHeaders[i];
+
+        if ((h.includes('ten') || h.includes('tên') || h.includes('name')) && !autoMapping.name)
+          autoMapping.name = col;
+        if ((h.includes('so no') || h.includes('số nợ') || h.includes('amount') || h.includes('tien') || h.includes('tiền')) && !autoMapping.amount)
+          autoMapping.amount = col;
+        if ((h.includes('phone') || h.includes('sdt') || h.includes('điện thoại')) && !autoMapping.phone)
+          autoMapping.phone = col;
+        if ((h.includes('email') || h.includes('mail')) && !autoMapping.email)
+          autoMapping.email = col;
+        if ((h.includes('ghi chu') || h.includes('ghi chú') || h.includes('note') || h.includes('desc')) && !autoMapping.description)
+          autoMapping.description = col;
+        if ((h.includes('han') || h.includes('hạn') || h.includes('due') || h.includes('date')) && !autoMapping.dueDate)
+          autoMapping.dueDate = col;
+      });
+
+      const previewData = allRows.map((row: string[]) => columnHeaders.map((_, i) => String(row[i] ?? '')));
+
+      // Push to Redis with 3 hour TTL
+      const redis = getRedis();
+      await redis.setex(
+        `preview_data:${jobId}`,
+        10800, // 3 hours in seconds
+        JSON.stringify({ columnHeaders, previewData, autoMapping, totalRows: allRows.length })
+      );
+
+      await db
+        .update(importLogs)
+        .set({
+          status: 'success',
+          totalRows: allRows.length,
+          completedAt: new Date()
+        })
+        .where(eq(importLogs.id, previewLogId || jobId));
+
+      setProgress(jobId, {
+        current: allRows.length,
+        total: allRows.length,
+        percentage: 100,
+        status: 'success',
+        message: 'Preview generated successfully'
+      });
+
+      return;
+    }
+
     const startRow = config?.startRow || 2;
     const totalRowsToProcess = validateRowCount(allRows, startRow);
 
@@ -57,6 +136,7 @@ export async function processImportJob(payload: WorkerJobPayload) {
       status: 'processing',
       current: 0,
       total: totalRowsToProcess,
+      percentage: 0,
       message: 'Optimizing database lookups...'
     });
 
@@ -127,6 +207,7 @@ export async function processImportJob(payload: WorkerJobPayload) {
       setProgress(jobId, {
         current: rowCount,
         total: totalRowsToProcess,
+        percentage: Math.round((rowCount / (totalRowsToProcess || 1)) * 100),
         status: 'processing',
         message: `Processing row ${rowCount} / ${totalRowsToProcess}...`,
         errors: errors.length > 0 ? errors.slice(-5) : undefined
@@ -197,9 +278,15 @@ export async function processImportJob(payload: WorkerJobPayload) {
     setProgress(jobId, {
       current: totalRowsToProcess,
       total: totalRowsToProcess,
+      percentage: 100,
       status: 'success',
       message: 'Import completed successfully',
-      result: { imported: newDebts.length, errors: errors.length > 0 ? errors : undefined }
+      result: {
+        jobId: jobId,
+        logId: jobId,
+        imported: newDebts.length,
+        errors: errors
+      }
     });
 
   } catch (err: unknown) {
@@ -210,6 +297,7 @@ export async function processImportJob(payload: WorkerJobPayload) {
       status: 'failed',
       current: 0,
       total: 0,
+      percentage: 0,
       errors: [errorMessage]
     });
 
@@ -224,9 +312,12 @@ export async function processImportJob(payload: WorkerJobPayload) {
   } finally {
     // 6. Cleanup S3 Cache
     if (storageKey) {
-      await s3Client.delete(storageKey).catch((error: unknown) => {
-        logger.warn(`[Job:${jobId}] Failed to delete storage object`, { error: String(error) });
-      });
+      if (payload.type !== 'preview') {
+        // Only delete file if it was a full import. Previews need to keep it for the actual import!
+        await s3Client.delete(storageKey).catch((error: unknown) => {
+          logger.warn(`[Job:${jobId}] Failed to delete storage object`, { error: String(error) });
+        });
+      }
     }
     clearProgressCache(jobId);
   }

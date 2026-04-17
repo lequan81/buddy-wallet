@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
-import type { ActivityLog, Pagination, PaginatedResult } from '@repo/types';
+import type { ActivityLog } from '@repo/types/core/activity';
+import type { Pagination, PaginatedResult } from '@repo/types/api/pagination';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const page = parseInt(url.searchParams.get('page') || '1');
@@ -26,7 +27,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const result = data as unknown as PaginatedResult<ActivityLog>;
 
 	return {
-		logs: result.data || [],
+		logs: result.items || [],
 		pagination: result.pagination,
 		page,
 		pageSize

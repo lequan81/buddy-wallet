@@ -23,7 +23,7 @@ class ImportProgressStore {
 	private pollingInterval: ReturnType<typeof setInterval> | undefined;
 	private sseSource: EventSource | undefined;
 
-	addJob(jobId: string, type: 'preview' | 'import', fileName: string, file?: File) {
+	addJob(jobId: string, type: 'preview' | 'import', fileName: string, userId: string, file?: File) {
 		const initialTransition = transitionImportWorkflow('pending', 'pending');
 		const status = initialTransition.to as ImportJob['status'];
 		const now = new Date();
@@ -34,12 +34,19 @@ class ImportProgressStore {
 			type,
 			fileName,
 			status,
-			userId: null,
-			metadata: {},
+			userId,
+			metadata: {
+				fileName,
+				s3Key: '',
+				totalRows: 0,
+				processedRows: 0,
+				successCount: 0,
+				errorCount: 0
+			},
 			progress: { current: 0, total: 0, percentage: 0 },
 			createdAt: now,
 			updatedAt: now
-		});
+		} as ImportJob);
 		if (file) {
 			this.fileCache.set(jobId, file);
 		}
@@ -80,8 +87,9 @@ class ImportProgressStore {
 				// Extract data from API response format: { success: true, data: { logId: ImportProgress } }
 				const progressMap: Record<string, ImportProgress> = {};
 				for (const [id, result] of Object.entries(parsed)) {
-					if (result && typeof result === 'object' && 'data' in result && result.data) {
-						progressMap[id] = result.data as ImportProgress;
+					// Extract from { data: ImportProgress } or { code, error }
+					if (result && typeof result === 'object' && 'data' in result) {
+						progressMap[id] = result.data;
 					}
 				}
 				console.log('[Import] [SSE] Received update for', Object.keys(progressMap).length, 'jobs');
@@ -134,10 +142,9 @@ class ImportProgressStore {
 					// Extract ImportProgress from ProgressResult union
 					const progressMap: Record<string, ImportProgress> = {};
 					for (const [id, item] of Object.entries(result)) {
-						if (item && typeof item === 'object' && 'data' in item && item.data) {
-							progressMap[id] = (item as ProgressResult).data as ImportProgress;
+						if (item && typeof item === 'object' && 'data' in item) {
+							progressMap[id] = (item as { data: ImportProgress }).data;
 						} else if (item && typeof item === 'object' && 'status' in item) {
-							// Direct ImportProgress format
 							progressMap[id] = item as ImportProgress;
 						}
 					}
@@ -201,8 +208,12 @@ class ImportProgressStore {
 			};
 			job.message = result.message;
 
-			if (job.status === 'success') {
-				job.result = result.result;
+			if (job.status === 'success' && result.result) {
+				if (result.result && typeof result.result === 'object' && 'data' in result.result) {
+					job.result = result.result as any;
+				} else {
+					job.result = { data: result.result } as any;
+				}
 				// Auto-cleanup preview jobs after 30s
 				if (job.type === 'preview') {
 					setTimeout(() => this.activeJobs.delete(id), 30000);

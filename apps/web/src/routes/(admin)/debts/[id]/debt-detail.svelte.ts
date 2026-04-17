@@ -1,7 +1,8 @@
 import { api } from '$lib/services/api';
 import type { PageData } from './$types';
-import type { BankAccount, DebtDetails, DebtStatus } from '@repo/types';
-import { DEBT_STATUS } from '@repo/config';
+import type { BankAccount } from '@repo/types/core/bank';
+import type { DebtDetails, DebtStatus } from '@repo/types/core/debt';
+import { DEBT_STATUS } from '@repo/config/shared/status';
 
 export class DebtDetailState {
 	debt = $state<DebtDetails>();

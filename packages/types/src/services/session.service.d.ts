@@ -1,18 +1,32 @@
-import type { BaseResult } from '../api/base';
+import type { Result } from '../api/base';
 import type { SafeUser } from '../core/user';
 import type { SessionInfo } from '../infrastructure/sessions';
 import type { JwtService } from './auth.service';
 
-export interface RefreshSessionResult extends BaseResult {
-  user?: SafeUser;
-  accessToken?: string;
+export interface RefreshSessionData {
+  user: SafeUser;
+  accessToken: string;
   refreshToken?: string;
-  expiresIn?: number;
+  expiresIn: number;
 }
+
+/**
+ * Result type for session refresh
+ */
+export type RefreshSessionResult = Result<RefreshSessionData>;
 
 export interface RequestInfo {
   userAgent: string | null;
   clientIP: string | null;
+}
+
+export interface SessionListData {
+  sessions: SessionInfo[];
+  currentSessionId: string | null;
+}
+
+export interface RevokeSessionData {
+  isCurrent: boolean;
 }
 
 export interface ISessionService {
@@ -24,11 +38,11 @@ export interface ISessionService {
   getUserSessions(
     userId: string,
     currentRefreshToken?: string
-  ): Promise<{ sessions: SessionInfo[]; currentSessionId: string | null }>;
+  ): Promise<Result<SessionListData>>;
   revokeSession(
     sessionId: string,
     userId: string,
     currentRefreshToken?: string
-  ): Promise<BaseResult & { isCurrent?: boolean }>;
-  revokeAllSessions(userId: string): Promise<BaseResult & { count: number }>;
+  ): Promise<Result<RevokeSessionData>>;
+  revokeAllSessions(userId: string): Promise<Result<{ count: number }>>;
 }

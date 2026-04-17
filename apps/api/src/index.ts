@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia';
 import { etag } from '@bogeychan/elysia-etag';
+import { container } from 'tsyringe';
 import { configs, validateRuntimeEnv } from './configs';
 import {
   corsPlugin,
@@ -9,19 +10,30 @@ import {
   redisPlugin,
   securityHeadersPlugin
 } from './plugins';
+
+// New Architecture Controllers (app/Http/Controllers)
+// Instance-based controllers (plain Elysia instances)
 import {
   ActivityController,
+  TracesController
+} from '@/app/Http/Controllers';
+
+// Class-based controllers (DI with @injectable)
+import {
   AuthController,
-  DebtsController,
+  DebtController,
   ExportController,
   ImportController,
   PublicController,
-  TracesController,
-  UsersController,
+  UserController,
   PushController,
   BankController,
-  UploadController
-} from './controllers';
+  StorageController
+} from '@/app/Http/Controllers';
+
+// Initialize DI Container
+import { AppServiceProvider } from '@/app/Providers/AppServiceProvider';
+
 import { telemetry } from './instrumentation';
 import { logger } from '@repo/logger';
 import { GEN_ERRORS, apiResponse } from '@repo/errors';
@@ -31,6 +43,26 @@ import { randomUUIDv7 } from 'bun';
 
 // Validate environment variables on startup
 validateRuntimeEnv();
+
+// Initialize Service Provider for DI
+const appProvider = new AppServiceProvider();
+appProvider.register();
+appProvider.boot();
+
+// Initialize class-based controllers via DI container
+const AuthControllerInstance = container.resolve(AuthController).register(new Elysia());
+const DebtsControllerInstance = container.resolve(DebtController).register(new Elysia());
+const ExportControllerInstance = container.resolve(ExportController).register(new Elysia());
+const ImportControllerInstance = container.resolve(ImportController).register(new Elysia());
+const PublicControllerInstance = container.resolve(PublicController).register(new Elysia());
+const UsersControllerInstance = container.resolve(UserController).register(new Elysia());
+const PushControllerInstance = container.resolve(PushController).register(new Elysia());
+const BankControllerInstance = container.resolve(BankController).register(new Elysia());
+const UploadControllerInstance = container.resolve(StorageController).register(new Elysia());
+
+// Instance-based controllers are used directly
+const ActivityControllerInstance = ActivityController;
+const TracesControllerInstance = TracesController;
 
 /**
  * Main API Application Instance
@@ -101,16 +133,16 @@ export const app = new Elysia()
       set.status = mapped.status;
     }
 
-    return apiResponse({ 
-      ok: false, 
-      error: mapped.error, 
-      details: (error as Error)?.message 
+    return apiResponse({
+      ok: false,
+      error: mapped.error,
+      details: (error as Error)?.message
     });
   })
   .use(telemetry ?? new Elysia())
   .use(redisPlugin)
   .use(requestLoggerPlugin)
-  .use(TracesController)
+  .use(TracesControllerInstance)
 
   // --- 4. BUSINESS LOGIC (Core API v1) ---
   .group('/v1', (app) =>
@@ -118,9 +150,9 @@ export const app = new Elysia()
       // Session-based authentication (sets user if valid token exists)
       .use(sessionAuthPlugin)
       // Auth routes (login/register work without user, /me/logout need user)
-      .use(AuthController)
-      .use(PublicController) // /v1/check-debt
-      .use(PushController) // Push notifications
+      .use(AuthControllerInstance)
+      .use(PublicControllerInstance) // /v1/check-debt
+      .use(PushControllerInstance) // Push notifications
       // Guarded Routes (Require Authentication for the entire group)
       .guard(
         {
@@ -136,13 +168,13 @@ export const app = new Elysia()
         },
         (app) =>
           app
-            .use(UsersController)
-            .use(DebtsController)
-            .use(ImportController)
-            .use(ExportController)
-            .use(ActivityController)
-            .use(BankController)
-            .use(UploadController)
+            .use(UsersControllerInstance)
+            .use(DebtsControllerInstance)
+            .use(ImportControllerInstance)
+            .use(ExportControllerInstance)
+            .use(ActivityControllerInstance)
+            .use(BankControllerInstance)
+            .use(UploadControllerInstance)
       )
   )
 

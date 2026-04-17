@@ -1,4 +1,4 @@
-import type { BaseResult } from '../api/base';
+import type { Result } from '../api/base';
 
 /**
  * Push Notification Types
@@ -19,7 +19,14 @@ export interface SendPushInput {
   priority?: 'normal' | 'high';
 }
 
-export interface PushResult extends BaseResult {
+export interface PushResultData {
   messageId?: string;
-  delivered?: boolean;
+  delivered: boolean;
+  sent: number;
+  failed: number;
 }
+
+/**
+ * Result type for push notifications
+ */
+export type PushResult = Result<PushResultData>;

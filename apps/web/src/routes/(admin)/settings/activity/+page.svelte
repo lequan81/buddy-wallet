@@ -9,7 +9,7 @@
 
 	let { data } = $props();
 
-	const formatDate = (date: string) => {
+	const formatDate = (date: string | number | Date) => {
 		return new Date(date).toLocaleString('en-US', {
 			year: 'numeric',
 			month: 'short',

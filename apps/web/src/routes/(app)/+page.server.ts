@@ -30,11 +30,11 @@ export const actions: Actions = {
 
 			return {
 				success: true,
-				result: data as {
-					success: boolean;
-					phone: string;
-					found: boolean;
-					count: number;
+				result: (data as any) || {
+					success: false,
+					phone: '',
+					found: false,
+					count: 0
 				},
 				phoneNumber
 			};

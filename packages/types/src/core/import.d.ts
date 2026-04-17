@@ -16,6 +16,52 @@ export interface ImportConfig {
   startRow: number;
 }
 
+export type ImportLogStatus =
+  | 'pending'
+  | 'queued'
+  | 'processing'
+  | 'preview'
+  | 'success'
+  | 'failed'
+  | 'cancelled';
+
+export interface ImportLog {
+  id: string;
+  userId: string | null;
+  fileName: string;
+  fileSize: number;
+  status: ImportLogStatus;
+  previewLogId: string | null;
+  totalRows: number | null;
+  importedCount: number | null;
+  errorCount: number | null;
+  errors: string | null;
+  config: string | null;
+  createdAt: Date | string;
+  completedAt: Date | string | null;
+  deletedAt: Date | string | null;
+  // Additional properties returned by getLogById API
+  previewData?: string[][];
+  columnHeaders?: string[];
+  columnMapping?: Record<string, string>;
+  startRow?: number;
+  totalRowsCached?: number;
+}
+
+export interface ImportDetailResult {
+  importedDebts: Array<{
+    id: string;
+    amount: number;
+    description: string | null;
+    debtorName?: string | null;
+    creditorName?: string | null;
+  }>;
+  skippedRows: Array<{
+    rowNumber: number;
+    reason: string;
+  }>;
+}
+
 export interface ImportProgress {
   status: import('../infrastructure/jobs').JobStatus;
   current: number;
@@ -23,31 +69,43 @@ export interface ImportProgress {
   percentage: number;
   message?: string;
   errors?: string[];
-  result?: PreviewResult | ImportResult;
+  result?: PreviewResultData | ImportResultData;
 }
 
-export interface PreviewResult {
-  success: boolean;
-  logId?: string;
-  fileName?: string;
-  totalRows?: number;
-  columnHeaders?: string[];
-  previewData?: string[][];
-  autoMapping?: Record<string, string>;
-  error?: string;
+/**
+ * Preview result data payload (success case)
+ */
+export interface PreviewResultData {
+  logId: string;
+  fileName: string;
+  totalRows: number;
+  columnHeaders: string[];
+  previewData: string[][];
+  autoMapping: Record<string, string>;
 }
 
-export interface ImportResult {
-  success: boolean;
-  jobId?: string;
-  logId?: string;
-  imported?: number;
-  importedCount?: number;
-  errors?: string[];
-  error?: string;
+/**
+ * Import result data payload (success case)
+ */
+export interface ImportResultData {
+  jobId: string;
+  logId: string;
+  imported: number;
+  errors: string[];
 }
 
-export interface ProgressResult extends ImportProgress {
-  success: boolean;
-  error?: string;
-}
+/**
+ * Result types for import/preview operations
+ * These are returned from import.job.ts (worker)
+ */
+export type PreviewResult =
+  | { data: PreviewResultData }
+  | { code: string; error?: string };
+
+export type ImportResult =
+  | { data: ImportResultData }
+  | { code: string; error?: string };
+
+export type ProgressResult =
+  | { data: ImportProgress }
+  | { code: string; error?: string };

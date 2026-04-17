@@ -46,7 +46,7 @@ export const actions: Actions = {
 				return fail(400, { message: errorMessage });
 			}
 
-			if (data?.success) {
+				if ((data as any)?.success) {
 				// Clear session cookies after password change
 				cookies.delete('session', { path: '/' });
 				cookies.delete('refresh_token', { path: '/' });

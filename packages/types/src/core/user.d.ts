@@ -1,14 +1,40 @@
-import type { User as DBUser } from '@repo/db';
-import type { BaseResult } from '../api/base';
-
 /**
  * Core User Types
  */
 
-export type CurrentUser = Pick<DBUser, 'id' | 'role' | 'phoneNumber' | 'email'> & { permissions: string[] };
+export interface UserEntity {
+  id: string;
+  name: string;
+  phoneNumber: string;
+  email: string | null;
+  password: string;
+  role: string;
+  permissions: string[];
+  isActive: boolean;
+  isLocked: boolean;
+  lockoutUntil: Date | null;
+  failedLoginAttempts: number;
+  lastFailedLoginAt: Date | null;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  sessionVersion: number;
+  lastPasswordChangeAt: Date | null;
+  emailNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+  temporaryPassword: string | null;
+  temporaryPasswordExpires: Date | null;
+  mustChangePassword: boolean;
+  temporaryPasswordUsed: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type CurrentUser = Pick<UserEntity, 'id' | 'role' | 'phoneNumber' | 'email'> & {
+  permissions: string[];
+};
 
 export interface SafeUser extends Omit<
-  DBUser,
+  UserEntity,
   | 'password'
   | 'isLocked'
   | 'lockoutUntil'
@@ -29,12 +55,21 @@ export interface SafeUser extends Omit<
   updatedAt: Date | string | null;
 }
 
-export interface UserResult extends BaseResult {
-  user?: SafeUser;
-  users?: SafeUser[];
-  isActive?: boolean;
-  permissions?: string[];
-}
+/**
+ * Result type for user operations
+ * Returns either { data: SafeUser } or { code: string, error?: string }
+ */
+export type UserResult = Result<SafeUser>;
+
+/**
+ * Result type for user list operations
+ */
+export type UserListResult = Result<SafeUser[]>;
+
+/**
+ * Result type for session operations
+ */
+export type SessionsResult = Result<SessionsResponse>;
 
 export interface UserWithNotifications {
   id: string;
@@ -53,7 +88,11 @@ export interface Session {
   userAgent: string | null;
   ipAddress: string | null;
   lastActiveAt: Date | string;
-  expiresAt: Date | string;
+  expiresAt?: Date | string;
+  createdAt?: Date | string;
+  deviceName?: string | null;
+  deviceType?: string | null;
+  location?: string | null;
 }
 
 export interface SessionsResponse {

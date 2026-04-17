@@ -26,7 +26,7 @@ export const addBank = form(
 			isDefault: isDefault === 'on'
 		};
 
-		const { error } = await locals.api.v1.banks.me.post(payload);
+		const { error } = await (locals.api.v1.banks as any).me.post(payload);
 
 		if (error) {
 			const errVal = error.value as Record<string, unknown>;

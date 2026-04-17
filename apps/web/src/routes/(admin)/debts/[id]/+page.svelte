@@ -12,7 +12,7 @@
 	} from '$lib/remotes/debts.remote';
 	import { DebtDetailState } from './debt-detail.svelte';
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
-	import { formatCurrency, formatDate } from '@repo/utils';
+	import { formatCurrency, formatDate } from '@repo/utils/format';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
@@ -23,8 +23,8 @@
 	import DebtStatusBadge from '$lib/components/DebtStatusBadge.svelte';
 	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
-	import type { DebtDetails } from '@repo/types';
-	import { DEBT_STATUS } from '@repo/config';
+	import type { DebtDetails } from '@repo/types/core/debt';
+	import { DEBT_STATUS } from '@repo/config/shared/status';
 
 	let { data, form } = $props<{ data: PageData; form: ActionData }>();
 	let debt = $derived(data.debt as DebtDetails | null);
@@ -72,7 +72,7 @@
 		return debt ? { ...debt } : null;
 	}
 
-	function applyStatusOptimistic(status: string) {
+	function applyStatusOptimistic(status: DebtDetails['status']) {
 		if (state && debt) {
 			state.debt = { ...debt, status, updatedAt: new Date().toISOString() };
 		}

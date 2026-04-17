@@ -3,8 +3,8 @@
 	import { ArrowLeft, Calendar, DollarSign, Phone, Shield, TrendingDown, TrendingUp, User, UserCheck, UserX } from '@repo/icons';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import { formatCurrency, formatDate } from '@repo/utils';
-	import { DEBT_STATUS } from '@repo/config';
+	import { formatCurrency, formatDate } from '@repo/utils/format';
+	import { DEBT_STATUS } from '@repo/config/shared/status';
 
 	let { data, form } = $props();
 

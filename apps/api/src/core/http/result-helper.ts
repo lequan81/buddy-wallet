@@ -1,14 +1,9 @@
-import { apiResponse, GEN_ERRORS, type ErrorDefinition, type ApiResponse } from '@repo/errors';
-
-export interface ServiceFailureResult {
-  success: boolean;
-  error?: string;
-  code?: string;
-}
+import { apiResponse, GEN_ERRORS, type ApiResponse } from '@repo/errors';
+import type { Result } from '@repo/types';
 
 export interface ServiceErrorMapEntry {
   status: number;
-  error: ErrorDefinition;
+  error: { code: string; message: string };
 }
 
 export type ServiceErrorMap = Record<string, ServiceErrorMapEntry>;
@@ -25,11 +20,11 @@ export const DEFAULT_FAILURE: ServiceErrorMapEntry = {
 
 export function respondFailure(
   set: { status?: number | string },
-  result: ServiceFailureResult,
+  result: { code?: string; error?: string },
   options: RespondFailureOptions = {}
 ): ApiResponse<never> {
   const fallback = options.fallback ?? DEFAULT_FAILURE;
-  const mapped = (result.code && options.map?.[result.code]) || (result.error && options.map?.[result.error]) || fallback;
+  const mapped = (result.code && options.map?.[result.code]) || fallback;
 
   set.status = mapped.status;
 
@@ -40,15 +35,27 @@ export function respondFailure(
   });
 }
 
-export function isFailureResult<T extends { success: boolean }>(
-  result: T
-): result is T & { success: false } {
-  return result.success === false;
+/**
+ * Check if a result is a failure (using new Result union type)
+ */
+export function isFailureResult<T>(
+  result: Result<T>
+): result is { code: string; error?: string } {
+  return 'code' in result;
 }
 
-export function respondIfFailure(
+/**
+ * Check if a result is a success (using new Result union type)
+ */
+export function isSuccessResult<T>(
+  result: Result<T>
+): result is { data: T } {
+  return 'data' in result;
+}
+
+export function respondIfFailure<T>(
   set: { status?: number | string },
-  result: ServiceFailureResult,
+  result: Result<T>,
   options: RespondFailureOptions = {}
 ): ApiResponse<never> | null {
   if (!isFailureResult(result)) {

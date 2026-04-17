@@ -3,8 +3,8 @@
 	import { ArrowRight, CheckCircle, Home, PartyPopper, TrendingDown, TrendingUp } from '@repo/icons';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { cn } from '$lib/utils';
-	import { formatCurrency } from '@repo/utils';
-	import { DEBT_STATUS } from '@repo/config';
+	import { formatCurrency } from '@repo/utils/format';
+	import { DEBT_STATUS } from '@repo/config/shared/status';
 
 	let { data } = $props();
 

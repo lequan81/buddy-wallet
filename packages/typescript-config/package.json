@@ -12,5 +12,10 @@
     "./app.json": "./app.json",
     "./library.json": "./library.json",
     "./svelte.json": "./svelte.json"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.0",
+    "@types/node": "^24.0.0",
+    "bun-types": "^1.3.11"
   }
 }

@@ -12,9 +12,9 @@
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import QuickActions from '$lib/components/dashboard/QuickActions.svelte';
 	import FinancialSummary from '$lib/components/dashboard/FinancialSummary.svelte';
-	import { formatCurrency } from '@repo/utils';
-	import type { Debt } from '@repo/types';
-	import { DEBT_STATUS } from '@repo/config';
+	import { formatCurrency } from '@repo/utils/format';
+	import type { Debt } from '@repo/types/core/debt';
+	import { DEBT_STATUS } from '@repo/config/shared/status';
 	import CreateDebtModal from '$lib/components/dashboard/CreateDebtModal.svelte';
 	import { createDashboardState } from './dashboard.svelte';
 	import DashboardStats from '$lib/components/dashboard/DashboardStats.svelte';

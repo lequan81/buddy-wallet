@@ -2,32 +2,37 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
+	const status = url.searchParams.get('status') || 'confirmed';
+
 	if (!locals.user) {
+		if (locals.apiOffline) {
+			return {
+				debt: null,
+				error: 'Backend API is unavailable',
+				status,
+				isCreditor: false,
+				isDebtor: false,
+				currentUser: null
+			};
+		}
+
 		throw redirect(302, '/login');
 	}
-
-	const status = url.searchParams.get('status') || 'confirmed';
 
 	const { api } = locals;
 
 	// Fetch all debts and find the one with matching ID
-	const { data, error } = await api.v1.debts.get();
+	const { data, error } = await (locals.api.v1.debts as any).index.get();
 
 	if (error) {
 		return { debt: null, error: 'Unable to fetch debt', status };
 	}
 
-	const debts = Array.isArray((data as { data?: unknown[] } | null)?.data)
-		? ((data as { data?: unknown[] }).data as Array<{
-				id: string;
-				creditorId?: string | null;
-				creditorPhone?: string | null;
-				debtorId?: string | null;
-				debtorPhone?: string | null;
-		  }>)
+	const debts = Array.isArray((data as { items?: unknown[] } | null)?.items)
+		? ((data as { items?: any[] }).items as any[])
 		: [];
 
-	const debt = debts.find((d: { id: string }) => d.id === params.id);
+	const debt = debts.find((d: any) => d.id === params.id);
 
 	if (!debt) {
 		return { debt: null, error: 'Debt not found', status };

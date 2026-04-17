@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
+import type { BankAccount, BankInfo } from '@repo/types/core/bank';
 import { accountNumberSchema, accountNameSchema, v } from '@repo/validation/client';
 
 export const load: PageServerLoad = async ({
@@ -11,12 +12,12 @@ export const load: PageServerLoad = async ({
 
 	// Parallel fetch using Eden
 	const [banksRes, myAccountsRes] = await Promise.all([
-		api.v1.banks.list.get(),
-		api.v1.banks.me.get()
+			(locals.api.v1.banks as any).list.get(),
+			(locals.api.v1.banks as any).index.get()
 	]);
 
-	const banks = (banksRes.data as { banks?: unknown[] } | null)?.banks || [];
-	const accounts = (myAccountsRes.data as { accounts?: unknown[] } | null)?.accounts || [];
+	const banks = (banksRes.data as { items?: BankInfo[] } | null)?.items || [];
+	const accounts = (myAccountsRes.data as { items?: BankAccount[] } | null)?.items || [];
 
 	return {
 		banks,

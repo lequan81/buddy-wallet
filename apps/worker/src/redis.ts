@@ -74,6 +74,14 @@ export function getRedis(): RedisClient {
   return redisClient;
 }
 
+export function closeRedis(): void {
+  if (redisClient) {
+    redisClient.close();
+    redisClient = null;
+  }
+  connectionHealthy = false;
+}
+
 export function isRedisHealthy(): boolean {
   if (redisFailures >= MAX_FAILURES) {
     if (Date.now() - lastFailure > CIRCUIT_RESET_MS) {

@@ -3,6 +3,10 @@ import type { PageServerLoad, Actions } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) {
+		if (locals.apiOffline) {
+			return { targetUser: null, debts: [], error: 'Backend API is unavailable' };
+		}
+
 		throw redirect(302, '/login');
 	}
 
@@ -17,14 +21,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		return { targetUser: null, debts: [], error: 'User not found' };
 	}
 
-	// API returns { success: true, user: {...} }
-	const user = userData?.user || null;
-
+	// API returns { success: true, data: { item: {...} } }
+		const user = (userData && !('error' in userData) ? userData.item : null) || null;
 	// Fetch user's debts
-	const { data: debtsData } = await locals.api.v1.debts.user({ userId: params.id }).get();
-
+		const { data: debtsData } = await (locals.api.v1.debts as any).index.get({ query: { userId: params.id } });
 	// API returns paginated debts
-	const debts = debtsData?.data || [];
+	const debts = debtsData?.items || [];
 
 	return { targetUser: user, debts };
 };

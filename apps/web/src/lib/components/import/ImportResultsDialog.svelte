@@ -4,7 +4,7 @@
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Badge } from '@repo/ui/components/ui/badge';
-	import type { ImportLog, ImportDetailResult } from '@repo/types';
+	import type { ImportLog, ImportDetailResult } from '@repo/types/core/import';
 
 	let { log } = $props<{ log: ImportLog }>();
 	let showResults = $state(false);

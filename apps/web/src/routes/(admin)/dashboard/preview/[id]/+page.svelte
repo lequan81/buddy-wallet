@@ -33,7 +33,7 @@
 	let { data } = $props<{ data: PageData }>();
 
 	let log = $derived(data.importLog as import('@repo/types').ImportLog);
-	let progress = $derived(data.progress as import('@repo/types').ProgressResult);
+	let progress = $derived(data.progress as import('@repo/types').ImportProgress | null);
 
 	// --- Interactive State ---
 	let localMapping = $state<Record<string, string>>({});
@@ -371,7 +371,7 @@
 						<div class="grid grid-cols-2 gap-4 border-b pb-6">
 							<div class="space-y-1">
 								<p class="text-[10px] text-muted-foreground uppercase font-black">Managed By</p>
-								<p class="text-xs font-mono truncate">{log.userId.slice(0, 8)}...</p>
+								<p class="text-xs font-mono truncate">{log.userId?.slice(0, 8) || '...'}</p>
 							</div>
 							<div class="space-y-1 text-right">
 								<p class="text-[10px] text-muted-foreground uppercase font-black">File Size</p>

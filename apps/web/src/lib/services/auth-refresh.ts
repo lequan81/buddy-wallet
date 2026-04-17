@@ -5,9 +5,9 @@
  * Used by both apiFetch() and Eden treaty client.
  * Prevents duplicate simultaneous refresh requests.
  */
-import { API_URL, getDefaultHeaders } from './api';
+import { API_URL, getDefaultHeaders } from './api-config';
 import { treaty } from '@elysiajs/eden';
-import type { App } from '@repo/api';
+import type { App } from '@repo/api/types';
 
 // Singleton promise prevents multiple concurrent refresh attempts
 let refreshPromise: Promise<boolean> | null = null;
@@ -38,8 +38,8 @@ export async function refreshAccessToken(
 			});
 			const { data, error } = await api.v1.auth.refresh.post();
 			if (error) return false;
-			const refreshData = data as { success?: boolean } | null;
-			return refreshData?.success === true;
+			// Backend returns success response directly (no envelope), just check if we got data
+			return data != null;
 		} catch {
 			return false;
 		} finally {

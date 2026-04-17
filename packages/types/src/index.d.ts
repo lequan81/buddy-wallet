@@ -5,5 +5,4 @@ export * from './notifications';
 
 export * from './services';
 
-// Re-export common types from config for convenience
-export type { DebtStatus, DebtDirection } from '@repo/config';
+export type { DebtStatus, DebtDirection } from './core/debt';

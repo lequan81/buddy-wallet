@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import { SHARED_CONSTANTS } from '@repo/config';
+import { SHARED_CONSTANTS } from '@repo/config/shared';
 import { phoneSchema } from './auth';
 
 export const amountSchema = v.pipe(

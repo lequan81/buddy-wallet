@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { FE_ERRORS } from '@repo/errors';
+import { FE_ERRORS } from '@repo/errors/frontend';
 import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config/shared';
 
 export const load: PageServerLoad = async ({ parent, locals, url }) => {
@@ -30,7 +30,7 @@ export const load: PageServerLoad = async ({ parent, locals, url }) => {
 	let historyTotalPages = 1;
 
 	try {
-		const { data, error } = await locals.api.v1.import.logs.get({
+			const { data, error } = await (locals.api.v1.import as any).logs.index.get({
 			query: { page: String(historyPage), limit: '10' }
 		});
 		if (!error && data) {

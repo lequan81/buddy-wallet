@@ -9,8 +9,8 @@
 		ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight
 	} from '@repo/icons';
 	import { cn } from '$lib/utils';
-	import { formatCurrency } from '@repo/utils';
-	import type { Debt } from '@repo/types';
+	import { formatCurrency } from '@repo/utils/format';
+	import type { Debt } from '@repo/types/core/debt';
 	import { resolve } from '$app/paths';
 	import DebtStatusBadge from '$lib/components/DebtStatusBadge.svelte';
 	import { batchDeleteDebts, deleteDebt, deleteAllDebts } from '$lib/remotes/debts.remote';
@@ -23,13 +23,13 @@
 		isDeleting: boolean;
 		searchQuery: string;
 		readonly debouncedSearch: string;
-		readonly sortField: string;
+		readonly sortField: 'description' | 'status' | 'amount' | 'date';
 		readonly sortDirection: 'asc' | 'desc';
 		canDeleteDebt: (debt: { uploadedById?: string; status?: string }) => boolean;
 		toggleSelect: (id: string) => void;
 		toggleSelectAll: (items: { id: string }[]) => void;
 		clearSelection: () => void;
-		toggleSort: (field: string) => void;
+		toggleSort: (field: 'description' | 'status' | 'amount' | 'date') => void;
 		navigateWithParams: (params: { page?: number; pageSize?: number; status?: string }) => void;
 		handleFilterChange: (newStatus: string) => void;
 	}

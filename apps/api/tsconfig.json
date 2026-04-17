@@ -1,32 +1,91 @@
 {
   "extends": "@repo/typescript-config/app.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "paths": {
       "@/*": ["./src/*"],
-      "@plugins": ["./src/plugins"],
-      "@plugins/*": ["./src/plugins/*"],
-      "@controllers": ["./src/controllers"],
-      "@controllers/*": ["./src/controllers/*"],
-      "@services": ["./src/services"],
-      "@services/*": ["./src/services/*"],
-      "@repositories": ["./src/repositories"],
-      "@repositories/*": ["./src/repositories/*"],
-      "@states": ["./src/states"],
-      "@states/*": ["./src/states/*"],
-      "@storage": ["./src/services/storage"],
-      "@storage/*": ["./src/services/storage/*"],
-      "@types": ["./src/types/index.d.ts"],
-      "@types/*": ["./src/types/*"],
-      "@utils": ["./src/utils"],
-      "@utils/*": ["./src/utils/*.utils.ts", "./src/utils/*"],
-      "@/utils": ["./src/utils"],
-      "@/utils/*": ["./src/utils/*.utils.ts", "./src/utils/*"],
-      "@/types": ["./src/types/index.d.ts"],
-      "@/types/*": ["./src/types/*"]
+      "@app/*": ["./src/app/*"],
+      "@lib/*": ["./src/lib/*"],
+      "@config/*": ["./src/config/*"],
+      "@routes/*": ["./src/routes/*"],
+      "@decorators/*": ["./src/decorators/*"],
+      "@plugins": [
+        "./src/plugins"
+      ],
+      "@plugins/*": [
+        "./src/plugins/*"
+      ],
+      "@controllers": [
+        "./src/app/Http/Controllers"
+      ],
+      "@controllers/*": [
+        "./src/app/Http/Controllers/*"
+      ],
+      "@services": [
+        "./src/app/Services"
+      ],
+      "@services/*": [
+        "./src/app/Services/*"
+      ],
+      "@repositories": [
+        "./src/app/Repositories"
+      ],
+      "@repositories/*": [
+        "./src/app/Repositories/*"
+      ],
+      "@api-types": [
+        "./src/types/index.d.ts"
+      ],
+      "@api-types/*": [
+        "./src/types/*"
+      ],
+      "@utils": [
+        "./src/utils"
+      ],
+      "@utils/*": [
+        "./src/utils/*.utils.ts",
+        "./src/utils/*"
+      ],
+      "@configs": [
+        "./src/configs"
+      ],
+      "@configs/*": [
+        "./src/configs/*"
+      ],
+      "@core": [
+        "./src/core"
+      ],
+      "@core/*": [
+        "./src/core/*"
+      ],
+      "@domain": [
+        "./src/domain"
+      ],
+      "@domain/*": [
+        "./src/domain/*"
+      ],
+      "@shared": [
+        "./src/shared"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@modules": [
+        "./src/modules"
+      ],
+      "@modules/*": [
+        "./src/modules/*"
+      ]
     },
-    "types": ["bun-types"],
-    "noEmit": true
+    "types": [
+      "bun-types",
+      "node"
+    ],
+    "noEmit": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
-  "include": ["src/**/*", "tests/**/*"]
+  "include": [
+    "src/**/*",
+    "tests/**/*"
+  ]
 }

@@ -8,10 +8,29 @@
  *   import { signupSchema } from '@repo/validation/client';
  */
 
-export * from './src/auth.js';
-export * from './src/debt.js';
-export * from './src/bank.js';
-export * from './src/profile.js';
-export * from './src/helpers.js';
+export {
+	passwordSchema,
+	emailSchema,
+	nameSchema,
+	phoneSchema,
+	signupSchema,
+	type SignupInput,
+	loginSchema,
+	forgotPasswordSchema,
+	resetPasswordSchema,
+	changePasswordSchema
+} from './src/auth.js';
+export {
+	amountSchema,
+	amountClientSchema,
+	descriptionSchema,
+	directionSchema,
+	CreateDebtInputSchema,
+	CreateDebtClientSchema,
+	type CreateDebtInput,
+	type CreateDebtClientInput
+} from './src/debt.js';
+export { accountNumberSchema, accountNameSchema } from './src/bank.js';
+export { profileSchema } from './src/profile.js';
+export { validateField } from './src/helpers.js';
 export * as v from 'valibot';
-export * from 'valibot';

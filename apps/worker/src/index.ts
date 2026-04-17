@@ -5,17 +5,66 @@
  */
 import { logger } from '@repo/logger';
 import { BACKEND_CONSTANTS } from '@repo/config';
-import { initRedis, getRedis } from './redis';
+import { initRedis, getRedis, closeRedis } from './redis';
 import { validatePayload, isStorageConfigured } from './utils';
 import { processImportJob } from './jobs/import.job';
+import { dispatchOutboxBatch } from './jobs/outbox-dispatch.job';
 
 // ── Startup & Configuration ────────────────────────────────
 const KILL_TIMEOUT_MS = BACKEND_CONSTANTS.WORKER.KILL_TIMEOUT_MS || 300000;
+const OUTBOX_BATCH_SIZE = Number.parseInt(Bun.env.OUTBOX_BATCH_SIZE ?? '25', 10);
+const DRAIN_TIMEOUT_MS = Number.parseInt(Bun.env.WORKER_DRAIN_TIMEOUT_MS ?? '10000', 10);
+let shuttingDown = false;
+let inFlightImportJobs = 0;
+let inFlightOutboxBatches = 0;
 
-setTimeout(() => {
+function getInFlightCount(): number {
+  return inFlightImportJobs + inFlightOutboxBatches;
+}
+
+async function waitForDrain(): Promise<void> {
+  const startedAt = Date.now();
+
+  while (getInFlightCount() > 0 && Date.now() - startedAt < DRAIN_TIMEOUT_MS) {
+    await Bun.sleep(200);
+  }
+}
+
+const killTimeout = setTimeout(() => {
   logger.error(`[Worker] Kill timeout reached (${KILL_TIMEOUT_MS / 1000 / 60} min)`);
   process.exit(1);
 }, KILL_TIMEOUT_MS);
+
+async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  clearTimeout(killTimeout);
+  logger.info(`[Worker] Shutdown signal received: ${signal}`);
+
+  try {
+    await waitForDrain();
+
+    if (getInFlightCount() > 0) {
+      logger.warn('[Worker] Drain timeout reached, forcing shutdown', {
+        inFlightImportJobs,
+        inFlightOutboxBatches
+      });
+    }
+
+    closeRedis();
+  } finally {
+    process.exit(0);
+  }
+}
+
+process.on('SIGINT', () => {
+  void shutdown('SIGINT');
+});
+
+process.on('SIGTERM', () => {
+  void shutdown('SIGTERM');
+});
 
 // ── Main Queue Loop ────────────────────────────────────────
 async function main() {
@@ -35,7 +84,7 @@ async function main() {
 
   let consecutiveErrors = 0;
 
-  while (true) {
+  while (!shuttingDown) {
     try {
       const redis = getRedis();
       const result = await redis.blpop('import_jobs', 30);
@@ -53,14 +102,33 @@ async function main() {
         }
 
         if (!validatePayload(parsed)) {
-          logger.error('[Worker] Received invalid/incompatible payload', { 
-            jobId: (parsed as any)?.jobId 
+          logger.error('[Worker] Received invalid/incompatible payload', {
+            jobId: (parsed as any)?.jobId
           });
           continue;
         }
 
         logger.info(`[Worker] Processing job: ${parsed.jobId} (${parsed.type})`);
-        await processImportJob(parsed);
+        inFlightImportJobs++;
+        try {
+          await processImportJob(parsed);
+        } finally {
+          inFlightImportJobs = Math.max(0, inFlightImportJobs - 1);
+        }
+        continue;
+      }
+
+      inFlightOutboxBatches++;
+      const outbox = await dispatchOutboxBatch(OUTBOX_BATCH_SIZE).finally(() => {
+        inFlightOutboxBatches = Math.max(0, inFlightOutboxBatches - 1);
+      });
+      if (outbox.scanned > 0) {
+        logger.info('[Worker] Outbox batch processed', {
+          scanned: outbox.scanned,
+          published: outbox.published,
+          retried: outbox.retried,
+          failed: outbox.failed
+        });
       }
     } catch (error) {
       const errorStr = String(error);
@@ -81,7 +149,7 @@ async function main() {
       const baseDelay = BACKEND_CONSTANTS.WORKER.BACKOFF_BASE_MS || 5000;
       const maxDelay = BACKEND_CONSTANTS.WORKER.BACKOFF_MAX_MS || 60000;
       const backoff = Math.min(baseDelay * Math.pow(2, consecutiveErrors - 1), maxDelay);
-      
+
       logger.warn(`[Worker] Unexpected error, retrying in ${Math.round(backoff / 1000)}s`, {
         error: errorStr,
         attempt: consecutiveErrors

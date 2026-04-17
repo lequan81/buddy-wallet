@@ -1,4 +1,4 @@
-import type { BaseResult } from '../api/base';
+import type { Result } from '../api/base';
 import type { SafeUser } from '../core/user';
 import type { ClientHints, ClientLocation, Coordinates } from '../infrastructure/sessions';
 
@@ -20,15 +20,20 @@ export interface LoginInput {
   clientLocation?: ClientLocation;
 }
 
-export interface AuthResult extends BaseResult {
-  accessToken?: string;
-  refreshToken?: string;
+export interface AuthResultData {
+  accessToken?: string;  // Optional for register (no tokens yet)
+  refreshToken?: string; // Optional for register (no tokens yet)
   sessionId?: string;
   expiresIn?: number;
   user?: SafeUser;
   isNewUser?: boolean;
   mustChangePassword?: boolean;
 }
+
+/**
+ * Result type for auth operations
+ */
+export type AuthResult = Result<AuthResultData>;
 
 export interface JwtService {
   sign(payload: object): Promise<string>;
@@ -37,12 +42,12 @@ export interface JwtService {
 
 export interface IAuthService {
   register(input: RegisterInput): Promise<AuthResult>;
-  login(input: LoginInput, jwt: JwtService): Promise<AuthResult & { sessionId?: string }>;
-  logout(refreshToken: string, userId?: string): Promise<BaseResult>;
+  login(input: LoginInput, jwt: JwtService): Promise<AuthResult>;
+  logout(refreshToken: string, userId?: string): Promise<Result<void>>;
   changePassword(
     userId: string,
     currentPassword: string,
     newPassword: string,
     currentSessionId?: string
-  ): Promise<BaseResult>;
+  ): Promise<Result<void>>;
 }

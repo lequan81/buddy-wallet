@@ -58,6 +58,18 @@ export const SHARED_CONSTANTS = {
     TEMP_PASSWORD_EXPIRY_HOURS: 24,
     SESSION_MAX_AGE_SECONDS: 15 * 60, // 15 minutes
     REFRESH_TOKEN_MAX_AGE_DAYS: 90,
+  },
+
+  // Security - Common passwords to block
+  SECURITY: {
+    COMMON_PASSWORDS: [
+      'password', 'password123', 'Password123!', '12345678', 'qwerty123',
+      'abc123456', 'Password1!', 'Welcome1!', 'Admin123!', 'P@ssw0rd',
+      'Password1', 'admin123', 'admin', '123456789', '123456', '1234567',
+      '123123', '111111', 'password1234', 'qwerty', '1234567890', '12345',
+      '123456789!', '12345678!', 'Password!', '!Password123', 'Admin123',
+      'admin12345', 'pass123', 'pass1234', 'Qwer!234', 'Letme1n!'
+    ] as const,
   }
 } as const;
 
@@ -93,16 +105,6 @@ export function isValidImportFile(filename: string): boolean {
   const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
   return (ACCEPTED_IMPORT_EXTENSIONS as readonly string[]).includes(ext);
 }
-
-/**
- * Frontend Constants - Shared across web app
- */
-export const FRONTEND_CONSTANTS = {
-  TOAST_DURATION_MS: 3000,
-  ANIMATION_DURATION_MS: 200,
-  MAX_UPLOAD_SIZE_MB: 5,
-  AUTH_TIMEOUT_MS: 3500
-} as const;
 
 /**
  * Shared Timeouts & TTLs

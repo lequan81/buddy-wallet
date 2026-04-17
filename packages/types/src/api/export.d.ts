@@ -1,14 +1,18 @@
-import type { BaseResult } from './base';
+import type { Result } from './base';
 
 /**
  * Export Types
  */
 export type ExportFormat = 'xlsx' | 'csv';
 
-export interface ExportResult extends BaseResult {
-  buffer?: Buffer;
-  contentType?: string;
-  filename?: string;
+export interface ExportResultData {
+  buffer: Buffer;
+  contentType: string;
+  filename: string;
   url?: string;
-  fileName?: string;
 }
+
+/**
+ * Result type for export operations
+ */
+export type ExportResult = Result<ExportResultData>;

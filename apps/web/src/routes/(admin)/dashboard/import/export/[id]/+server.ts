@@ -1,30 +1,34 @@
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
-	const { data, error } = await (locals.api.v1.import as any).export({ id: params.id }).get();
+	try {
+		// Call the correct API endpoint: GET /api/v1/import/logs/:id
+				const { data, error } = await locals.api.v1.import.logs({ id: params.id }).get();
+		if (error) {
+			return new Response(
+				JSON.stringify({ error: error.value?.message || 'Failed to fetch import log' }),
+				{
+					status: typeof error.status === 'number' ? error.status : 500,
+					headers: { 'Content-Type': 'application/json' }
+				}
+			);
+		}
 
-	if (error) {
+		// Return the log data as JSON for download
+		return new Response(JSON.stringify(data, null, 2), {
+			headers: {
+				'Content-Type': 'application/json',
+				'Content-Disposition': `attachment; filename="import-log-${params.id}.json"`
+			}
+		});
+	} catch (error) {
+		console.error('[IMPORT EXPORT ERROR]:', error);
 		return new Response(
-			JSON.stringify({ error: error.value?.message || 'Failed to fetch export data' }),
+			JSON.stringify({ error: 'Internal server error' }),
 			{
-				status: typeof error.status === 'number' ? error.status : 500,
+				status: 500,
 				headers: { 'Content-Type': 'application/json' }
 			}
 		);
 	}
-
-	// Return as blob/file for download
-	const responseData = data as any;
-	if (responseData instanceof Blob) {
-		return new Response(responseData, {
-			headers: {
-				'Content-Type': responseData.type || 'application/octet-stream',
-				'Content-Disposition': `attachment; filename="export-${params.id}.json"`
-			}
-		});
-	}
-
-	return new Response(JSON.stringify(responseData), {
-		headers: { 'Content-Type': 'application/json' }
-	});
 };

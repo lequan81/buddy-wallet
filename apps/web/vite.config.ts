@@ -149,11 +149,21 @@ export default defineConfig({
 			'@repo/config/shared',
 			'@repo/config/backend',
 			'@repo/errors',
-			'@repo/permissions'
+			'@repo/api'
 		]
 	},
 	ssr: {
-		noExternal: ['@repo/ui'],
+		noExternal: [
+			'@repo/ui',
+			'@repo/config',
+			'@repo/config/shared',
+			'@repo/config/frontend',
+			'@repo/validation',
+			'@repo/errors',
+			'@repo/utils',
+			'@repo/types',
+			'@repo/icons'
+		],
 		external: ['async_hooks', 'bun'] // Extends Node's async_hooks with Bun to prevent rollup crash on API imports
 	},
 	resolve: {

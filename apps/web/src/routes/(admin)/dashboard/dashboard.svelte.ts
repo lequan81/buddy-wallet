@@ -2,7 +2,7 @@ import { goto } from '$app/navigation';
 import { page } from '$app/stores';
 import { get } from 'svelte/store';
 import { SvelteSet, SvelteURL } from 'svelte/reactivity';
-import { DEBT_STATUS } from '@repo/config';
+import { DEBT_STATUS } from '@repo/config/shared/status';
 
 type SortField = 'description' | 'status' | 'amount' | 'date';
 type SortDirection = 'asc' | 'desc';

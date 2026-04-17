@@ -18,4 +18,4 @@ export function getImportStatusColor(status: string): string {
 }
 
 // Re-export formatDate from shared utils
-export { formatDate } from '@repo/utils';
+export { formatDate } from '@repo/utils/format';

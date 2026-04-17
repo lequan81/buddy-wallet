@@ -34,9 +34,10 @@ export interface BatchDeleteResult {
 }
 
 // Re-export state machine types from their canonical location
-export type {
-  TransitionContext,
-  TransitionResult,
-  IDebtState,
-  IDebtStateMachine
-} from '@/states/types';
+// TODO: Import from app/Models after refactoring (April 20)
+// export type {
+//   TransitionContext,
+//   TransitionResult,
+//   IDebtState,
+//   IDebtStateMachine
+// } from '@/app/Models/debtStateMachine';

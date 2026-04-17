@@ -9,10 +9,11 @@
 	import { api } from '$lib/services/api';
 	import { importProgress } from '$lib/stores/import-progress.svelte';
 	import { importUpload } from '$lib/stores/import-upload.svelte';
+	import { transitionImportUploadState } from '$lib/state-machines/import-upload.machine';
 	import { IMPORT_DB_FIELDS } from '@repo/config/shared';
 	import * as m from '$lib/paraglide/messages';
 	import type { UploadState } from '$lib/types';
-	import type { ImportLog, PreviewResult } from '@repo/types';
+	import type { ImportLog, PreviewResult } from '@repo/types/core/import';
 
 	// Components
 	import ImportSkeleton from '$lib/components/import/ImportSkeleton.svelte';
@@ -119,6 +120,16 @@
 		if (hiddenFileInput) hiddenFileInput.value = '';
 	};
 
+	const setUploadStatus = (nextStatus: UploadState['status']) => {
+		const transition = transitionImportUploadState(uploadState.status, nextStatus);
+		if (!transition.allowed) {
+			console.warn('[Import][UploadFSM]', transition.reason);
+			return;
+		}
+
+		uploadState.status = transition.to;
+	};
+
 	const fetchLogs = async (pageNumber = historyPage, options: { silent?: boolean } = {}) => {
 		if (!options.silent) {
 			ui.loadingHistory = true;
@@ -127,7 +138,7 @@
 		ui.showConnectionFallback = false;
 
 		try {
-			const { data: response, error } = await api.v1.import.logs.get({
+			const { data: response, error } = await (api.v1.import.logs as any).index.get({
 				query: {
 					page: String(pageNumber),
 					limit: '10'
@@ -138,10 +149,9 @@
 				throw new Error((error?.value as { message?: string })?.message || 'Failed to load import history.');
 			}
 
-			// response is SuccessResponse<PaginatedResult<ImportLog>>
-			// which is { success: true, data: ImportLog[], pagination: Pagination }
-			const res = response as unknown as { data: ImportLog[]; pagination: { total: number; limit: number } };
-			historyLogs = res.data ?? [];
+			// response is PaginatedResult<ImportLog>
+			const res = response as unknown as { items: ImportLog[]; pagination: { total: number; limit: number } };
+			historyLogs = res.items ?? [];
 			if (res.pagination) {
 				historyTotalPages = Math.ceil(res.pagination.total / res.pagination.limit) || 1;
 			}
@@ -174,7 +184,7 @@
 				const logTime = new Date(log.createdAt).getTime();
 				if (logTime > threeHoursAgo) {
 					if (!importProgress.getJob(log.id)) {
-						importProgress.addJob(log.id, 'import', log.fileName);
+						importProgress.addJob(log.id, 'import', log.fileName, data.user?.id || 'unknown');
 					}
 				}
 			}
@@ -206,16 +216,16 @@
 		if (currentJob?.status === 'success' && currentJob.result) {
 			const res = currentJob.result;
 			if (currentJob.type === 'preview') {
-				const previewRes = res as PreviewResult; 
-				uploadState.status = 'preview-ready';
-				uploadState.fileName = previewRes.fileName || uploadState.fileName;
-				uploadState.totalRows = previewRes.totalRows || 0;
-				uploadState.columnHeaders = previewRes.columnHeaders || [];
-				uploadState.previewData = previewRes.previewData || [];
+				const previewRes = 'data' in res ? res.data : res; 
+				setUploadStatus('preview-ready');
+				uploadState.fileName = (previewRes as any).fileName || uploadState.fileName;
+				uploadState.totalRows = (previewRes as any).totalRows || 0;
+				uploadState.columnHeaders = (previewRes as any).columnHeaders || [];
+				uploadState.previewData = (previewRes as any).previewData || [];
 
-				if (previewRes.autoMapping) {
+				if ((previewRes as any).autoMapping) {
 					const current = untrack(() => importForm.columnMapping);
-					importForm.columnMapping = { ...current, ...previewRes.autoMapping };
+					importForm.columnMapping = { ...current, ...(previewRes as any).autoMapping };
 				}
 				void fetchLogs(1);
 			} else if (currentJob.type === 'import') {
@@ -225,7 +235,7 @@
 				toast.success('Import completed successfully!');
 			}
 		} else if (currentJob?.status === 'failed') {
-			uploadState.status = 'error';
+			setUploadStatus('error');
 			uploadState.error = currentJob.error || 'Operation failed';
 			ui.isSubmitting = false;
 			toast.error(currentJob.error || 'Operation failed');
@@ -265,18 +275,18 @@
 							action="?/preview"
 							enctype="multipart/form-data"
 							use:enhance={() => {
-								uploadState.status = 'uploading';
+								setUploadStatus('uploading');
 								return async ({ result }) => {
 									if (result.type === 'success') {
 										const actionData = result.data as { success?: boolean; jobId?: string; message?: string; previewData?: string[][]; totalRows?: number; columnHeaders?: string[]; autoMapping?: Record<string, string> };
 										if (actionData?.success && actionData?.jobId) {
 											importForm.currentJobId = actionData.jobId;
-											importProgress.addJob(importForm.currentJobId, 'preview', uploadState.fileName, uploadState.file || undefined);
-											uploadState.status = 'preview-loading';
+											importProgress.addJob(importForm.currentJobId, 'preview', uploadState.fileName, data.user?.id || 'unknown', uploadState.file || undefined);
+											setUploadStatus('preview-loading');
 											toast.success('File uploaded! Waiting for preview...');
 											
 											if (actionData.previewData) {
-												uploadState.status = 'preview-ready';
+												setUploadStatus('preview-ready');
 												uploadState.totalRows = actionData.totalRows || 0;
 												uploadState.columnHeaders = actionData.columnHeaders || [];
 												uploadState.previewData = actionData.previewData || [];
@@ -285,11 +295,11 @@
 												}
 											}
 										} else {
-											uploadState.status = 'error';
+											setUploadStatus('error');
 											uploadState.error = actionData?.message || 'Upload failed';
 										}
 									} else {
-										uploadState.status = 'error';
+										setUploadStatus('error');
 										uploadState.error = 'Server error during upload';
 										toast.error('Upload failed. Please check file format.');
 									}
@@ -336,7 +346,7 @@
 									if (actionData?.success && actionData?.jobId) {
 										toast.success(`Import job #${actionData.jobId} started!`);
 										importForm.currentJobId = actionData.jobId;
-										importProgress.addJob(importForm.currentJobId, 'import', uploadState.fileName, uploadState.file || undefined);
+										importProgress.addJob(importForm.currentJobId, 'import', uploadState.fileName, data.user?.id || 'unknown', uploadState.file || undefined);
 										resetUploadState();
 										void fetchLogs(1);
 									} else {

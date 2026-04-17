@@ -45,10 +45,6 @@
       "path": "packages/errors"
     },
     {
-      "name": "permissions",
-      "path": "packages/permissions"
-    },
-    {
       "name": "email template",
       "path": "packages/email-templates"
     },

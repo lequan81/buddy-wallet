@@ -4,36 +4,17 @@
  */
 
 import { treaty } from '@elysiajs/eden';
-import type { App } from '@repo/api';
-import type { ApiResponse } from '@repo/errors';
+import type { App } from '@repo/api/types';
+import type { ApiResponse } from '@repo/types';
+import {
+	API_URL,
+	getDefaultHeaders,
+	getAuthHeaders,
+	getServerHeaders,
+	WEB_URL
+} from './api-config';
 
-// Environment-based URLs (works in both SSR and client)
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-export const WEB_URL = import.meta.env.VITE_WEB_URL || 'http://localhost:5173';
-
-/**
- * Default headers required for all API requests
- */
-export const getDefaultHeaders = (): HeadersInit => ({
-	Origin: WEB_URL,
-	Referer: `${WEB_URL}/`
-});
-
-/**
- * Create headers with authentication token
- */
-export const getAuthHeaders = (token?: string): HeadersInit => ({
-	...getDefaultHeaders(),
-	...(token ? { Authorization: `Bearer ${token}` } : {})
-});
-
-/**
- * Create headers for server-side requests with cookies
- */
-export const getServerHeaders = (cookies: string): HeadersInit => ({
-	...getDefaultHeaders(),
-	Cookie: cookies
-});
+export { API_URL, WEB_URL, getDefaultHeaders, getAuthHeaders, getServerHeaders } from './api-config';
 
 // --- Type Flattening Utilities ---
 
@@ -44,7 +25,7 @@ type MapApiResponse<T> = T extends ApiResponse<infer R> ? R : T;
 
 /**
  * Recursive type that unwraps ApiResponse envelopes from Eden Treaty results.
- * This ensures that the frontend sees 'data.user' instead of 'data.data.user'.
+ * This ensures the frontend works with normalized payloads directly.
  */
 type FlattenTreaty<T> = T extends (...args: infer Args) => infer R
 	? (...args: Args) => FlattenTreaty<R>
@@ -99,10 +80,7 @@ export const createTreatyClient = (
 		const originalJson = response.json.bind(response);
 		response.json = async () => {
 			const body = await originalJson();
-			// Flatten: if backend returned { success: true, data: ... }, return just the data
-			if (body && typeof body === 'object' && body.success === true && 'data' in body) {
-				return body.data;
-			}
+			// Return response body as-is (backend returns data directly for success, wrapped error for failures)
 			return body;
 		};
 

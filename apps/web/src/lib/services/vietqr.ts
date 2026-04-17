@@ -1,4 +1,4 @@
-import type { VietQRBank } from '@repo/types';
+import type { VietQRBank } from '@repo/types/core/bank';
 import { FRONTEND_CONSTANTS } from '@repo/config/frontend';
 
 /**

@@ -7,3 +7,4 @@ export * from './push-subscription.schema';
 export * from './activity-log.schema';
 export * from './bank-account.schema';
 export * from './email-verification.schema';
+export * from './outbox-event.schema';

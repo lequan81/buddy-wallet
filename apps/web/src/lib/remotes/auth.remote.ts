@@ -25,23 +25,22 @@ export const loginRemote = form(loginSchema, async ({ email, password }) => {
 			invalid(errorMessage);
 		}
 
-		if (data) {
-			if (data.mustChangePassword) {
-				throw redirect(303, '/change-password?required=true');
-			}
+		if (data && !('error' in data) && data.mustChangePassword) {
+			throw redirect(303, '/change-password?required=true');
 
-			let setCookieHeaders = response.headers.getSetCookie?.() || [];
+			let setCookieHeaders: string[] = response.headers.getSetCookie?.() || [];
 			if (setCookieHeaders.length === 0) {
 				const headerVal = response.headers.get('set-cookie');
 				if (headerVal) {
-					setCookieHeaders = [headerVal];
+					setCookieHeaders = [headerVal as string];
 				}
 			}
 
 			for (const cookieHeader of setCookieHeaders) {
 				const sessionMatch = cookieHeader.match(/session=([^;]+)/);
-				if (sessionMatch) {
-					cookies.set('session', sessionMatch[1], {
+				const sessionToken = sessionMatch?.[1];
+				if (sessionToken) {
+					cookies.set('session', sessionToken as string, {
 						path: '/',
 						httpOnly: true,
 						secure: import.meta.env.PROD,
@@ -51,8 +50,9 @@ export const loginRemote = form(loginSchema, async ({ email, password }) => {
 				}
 
 				const refreshMatch = cookieHeader.match(/refresh_token=([^;]+)/);
-				if (refreshMatch) {
-					cookies.set('refresh_token', refreshMatch[1], {
+				const refreshToken = refreshMatch?.[1];
+				if (refreshToken) {
+					cookies.set('refresh_token', refreshToken as string, {
 						path: '/',
 						httpOnly: true,
 						secure: import.meta.env.PROD,

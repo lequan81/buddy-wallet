@@ -81,7 +81,7 @@
 					<Users class="h-4 w-4 text-muted-foreground" />
 				</Card.Header>
 				<Card.Content>
-					<div class="text-2xl font-bold">{data.health.activeSessions?.count || '-'}</div>
+					<div class="text-2xl font-bold">{('activeSessions' in data.health && data.health.activeSessions?.count) || '-'}</div>
 					<p class="text-xs text-muted-foreground">Currently online users</p>
 				</Card.Content>
 			</Card.Root>
@@ -119,12 +119,12 @@
 							<span
 								class={cn(
 									'rounded-full px-2 py-1 text-xs',
-									data.health.otel?.enabled
+									'otel' in data.health && data.health.otel?.enabled
 										? 'bg-green-100 text-green-800'
 										: 'bg-yellow-100 text-yellow-800'
 								)}
 							>
-								{data.health.otel?.enabled ? 'Active' : 'Disabled'}
+								{'otel' in data.health && data.health.otel?.enabled ? 'Active' : 'Disabled'}
 							</span>
 						</div>
 					</div>

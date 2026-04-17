@@ -8,7 +8,8 @@ export const updateProfile = form(profileSchema, async (data) => {
 
 	if (!user) error(401, { code: 'UNAUTHORIZED', message: 'Unauthorized' });
 
-	const { error: apiError } = await api.v1.users.me.patch({
+	const { error: apiError } = await (api as any).v1.users.index.patch({
+		id: user?.id || '',
 		phoneNumber: data.phoneNumber
 	});
 

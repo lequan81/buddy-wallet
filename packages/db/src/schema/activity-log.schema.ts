@@ -53,6 +53,10 @@ export const activityLogs = sqliteTable(
     userCreatedAtIdx: index('idx_activity_logs_user_created_at').on(table.userId, table.createdAt),
     userCreatedAtIdIdx: index('idx_activity_logs_user_created_at_id').on(table.userId, table.createdAt, table.id),
 
+    // Cursor/index-budget hot paths
+    userActionCreatedIdIdx: index('idx_activity_logs_user_action_created_id').on(table.userId, table.action, table.createdAt, table.id),
+    resourceCreatedIdIdx: index('idx_activity_logs_resource_created_id').on(table.resource, table.createdAt, table.id),
+
     // Index for resource lookups
     resourceIdIdx: index('idx_activity_logs_resource_id').on(table.resource, table.resourceId)
   })
@@ -75,7 +79,6 @@ export type ActivityAction =
   | 'password_change'
   | 'logout_all'
   | 'delete_all'
-  | 'login_failed'
   // Auth actions
   | 'register'
   | 'verify_email'
