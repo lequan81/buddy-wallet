@@ -74,6 +74,15 @@
       ],
       "@modules/*": [
         "./src/modules/*"
+      ],
+      "@repo/permissions": [
+        "./src/lib/security/permissions"
+      ],
+      "@utils": [
+        "./src/lib"
+      ],
+      "@utils/*": [
+        "./src/lib/*"
       ]
     },
     "types": [

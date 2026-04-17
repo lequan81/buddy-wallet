@@ -1,19 +1,19 @@
 import { Elysia } from 'elysia';
 import { container } from 'tsyringe';
-import { AuthCoreService } from '@/app/Services/auth/auth-core.service';
-import { AuthSecurityService } from '@/app/Services/auth/auth-security.service';
-import { AuthSessionService } from '@/app/Services/auth/auth-session.service';
+import { AuthService } from '@/app/Services/AuthService';
+import { AuthSecurityService } from '@/app/Services/AuthSecurityService';
+import { AuthSessionService } from '@/app/Services/AuthSessionService';
 import { EmailService } from '@/app/Services/EmailService';
 import { EmailVerificationService } from '@/app/Services/EmailVerificationService';
-import { UserService } from '@/app/Services/user/user.service';
-import { SessionService } from '@/app/Services/user/session.service';
-import { PasswordResetService } from '@/app/Services/user/PasswordResetService';
-import { ActivityService } from '@/app/Services/user/ActivityService';
-import { PushService } from '@/app/Services/notification/PushService';
-import { DebtService } from '@/app/Services/debt/DebtService';
-import { ImportService } from '@/app/Services/import-export/ImportService';
-import { ExportService } from '@/app/Services/import-export/ExportService';
-import { JobsService } from '@/app/Services/system/JobsService';
+import { UserService } from '@/app/Services/UserService';
+import { SessionService } from '@/app/Services/SessionService';
+import { PasswordResetService } from '@/app/Services/PasswordResetService';
+import { ActivityService } from '@/app/Services/ActivityService';
+import { PushService } from '@/app/Services/PushService';
+import { DebtService } from '@/app/Services/DebtService';
+import { ImportService } from '@/app/Services/ImportService';
+import { ExportService } from '@/app/Services/ExportService';
+import { JobsService } from '@/app/Services/JobsService';
 
 /**
  * DI Container Plugin
@@ -24,7 +24,7 @@ import { JobsService } from '@/app/Services/system/JobsService';
 export const containerPlugin = new Elysia({ name: 'DIContainer' })
   .decorate({
     get authCoreService() {
-      return container.resolve(AuthCoreService);
+      return container.resolve(AuthService);
     },
     get authSecurityService() {
       return container.resolve(AuthSecurityService);
