@@ -12,7 +12,7 @@ import {
   BACKEND_CONSTANTS,
   FRONTEND_CONSTANTS
 } from '@repo/config';
-import { importCache, isRedisAvailable } from '@plugins/redis';
+import { importCache, isRedisAvailable } from '@/lib/redis';
 import type { ImportConfig, PreviewResult, ImportResult, ProgressResult, ImportRowProcessingState, PreviewBuildResult } from '@/types';
 import { SpreadsheetService } from './SpreadsheetService';
 import { ImportLoggerService } from './ImportLoggerService';
@@ -52,20 +52,21 @@ export class ImportService {
 
       if (allRows.length === 0) {
         await this.importLoggerService.updateLogStatus(id, 'failed', ['Empty sheet']);
-        return { success: false, error: 'Empty sheet' };
+        return { code: 'EMPTY_SHEET', error: 'Empty sheet' };
       }
 
       const builtPreview = this.buildPreviewData(allRows);
       await this.updatePreviewLogConfig(id, allRows.length, builtPreview);
 
       const result: PreviewResult = {
-        success: true,
-        logId: id,
-        fileName: file.name,
-        totalRows: allRows.length,
-        columnHeaders: builtPreview.columnHeaders,
-        previewData: builtPreview.previewData,
-        autoMapping: builtPreview.autoMapping
+        data: {
+          logId: id,
+          fileName: file.name,
+          totalRows: allRows.length,
+          columnHeaders: builtPreview.columnHeaders,
+          previewData: builtPreview.previewData,
+          autoMapping: builtPreview.autoMapping
+        }
       };
 
       await this.finalizePreviewSuccess(id, allRows.length, result);
@@ -83,7 +84,7 @@ export class ImportService {
 
     const error = `Invalid format. Accepted: ${ACCEPTED_IMPORT_EXTENSIONS.join(', ')}`;
     await this.importLoggerService.updateLogStatus(id, 'failed', [error]);
-    return { success: false, error };
+    return { code: 'INVALID_FILE_FORMAT', error };
   }
 
   private async initializePreviewLog(id: string, userId: string, file: File): Promise<void> {
@@ -177,7 +178,7 @@ export class ImportService {
 
     const { mapping, startRow = 2 } = config;
     if (!mapping?.name || !mapping?.amount) {
-      return { success: false, error: 'Name and Amount columns required' };
+      return { code: 'INVALID_MAPPING', error: 'Name and Amount columns required' };
     }
 
     const id: string = logId || randomUUIDv7('base64url');
@@ -188,7 +189,7 @@ export class ImportService {
       await this.importLoggerService.updateLogStatus(id, 'failed', [
         'Incomplete mapping: Name and Amount columns are required.'
       ]);
-      return { success: false, error: 'Incomplete mapping: Name and Amount columns are required.' };
+      return { code: 'INCOMPLETE_MAPPING', error: 'Incomplete mapping: Name and Amount columns are required.' };
     }
 
     try {
@@ -196,7 +197,7 @@ export class ImportService {
 
       if (allRows.length === 0) {
         await this.importLoggerService.updateLogStatus(id, 'failed', ['Empty sheet']);
-        return { success: false, error: 'Empty sheet' };
+        return { code: 'EMPTY_SHEET', error: 'Empty sheet' };
       }
 
       const startTime = performance.now();
@@ -206,7 +207,7 @@ export class ImportService {
         await this.importLoggerService.updateLogStatus(id, 'failed', [
           'No data rows found (only headers)'
         ]);
-        return { success: false, error: 'No data rows found' };
+        return { code: 'NO_DATA_ROWS', error: 'No data rows found' };
       }
 
       await this.preloadUserCache(allRows, mapping, state);
@@ -221,7 +222,7 @@ export class ImportService {
         `[Benchmark] Job ${id} processing took ${(endTime - startTime).toFixed(2)}ms for ${allRows.length} rows`
       );
 
-      return { success: true, logId: id, imported: state.newDebts.length, errors: state.errors };
+      return { data: { logId: id, imported: state.newDebts.length, errors: state.errors } };
     } catch (err) {
       return this.handleImportError(id, previewLogId, err);
     }
@@ -456,11 +457,10 @@ export class ImportService {
   async getProgressBatch(
     logIds: string[],
     userId: string
-  ): Promise<Record<string, ProgressResult>> {
+  ): Promise<Result<Record<string, ProgressResult>>> {
     const results: Record<string, ProgressResult> = {};
-    if (logIds.length === 0) return results;
+    if (logIds.length === 0) return { data: results };
 
-    // 1. Try Redis first (fastest)
     if (isRedisAvailable()) {
       const progresses = await importCache.getProgressBatch(logIds);
       for (let i = 0; i < logIds.length; i++) {
@@ -468,14 +468,15 @@ export class ImportService {
         const progress = progresses[i];
         if (progress) {
           results[id] = {
-            success: true,
-            status: progress.status as any,
-            current: progress.current,
-            total: progress.total,
-            percentage: Math.round((progress.current / (progress.total || 1)) * 100),
-            message: progress.message,
-            errors: progress.errors,
-            result: progress.result as any
+            data: {
+              status: progress.status as any,
+              current: progress.current,
+              total: progress.total,
+              percentage: Math.round((progress.current / (progress.total || 1)) * 100),
+              message: progress.message,
+              errors: progress.errors,
+              result: progress.result as any
+            }
           };
         }
       }
@@ -487,18 +488,19 @@ export class ImportService {
       const logs = await this.importRepo.getLogsByIds(missingIds, userId);
       for (const log of logs) {
         results[log.id] = {
-          success: true,
-          current: log.importedCount || 0,
-          total: log.totalRows || 0,
-          status: log.status as any,
-          errors: log.errors ? JSON.parse(log.errors) : undefined,
-          percentage: log.totalRows ? Math.round(((log.importedCount || 0) / log.totalRows) * 100) : 0,
-          message: ''
+          data: {
+            current: log.importedCount || 0,
+            total: log.totalRows || 0,
+            status: log.status as any,
+            errors: log.errors ? JSON.parse(log.errors) : undefined,
+            percentage: log.totalRows ? Math.round(((log.importedCount || 0) / log.totalRows) * 100) : 0,
+            message: ''
+          }
         };
       }
     }
 
-    return results;
+    return { data: results };
   }
 
   /**
@@ -509,14 +511,15 @@ export class ImportService {
       const progress = await importCache.getProgress(logId);
       if (progress) {
         return {
-          success: true,
-          status: progress.status as any,
-          current: progress.current,
-          total: progress.total,
-          percentage: Math.round((progress.current / (progress.total || 1)) * 100),
-          message: progress.message,
-          errors: progress.errors,
-          result: progress.result as any
+          data: {
+            status: progress.status as any,
+            current: progress.current,
+            total: progress.total,
+            percentage: Math.round((progress.current / (progress.total || 1)) * 100),
+            message: progress.message,
+            errors: progress.errors,
+            result: progress.result as any
+          }
         };
       }
     }
@@ -524,17 +527,18 @@ export class ImportService {
     const log = await this.importRepo.getLogById(logId, userId);
 
     if (!log) {
-      return { success: false, error: 'Import log not found', status: 'failed', current: 0, total: 0, percentage: 0 };
+      return { code: 'NOT_FOUND', error: 'Import log not found' };
     }
 
     return {
-      success: true,
-      current: log.importedCount || 0,
-      total: log.totalRows || 0,
-      status: log.status as any,
-      errors: log.errors ? JSON.parse(log.errors) : undefined,
-      percentage: log.totalRows ? Math.round(((log.importedCount || 0) / log.totalRows) * 100) : 0,
-      message: ''
+      data: {
+        status: log.status as any,
+        current: log.importedCount || 0,
+        total: log.totalRows || 0,
+        percentage: log.totalRows ? Math.round(((log.importedCount || 0) / log.totalRows) * 100) : 0,
+        message: '',
+        errors: log.errors ? JSON.parse(log.errors) : undefined
+      }
     };
   }
 

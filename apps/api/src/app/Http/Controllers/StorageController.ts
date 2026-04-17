@@ -5,12 +5,12 @@ import {
   uploadRateLimiter,
   fileDownloadRateLimiter,
   deleteRateLimiter
-} from '@plugins/middleware';
-import { permissionPlugin, containerPlugin, sessionAuthPlugin } from '@plugins';
-import { PERMISSIONS } from '@repo/permissions';
+} from '@/lib/plugins/middleware';
+import { permissionPlugin, containerPlugin, sessionAuthPlugin } from '@/lib/plugins';
+import { PERMISSIONS } from '@/lib/security/permissions';
 import { getClientIP } from '@lib/http/ip';
 import { formatVND } from '@repo/utils';
-import { requireAuth } from '@/core/http/require-auth';
+import { requireAuth } from '@/lib/http';
 import {
   UploadQRSchema,
   UploadPaymentProofSchema,
@@ -284,14 +284,14 @@ export class StorageController {
 
                 const approvalData = result.data;
 
-                if (result.uploaderId && result.uploaderId !== auth.user.id) {
-                  const canNotify = await this.userService.canReceivePush(result.uploaderId);
+                if (approvalData.uploaderId && approvalData.uploaderId !== auth.user.id) {
+                  const canNotify = await this.userService.canReceivePush(approvalData.uploaderId);
                   if (canNotify) {
-                    this.pushService.sendToUser(result.uploaderId, {
+                    this.pushService.sendToUser(approvalData.uploaderId, {
                       title: 'Proof Approved',
                       body: 'Your payment proof has been approved by the creditor',
-                      url: `/debts/${result.debtId}`,
-                      tag: `proof-approved-${result.debtId}`
+                      url: `/debts/${approvalData.debtId}`,
+                      tag: `proof-approved-${approvalData.debtId}`
                     }).catch(() => { });
                   }
                 }
@@ -301,14 +301,14 @@ export class StorageController {
                   action: 'approve',
                   resource: 'file',
                   resourceId: id,
-                  metadata: { debtId: approvalData.debtId, allProofsApproved: approvalData.allApproved },
+                  metadata: { debtId: approvalData.debtId, allProofsApproved: approvalData.allProofsApproved },
                   ipAddress: getClientIP(request, server) || undefined,
                   userAgent: request.headers.get('user-agent') || undefined
                 });
 
                 return apiSuccess({
                   message: 'Proof approved',
-                  allProofsApproved: approvalData.allApproved,
+                  allProofsApproved: approvalData.allProofsApproved,
                   debtId: approvalData.debtId
                 });
               },
@@ -334,15 +334,15 @@ export class StorageController {
 
                 const rejectionData = result.data;
 
-                if (result.uploaderId && result.uploaderId !== auth.user.id) {
-                  const canNotify = await this.userService.canReceivePush(result.uploaderId);
+                if (rejectionData.uploaderId && rejectionData.uploaderId !== auth.user.id) {
+                  const canNotify = await this.userService.canReceivePush(rejectionData.uploaderId);
                   if (canNotify) {
                     const reasonText = body.reason ? `: ${body.reason}` : '';
-                    this.pushService.sendToUser(result.uploaderId, {
+                    this.pushService.sendToUser(rejectionData.uploaderId, {
                       title: 'Proof Rejected',
                       body: `Your payment proof was rejected${reasonText}`,
-                      url: `/debts/${result.debtId}`,
-                      tag: `proof-rejected-${result.debtId}`
+                      url: `/debts/${rejectionData.debtId}`,
+                      tag: `proof-rejected-${rejectionData.debtId}`
                     }).catch(() => { });
                   }
                 }

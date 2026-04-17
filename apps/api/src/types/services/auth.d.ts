@@ -10,35 +10,21 @@ export type {
   JwtService,
   RequestInfo,
   ClientHints,
-  ClientLocation
+  ClientLocation,
+  Result
 } from '@repo/types';
 
 /** Result of OTP creation for email verification */
-export interface CreateOtpResult {
-  success: boolean;
-  otp?: string;
-  error?: string;
-}
+export type CreateOtpResult = Result<{ otp: string }>;
 
 /** Result of OTP verification */
-export interface VerifyOtpResult {
-  success: boolean;
-  error?: string;
-}
+export type VerifyOtpResult = Result<void>;
 
 /** Result of OTP resend with optional rate-limit info */
-export interface ResendOtpResult {
-  success: boolean;
-  otp?: string;
-  error?: string;
-  retryAfter?: number; // seconds until next resend allowed
-}
+export type ResendOtpResult = Result<{ otp?: string; retryAfter?: number }>;
 
 /** Result of password reset operations */
-export interface ResetResult {
-  success: boolean;
-  error?: string;
-}
+export type ResetResult = Result<void>;
 
 /** Authenticated user from session context */
 export interface AuthUser {

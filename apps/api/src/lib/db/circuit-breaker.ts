@@ -1,113 +1,101 @@
-/**
- * Database Circuit Breaker
- *
- * Monitors database connection health and fails fast when connection issues detected.
- * Prevents cascading failures from database outages.
- */
-
 import { logger } from '@repo/logger';
 
-export interface DbCircuitBreakerConfig {
-  failureThreshold: number; // Open after N failures
-  resetTimeoutMs: number; // Try reconnect after MS
-  monitoringIntervalMs: number; // Check health every MS
-}
-
-export enum DbCircuitBreakerState {
-  CLOSED = 'closed', // Operating normally
-  OPEN = 'open', // Database unavailable, reject requests
-  HALF_OPEN = 'half-open' // Testing if database recovered
-}
-
 /**
- * Database circuit breaker implementation
- * Monitors connection pool and database query failures
+ * Database-specific circuit breaker
+ * Monitors database connection failures and prevents cascading failures
  */
-export class DbCircuitBreaker {
-  private state: DbCircuitBreakerState = DbCircuitBreakerState.CLOSED;
-  private failureCount = 0;
-  private lastFailureTime?: number;
-  private readonly config: DbCircuitBreakerConfig;
+interface DbCircuitBreakerOptions {
+  failureThreshold?: number;  // Default: 5 failures
+  resetTimeoutMs?: number;    // Default: 60000ms (1 minute)
+  detectionWindow?: number;   // Default: 30000ms (30 seconds)
+}
 
-  constructor(config: DbCircuitBreakerConfig) {
-    this.config = config;
+class DbCircuitBreakerState {
+  private failures = 0;
+  private lastFailure?: number;
+  private state: 'closed' | 'open' | 'half-open' = 'closed';
+  private failureWindow: number[];
+
+  constructor(private options: DbCircuitBreakerOptions) {
+    this.failureWindow = [];
   }
 
-  /**
-   * Check if requests can proceed
-   */
   canExecute(): boolean {
-    if (this.state === DbCircuitBreakerState.CLOSED) {
-      return true;
-    }
+    this.cleanOldFailures();
 
-    if (this.state === DbCircuitBreakerState.OPEN) {
-      const now = Date.now();
-      if (this.lastFailureTime && now - this.lastFailureTime > this.config.resetTimeoutMs) {
-        this.setState(DbCircuitBreakerState.HALF_OPEN);
-        logger.warn('Database circuit breaker: Attempting recovery (HALF_OPEN)');
+    if (this.state === 'closed') return true;
+    if (this.state === 'open') {
+      if (this.lastFailure && Date.now() - this.lastFailure > (this.options.resetTimeoutMs || 60000)) {
+        this.state = 'half-open';
+        logger.warn('Database circuit breaker entering half-open state');
         return true;
       }
       return false;
     }
-
-    return true; // HALF_OPEN allows one request to test
+    return true; // half-open
   }
 
-  /**
-   * Record successful database operation
-   */
-  recordSuccess(): void {
-    if (this.state === DbCircuitBreakerState.HALF_OPEN) {
-      logger.info('Database circuit breaker: Connection recovered (CLOSED)');
+  recordSuccess() {
+    this.failures = 0;
+    this.failureWindow = [];
+    if (this.state !== 'closed') {
+      this.state = 'closed';
+      logger.info('Database circuit breaker reset to closed');
     }
-
-    this.failureCount = 0;
-    this.setState(DbCircuitBreakerState.CLOSED);
   }
 
-  /**
-   * Record failed database operation
-   */
-  recordFailure(error: Error): void {
-    this.lastFailureTime = Date.now();
-    this.failureCount++;
+  recordFailure() {
+    this.lastFailure = Date.now();
+    this.failureWindow.push(this.lastFailure);
+    this.failures++;
 
-    logger.warn(`Database circuit breaker failure #${this.failureCount}`, {
-      error: error.message,
-      state: this.state
-    });
-
-    if (this.failureCount >= this.config.failureThreshold) {
-      this.setState(DbCircuitBreakerState.OPEN);
-      logger.error('Database circuit breaker OPENED - database unavailable', {
-        failures: this.failureCount,
-        threshold: this.config.failureThreshold
+    if (this.failures >= (this.options.failureThreshold || 5)) {
+      this.state = 'open';
+      logger.error('Database circuit breaker OPEN - database unavailable', {
+        failures: this.failures
       });
     }
   }
 
-  /**
-   * Get current state
-   */
-  getState(): DbCircuitBreakerState {
-    return this.state;
+  private cleanOldFailures() {
+    const now = Date.now();
+    const window = this.options.detectionWindow || 30000;
+    this.failureWindow = this.failureWindow.filter(t => now - t < window);
+    this.failures = this.failureWindow.length;
   }
 
-  /**
-   * Reset circuit breaker (admin only)
-   */
-  reset(): void {
-    this.setState(DbCircuitBreakerState.CLOSED);
-    this.failureCount = 0;
-    this.lastFailureTime = undefined;
-    logger.info('Database circuit breaker manually reset');
+  getState() {
+    return { state: this.state, failures: this.failures };
   }
+}
 
-  private setState(newState: DbCircuitBreakerState): void {
-    if (newState !== this.state) {
-      logger.warn(`Database circuit breaker state: ${this.state} → ${newState}`);
-      this.state = newState;
-    }
-  }
+export function DbCircuitBreaker(options: DbCircuitBreakerOptions = {}) {
+  const breaker = new DbCircuitBreakerState(options);
+
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    const original = descriptor.value;
+
+    descriptor.value = async function (...args: any[]) {
+      if (!breaker.canExecute()) {
+        throw new Error(
+          `Database circuit breaker OPEN - ${target.constructor.name}.${propertyKey}`
+        );
+      }
+
+      try {
+        const result = await original.apply(this, args);
+        breaker.recordSuccess();
+        return result;
+      } catch (error) {
+        breaker.recordFailure();
+        logger.error(`${target.constructor.name}.${propertyKey} failed`, {
+          error: String(error),
+          state: breaker.getState()
+        });
+        throw error;
+      }
+    };
+
+    return descriptor;
+  };
 }

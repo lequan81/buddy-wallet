@@ -6,9 +6,9 @@ import {
   permissionPlugin,
   containerPlugin,
   sessionAuthPlugin
-} from '@plugins';
-import { standardRateLimiter } from '@plugins/middleware';
-import { PERMISSIONS, hasPermission } from '@repo/permissions';
+} from '@/lib/plugins';
+import { standardRateLimiter } from '@/lib/plugins/middleware';
+import { PERMISSIONS, hasPermission } from '@/lib/security/permissions';
 import {
   DebtQuerySchema,
   CreateDebtSchema,
@@ -20,17 +20,9 @@ import {
 } from '@repo/schema';
 import { getClientIP } from '@lib/http/ip';
 import { logger } from '@repo/logger';
-import { parseOffsetPagination } from '@/core/http/pagination';
-import { requireAuth } from '@/core/http/require-auth';
-import { respondFailure } from '@/core/http/result-helper';
-import { DEFAULT_DEBT_FAILURE, DEBT_ERROR_MAP } from '@/core/http/error-maps/debt.error-map';
-import {
-  getIdempotencyKey,
-  setIdempotencyHeaders,
-  getIdempotentResponse,
-  storeIdempotentResponse
-} from '@/core/http/idempotency';
-import { resolveActor } from '@/core/http/response.helpers';
+import { parseOffsetPagination, requireAuth, respondFailure } from '@/lib/http';
+import { DEFAULT_DEBT_FAILURE, DEBT_ERROR_MAP, getIdempotencyKey, setIdempotencyHeaders, getIdempotentResponse, storeIdempotentResponse } from '@/lib/http';
+import { resolveActor } from '@/lib/http';
 import { DebtService } from '@/app/Services/DebtService';
 import { ActivityService } from '@/app/Services/ActivityService';
 

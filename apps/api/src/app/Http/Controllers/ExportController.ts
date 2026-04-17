@@ -1,10 +1,10 @@
 import { injectable, inject } from 'tsyringe';
 import { Elysia } from 'elysia';
 import { GEN_ERRORS, BE_ERRORS, apiError } from '@repo/errors';
-import { accessControlPlugin, containerPlugin, sessionAuthPlugin } from '@plugins';
+import { accessControlPlugin, containerPlugin, sessionAuthPlugin } from '@/lib/plugins';
 import { getClientIP } from '@lib/http/ip';
 import type { ExportFormat } from '@/types';
-import { resolveActor } from '@/core/http/response.helpers';
+import { resolveActor } from '@/lib/http';
 import { ExportService } from '@/app/Services/ExportService';
 import { ActivityService } from '@/app/Services/ActivityService';
 
@@ -32,7 +32,7 @@ export class ExportController {
 
           const result = await this.exportService.exportUserDebts(freshUser.id, format);
 
-          if (isFailureResult(result)) {
+          if ('code' in result) {
             set.status = 404;
             return apiError(BE_ERRORS.EXPORT_NO_DATA);
           }
@@ -69,7 +69,7 @@ export class ExportController {
 
           const result = await this.exportService.exportAllDebts(format);
 
-          if (isFailureResult(result)) {
+          if ('code' in result) {
             set.status = 404;
             return apiError(BE_ERRORS.EXPORT_NO_DATA);
           }
@@ -92,8 +92,4 @@ export class ExportController {
         })
     );
   }
-}
-
-function isFailureResult(result: any): result is { code: string; error: string } {
-  return result && typeof result === 'object' && 'code' in result;
 }

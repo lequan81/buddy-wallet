@@ -7,8 +7,15 @@
 import ExcelJS from 'exceljs';
 import { buildCSV, escapeCSVCell, maskPhone } from '@repo/utils';
 import { logger } from '@repo/logger';
+import type { Result } from '@repo/types';
 import type { IUserRepository, IDebtRepository } from '@/types/repositories';
-import type { ExportFormat, ExportResult } from '@/types';
+import type { ExportFormat } from '@/types';
+
+interface ExportData {
+  buffer: Buffer;
+  contentType: string;
+  filename: string;
+}
 
 /**
  * ExportService class with dependency injection
@@ -22,13 +29,13 @@ export class ExportService {
   /**
    * Export user's own debts
    */
-  async exportUserDebts(userId: string, format: ExportFormat = 'xlsx'): Promise<ExportResult> {
+  async exportUserDebts(userId: string, format: ExportFormat = 'xlsx'): Promise<Result<ExportData>> {
     // Fetch debts where user is debtor OR creditor
     const paginatedResult = await this.debtRepo.findMany({ involvedUserId: userId, limit: 10000 }); // Large limit for export
     const userDebts = paginatedResult.data;
 
     if (userDebts.length === 0) {
-      return { success: false, error: 'No debts to export' };
+      return { code: 'NO_DEBTS', error: 'No debts to export' };
     }
 
     const userMap = await this.getUserMapForDebts(userDebts);
@@ -58,12 +65,12 @@ export class ExportService {
   /**
    * Export all debts (admin)
    */
-  async exportAllDebts(format: ExportFormat = 'xlsx'): Promise<ExportResult> {
+  async exportAllDebts(format: ExportFormat = 'xlsx'): Promise<Result<ExportData>> {
     const paginatedResult = await this.debtRepo.findMany({ limit: 50000, includeDeleted: false });
     const allDebts = paginatedResult.data;
 
     if (allDebts.length === 0) {
-      return { success: false, error: 'No debts to export' };
+      return { code: 'NO_DEBTS', error: 'No debts to export' };
     }
 
     const userMap = await this.getUserMapForDebts(allDebts);
@@ -97,16 +104,17 @@ export class ExportService {
     sheetName: string,
     filename: string,
     format: ExportFormat
-  ): Promise<ExportResult> {
+  ): Promise<Result<ExportData>> {
     if (format === 'csv') {
       const csvContent = buildCSV(data);
       const buffer = Buffer.from(csvContent, 'utf-8');
 
       return {
-        success: true,
-        buffer,
-        contentType: 'text/csv',
-        filename: `${filename}.csv`
+        data: {
+          buffer,
+          contentType: 'text/csv',
+          filename: `${filename}.csv`
+        }
       };
     }
 
@@ -131,10 +139,11 @@ export class ExportService {
     const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
 
     return {
-      success: true,
-      buffer,
-      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      filename: `${filename}.xlsx`
+      data: {
+        buffer,
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        filename: `${filename}.xlsx`
+      }
     };
   }
 

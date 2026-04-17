@@ -1,9 +1,9 @@
 import { injectable, inject } from 'tsyringe';
 import { configs } from '@/configs';
-import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
+import { sessionCache, jwtBlacklist, isRedisAvailable } from '@/lib/redis';
 import { hashToken, generateSecureToken, toSafeUser } from '@utils';
 import { logger } from '@repo/logger';
-import type { JwtService } from '@plugins/auth';
+import type { JwtService } from '@/lib/plugins/auth';
 import type { RefreshSessionResult, Result, SessionListData, RevokeSessionData } from '@repo/types';
 import type { SessionRepositoryInterface } from '@/app/Repositories/Contracts/SessionRepositoryInterface';
 import type { UserRepositoryInterface } from '@/app/Repositories/Contracts/UserRepositoryInterface';

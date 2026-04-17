@@ -1,6 +1,7 @@
 import { injectable } from 'tsyringe';
 import { randomUUIDv7 } from 'bun';
-import { importCache, isRedisAvailable, getClient } from '@plugins/redis';
+import type { Result } from '@repo/types';
+import { importCache, isRedisAvailable, getClient } from '@/lib/redis';
 import { STORAGE_CONFIG, BACKEND_CONSTANTS } from '@repo/config';
 import { logger } from '@repo/logger';
 import { sanitizeFileName, toOptional } from '@repo/utils';
@@ -136,18 +137,18 @@ export class JobsService {
    * Cancel a pending job.
    * Verifies ownership, removes from queue, and cleans up uploaded object.
    */
-  async cancelJob(jobId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+  async cancelJob(jobId: string, userId: string): Promise<Result<void>> {
     if (!isRedisAvailable()) {
-      return { success: false, error: 'Queue not available' };
+      return { code: 'QUEUE_UNAVAILABLE', error: 'Queue not available' };
     }
 
     const redis = getClient();
-    if (!redis) return { success: false, error: 'Redis client not ready' };
+    if (!redis) return { code: 'REDIS_UNAVAILABLE', error: 'Redis client not ready' };
 
     // Verify ownership via job metadata hash
     const meta = (await redis.send('HGETALL', [`job:${jobId}`])) as string[] | null;
     if (!meta || meta.length === 0) {
-      return { success: false, error: 'Job not found' };
+      return { code: 'JOB_NOT_FOUND', error: 'Job not found' };
     }
 
     // Parse HGETALL flat array [key1, val1, key2, val2, ...] into object
@@ -157,10 +158,10 @@ export class JobsService {
     }
 
     if (metaObj.userId !== userId) {
-      return { success: false, error: 'Not authorized to cancel this job' };
+      return { code: 'JOB_UNAUTHORIZED', error: 'Not authorized to cancel this job' };
     }
     if (metaObj.status !== 'pending') {
-      return { success: false, error: `Cannot cancel job in '${metaObj.status}' state` };
+      return { code: 'JOB_INVALID_STATE', error: `Cannot cancel job in '${metaObj.status}' state` };
     }
 
     // Remove from queue (LRANGE + find + LREM)
@@ -199,7 +200,7 @@ export class JobsService {
 
     this.clearJobTimeout(jobId);
     logger.info(`[JobsService] Job ${jobId} cancelled by user ${userId}`);
-    return { success: true };
+    return { data: undefined };
   }
 
   /**

@@ -5,10 +5,9 @@
  */
 import { Elysia, t } from 'elysia';
 import { apiSuccess } from '@repo/errors';
-import { servicesPlugin, sessionAuthPlugin } from '@plugins';
-import { ErrorResponseSchema, ActivityListResponseSchema, RecentActivityResponseSchema } from '@repo/schemas';
-import { requireAuth } from '@/core/http/require-auth';
-import { parseOffsetPagination } from '@/core/http/pagination';
+import { servicesPlugin, sessionAuthPlugin } from '@/lib/plugins';
+import { ErrorResponseSchema, ActivityListResponseSchema, RecentActivityResponseSchema } from '@repo/schema';
+import { requireAuth, parseOffsetPagination } from '@/lib/http';
 import type { ActivityLog } from '@repo/db';
 
 /** Maps an ActivityLog entity to the API DTO */

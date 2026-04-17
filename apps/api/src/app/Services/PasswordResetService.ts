@@ -8,12 +8,12 @@
  * 4. Force password change on login
  */
 import { normalizePhoneNumber, redactIdentifier } from '@utils';
+import { escapeHtml } from '@repo/utils';
 import { configs } from '@/configs';
 import { log } from '@repo/logger';
+import type { Result } from '@repo/types';
 import type { IUserRepository } from '@/types/repositories';
-import type { ResetResult } from '@/types';
 import { EmailService } from './email.service';
-import { escapeHtml } from '@utils/html.utils';
 
 import * as crypto from 'node:crypto';
 
@@ -39,10 +39,10 @@ export class PasswordResetService {
    * Request password reset
    * Verifies email + phone match, generates temp password, sends email
    */
-  async requestReset(email: string, phoneNumber: string): Promise<ResetResult> {
+  async requestReset(email: string, phoneNumber: string): Promise<Result<void>> {
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
     if (!normalizedPhone) {
-      return { success: false, error: 'Invalid phone number format' };
+      return { code: 'INVALID_PHONE', error: 'Invalid phone number format' };
     }
 
     // Find user with matching email AND phone
@@ -54,7 +54,7 @@ export class PasswordResetService {
         identifierHash: redactIdentifier(email)
       });
       return {
-        success: false,
+        code: 'INVALID_CREDENTIALS',
         error:
           'If the email and phone number match our records, you will receive reset instructions.'
       };
@@ -62,7 +62,7 @@ export class PasswordResetService {
 
     // Only block if permanently locked (by admin). Auto-lockouts have a lockoutUntil date.
     if (user.isLocked && !user.lockoutUntil) {
-      return { success: false, error: 'Account is locked. Please contact support.' };
+      return { code: 'ACCOUNT_LOCKED', error: 'Account is locked. Please contact support.' };
     }
 
     // Check if there's already a valid temp password
@@ -70,7 +70,7 @@ export class PasswordResetService {
       const expiresAt = new Date(user.temporaryPasswordExpires);
       if (expiresAt > new Date() && !user.temporaryPasswordUsed) {
         return {
-          success: false,
+          code: 'RESET_IN_PROGRESS',
           error:
             'A temporary password was already sent. Please check your email or wait for it to expire.'
         };
@@ -106,11 +106,11 @@ export class PasswordResetService {
         userId: user.id,
         error: emailResult.error
       });
-      return { success: false, error: 'Failed to send email. Please try again.' };
+      return { code: 'EMAIL_SEND_FAILED', error: 'Failed to send email. Please try again.' };
     }
 
     log.info('PASSWORD_RESET', 'Reset email sent', { userId: user.id });
-    return { success: true };
+    return { data: undefined };
   }
 
   /**
@@ -120,31 +120,31 @@ export class PasswordResetService {
     email: string,
     token: string,
     newPassword: string
-  ): Promise<ResetResult> {
+  ): Promise<Result<void>> {
     const user = await this.userRepo.findByEmail(email);
 
     if (!user || (user.isLocked && !user.lockoutUntil)) {
-      return { success: false, error: 'Invalid or expired reset link' };
+      return { code: 'INVALID_RESET_LINK', error: 'Invalid or expired reset link' };
     }
 
     if (!user.temporaryPassword || !user.temporaryPasswordExpires) {
-      return { success: false, error: 'Invalid or expired reset link' };
+      return { code: 'INVALID_RESET_LINK', error: 'Invalid or expired reset link' };
     }
 
     // Check if expired
     if (new Date(user.temporaryPasswordExpires) < new Date()) {
-      return { success: false, error: 'Reset link has expired' };
+      return { code: 'RESET_LINK_EXPIRED', error: 'Reset link has expired' };
     }
 
     // Check if already used
     if (user.temporaryPasswordUsed) {
-      return { success: false, error: 'Reset link has already been used' };
+      return { code: 'RESET_LINK_USED', error: 'Reset link has already been used' };
     }
 
     // Verify token matches hash
     const isValid = await Bun.password.verify(token, user.temporaryPassword);
     if (!isValid) {
-      return { success: false, error: 'Invalid reset link' };
+      return { code: 'INVALID_RESET_LINK', error: 'Invalid reset link' };
     }
 
     // Update password and clear temp fields atomically (TOCTOU prevention)
@@ -169,17 +169,17 @@ export class PasswordResetService {
 
     if (!success) {
       log.warn('PASSWORD_RESET', 'Concurrent reset attempt detected', { userId: user.id });
-      return { success: false, error: 'Reset link has already been used or expired' };
+      return { code: 'CONCURRENT_RESET', error: 'Reset link has already been used or expired' };
     }
 
     log.info('PASSWORD_RESET', 'Password reset completed via token', { userId: user.id });
-    return { success: true };
+    return { data: undefined };
   }
 
   /**
    * Obsolete completeReset method to handle force-change password, refactored to specific forceChange logic
    */
-  async completeReset(userId: string, newPassword: string): Promise<ResetResult> {
+  async completeReset(userId: string, newPassword: string): Promise<Result<void>> {
     const hashedPassword = await Bun.password.hash(newPassword, configs.AUTH.ARGON2_OPTIONS);
 
     await this.userRepo.update(userId, {
@@ -192,7 +192,7 @@ export class PasswordResetService {
     });
 
     log.info('PASSWORD_RESET', 'Password reset completed', { userId });
-    return { success: true };
+    return { data: undefined };
   }
 
   /**

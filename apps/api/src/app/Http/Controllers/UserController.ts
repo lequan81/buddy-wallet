@@ -1,17 +1,15 @@
 import { injectable, inject } from 'tsyringe';
 import { Elysia, t } from 'elysia';
 import { apiSuccess, apiError, GEN_ERRORS, BE_ERRORS } from '@repo/errors';
-import { accessControlPlugin, permissionPlugin, sessionAuthPlugin, containerPlugin } from '@plugins';
-import { PERMISSIONS } from '@repo/permissions';
+import { accessControlPlugin, permissionPlugin, sessionAuthPlugin, containerPlugin } from '@/lib/plugins';
+import { PERMISSIONS } from '@/lib/security/permissions';
 import { toSafeUser } from '@lib/security/password';
 import { getClientIP } from '@lib/http/ip';
 import {
   UpdateProfileSchema,
   PaginationQuerySchema
 } from '@repo/schema';
-import { parseOffsetPagination } from '@/core/http/pagination';
-import { isFailureResult } from '@/core/http/result-helper';
-import { resolveActor } from '@/core/http/response.helpers';
+import { parseOffsetPagination, isFailureResult, resolveActor } from '@/lib/http';
 import { UserService } from '@/app/Services/UserService';
 import { ActivityService } from '@/app/Services/ActivityService';
 

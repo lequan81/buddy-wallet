@@ -2,25 +2,25 @@ import { injectable, inject } from 'tsyringe';
 import { Elysia, t } from 'elysia';
 import { RegisterSchema, LoginSchema } from '@repo/schema';
 import { GEN_ERRORS, BE_ERRORS, apiSuccess, apiError } from '@repo/errors';
-import { sessionAuthPlugin } from '@plugins/auth';
+import { sessionAuthPlugin } from '@/lib/plugins/auth';
 import {
   authIdentifierRateLimiter,
   authOtpRateLimiter,
   authRateLimiter,
   authRecoveryRateLimiter,
   authResetRateLimiter
-} from '@plugins/middleware';
-import { sessionCache, jwtBlacklist, isRedisAvailable } from '@plugins/redis';
+} from '@/lib/plugins/middleware';
+import { sessionCache, jwtBlacklist, isRedisAvailable } from '@/lib/redis';
 import { configs } from '@/configs';
 import { hashToken, toSafeUser } from '@lib/security/password';
 import { getClientIP } from '@lib/http/ip';
 
-import { respondFailure, isFailureResult } from '@/core/http/result-helper';
-import { resolveActor } from '@/core/http/response.helpers';
+import { respondFailure, isFailureResult } from '@/lib/http';
+import { resolveActor } from '@/lib/http';
 import {
   AUTH_REGISTER_ERROR_MAP,
   DEFAULT_AUTH_REGISTER_FAILURE
-} from '@/core/http/error-maps/auth.error-map';
+} from '@/lib/http/error-maps';
 import { AuthService } from '@/app/Services/AuthService';
 import { AuthSecurityService } from '@/app/Services/AuthSecurityService';
 import { AuthSessionService } from '@/app/Services/AuthSessionService';

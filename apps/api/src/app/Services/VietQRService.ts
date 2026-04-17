@@ -6,7 +6,7 @@
  * - Generating QR codes (via URL construction)
  */
 import { MAJOR_BANKS_FALLBACK } from '@repo/config';
-import { cache } from '@plugins/redis';
+import { cache } from '@/lib/redis';
 import { log } from '@repo/logger';
 import { configs } from '@/configs';
 

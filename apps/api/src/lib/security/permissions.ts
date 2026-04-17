@@ -7,6 +7,8 @@
 
 import type { Permission } from '@repo/types/infrastructure/permissions';
 
+export type { Permission };
+
 export const PERMISSIONS = {
   // Admin permissions
   ADMIN_VIEW: 'admin:view',

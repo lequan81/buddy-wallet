@@ -6,6 +6,7 @@
  */
 import webpush from 'web-push';
 import { logger } from '@repo/logger';
+import type { Result } from '@repo/types';
 import type { INotificationRepository } from '@/types/repositories';
 import { configs } from '@/configs';
 import { formatVND } from '@repo/utils';
@@ -65,14 +66,14 @@ export class PushService {
   async subscribe(
     userId: string,
     input: SubscribeInput
-  ): Promise<{ success: boolean; subscriptionId?: string; error?: string }> {
+  ): Promise<Result<{ subscriptionId: string }>> {
     try {
       const subscriptionId = await this.notificationRepo.upsertSubscription(userId, input);
       logger.app(`Push subscription created/updated`, { userId, subscriptionId });
-      return { success: true, subscriptionId };
+      return { data: { subscriptionId } };
     } catch (error) {
       logger.error(`Failed to create push subscription`, { userId, error: String(error) });
-      return { success: false, error: 'Failed to save subscription' };
+      return { code: 'SUBSCRIPTION_FAILED', error: 'Failed to save subscription' };
     }
   }
 
@@ -82,13 +83,13 @@ export class PushService {
   async unsubscribe(
     userId: string,
     endpoint: string
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<Result<void>> {
     try {
       await this.notificationRepo.deleteSubscription(userId, endpoint);
-      return { success: true };
+      return { data: undefined };
     } catch (error) {
       logger.error(`Failed to unsubscribe`, { userId, error: String(error) });
-      return { success: false, error: 'Failed to remove subscription' };
+      return { code: 'UNSUBSCRIBE_FAILED', error: 'Failed to remove subscription' };
     }
   }
 
@@ -110,15 +111,15 @@ export class PushService {
   /**
    * Send push notification to a specific user
    */
-  async sendToUser(userId: string, payload: PushPayload): Promise<SendResult> {
+  async sendToUser(userId: string, payload: PushPayload): Promise<Result<{ sent: number; failed: number; errors?: string[] }>> {
     if (!this.isConfigured()) {
-      return { success: false, sent: 0, failed: 0, errors: ['Push not configured'] };
+      return { code: 'PUSH_NOT_CONFIGURED', error: 'Push notifications not configured' };
     }
 
     const subscriptions = await this.notificationRepo.getSubscriptionsByUserId(userId, true);
 
     if (subscriptions.length === 0) {
-      return { success: true, sent: 0, failed: 0 };
+      return { data: { sent: 0, failed: 0 } };
     }
 
     return this.sendToSubscriptions(subscriptions, payload);
@@ -136,7 +137,7 @@ export class PushService {
       failedAttempts: number;
     }>,
     payload: PushPayload
-  ): Promise<SendResult> {
+  ): Promise<Result<{ sent: number; failed: number; errors?: string[] }>> {
     let sent = 0;
     let failed = 0;
     const errors: string[] = [];
@@ -200,33 +201,36 @@ export class PushService {
     }
 
     return {
-      success: sent > 0,
-      sent,
-      failed,
-      errors: errors.length > 0 ? errors.slice(0, 20) : undefined
+      data: {
+        sent,
+        failed,
+        errors: errors.length > 0 ? errors.slice(0, 20) : undefined
+      }
     };
   }
 
   /**
    * Send push notification to all active subscriptions (e.g., for admin broadcasts)
    */
-  async broadcast(payload: PushPayload): Promise<SendResult> {
+  async broadcast(payload: PushPayload): Promise<Result<{ sent: number; failed: number; errors?: string[] }>> {
     if (!this.isConfigured()) {
-      return { success: false, sent: 0, failed: 0, errors: ['Push not configured'] };
+      return { code: 'PUSH_NOT_CONFIGURED', error: 'Push notifications not configured' };
     }
 
     const subscriptions = await this.notificationRepo.getAllActiveSubscriptions();
 
     if (subscriptions.length === 0) {
-      return { success: true, sent: 0, failed: 0 };
+      return { data: { sent: 0, failed: 0 } };
     }
 
     const result = await this.sendToSubscriptions(subscriptions, payload);
-    logger.info('Push broadcast completed', {
-      total: subscriptions.length,
-      sent: result.sent,
-      failed: result.failed
-    });
+    if ('data' in result) {
+      logger.info('Push broadcast completed', {
+        total: subscriptions.length,
+        sent: result.data.sent,
+        failed: result.data.failed
+      });
+    }
     return result;
   }
 
@@ -251,7 +255,7 @@ export class PushService {
     description: string;
     debtId: string;
     isCreditor: boolean;
-  }): Promise<SendResult> {
+  }): Promise<Result<{ sent: number; failed: number; errors?: string[] }>> {
     const { userId, creatorName, amount, description, debtId, isCreditor } = params;
 
     const formattedAmount = formatVND(amount);
@@ -281,7 +285,7 @@ export class PushService {
     amount: number;
     description: string;
     debtId: string;
-  }): Promise<SendResult> {
+  }): Promise<Result<{ sent: number; failed: number; errors?: string[] }>> {
     const { userId, confirmerName, amount, description, debtId } = params;
 
     const formattedAmount = formatVND(amount);

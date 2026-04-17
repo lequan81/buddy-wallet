@@ -9,6 +9,7 @@ import { hashToken } from '@utils';
 import type { CreateOtpResult, VerifyOtpResult, ResendOtpResult } from '@/types/services/auth';
 import type { IEmailVerificationRepository, IUserRepository } from '@/types/repositories';
 import { configs } from '@/configs';
+import { logger } from '@repo/logger';
 
 // Configuration aliases for readability
 const { OTP } = configs.AUTH;
@@ -53,7 +54,8 @@ export class EmailVerificationService {
       verified: false
     });
 
-    return { success: true, otp };
+    logger.debug('EMAIL_VERIFICATION', 'OTP created', { userId, email });
+    return { data: { otp } };
   }
 
   /**
@@ -67,17 +69,17 @@ export class EmailVerificationService {
     const verification = await this.emailVerificationRepo.findLatestUnverified(email);
 
     if (!verification) {
-      return { success: false, error: 'No pending verification found' };
+      return { code: 'OTP_NOT_FOUND', error: 'No pending verification found' };
     }
 
     // Check if expired
     if (verification.expiresAt < now) {
-      return { success: false, error: 'OTP has expired. Please request a new one.' };
+      return { code: 'OTP_EXPIRED', error: 'OTP has expired. Please request a new one.' };
     }
 
     // Check if max attempts exceeded
     if (verification.attempts >= verification.maxAttempts) {
-      return { success: false, error: 'Too many attempts. Please request a new OTP.' };
+      return { code: 'OTP_MAX_ATTEMPTS', error: 'Too many attempts. Please request a new OTP.' };
     }
 
     // Increment attempts
@@ -87,7 +89,7 @@ export class EmailVerificationService {
     if (verification.otpHash !== otpHash) {
       const remainingAttempts = verification.maxAttempts - verification.attempts - 1;
       return {
-        success: false,
+        code: 'OTP_INVALID',
         error: `Invalid OTP. ${remainingAttempts} attempts remaining.`
       };
     }
@@ -98,7 +100,8 @@ export class EmailVerificationService {
     // Update user's emailVerified status
     await this.userRepo.update(verification.userId, { emailVerified: true });
 
-    return { success: true };
+    logger.debug('EMAIL_VERIFICATION', 'OTP verified successfully', { email });
+    return { data: undefined };
   }
 
   /**

@@ -24,14 +24,14 @@ import {
   requestLoggerPlugin,
   redisPlugin,
   securityHeadersPlugin
-} from '@/plugins';
+} from '@/lib/plugins';
 
 // Application
 import { AppServiceProvider } from '@/app/Providers/AppServiceProvider';
 import { registerApiRoutes } from '@/routes/api';
 import { telemetry } from '@/instrumentation';
-import { getStorageReadiness } from '@/core/health/storage-readiness';
-import { requireAuth } from '@/core/http/require-auth';
+import { getStorageReadiness } from '@/lib/health';
+import { requireAuth } from '@/lib/http';
 
 /**
  * Bootstrap the Elysia application with all configurations

@@ -4,6 +4,7 @@
  * Handles CRUD operations for user bank accounts.
  */
 import { log } from '@repo/logger';
+import type { Result } from '@repo/types';
 import type { IBankAccountRepository } from '@/types/repositories';
 import type { BankAccount, NewBankAccount } from '@repo/db';
 
@@ -14,11 +15,7 @@ export class BankAccountService {
    * Add a new bank account
    * If set as default, unsets other default accounts for the user.
    */
-  async addBankAccount(data: Omit<NewBankAccount, 'id' | 'createdAt' | 'updatedAt'>): Promise<{
-    success: boolean;
-    error?: string;
-    account?: BankAccount;
-  }> {
+  async addBankAccount(data: Omit<NewBankAccount, 'id' | 'createdAt' | 'updatedAt'>): Promise<Result<BankAccount>> {
     try {
       // If new account is default, unset existing default
       if (data.isDefault) {
@@ -33,13 +30,10 @@ export class BankAccountService {
 
       log.debug('BANK', 'Account added', { userId: data.userId, bankCode: data.bankCode });
 
-      return {
-        success: true,
-        account
-      };
+      return { data: account };
     } catch (err) {
       log.error('BANK', 'Failed to add account', { error: String(err) });
-      return { success: false, error: 'Failed to add bank account' };
+      return { code: 'ADD_ACCOUNT_FAILED', error: 'Failed to add bank account' };
     }
   }
 
@@ -51,20 +45,16 @@ export class BankAccountService {
     id: string,
     userId: string,
     data: Partial<Omit<NewBankAccount, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>
-  ): Promise<{
-    success: boolean;
-    error?: string;
-    account?: BankAccount;
-  }> {
+  ): Promise<Result<BankAccount>> {
     try {
       const account = await this.bankRepo.findById(id);
 
       if (!account) {
-        return { success: false, error: 'Account not found' };
+        return { code: 'NOT_FOUND', error: 'Account not found' };
       }
 
       if (account.userId !== userId) {
-        return { success: false, error: 'Not authorized' };
+        return { code: 'UNAUTHORIZED', error: 'Not authorized' };
       }
 
       // If updating to default, handle it via repo
@@ -76,21 +66,24 @@ export class BankAccountService {
 
       log.debug('BANK', 'Account updated', { id, userId });
 
-      return {
-        success: true,
-        account: updatedAccount as BankAccount
-      };
+      return { data: updatedAccount as BankAccount };
     } catch (err) {
       log.error('BANK', 'Failed to update account', { error: String(err) });
-      return { success: false, error: 'Failed to update bank account' };
+      return { code: 'UPDATE_ACCOUNT_FAILED', error: 'Failed to update bank account' };
     }
   }
 
   /**
    * Get all bank accounts for a user
    */
-  async getUserBankAccounts(userId: string): Promise<BankAccount[]> {
-    return this.bankRepo.findByUserId(userId);
+  async getUserBankAccounts(userId: string): Promise<Result<BankAccount[]>> {
+    try {
+      const accounts = await this.bankRepo.findByUserId(userId);
+      return { data: accounts };
+    } catch (err) {
+      log.error('BANK', 'Failed to get accounts', { error: String(err) });
+      return { code: 'GET_ACCOUNTS_FAILED', error: 'Failed to retrieve bank accounts' };
+    }
   }
 
   /**
@@ -99,20 +92,20 @@ export class BankAccountService {
   async deleteBankAccount(
     id: string,
     userId: string
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<Result<void>> {
     const account = await this.bankRepo.findById(id);
 
     if (!account) {
-      return { success: false, error: 'Account not found' };
+      return { code: 'NOT_FOUND', error: 'Account not found' };
     }
 
     if (account.userId !== userId) {
-      return { success: false, error: 'Not authorized' };
+      return { code: 'UNAUTHORIZED', error: 'Not authorized' };
     }
 
     await this.bankRepo.delete(id);
     log.debug('BANK', 'Account deleted', { id, userId });
 
-    return { success: true };
+    return { data: undefined };
   }
 }

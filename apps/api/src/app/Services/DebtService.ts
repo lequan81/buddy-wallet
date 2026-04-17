@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe';
-import { hasPermission, PERMISSIONS } from '@repo/permissions';
+import { hasPermission, PERMISSIONS } from '@/lib/security/permissions';
 import {
   MAX_PENDING_DEBTS,
   DUPLICATE_AMOUNT_TOLERANCE,
@@ -290,6 +290,7 @@ export class DebtService {
         error: (error as Error).message
       };
     }
+  }
 
   async confirmDebt(
     debtId: string,

@@ -163,4 +163,85 @@ export class AuthSecurityService {
       return { code: 'DATABASE_ERROR', error: 'Service temporarily unavailable' };
     }
   }
+
+  /**
+   * Refresh user session with new tokens
+   */
+  async refreshSession(
+    refreshToken: string,
+    jwt: JwtService,
+    options?: { userAgent?: string; clientIP?: string }
+  ): Promise<AuthResult> {
+    try {
+      if (!refreshToken) {
+        return { code: 'INVALID_TOKEN', error: 'No refresh token provided' };
+      }
+
+      const refreshTokenHash = await hashToken(refreshToken);
+      const session = await this.sessionRepo.findActiveByRefreshToken(refreshTokenHash);
+
+      if (!session) {
+        logger.auth('Refresh token not found', { });
+        return { code: 'INVALID_TOKEN', error: 'Invalid refresh token' };
+      }
+
+      // Check if refresh token is expired
+      if (session.refreshTokenExpiresAt < new Date()) {
+        logger.auth('Refresh token expired', { userId: session.userId });
+        return { code: 'TOKEN_EXPIRED', error: 'Refresh token has expired' };
+      }
+
+      // Fetch user
+      const user = await this.userRepo.findById(session.userId);
+      if (!user) {
+        logger.auth('User not found during refresh', { userId: session.userId });
+        return { code: 'NOT_FOUND', error: 'User not found' };
+      }
+
+      if (!user.isActive) {
+        logger.auth('Refresh blocked - account deactivated', { userId: user.id });
+        return { code: 'ACCOUNT_INACTIVE', error: 'Account is not active' };
+      }
+
+      // Generate new tokens
+      const now = Date.now();
+      const accessTokenExpiresAt = new Date(now + configs.AUTH.ACCESS_TOKEN_LIFETIME);
+      const refreshTokenExpiresAt = new Date(now + configs.AUTH.REFRESH_TOKEN_LIFETIME);
+
+      const accessToken = await jwt.sign({
+        id: user.id,
+        phoneNumber: user.phoneNumber,
+        sessionVersion: user.sessionVersion || 1,
+        exp: Math.floor(accessTokenExpiresAt.getTime() / 1000)
+      });
+
+      const newRefreshToken = generateSecureToken(32);
+      const newRefreshTokenHash = await hashToken(newRefreshToken);
+      const accessTokenHash = await hashToken(accessToken);
+
+      // Update session with new tokens
+      await this.sessionRepo.update(session.id, {
+        accessTokenHash,
+        accessTokenExpiresAt,
+        refreshToken: newRefreshTokenHash,
+        refreshTokenExpiresAt,
+        lastActiveAt: new Date()
+      });
+
+      logger.auth('Session refreshed', { userId: user.id });
+
+      return {
+        data: {
+          user: toSafeUser(user),
+          accessToken,
+          refreshToken: newRefreshToken,
+          sessionId: session.id,
+          expiresIn: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
+        }
+      };
+    } catch (error: unknown) {
+      logger.error('Error refreshing session', { error: String(error) });
+      return { code: 'DATABASE_ERROR', error: 'Service temporarily unavailable' };
+    }
+  }
 }

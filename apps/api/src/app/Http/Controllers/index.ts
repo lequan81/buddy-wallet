@@ -1,12 +1,12 @@
 export { ActivityController } from './ActivityController';
 export { AuthController } from './AuthController';
 export { BankController } from './BankController';
-export { DebtController, DebtsController } from './DebtController';
+export { DebtController } from './DebtController';
 export { ExportController } from './ExportController';
 export { ImportController } from './ImportController';
-export { NotificationController, PushController } from './NotificationController';
+export { PushController } from './PushController';
 export { PublicController } from './PublicController';
-export { StorageController, UploadController } from './StorageController';
+export { StorageController } from './StorageController';
 export { SystemController } from './SystemController';
 export { TracesController } from './TracesController';
-export { UserController, UsersController } from './UserController';
+export { UserController } from './UserController';

@@ -1,8 +1,8 @@
 import { injectable, inject } from 'tsyringe';
 import { Elysia, t } from 'elysia';
-import { strictRateLimiter } from '@plugins/middleware';
+import { strictRateLimiter } from '@/lib/plugins/middleware';
 import { normalizePhoneNumber, maskPhone } from '@repo/utils';
-import { containerPlugin } from '@plugins';
+import { containerPlugin } from '@/lib/plugins';
 import { configs } from '@/configs';
 import { apiSuccess, apiError, GEN_ERRORS } from '@repo/errors';
 import * as crypto from 'crypto';

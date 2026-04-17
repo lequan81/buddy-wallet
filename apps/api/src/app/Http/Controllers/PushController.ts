@@ -1,9 +1,9 @@
 import { injectable, inject } from 'tsyringe';
 import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, apiSuccess, apiError } from '@repo/errors';
-import { permissionPlugin, containerPlugin, sessionAuthPlugin } from '@plugins';
-import { PERMISSIONS } from '@repo/permissions';
-import { broadcastRateLimiter } from '@plugins/middleware';
+import { permissionPlugin, containerPlugin, sessionAuthPlugin } from '@/lib/plugins';
+import { PERMISSIONS } from '@/lib/security/permissions';
+import { broadcastRateLimiter } from '@/lib/plugins/middleware';
 import { PushService } from '@/app/Services/PushService';
 
 @injectable()
@@ -48,7 +48,7 @@ export class PushController {
               deviceType: body.deviceType as any
             });
 
-            if (isFailureResult(result)) {
+            if ('code' in result) {
               set.status = 400;
               return apiError(GEN_ERRORS.INVALID_INPUT, result.error);
             }
@@ -82,7 +82,7 @@ export class PushController {
 
             const result = await this.pushService.unsubscribe(user.id, body.endpoint);
 
-            if (isFailureResult(result)) {
+            if ('code' in result) {
               set.status = 400;
               return apiError(GEN_ERRORS.INVALID_INPUT, result.error);
             }
@@ -121,7 +121,7 @@ export class PushController {
             url: '/dashboard'
           });
 
-          if (isFailureResult(result)) {
+          if ('code' in result) {
             set.status = 400;
             return apiError(GEN_ERRORS.INVALID_INPUT, result.error || 'No active subscriptions found');
           }
@@ -137,7 +137,7 @@ export class PushController {
         .use(broadcastRateLimiter)
         .post(
           '/broadcast',
-          async ({ body }) => {
+          async ({ body, set }) => {
             const result = await this.pushService.broadcast({
               title: body.title,
               body: body.body,
@@ -145,6 +145,11 @@ export class PushController {
               url: body.url,
               requireInteraction: body.requireInteraction
             });
+
+            if ('code' in result) {
+              set.status = 400;
+              return apiError(GEN_ERRORS.INVALID_INPUT, result.error);
+            }
 
             return apiSuccess({
               sent: result.data.sent,

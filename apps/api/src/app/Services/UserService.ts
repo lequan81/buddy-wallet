@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe';
-import { userCache, isRedisAvailable } from '@plugins/redis';
+import { userCache, isRedisAvailable } from '@/lib/redis';
 import { toSafeUser } from '@lib/security/password';
 import type { SafeUser, UserResult, PaginatedResult } from '@repo/types';
 import type { UserRepositoryInterface } from '@/app/Repositories/Contracts/UserRepositoryInterface';
