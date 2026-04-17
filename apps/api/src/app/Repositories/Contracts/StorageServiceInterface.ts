@@ -1,3 +1,9 @@
+/**
+ * Storage Service Interface
+ *
+ * Contract for storage implementations (S3, local, etc.)
+ */
+
 export interface StorageServiceInterface {
   save(relativePath: string, buffer: Buffer | Blob): Promise<string>;
   read(relativePath: string): Promise<Buffer>;

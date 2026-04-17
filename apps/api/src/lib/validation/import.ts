@@ -1,8 +1,22 @@
+/**
+ * Import File Validators
+ *
+ * Validation helpers for import file uploads.
+ */
+
 import { GEN_ERRORS, apiResponse } from '@repo/errors';
 import { MAX_IMPORT_FILE_SIZE, ACCEPTED_IMPORT_MIME_TYPES } from '@repo/config';
 import { isValidSpreadsheetBytes } from '@repo/utils';
-import type { ValidationFailure } from '@/types';
 
+export interface ValidationFailure {
+  status: number;
+  body: unknown;
+}
+
+/**
+ * Validate import file before processing
+ * Checks file size, type, and content format
+ */
 export async function validateImportUploadFile(file: File): Promise<ValidationFailure | null> {
   if (file.size > MAX_IMPORT_FILE_SIZE) {
     return {

@@ -14,8 +14,8 @@ import {
 } from '@repo/config';
 import { importCache, isRedisAvailable } from '@plugins/redis';
 import type { ImportConfig, PreviewResult, ImportResult, ProgressResult, ImportRowProcessingState, PreviewBuildResult } from '@/types';
-import type { SpreadsheetService } from './spreadsheet.service';
-import type { ImportLoggerService } from './import-logger.service';
+import { SpreadsheetService } from './SpreadsheetService';
+import { ImportLoggerService } from './ImportLoggerService';
 import { logger } from '@repo/logger';
 import type { IImportExportRepository } from '@/types/repositories';
 import type { CurrentUser, ImportRow } from '@/types';

@@ -11,7 +11,7 @@ import { GEN_ERRORS, apiSuccess, apiError } from '@repo/errors';
 import { accessControlPlugin, containerPlugin, sessionAuthPlugin } from '@plugins';
 import { logger } from '@repo/logger';
 import type { ImportConfig } from '@/types';
-import { validateImportUploadFile } from '@/app/Services/import-export/import.validators';
+import { validateImportUploadFile } from '@/lib/validation/import';
 import { parsePagePagination } from '@/core/http/pagination';
 import { normalizeImportStatus } from '@/core/http/import-status';
 import { isFailureResult } from '@/core/http/result-helper';

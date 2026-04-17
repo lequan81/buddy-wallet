@@ -1,6 +1,6 @@
 import { logger } from '@repo/logger';
 import { toOptional } from '@repo/utils';
-import type { StorageServiceInterface } from './Contracts/StorageServiceInterface';
+import type { StorageServiceInterface } from '../Repositories/Contracts/StorageServiceInterface';
 
 const normalizeStoragePath = (rawPath: string): string =>
   rawPath.replace(/\\/g, '/').replace(/^\/+/, '');
