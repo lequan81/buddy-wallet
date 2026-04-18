@@ -6,7 +6,7 @@
  * without requiring a real database connection.
  */
 import { describe, expect, it, beforeEach } from 'bun:test';
-import { AuthService } from '@services/auth';
+import { AuthService } from '../../src/app/Services/AuthService';
 
 // Simplified mock database for demonstrating DI pattern
 function createMockDb() {

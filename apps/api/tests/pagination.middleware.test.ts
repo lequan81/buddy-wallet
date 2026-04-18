@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { validatePaginationParams } from '../src/plugins/middleware/pagination.middleware';
+import { validatePaginationParams } from '../src/app/Http/Middlewares/pagination.middleware';
 
 describe('validatePaginationParams', () => {
   test('accepts valid values', () => {

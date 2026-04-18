@@ -1,6 +1,6 @@
 import { describe, expect, it, test, beforeAll, afterAll } from 'bun:test';
 import { app } from '../src';
-import { traceStore } from '@utils/trace-store';
+import { traceStore } from '@repo/utils';
 import { trace } from '@opentelemetry/api';
 
 describe('OpenTelemetry Integration', () => {
