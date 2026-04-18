@@ -16,14 +16,18 @@ import { configs, validateRuntimeEnv } from '@/configs';
 import { logger } from '@repo/logger';
 import { GEN_ERRORS, apiResponse } from '@repo/errors';
 
-// Plugins (Infrastructure)
+// HTTP Middlewares (per app/Http/Middlewares structure)
 import {
   corsPlugin,
   csrfPlugin,
-  sessionAuthPlugin,
   requestLoggerPlugin,
-  redisPlugin,
   securityHeadersPlugin
+} from '@/app/Http/Middlewares';
+
+// Auth and DI Plugins
+import {
+  sessionAuthPlugin,
+  redisPlugin
 } from '@/lib/plugins';
 
 // Application

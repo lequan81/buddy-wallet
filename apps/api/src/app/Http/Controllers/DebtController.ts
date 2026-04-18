@@ -7,7 +7,7 @@ import {
   containerPlugin,
   sessionAuthPlugin
 } from '@/lib/plugins';
-import { standardRateLimiter } from '@/lib/plugins/middleware';
+import { standardRateLimiter } from '@/app/Http/Middlewares';
 import { PERMISSIONS, hasPermission } from '@/lib/security/permissions';
 import {
   DebtQuerySchema,

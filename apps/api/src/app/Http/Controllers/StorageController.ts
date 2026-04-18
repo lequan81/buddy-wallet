@@ -5,7 +5,7 @@ import {
   uploadRateLimiter,
   fileDownloadRateLimiter,
   deleteRateLimiter
-} from '@/lib/plugins/middleware';
+} from '@/app/Http/Middlewares';
 import { permissionPlugin, containerPlugin, sessionAuthPlugin } from '@/lib/plugins';
 import { PERMISSIONS } from '@/lib/security/permissions';
 import { getClientIP } from '@lib/http/ip';

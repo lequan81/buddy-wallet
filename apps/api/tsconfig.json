@@ -9,10 +9,10 @@
       "@routes/*": ["./src/routes/*"],
       "@decorators/*": ["./src/decorators/*"],
       "@plugins": [
-        "./src/plugins"
+        "./src/lib/plugins"
       ],
       "@plugins/*": [
-        "./src/plugins/*"
+        "./src/lib/plugins/*"
       ],
       "@controllers": [
         "./src/app/Http/Controllers"
@@ -38,24 +38,11 @@
       "@api-types/*": [
         "./src/types/*"
       ],
-      "@utils": [
-        "./src/utils"
-      ],
-      "@utils/*": [
-        "./src/utils/*.utils.ts",
-        "./src/utils/*"
-      ],
       "@configs": [
         "./src/configs"
       ],
       "@configs/*": [
         "./src/configs/*"
-      ],
-      "@core": [
-        "./src/core"
-      ],
-      "@core/*": [
-        "./src/core/*"
       ],
       "@domain": [
         "./src/domain"
@@ -83,6 +70,9 @@
       ],
       "@utils/*": [
         "./src/lib/*"
+      ],
+      "@instrumentation": [
+        "./src/instrumentation"
       ]
     },
     "types": [

@@ -9,7 +9,7 @@ import {
   authRateLimiter,
   authRecoveryRateLimiter,
   authResetRateLimiter
-} from '@/lib/plugins/middleware';
+} from '@/app/Http/Middlewares';
 import { sessionCache, jwtBlacklist, isRedisAvailable } from '@/lib/redis';
 import { configs } from '@/configs';
 import { hashToken, toSafeUser } from '@lib/security/password';

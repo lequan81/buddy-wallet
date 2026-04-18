@@ -1,9 +1,10 @@
 /**
- * Plugins - Central export for all Elysia plugins
+ * Plugins - Central export for Elysia plugins
+ *
+ * NOTE: HTTP Middlewares have been moved to app/Http/Middlewares/
  *
  * Organized into subfolders:
  * - guards/     - Permission and access control guards
- * - middleware/ - Request processing, security, logging
  * - auth/       - JWT and session authentication
  * - redis/      - Redis caching and connection
  */
@@ -13,9 +14,6 @@ export * from './auth';
 
 // Guards
 export * from './guards';
-
-// Middleware
-export * from './middleware';
 
 // Access control (combined plugin)
 export { accessControlPlugin } from './guards/access-control.plugin';

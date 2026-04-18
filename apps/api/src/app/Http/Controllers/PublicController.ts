@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe';
 import { Elysia, t } from 'elysia';
-import { strictRateLimiter } from '@/lib/plugins/middleware';
+import { strictRateLimiter } from '@/app/Http/Middlewares';
 import { normalizePhoneNumber, maskPhone } from '@repo/utils';
 import { containerPlugin } from '@/lib/plugins';
 import { configs } from '@/configs';

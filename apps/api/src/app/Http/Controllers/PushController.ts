@@ -3,7 +3,7 @@ import { Elysia, t } from 'elysia';
 import { GEN_ERRORS, apiSuccess, apiError } from '@repo/errors';
 import { permissionPlugin, containerPlugin, sessionAuthPlugin } from '@/lib/plugins';
 import { PERMISSIONS } from '@/lib/security/permissions';
-import { broadcastRateLimiter } from '@/lib/plugins/middleware';
+import { broadcastRateLimiter } from '@/app/Http/Middlewares';
 import { PushService } from '@/app/Services/PushService';
 
 @injectable()

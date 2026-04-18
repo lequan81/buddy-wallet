@@ -39,3 +39,12 @@ export {
  */
 export const toOptional = (value: string | undefined): string | undefined =>
   (value && value.trim() ? value : undefined);
+
+// Security utilities
+export { escapeHtml, unescapeHtml } from './escape-html';
+
+// Trace context utilities
+export { traceStore, type TraceContext } from './trace-store';
+
+// Phone masking (DDD-aligned version)
+export { maskPhoneNumber } from './mask-phone';

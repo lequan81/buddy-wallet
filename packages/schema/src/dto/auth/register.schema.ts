@@ -8,3 +8,7 @@ export const registerRequestSchema = v.object({
 });
 
 export type RegisterRequest = v.InferOutput<typeof registerRequestSchema>;
+
+// Alias for controller imports
+export const RegisterSchema = registerRequestSchema;
+export type RegisterSchema = RegisterRequest;

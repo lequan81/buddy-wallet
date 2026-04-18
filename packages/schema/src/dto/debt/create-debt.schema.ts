@@ -10,3 +10,7 @@ export const createDebtRequestSchema = v.object({
 });
 
 export type CreateDebtRequest = v.InferOutput<typeof createDebtRequestSchema>;
+
+// Aliases for controller imports
+export const CreateDebtSchema = createDebtRequestSchema;
+export type CreateDebtSchema = CreateDebtRequest;

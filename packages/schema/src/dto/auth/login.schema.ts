@@ -6,3 +6,7 @@ export const loginRequestSchema = v.object({
 });
 
 export type LoginRequest = v.InferOutput<typeof loginRequestSchema>;
+
+// Alias for controller imports
+export const LoginSchema = loginRequestSchema;
+export type LoginSchema = LoginRequest;
