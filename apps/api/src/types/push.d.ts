@@ -33,3 +33,4 @@ export interface SendResult {
 }
 
 export type SubscribeInput = PushSubscription;
+

@@ -35,7 +35,8 @@ export function logSecurityEvent(
   details: Record<string, unknown>
 ): void {
   logger.warn(`Security event: ${eventType}`, {
-    userId,
+    userId: userId ?? undefined,
     ...details
   });
 }
+

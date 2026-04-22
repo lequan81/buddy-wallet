@@ -4,10 +4,15 @@
  * Initializes and starts the Elysia API server.
  */
 
-import { start } from './bootstrap';
+import { bootstrap, start } from './bootstrap';
 
-// Start the application
-start().catch((error) => {
-  console.error('Failed to start application:', error);
-  process.exit(1);
-});
+export const app = await bootstrap();
+export { bootstrap, start };
+
+if (import.meta.main) {
+  start().catch((error) => {
+    console.error('Failed to start application:', error);
+    process.exit(1);
+  });
+}
+

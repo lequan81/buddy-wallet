@@ -1,34 +1,39 @@
-import { type FileMetadata, type FileType } from '@repo/db';
-import { cache, rawCache } from '@/lib/redis';
+import { cache, rawCache } from '@infra/Redis';
 import { log } from '@repo/logger';
 import type { Result } from '@repo/types';
 import { MAX_IMAGE_FILE_SIZE, ACCEPTED_IMAGE_MIME_TYPES, BACKEND_CONSTANTS } from '@repo/config';
-import { isValidImageBytes } from '@repo/utils';
-import { configs } from '@/configs';
-import { toOptional } from '@repo/utils';
-import type { IStorageService } from '@/types';
-import type { IFileRepository, IDebtRepository } from '@/types/repositories';
-import { ImageService } from './image.service';
+import { isValidImageBytes, toOptional } from '@repo/utils';
+import { configs } from '@/config';
+import type {
+  StorageServiceInterface,
+  FileRepositoryInterface,
+  DebtRepositoryInterface
+} from '@/app/Repositories/Contracts';
+import { ImageService } from './ImageService';
 import { S3StorageService } from './S3StorageService';
+import { DebtCommandService } from './DebtCommandService';
+import { injectable, inject } from 'tsyringe';
 
 const IMAGE_CACHE_TTL_SECONDS = Math.floor(BACKEND_CONSTANTS.CACHE.LOCATION_TTL_MS / 1000);
+type FileMetadata = NonNullable<Awaited<ReturnType<FileRepositoryInterface['findById']>>>;
+type FileType = 'qr_code' | 'payment_proof';
 
+@injectable()
 export class FileService {
-  private uploadStorage: IStorageService;
-  private proofStorage: IStorageService;
-  private imageService: ImageService;
+  private uploadStorage: StorageServiceInterface;
+  private proofStorage: StorageServiceInterface;
 
   constructor(
-    private readonly fileRepo: IFileRepository,
-    private readonly debtRepo: IDebtRepository,
-    uploadStorage?: IStorageService,
-    proofStorage?: IStorageService,
-    imageService?: ImageService
+    @inject('FileRepositoryInterface') private readonly fileRepo: FileRepositoryInterface,
+    @inject('DebtRepositoryInterface') private readonly debtRepo: DebtRepositoryInterface,
+    @inject(ImageService) private readonly imageService: ImageService,
+    @inject(DebtCommandService) private readonly debtCommandService: DebtCommandService,
+    uploadStorage?: StorageServiceInterface,
+    proofStorage?: StorageServiceInterface
   ) {
     const defaultStorage = FileService.createStorageServices();
     this.uploadStorage = uploadStorage || defaultStorage.uploadStorage;
     this.proofStorage = proofStorage || defaultStorage.proofStorage;
-    this.imageService = imageService || new ImageService();
     this.ensureDirs();
   }
 
@@ -203,89 +208,41 @@ export class FileService {
     return { data: codes };
   }
 
+  /**
+   * @deprecated Use DebtCommandService.getPaymentProofs instead
+   */
   async getPendingProofs(debtId: string): Promise<Result<FileMetadata[]>> {
-    const proofs = await this.fileRepo.findByDebtIdAndType(debtId, 'payment_proof', 'pending');
-    return { data: proofs };
+    return this.debtCommandService.getPaymentProofs(debtId, this.fileRepo, 'pending');
   }
 
+  /**
+   * @deprecated Use DebtCommandService.getPaymentProofs instead
+   */
   async getProofsForDebt(debtId: string): Promise<Result<FileMetadata[]>> {
-    const proofs = await this.fileRepo.findByDebtIdAndType(debtId, 'payment_proof');
-    return { data: proofs };
+    return this.debtCommandService.getPaymentProofs(debtId, this.fileRepo);
   }
 
+  /**
+   * Approve a payment proof - delegates to DebtCommandService for business logic
+   * @deprecated Use DebtCommandService.approvePaymentProof instead
+   */
   async approveProof(
     fileId: string,
     reviewerId: string
   ): Promise<Result<{ allProofsApproved: boolean; debtId: string; uploaderId: string }>> {
-    const file = await this.fileRepo.findById(fileId);
-
-    if (!file) return { code: 'FILE_NOT_FOUND', error: 'File not found' };
-    if (file.fileType !== 'payment_proof') return { code: 'INVALID_FILE_TYPE', error: 'Not a payment proof' };
-    if (file.status !== 'pending') return { code: 'FILE_ALREADY_REVIEWED', error: 'Already reviewed' };
-    if (!file.relatedDebtId) return { code: 'FILE_NO_RELATED_DEBT', error: 'No related debt found' };
-
-    const debt = await this.debtRepo.findById(file.relatedDebtId);
-    if (!debt) return { code: 'DEBT_NOT_FOUND', error: 'Related debt not found' };
-
-    if (debt.creditorId !== reviewerId) {
-      return { code: 'FILE_UNAUTHORIZED', error: 'Only creditor can approve payment proofs' };
-    }
-
-    await this.fileRepo.updateStatus(fileId, 'approved', reviewerId);
-
-    // Recalculate pending proofs for this debt
-    const remainingPending = await this.fileRepo.findByDebtIdAndType(file.relatedDebtId, 'payment_proof', 'pending');
-
-    // Check if all proofs are now approved (no pending left)
-    const allProofsApproved = remainingPending.length === 0;
-
-    // Clear hasPendingProof if no more pending proofs
-    if (allProofsApproved) {
-      await this.debtRepo.update(file.relatedDebtId, {
-        hasPendingProof: false,
-        updatedAt: new Date()
-      });
-      log.debug('FILE', 'Cleared hasPendingProof for debt', { debtId: file.relatedDebtId });
-    }
-
-    log.debug('FILE', 'Proof approved', { fileId, reviewerId, allProofsApproved });
-    return {
-      data: {
-        allProofsApproved,
-        debtId: file.relatedDebtId,
-        uploaderId: file.uploadedById
-      }
-    };
+    return this.debtCommandService.approvePaymentProof(fileId, reviewerId, this.fileRepo);
   }
 
+  /**
+   * Reject a payment proof - delegates to DebtCommandService for business logic
+   * @deprecated Use DebtCommandService.rejectPaymentProof instead
+   */
   async rejectProof(
     fileId: string,
     reviewerId: string,
     reason?: string
   ): Promise<Result<{ debtId: string; uploaderId: string }>> {
-    const file = await this.fileRepo.findById(fileId);
-
-    if (!file) return { code: 'FILE_NOT_FOUND', error: 'File not found' };
-    if (file.fileType !== 'payment_proof') return { code: 'INVALID_FILE_TYPE', error: 'Not a payment proof' };
-    if (file.status !== 'pending') return { code: 'FILE_ALREADY_REVIEWED', error: 'Already reviewed' };
-    if (!file.relatedDebtId) return { code: 'FILE_NO_RELATED_DEBT', error: 'No related debt found' };
-
-    const debt = await this.debtRepo.findById(file.relatedDebtId);
-    if (!debt) return { code: 'DEBT_NOT_FOUND', error: 'Related debt not found' };
-
-    if (debt.creditorId !== reviewerId) {
-      return { code: 'FILE_UNAUTHORIZED', error: 'Only creditor can reject payment proofs' };
-    }
-
-    await this.fileRepo.updateStatus(fileId, 'rejected', reviewerId, reason);
-
-    log.debug('FILE', 'Proof rejected', { fileId, reviewerId, reason });
-    return {
-      data: {
-        debtId: file.relatedDebtId,
-        uploaderId: file.uploadedById
-      }
-    };
+    return this.debtCommandService.rejectPaymentProof(fileId, reviewerId, reason, this.fileRepo);
   }
 
   async deleteFile(fileId: string, userId: string): Promise<Result<void>> {
@@ -303,3 +260,4 @@ export class FileService {
     return { data: undefined };
   }
 }
+

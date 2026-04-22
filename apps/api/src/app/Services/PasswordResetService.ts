@@ -7,13 +7,14 @@
  * 3. Send via email
  * 4. Force password change on login
  */
-import { normalizePhoneNumber, redactIdentifier } from '@utils';
-import { escapeHtml } from '@repo/utils';
-import { configs } from '@/configs';
+import { normalizePhoneNumber, escapeHtml } from '@repo/utils';
+import { configs } from '@/config';
 import { log } from '@repo/logger';
 import type { Result } from '@repo/types';
-import type { IUserRepository } from '@/types/repositories';
-import { EmailService } from './email.service';
+import type { UserRepositoryInterface } from '@/app/Repositories/Contracts/UserRepositoryInterface';
+import { EmailService } from './EmailService';
+import { injectable, inject } from 'tsyringe';
+import { redactIdentifier } from '@/lib/security/password';
 
 import * as crypto from 'node:crypto';
 
@@ -29,10 +30,11 @@ function generateResetToken(): string {
 
 // Remove local redactIdentifier
 
+@injectable()
 export class PasswordResetService {
   constructor(
-    private readonly userRepo: IUserRepository,
-    private readonly emailService: EmailService
+    @inject('UserRepositoryInterface') private readonly userRepo: UserRepositoryInterface,
+    @inject(EmailService) private readonly emailService: EmailService
   ) {}
 
   /**
@@ -97,8 +99,7 @@ export class PasswordResetService {
       to: email,
       subject: 'BuddyWallet - Password Reset Request',
       html: this.generateEmailHtml(user.name, resetLink, PASSWORD_RESET.EXPIRY_HOURS),
-      text: `Hi ${user.name},\n\nYou requested a password reset. Please click the following link to reset your password:\n\n${resetLink}\n\nThis link expires in ${PASSWORD_RESET.EXPIRY_HOURS} hours and can only be used once.\n\nIf you didn't request this, please secure your account immediately.\n\nBuddyWallet Team`,
-      from: 'noreply'
+      text: `Hi ${user.name},\n\nYou requested a password reset. Please click the following link to reset your password:\n\n${resetLink}\n\nThis link expires in ${PASSWORD_RESET.EXPIRY_HOURS} hours and can only be used once.\n\nIf you didn't request this, please secure your account immediately.\n\nBuddyWallet Team`
     });
 
     if (!emailResult.success) {
@@ -245,3 +246,4 @@ export class PasswordResetService {
 </html>`;
   }
 }
+

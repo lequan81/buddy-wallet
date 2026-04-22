@@ -20,14 +20,13 @@ import {
   BankController,
   StorageController,
   ActivityController,
-  TracesController,
   SystemController
 } from '@/app/Http/Controllers';
 
 /**
  * Register all API routes
  */
-export function registerApiRoutes(app: Elysia): Elysia {
+export function registerApiRoutes(app: Elysia<any, any, any, any, any, any, any>): any {
   // Resolve DI-based controllers
   const authController = container.resolve(AuthController);
   const debtController = container.resolve(DebtController);
@@ -38,11 +37,8 @@ export function registerApiRoutes(app: Elysia): Elysia {
   const pushController = container.resolve(PushController);
   const bankController = container.resolve(BankController);
   const storageController = container.resolve(StorageController);
+  const activityController = container.resolve(ActivityController);
   const systemController = container.resolve(SystemController);
-
-  // Use instance-based controllers
-  const activityController = ActivityController;
-  const tracesController = TracesController;
 
   /**
    * V1 API Routes
@@ -57,7 +53,7 @@ export function registerApiRoutes(app: Elysia): Elysia {
       // Protected routes (auth required)
       .guard(
         {
-          beforeHandle: ({ user, set }) => {
+          beforeHandle: ({ user, set }: any) => {
             if (!user) {
               set.status = 401;
               return { error: 'Unauthorized' };
@@ -86,10 +82,10 @@ export function registerApiRoutes(app: Elysia): Elysia {
             .use(storageController.register(new Elysia()))
 
             // Activity logging
-            .use(activityController)
+            .use(activityController.register(new Elysia()))
 
-            // System traces
-            .use(tracesController)
+            // System traces & health
+            .use(systemController.register(new Elysia()))
       )
   );
 }

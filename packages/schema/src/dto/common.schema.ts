@@ -7,7 +7,6 @@ import * as v from 'valibot';
 
 // Response schemas
 export const ErrorResponseSchema = v.object({
-  ok: v.boolean(),
   error: v.object({
     code: v.string(),
     message: v.string()
@@ -15,7 +14,14 @@ export const ErrorResponseSchema = v.object({
 });
 
 export const ActivityListResponseSchema = v.object({
-  data: v.array(v.object({}))
+  data: v.object({
+    items: v.array(v.object({})),
+    pagination: v.object({
+      page: v.number(),
+      limit: v.number(),
+      total: v.number()
+    })
+  })
 });
 
 export const RecentActivityResponseSchema = v.object({
@@ -68,7 +74,9 @@ export const PaginationQuerySchema = v.object({
 export const UpdateProfileSchema = v.object({
   name: v.optional(v.string()),
   email: v.optional(v.string()),
-  phoneNumber: v.optional(v.string())
+  phoneNumber: v.optional(v.string()),
+  emailNotificationsEnabled: v.optional(v.boolean()),
+  pushNotificationsEnabled: v.optional(v.boolean())
 });
 
 // Import schemas

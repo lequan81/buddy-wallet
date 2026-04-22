@@ -1,53 +1,42 @@
 /**
  * Debt Request DTOs
  *
- * Validation schemas for debt endpoints.
+ * Validation schemas for debt endpoints using Valibot.
  */
 
-import { z } from 'zod';
+import * as v from 'valibot';
+import {
+  CreateDebtInputSchema,
+  updateDebtStatusSchema,
+  debtQuerySchema
+} from '@repo/validation';
 
 /**
  * Create debt request
  */
-export const CreateDebtRequest = z.object({
-  debtorPhone: z.string().min(10, 'Invalid debtor phone number'),
-  amount: z.number().positive('Amount must be positive'),
-  currency: z.string().length(3, 'Currency must be 3 characters (e.g., USD)'),
-  description: z.string().optional(),
-  expiryOption: z.enum(['never', '7d', '30d', '90d']).default('never')
-});
-
-export type CreateDebtRequest = z.infer<typeof CreateDebtRequest>;
+export const CreateDebtRequest = CreateDebtInputSchema;
+export type CreateDebtRequest = v.InferInput<typeof CreateDebtRequest>;
 
 /**
  * Update debt status request
  */
-export const UpdateDebtStatusRequest = z.object({
-  status: z.enum(['confirmed', 'disputed', 'paid', 'cancelled']),
-  notes: z.string().optional()
-});
-
-export type UpdateDebtStatusRequest = z.infer<typeof UpdateDebtStatusRequest>;
+export const UpdateDebtStatusRequest = updateDebtStatusSchema;
+export type UpdateDebtStatusRequest = v.InferInput<typeof UpdateDebtStatusRequest>;
 
 /**
  * Debt query parameters
  */
-export const DebtQueryRequest = z.object({
-  status: z.enum(['pending', 'confirmed', 'disputed', 'paid', 'cancelled']).optional(),
-  direction: z.enum(['owed', 'owing']).optional(),
-  page: z.number().int().positive().default(1),
-  limit: z.number().int().positive().max(100).default(20)
-});
-
-export type DebtQueryRequest = z.infer<typeof DebtQueryRequest>;
+export const DebtQueryRequest = debtQuerySchema;
+export type DebtQueryRequest = v.InferInput<typeof DebtQueryRequest>;
 
 /**
  * Suggest debt edit request
  */
-export const SuggestDebtEditRequest = z.object({
-  amount: z.number().positive().optional(),
-  description: z.string().optional(),
-  reason: z.string().min(5, 'Reason must be at least 5 characters')
+export const SuggestDebtEditRequest = v.object({
+  amount: v.optional(v.pipe(v.number(), v.minValue(0.01, 'Amount must be positive'))),
+  description: v.optional(v.string()),
+  reason: v.pipe(v.string(), v.minLength(5, 'Reason must be at least 5 characters'))
 });
 
-export type SuggestDebtEditRequest = z.infer<typeof SuggestDebtEditRequest>;
+export type SuggestDebtEditRequest = v.InferInput<typeof SuggestDebtEditRequest>;
+

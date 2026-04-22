@@ -1,26 +1,22 @@
-/**
- * Email Verification Service
- *
- * Handles OTP generation, storage, verification, and rate limiting
- * for email verification flow.
- */
+import { injectable, inject } from 'tsyringe';
 import { randomUUIDv7 } from 'bun';
-import { hashToken } from '@utils';
-import type { CreateOtpResult, VerifyOtpResult, ResendOtpResult } from '@/types/services/auth';
-import type { IEmailVerificationRepository, IUserRepository } from '@/types/repositories';
-import { configs } from '@/configs';
+import { hashToken } from '@/lib/security/password';
+import { authConfig } from '@/config/auth';
+import type { CreateOtpResult, VerifyOtpResult, ResendOtpResult } from '@/app/Repositories/Contracts/Types/auth';
+import type { EmailVerificationRepositoryInterface, UserRepositoryInterface } from '@/app/Repositories/Contracts';
 import { logger } from '@repo/logger';
 
 // Configuration aliases for readability
-const { OTP } = configs.AUTH;
+const { OTP } = authConfig;
 
 /**
  * EmailVerificationService class with dependency injection
  */
+@injectable()
 export class EmailVerificationService {
   constructor(
-    private readonly emailVerificationRepo: IEmailVerificationRepository,
-    private readonly userRepo: IUserRepository
+    @inject('EmailVerificationRepositoryInterface') private readonly emailVerificationRepo: EmailVerificationRepositoryInterface,
+    @inject('UserRepositoryInterface') private readonly userRepo: UserRepositoryInterface
   ) {}
 
   /**
@@ -49,12 +45,10 @@ export class EmailVerificationService {
       email,
       otpHash,
       expiresAt,
-      attempts: 0,
-      maxAttempts: OTP.MAX_ATTEMPTS,
-      verified: false
+      maxAttempts: OTP.MAX_ATTEMPTS
     });
 
-    logger.debug('EMAIL_VERIFICATION', 'OTP created', { userId, email });
+    logger.debug('OTP created', { userId, email });
     return { data: { otp } };
   }
 
@@ -100,7 +94,7 @@ export class EmailVerificationService {
     // Update user's emailVerified status
     await this.userRepo.update(verification.userId, { emailVerified: true });
 
-    logger.debug('EMAIL_VERIFICATION', 'OTP verified successfully', { email });
+    logger.debug('OTP verified successfully', { email });
     return { data: undefined };
   }
 
@@ -187,5 +181,6 @@ export class EmailVerificationService {
     };
   }
 }
+
 
 

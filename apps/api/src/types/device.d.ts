@@ -39,3 +39,4 @@ export interface ClientHints {
   os?: string;
   mobile?: boolean;
 }
+

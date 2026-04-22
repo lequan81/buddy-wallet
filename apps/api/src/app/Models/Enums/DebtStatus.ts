@@ -23,3 +23,4 @@ export function isValidDebtStatus(value: unknown): value is DebtStatus {
     Object.values(DEBT_STATUSES).includes(value as DebtStatus)
   );
 }
+

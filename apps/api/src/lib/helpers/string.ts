@@ -100,3 +100,4 @@ export function extractNumbers(str: string): string {
 export function padZero(num: number, length: number): string {
   return num.toString().padStart(length, '0');
 }
+

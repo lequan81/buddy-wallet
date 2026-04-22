@@ -12,3 +12,4 @@ export interface SessionRepositoryInterface {
   revokeAllForUser(userId: string, exceptSessionId?: string): Promise<DBSession[] | number>;
   revokeOthers(userId: string, currentSessionId: string, reason: string): Promise<void>;
 }
+

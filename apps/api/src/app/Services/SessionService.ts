@@ -1,10 +1,9 @@
 import { injectable, inject } from 'tsyringe';
-import { configs } from '@/configs';
-import { sessionCache, jwtBlacklist, isRedisAvailable } from '@/lib/redis';
-import { hashToken, generateSecureToken, toSafeUser } from '@utils';
-import { logger } from '@repo/logger';
-import type { JwtService } from '@/lib/plugins/auth';
-import type { RefreshSessionResult, Result, SessionListData, RevokeSessionData } from '@repo/types';
+import { authConfig } from '@/config';
+import { sessionCache, jwtBlacklist, isRedisAvailable } from '@infra/Redis';
+import { hashToken, generateSecureToken } from '@/lib/security/password';
+import { toSafeUser, toSessionInfoList } from '@/lib/mappers';
+import type { RefreshSessionResult, Result, SessionListData, RevokeSessionData, RequestInfo, JwtService } from '@repo/types';
 import type { SessionRepositoryInterface } from '@/app/Repositories/Contracts/SessionRepositoryInterface';
 import type { UserRepositoryInterface } from '@/app/Repositories/Contracts/UserRepositoryInterface';
 
@@ -21,7 +20,7 @@ export class SessionService {
   async refreshSession(
     refreshToken: string,
     jwt: JwtService,
-    requestInfo: { userAgent?: string; clientIP?: string }
+    requestInfo: RequestInfo
   ): Promise<RefreshSessionResult> {
     if (!refreshToken) {
       return { code: 'MISSING_TOKEN', error: 'No refresh token provided' };
@@ -46,9 +45,8 @@ export class SessionService {
     }
 
     const now = Date.now();
-    const accessTokenExpiresAt = new Date(now + configs.AUTH.ACCESS_TOKEN_LIFETIME);
+    const accessTokenExpiresAt = new Date(now + authConfig.ACCESS_TOKEN_LIFETIME);
     
-    // @ts-ignore - jwt might be different version
     const newAccessToken = await jwt.sign({
       id: user.id,
       phoneNumber: user.phoneNumber,
@@ -60,7 +58,7 @@ export class SessionService {
     const newRefreshToken = generateSecureToken(32);
     const newRefreshTokenHash = await hashToken(newRefreshToken);
     const newAccessTokenHash = await hashToken(newAccessToken);
-    const refreshTokenExpiresAt = new Date(now + configs.AUTH.REFRESH_TOKEN_LIFETIME);
+    const refreshTokenExpiresAt = new Date(now + authConfig.REFRESH_TOKEN_LIFETIME);
 
     // Invalidate old session cache
     if (isRedisAvailable() && session.accessTokenHash) {
@@ -83,7 +81,7 @@ export class SessionService {
         user: toSafeUser(user),
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
-        expiresIn: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000
+        expiresIn: authConfig.ACCESS_TOKEN_LIFETIME / 1000
       }
     };
   }
@@ -104,19 +102,9 @@ export class SessionService {
 
     const activeSessions = await this.sessionRepo.findActiveByUserId(userId);
 
-    const formattedSessions = activeSessions.map(session => ({
-      id: session.id,
-      deviceName: session.deviceName,
-      deviceType: session.deviceType,
-      location: session.location,
-      ipAddress: session.ipAddress,
-      lastActiveAt: session.lastActiveAt,
-      createdAt: session.createdAt
-    }));
-
     return { 
       data: { 
-        sessions: formattedSessions as any, 
+        sessions: toSessionInfoList(activeSessions), 
         currentSessionId 
       } 
     };
@@ -168,7 +156,7 @@ export class SessionService {
         revokedSessions.map(async (s) => {
           if (!s.accessTokenHash) return;
           await sessionCache.del(s.accessTokenHash);
-          await jwtBlacklist.add(s.accessTokenHash, configs.AUTH.JWT_BLACKLIST_SECONDS);
+          await jwtBlacklist.add(s.accessTokenHash, authConfig.JWT_BLACKLIST_SECONDS);
         })
       );
     }
@@ -176,3 +164,4 @@ export class SessionService {
     return { data: { count: revokedCount } };
   }
 }
+

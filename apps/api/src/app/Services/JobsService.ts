@@ -1,7 +1,7 @@
 import { injectable } from 'tsyringe';
 import { randomUUIDv7 } from 'bun';
 import type { Result } from '@repo/types';
-import { importCache, isRedisAvailable, getClient } from '@/lib/redis';
+import { importCache, isRedisAvailable, getClient } from '@infra/Redis';
 import { STORAGE_CONFIG, BACKEND_CONSTANTS } from '@repo/config';
 import { logger } from '@repo/logger';
 import { sanitizeFileName, toOptional } from '@repo/utils';
@@ -110,12 +110,12 @@ export class JobsService {
     const timeoutMs = BACKEND_CONSTANTS.JOBS.TIMEOUT_MS || 600000;
     const timeout = setTimeout(
       () => {
-        logger.warn(`[JobsService] Job ${jobId} timed out after ${timeoutMs / 1000 / 60}m.`);
+        logger.warn(`[JobsService] Job ${jobId} Timed out after ${timeoutMs / 1000 / 60}m.`);
         if (isRedisAvailable()) {
           importCache
             .setProgress(jobId, {
               status: 'failed',
-              errors: [`Job timed out after ${timeoutMs / 1000 / 60} minutes`],
+              errors: [`Job Timed out after ${timeoutMs / 1000 / 60} minutes`],
               current: 0,
               total: 0
             })
@@ -214,3 +214,4 @@ export class JobsService {
     return { pending: len };
   }
 }
+

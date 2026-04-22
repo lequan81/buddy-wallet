@@ -19,8 +19,8 @@ export interface DebtRepositoryInterface {
   update(id: string, data: Partial<DebtEntity> & { updatedAt: Date }): Promise<DebtEntity | null>;
   softDelete(id: string, deletedAt: Date): Promise<boolean>;
   findPotentialDuplicates(
-    debtorPhone: string,
-    creditorPhone: string,
+    debtorPhone: string | null,
+    creditorPhone: string | null,
     amount: number,
     amountTolerance: number,
     daysBack: number
@@ -33,3 +33,4 @@ export interface DebtRepositoryInterface {
   linkDebtsToUser(userId: string, phoneNumber: string): Promise<void>;
   countByUserId(userId: string): Promise<{ total: number; pending: number; completed: number }>;
 }
+

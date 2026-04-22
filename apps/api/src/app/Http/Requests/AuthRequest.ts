@@ -1,48 +1,43 @@
 /**
  * Authentication Request DTOs
  *
- * Validation schemas for authentication endpoints.
+ * Centralized validation using shared schemas from @repo/validation.
+ * Per Laravel convention, this is located in app/Http/Requests/
  */
-
-import { z } from 'zod';
+import * as v from 'valibot';
+import { 
+  signupSchema, 
+  loginSchema, 
+  forgotPasswordSchema, 
+  verifyOtpSchema,
+  resendOtpSchema
+} from '@repo/validation';
 
 /**
- * Register request body
+ * Register Request Schema
  */
-export const RegisterRequest = z.object({
-  phoneNumber: z.string().min(10, 'Phone number must be at least 10 digits'),
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  password: z.string().min(8, 'Password must be at least 8 characters')
-});
-
-export type RegisterRequest = z.infer<typeof RegisterRequest>;
+export const RegisterRequest = signupSchema;
+export type RegisterRequest = v.InferInput<typeof RegisterRequest>;
 
 /**
- * Login request body
+ * Login Request Schema
  */
-export const LoginRequest = z.object({
-  phoneNumber: z.string().min(10, 'Invalid phone number'),
-  password: z.string().min(1, 'Password is required'),
-  rememberMe: z.boolean().default(false)
-});
-
-export type LoginRequest = z.infer<typeof LoginRequest>;
+export const LoginRequest = v.intersect([
+  loginSchema,
+  v.object({
+    rememberMe: v.optional(v.boolean(), false)
+  })
+]);
+export type LoginRequest = v.InferInput<typeof LoginRequest>;
 
 /**
- * Verify OTP request
+ * Verify OTP Request
  */
-export const VerifyOTPRequest = z.object({
-  phoneNumber: z.string(),
-  otp: z.string().length(6, 'OTP must be 6 digits')
-});
-
-export type VerifyOTPRequest = z.infer<typeof VerifyOTPRequest>;
+export const VerifyOTPRequest = verifyOtpSchema;
+export type VerifyOTPRequest = v.InferInput<typeof VerifyOTPRequest>;
 
 /**
- * Resend OTP request
+ * Resend OTP Request
  */
-export const ResendOTPRequest = z.object({
-  phoneNumber: z.string().min(10, 'Invalid phone number')
-});
-
-export type ResendOTPRequest = z.infer<typeof ResendOTPRequest>;
+export const ResendOTPRequest = resendOtpSchema;
+export type ResendOTPRequest = v.InferInput<typeof ResendOTPRequest>;

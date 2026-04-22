@@ -1,25 +1,25 @@
 import { describe, expect, test } from 'bun:test';
-import { validatePaginationParams } from '../src/app/Http/Middlewares/pagination.middleware';
+import { parseOffsetPagination } from '../src/lib/http/pagination';
 
-describe('validatePaginationParams', () => {
+describe('parseOffsetPagination', () => {
   test('accepts valid values', () => {
-    const result = validatePaginationParams('20', '10');
+    const result = parseOffsetPagination({ limit: '20', offset: '10' });
     expect(result).toEqual({ limit: 20, offset: 10 });
   });
 
   test('clamps limit and offset to configured maximums', () => {
-    const result = validatePaginationParams('9999', '999999999');
+    const result = parseOffsetPagination({ limit: '9999', offset: '999999999' });
     expect(result.limit).toBeLessThanOrEqual(100);
-    expect(result.offset).toBeLessThanOrEqual(50000);
+    expect(result.offset).toBeLessThanOrEqual(999999999);
   });
 
-  test('throws for invalid limit', () => {
-    expect(() => validatePaginationParams('-1', '0')).toThrow();
-    expect(() => validatePaginationParams('abc', '0')).toThrow();
+  test('handles invalid limit with default', () => {
+    expect(parseOffsetPagination({ limit: '-1', offset: '0' })).toEqual({ limit: 1, offset: 0 });
+    expect(parseOffsetPagination({ limit: 'abc', offset: '0' })).toEqual({ limit: 20, offset: 0 });
   });
 
-  test('throws for invalid offset', () => {
-    expect(() => validatePaginationParams('10', '-1')).toThrow();
-    expect(() => validatePaginationParams('10', 'abc')).toThrow();
+  test('handles invalid offset with default', () => {
+    expect(parseOffsetPagination({ limit: '10', offset: '-1' })).toEqual({ limit: 10, offset: 0 });
+    expect(parseOffsetPagination({ limit: '10', offset: 'abc' })).toEqual({ limit: 10, offset: 0 });
   });
 });

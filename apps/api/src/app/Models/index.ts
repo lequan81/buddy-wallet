@@ -9,4 +9,6 @@ export { User } from './User';
 export { Session } from './Session';
 export { Activity, type ActivityChanges } from './Activity';
 export { Notification, type NotificationType } from './Notification';
-export { DebtStatus, DEBT_STATUSES, isValidDebtStatus } from './Enums/DebtStatus';
+export { DEBT_STATUSES, isValidDebtStatus } from './Enums/DebtStatus';
+export type { DebtStatus } from './Enums/DebtStatus';
+

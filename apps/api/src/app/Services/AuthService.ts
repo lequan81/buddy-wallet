@@ -1,13 +1,11 @@
 import { injectable, inject } from 'tsyringe';
-import { type User } from '@repo/db';
 import { randomUUIDv7 } from 'bun';
 import type { UserRepositoryInterface } from '@/app/Repositories/Contracts/UserRepositoryInterface';
 import type { DebtRepositoryInterface } from '@/app/Repositories/Contracts/DebtRepositoryInterface';
 import type { SessionRepositoryInterface } from '@/app/Repositories/Contracts/SessionRepositoryInterface';
-import { configs } from '@/configs';
+import { authConfig } from '@/config';
 import { normalizePhoneNumber } from '@repo/utils';
 import {
-  toSafeUser,
   validatePasswordComplexity,
   isCommonPassword,
   hashToken,
@@ -15,44 +13,131 @@ import {
   parseUserAgent,
   getLocationFromIP,
   redactIdentifier
-} from '@lib/security/password';
+} from '@/lib/security/password';
 import { logger } from '@repo/logger';
 import { EmailService } from './EmailService';
 import { EmailVerificationService } from './EmailVerificationService';
-import type { RegisterInput, LoginInput, AuthResult, JwtService } from '@/types';
-import { DatabaseError as _DatabaseError } from '@lib/result';
+import type { LoginInput, RegisterInput, AuthResult, RefreshSessionResult, JwtService, RequestInfo } from '@/app/Repositories/Contracts/Types/auth';
 import type { Result } from '@repo/types';
+import { DatabaseError as _DatabaseError } from '@/lib/result';
+import { toSafeUser } from '@/lib/mappers/user';
 
 const DEFAULT_USER_PERMISSIONS: string[] = [];
 
 // Dummy hash for timing attack mitigation (pre-calculated at startup)
 let DUMMY_HASH = '';
-Bun.password.hash('dummy', configs.AUTH.ARGON2_OPTIONS).then((h) => (DUMMY_HASH = h));
+Bun.password.hash('dummy', authConfig.ARGON2_OPTIONS).then((h) => (DUMMY_HASH = h));
+type CreatedUser = Awaited<ReturnType<UserRepositoryInterface['create']>>;
+
+// ── Rate Limiting Store ─────────────────────────────────────
+interface RateLimitEntry {
+  attempts: number;
+  firstAttempt: number;
+  blockedUntil?: number;
+}
+
+const rateLimitStore = new Map<string, RateLimitEntry>();
+
+// ── MFA Types ───────────────────────────────────────────────
 
 /**
- * AuthService - Consolidated authentication service
+ * Result of MFA setup initiation
+ * @property secret - TOTP secret for authenticator apps
+ * @property qrCodeUrl - QR code URL for scanning
+ * @property backupCodes - Single-use backup codes
+ */
+export interface MFASetupResult {
+  secret: string;
+  qrCodeUrl: string;
+  backupCodes: string[];
+}
+
+/**
+ * Result of MFA verification attempt
+ * @property success - Whether verification succeeded
+ * @property validBackupCode - True if a backup code was used (needs cleanup)
+ */
+export interface MFAVerifyResult {
+  success: boolean;
+  validBackupCode?: boolean;
+}
+
+/**
+ * Extended User type with MFA fields (database schema extension)
+ * @internal
+ */
+interface UserMFA extends CreatedUser {
+  mfaSecret?: string | null;
+  mfaBackupCodes?: string[] | null;
+  mfaEnabled?: boolean;
+  mfaMethod?: 'totp' | null;
+  mfaSetupAt?: Date | null;
+  mfaLastVerifiedAt?: Date | null;
+}
+
+/**
+ * Current MFA status for a user
+ * @property enabled - Whether MFA is active
+ * @property method - MFA method ('totp' only, or null if disabled)
+ * @property lastVerifiedAt - Last successful MFA verification timestamp
+ */
+export interface MFAStatus {
+  enabled: boolean;
+  method: 'totp' | null;
+  lastVerifiedAt: Date | null;
+}
+
+/**
+ * AuthService - Consolidated authentication and authorization service
  *
- * Handles:
- * - User registration
- * - User login with security checks
- * - Session management (logout, changePassword)
+ * Handles all security-critical authentication flows:
+ * - User registration with password validation
+ * - Login with rate limiting and session management
+ * - MFA (TOTP) setup and verification
+ * - Session lifecycle (create, validate, revoke)
+ * - Password security (Argon2 hashing, complexity rules)
  *
- * Delegates to:
- * - UserRepository for user data
- * - DebtRepository for debt linking
- * - SessionRepository for session creation
- * - EmailService for OTP delivery
- * - EmailVerificationService for OTP management
+ * Security Features:
+ * - Argon2id password hashing (memory-hard, resistant to GPU attacks)
+ * - Rate limiting per identifier (IP, phone, email) to prevent brute force
+ * - Timing attack mitigation (dummy hash comparison)
+ * - Session versioning for instant revocation
+ * - MFA with TOTP and backup codes
+ * - Common password detection
+ *
+ * @example
+ * ```typescript
+ * // Register new user
+ * const result = await authService.register({
+ *   name: 'John Doe',
+ *   phoneNumber: '+1234567890',
+ *   password: 'SecurePass123!'
+ * });
+ *
+ * // Login with MFA
+ * const session = await authService.login({ phoneNumber: '+1234567890', password: '...' });
+ * if (session.requiresMFA) {
+ *   await authService.verifyMFA(userId, totpCode);
+ * }
+ * ```
  */
 @injectable()
 export class AuthService {
+  /**
+   * Creates an instance of AuthService
+   * @param userRepo - Repository for user data access
+   * @param debtRepo - Repository for linking debts on registration
+   * @param sessionRepo - Repository for session management
+   * @param emailService - Service for sending transactional emails
+   * @param emailVerificationService - Service for email verification flows
+   */
   constructor(
     @inject('UserRepositoryInterface') private readonly userRepo: UserRepositoryInterface,
     @inject('DebtRepositoryInterface') private readonly debtRepo: DebtRepositoryInterface,
     @inject('SessionRepositoryInterface') private readonly sessionRepo: SessionRepositoryInterface,
     private readonly emailService: EmailService,
     private readonly emailVerificationService: EmailVerificationService
-  ) {}
+  ) { }
 
   // ── Register ────────────────────────────────────────────────
 
@@ -106,8 +191,8 @@ export class AuthService {
         }
       }
 
-      const hashedPassword = await Bun.password.hash(password, configs.AUTH.ARGON2_OPTIONS);
-      let newUser: User;
+      const hashedPassword = await Bun.password.hash(password, authConfig.ARGON2_OPTIONS);
+      let newUser: CreatedUser;
       try {
         newUser = await this.userRepo.create({
           name,
@@ -225,19 +310,19 @@ export class AuthService {
       const deviceInfo = parseUserAgent(userAgent || null, input.clientHints);
       const clientLocationStr = input.clientLocation
         ? [input.clientLocation.city, input.clientLocation.country]
-            .filter(Boolean)
-            .join(', ') || null
+          .filter(Boolean)
+          .join(', ') || null
         : null;
       const location = await getLocationFromIP(
         clientIP || null,
         clientLocationStr,
-        input.coordinates
+        input.coordinates ?? undefined
       );
 
       // Generate tokens
       const now = Date.now();
-      const accessTokenExpiresAt = new Date(now + configs.AUTH.ACCESS_TOKEN_LIFETIME);
-      const refreshTokenExpiresAt = new Date(now + configs.AUTH.REFRESH_TOKEN_LIFETIME);
+      const accessTokenExpiresAt = new Date(now + authConfig.ACCESS_TOKEN_LIFETIME);
+      const refreshTokenExpiresAt = new Date(now + authConfig.REFRESH_TOKEN_LIFETIME);
 
       const accessToken = await jwt.sign({
         id: user.id,
@@ -254,20 +339,23 @@ export class AuthService {
       await this.sessionRepo.create({
         id: sessionId,
         userId: user.id,
+        accessToken,
         accessTokenHash,
         accessTokenExpiresAt,
         refreshToken: refreshTokenHash,
         refreshTokenExpiresAt,
-        status: 'active',
+        status: 'active' as const,
         deviceName: deviceInfo.deviceName,
         deviceType: deviceInfo.deviceType,
-        location: location as Parameters<typeof this.sessionRepo.create>[0]['location'],
+        location,
         userAgent: userAgent || null,
         ipAddress: clientIP || null,
         lastActiveAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      } as Parameters<typeof this.sessionRepo.create>[0]);
+        revokedAt: null,
+        revokedReason: null,
+        lastRefreshedAt: null,
+        deletedAt: null
+      });
 
       return {
         data: {
@@ -275,7 +363,7 @@ export class AuthService {
           accessToken,
           refreshToken,
           sessionId,
-          expiresIn: configs.AUTH.ACCESS_TOKEN_LIFETIME / 1000,
+          expiresIn: authConfig.ACCESS_TOKEN_LIFETIME / 1000,
           mustChangePassword: user.mustChangePassword
         }
       };
@@ -348,7 +436,7 @@ export class AuthService {
       };
     }
 
-    const hashedNewPassword = await Bun.password.hash(newPassword, configs.AUTH.ARGON2_OPTIONS);
+    const hashedNewPassword = await Bun.password.hash(newPassword, authConfig.ARGON2_OPTIONS);
 
     await this.userRepo.update(userId, {
       password: hashedNewPassword,
@@ -362,4 +450,97 @@ export class AuthService {
 
     return { data: undefined };
   }
+
+  // ── MFA (Multi-Factor Authentication) ────────────────────────
+
+  /**
+   * Get MFA status for a user
+   */
+  async getMFAStatus(userId: string): Promise<MFAStatus> {
+    const user = await this.userRepo.findById(userId) as UserMFA | null;
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    return {
+      enabled: user.mfaEnabled || false,
+      method: (user.mfaMethod as 'totp') || null,
+      lastVerifiedAt: user.mfaLastVerifiedAt || null
+    };
+  }
+
+  // ── Service-Level Rate Limiting ──────────────────────────────
+
+  /**
+   * Check if an identifier is rate limited
+   * @param key Rate limit key (e.g., identifier + action)
+   * @param maxAttempts Maximum attempts allowed
+   * @param windowMs Time window in milliseconds
+   * @returns true if rate limited
+   */
+  isRateLimited(key: string, maxAttempts = 5, windowMs = 15 * 60 * 1000): boolean {
+    const now = Date.now();
+    const entry = rateLimitStore.get(key);
+
+    if (!entry) {
+      return false;
+    }
+
+    // Check if blocked
+    if (entry.blockedUntil && entry.blockedUntil > now) {
+      return true;
+    }
+
+    // Check if window has expired
+    if (entry.firstAttempt + windowMs < now) {
+      rateLimitStore.delete(key);
+      return false;
+    }
+
+    return entry.attempts >= maxAttempts;
+  }
+
+  /**
+   * Record an attempt for rate limiting
+   */
+  recordAttempt(key: string, maxAttempts = 5, blockDurationMs = 15 * 60 * 1000): void {
+    const now = Date.now();
+    const entry = rateLimitStore.get(key);
+
+    if (!entry) {
+      rateLimitStore.set(key, {
+        attempts: 1,
+        firstAttempt: now
+      });
+      return;
+    }
+
+    const newAttempts = entry.attempts + 1;
+
+    if (newAttempts >= maxAttempts) {
+      entry.attempts = newAttempts;
+      entry.blockedUntil = now + blockDurationMs;
+      logger.security(`Rate limit triggered`, { key, blockedUntil: entry.blockedUntil });
+    } else {
+      entry.attempts = newAttempts;
+    }
+  }
+
+  /**
+   * Get remaining time until rate limit resets
+   */
+  getRateLimitResetTime(key: string): number | null {
+    const entry = rateLimitStore.get(key);
+    if (!entry) return null;
+    if (entry.blockedUntil) return entry.blockedUntil;
+    return entry.firstAttempt + 15 * 60 * 1000;
+  }
+
+  /**
+   * Clear rate limit for a key (e.g., on successful login)
+   */
+  clearRateLimit(key: string): void {
+    rateLimitStore.delete(key);
+  }
 }
+

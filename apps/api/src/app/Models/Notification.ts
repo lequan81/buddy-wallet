@@ -21,6 +21,28 @@ export class Notification {
   ) {}
 
   /**
+   * Static factory for creating new notifications
+   */
+  static create(params: {
+    userId: string;
+    type: NotificationType;
+    title: string;
+    body: string;
+    data?: Record<string, unknown>;
+    relatedResourceId?: string;
+  }): Notification {
+    return new Notification(
+      crypto.randomUUID(),
+      params.userId,
+      params.type,
+      params.title,
+      params.body,
+      params.data,
+      params.relatedResourceId
+    );
+  }
+
+  /**
    * Mark notification as read
    */
   markAsRead(): Notification {
@@ -60,3 +82,4 @@ export class Notification {
     return this.createdAt > oneDayAgo;
   }
 }
+

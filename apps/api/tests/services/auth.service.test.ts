@@ -1,51 +1,40 @@
 /**
  * Auth Service Unit Tests
  *
- * Demonstrates testing with dependency injection using mocked database.
- * These tests show how the class-based DI pattern enables unit testing
- * without requiring a real database connection.
+ * Demonstrates testing with dependency injection container.
+ * Uses the DI container for proper service resolution and test doubles.
  */
-import { describe, expect, it, beforeEach } from 'bun:test';
-import { AuthService } from '../../src/app/Services/AuthService';
+import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
+import { AuthService } from '@/app/Services/AuthService';
+import {
+  createTestContainer,
+  mockRepositories,
+  resetContainer,
+  isErrorResult
+} from '../utils/di-helpers';
 
-// Simplified mock database for demonstrating DI pattern
-function createMockDb() {
-  return {
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          get: () => undefined // No user found by default
-        })
-      })
-    }),
-    insert: () => ({
-      values: () => ({
-        returning: async () => [{ id: 'new-user-id', email: null, role: 'user' }]
-      })
-    }),
-    update: () => ({
-      set: () => ({
-        where: () => Promise.resolve()
-      })
-    })
-  };
-}
-
-describe('AuthService (Unit Tests with DI)', () => {
+describe('AuthService (Unit Tests with DI Container)', () => {
   let authService: AuthService;
-  let mockDb: ReturnType<typeof createMockDb>;
 
   beforeEach(() => {
-    mockDb = createMockDb();
-    const mockDebtRepo = { linkDebtsToUser: async () => undefined } as unknown as ConstructorParameters<typeof AuthService>[1];
-    const mockEmailService = {} as unknown as ConstructorParameters<typeof AuthService>[2];
-    const mockVerificationService = {} as unknown as ConstructorParameters<typeof AuthService>[3];
-    authService = new AuthService(
-      mockDb as unknown as ConstructorParameters<typeof AuthService>[0],
-      mockDebtRepo,
-      mockEmailService,
-      mockVerificationService
-    );
+    // Reset container before each test
+    resetContainer();
+
+    // Create test container with mock dependencies
+    const testContainer = createTestContainer();
+    testContainer.register('UserRepositoryInterface', {
+      useValue: mockRepositories.userRepository()
+    });
+    testContainer.register('DebtRepositoryInterface', {
+      useValue: mockRepositories.debtRepository()
+    });
+
+    // Resolve service from container
+    authService = testContainer.resolve(AuthService);
+  });
+
+  afterEach(() => {
+    resetContainer();
   });
 
   describe('input validation', () => {
@@ -56,8 +45,8 @@ describe('AuthService (Unit Tests with DI)', () => {
         password: 'password123'
       });
 
-      expect('code' in result).toBe(true);
-      if ('code' in result) {
+      expect(isErrorResult(result)).toBe(true);
+      if (isErrorResult(result)) {
         expect(result.code).toBeDefined();
       }
     });
@@ -69,7 +58,7 @@ describe('AuthService (Unit Tests with DI)', () => {
         password: 'password123'
       });
 
-      expect('code' in result).toBe(true);
+      expect(isErrorResult(result)).toBe(true);
     });
   });
 });

@@ -22,3 +22,4 @@ export interface RateLimitConfig {
   /** Custom error message */
   message?: string;
 }
+

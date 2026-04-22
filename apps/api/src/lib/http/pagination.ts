@@ -1,5 +1,5 @@
 /**
- * Pagination utilities for offset/limit and page-based pagination
+ * Pagination utilities for offset/limit and page-based Pagination
  */
 
 export interface OffsetPaginationQuery {
@@ -13,7 +13,7 @@ export interface PagePaginationQuery {
 }
 
 /**
- * Parse offset-based pagination from query parameters
+ * Parse offset-based Pagination from query parameters
  * Used for: limit/offset style APIs
  */
 export function parseOffsetPagination(
@@ -26,7 +26,7 @@ export function parseOffsetPagination(
 }
 
 /**
- * Parse page-based pagination from query parameters
+ * Parse page-based Pagination from query parameters
  * Used for: page/limit style APIs
  */
 export function parsePagePagination(
@@ -37,3 +37,4 @@ export function parsePagePagination(
 
   return { page, limit };
 }
+

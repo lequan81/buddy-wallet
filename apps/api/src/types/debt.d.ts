@@ -1,18 +1,12 @@
 /**
- * Debt Types - Consolidated
- * 
- * All debt-related interfaces and types in one file:
- * - State machine interfaces (from debt-state.d.ts)
- * - Service interfaces (from debt.interfaces.d.ts)
- * - Shared types for debt services
+ * Debt feature-local helper types.
+ * Canonical debt entities/contracts live in @repo/types.
  */
-import type { Debt } from '@repo/db';
-import type { DebtStatus } from './services/debt';
 
 // ── Service Interfaces (from debt.interfaces.d.ts) ───────────────────
 
 // PushPayload is defined in push.d.ts — import from there
-export type { PushPayload } from './push.d';
+export type { PushPayload } from './push';
 
 /** Debt creation options */
 export interface DebtCreationOptions {
@@ -33,11 +27,3 @@ export interface BatchDeleteResult {
   errors: string[];
 }
 
-// Re-export state machine types from their canonical location
-// TODO: Import from app/Models after refactoring (April 20)
-// export type {
-//   TransitionContext,
-//   TransitionResult,
-//   IDebtState,
-//   IDebtStateMachine
-// } from '@/app/Models/debtStateMachine';

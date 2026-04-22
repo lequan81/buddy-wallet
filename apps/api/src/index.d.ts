@@ -3,3 +3,4 @@
  * Used internally and by frontends via package.json exports
  */
 export type App = typeof import('./index').app;
+

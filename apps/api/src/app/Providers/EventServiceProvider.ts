@@ -7,6 +7,7 @@
 
 import { container } from 'tsyringe';
 import 'reflect-metadata';
+import { logger } from '@repo/logger';
 
 /**
  * Domain event interface
@@ -15,25 +16,26 @@ export interface DomainEvent {
   type: string;
   timestamp: Date;
   aggregateId?: string;
-  [key: string]: any;
 }
 
 /**
- * Event listener callback
+ * Event listener callback - uses contravariant typing for event parameter
  */
 export type EventListener<T extends DomainEvent = DomainEvent> = (event: T) => Promise<void> | void;
+
+type AnyEventListener = (event: DomainEvent) => Promise<void> | void;
 
 /**
  * Simple in-memory event bus
  * For microservices, replace with Redis, RabbitMQ, or SQS
  */
 export class EventBus {
-  private listeners: Map<string, EventListener[]> = new Map();
+  private listeners: Map<string, AnyEventListener[]> = new Map();
 
   /**
    * Register event listener
    */
-  on<T extends DomainEvent>(eventType: string, listener: EventListener<T>): void {
+  on(eventType: string, listener: AnyEventListener): void {
     if (!this.listeners.has(eventType)) {
       this.listeners.set(eventType, []);
     }
@@ -43,7 +45,7 @@ export class EventBus {
   /**
    * Unregister event listener
    */
-  off<T extends DomainEvent>(eventType: string, listener: EventListener<T>): void {
+  off(eventType: string, listener: AnyEventListener): void {
     const listeners = this.listeners.get(eventType);
     if (listeners) {
       const index = listeners.indexOf(listener);
@@ -95,11 +97,33 @@ export class EventServiceProvider {
   async boot(): Promise<void> {
     const eventBus = container.resolve<EventBus>('EventBus');
 
-    // Listeners will be registered when services are instantiated
-    // via the @OnEvent decorator and resolved by the container
+    // Services to scan for @OnEvent decorators
+    const servicesToScan = [
+      'NotificationService'
+    ];
 
-    // Example: If NotificationService has @OnEvent('debt.created'),
-    // it gets automatically registered when resolved from container
+    for (const serviceName of servicesToScan) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const service = container.resolve<Record<string, (event: DomainEvent) => Promise<void> | void>>(serviceName as any);
+        const constructor = service.constructor;
+
+        // Get event listeners metadata from @OnEvent decorator
+        const listeners = Reflect.getMetadata('eventListeners', constructor) as Array<{ event: string; handler: string }> | undefined;
+
+        if (listeners && Array.isArray(listeners)) {
+          for (const listener of listeners) {
+            // Bind the handler to the service instance and register with event bus
+            const boundHandler = service[listener.handler].bind(service) as AnyEventListener;
+            eventBus.on(listener.event, boundHandler);
+            logger.app(`Registered event listener: ${constructor.name}.${listener.handler} for '${listener.event}'`);
+          }
+        }
+      } catch (error) {
+        // Service might not be registered, skip
+        logger.debug(`Could not scan service ${serviceName} for event listeners`, { error: String(error) });
+      }
+    }
   }
 }
 
@@ -160,3 +184,4 @@ export class UserRegisteredEvent implements DomainEvent {
     public phoneNumber: string
   ) {}
 }
+

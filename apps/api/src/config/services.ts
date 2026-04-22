@@ -54,3 +54,4 @@ export const servicesConfig = {
     DELETE: { windowMs: 60000, maxRequests: 20 }
   }
 };
+

@@ -80,6 +80,20 @@ export function maskPhone(phone: string): string {
 }
 
 /**
+ * Redact an identifier (like email or phone) for privacy
+ * @example
+ * redactIdentifier('user@example.com') // 'us***@example.com'
+ */
+export function redactIdentifier(id: string): string {
+  if (id.includes('@')) {
+    const [user, domain] = id.split('@');
+    if (user.length <= 2) return `${user}***@${domain}`;
+    return `${user.slice(0, 2)}***@${domain}`;
+  }
+  return maskPhone(id);
+}
+
+/**
  * Format amount as currency with configurable currency code.
  * Default: Vietnamese Dong (VND).
  */

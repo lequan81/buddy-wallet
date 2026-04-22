@@ -118,3 +118,4 @@ export function differenceInHours(date1: Date, date2: Date): number {
 export function truncateToSeconds(date: Date): Date {
   return new Date(Math.floor(date.getTime() / MS_PER_SECOND) * MS_PER_SECOND);
 }
+

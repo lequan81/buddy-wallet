@@ -2,7 +2,7 @@ import { logger } from '@repo/logger';
 
 /**
  * Database-specific circuit breaker
- * Monitors database connection failures and prevents cascading failures
+ * Monitors database Connection failures and prevents cascading failures
  */
 interface DbCircuitBreakerOptions {
   failureThreshold?: number;  // Default: 5 failures
@@ -99,3 +99,4 @@ export function DbCircuitBreaker(options: DbCircuitBreakerOptions = {}) {
     return descriptor;
   };
 }
+

@@ -1,8 +1,10 @@
 import { injectable, inject } from 'tsyringe';
-import { eq, and, ne, inArray, count, isNull, or } from '@repo/db';
+import { eq, and, ne, inArray, count, isNull, or, type SQL } from '@repo/db';
 import { debts, type Debt as DebtEntity, type NewDebt as CreateDebtData, type DbClient } from '@repo/db';
 import type { PaginatedResult } from '@repo/types';
 import type { DebtRepositoryInterface, DebtFilterOptions } from '../Contracts/DebtRepositoryInterface';
+import { SoftDeletePlugin } from '../Plugins/SoftDeletePlugin';
+import { PaginationPlugin } from '../Plugins/PaginationPlugin';
 
 @injectable()
 export class DebtRepository implements DebtRepositoryInterface {
@@ -11,18 +13,15 @@ export class DebtRepository implements DebtRepositoryInterface {
   ) {}
 
   async findById(id: string, includeDeleted = false): Promise<DebtEntity | null> {
-    const conditions = [eq(debts.id, id)];
-    if (!includeDeleted) conditions.push(isNull(debts.deletedAt));
-
+    const conditions: SQL[] = SoftDeletePlugin.applyCheck([eq(debts.id, id)], debts.deletedAt, includeDeleted);
     const result = await this.db.select().from(debts).where(and(...conditions)).get();
     return (result as DebtEntity) || null;
   }
 
   async findByIds(ids: string[], includeDeleted = false): Promise<DebtEntity[]> {
     if (ids.length === 0) return [];
-    const conditions = [inArray(debts.id, ids)];
-    if (!includeDeleted) conditions.push(isNull(debts.deletedAt));
-
+    const conditions: SQL[] = SoftDeletePlugin.applyCheck([inArray(debts.id, ids)], debts.deletedAt, includeDeleted);
+  
     return (await this.db
       .select()
       .from(debts)
@@ -33,16 +32,15 @@ export class DebtRepository implements DebtRepositoryInterface {
   async findMany(options: DebtFilterOptions): Promise<PaginatedResult<DebtEntity>> {
     const { limit = 20, offset = 0, status, debtorId, creditorId, uploadedById, involvedUserId, includeDeleted = false } = options;
     
-    const conditions = [];
-    if (!includeDeleted) conditions.push(isNull(debts.deletedAt));
-    if (status && status !== 'all') conditions.push(eq(debts.status, status));
+    const conditions: SQL[] = SoftDeletePlugin.applyCheck([], debts.deletedAt, includeDeleted);
+    if (status && status !== 'all') conditions.push(eq(debts.status, status as any));
     if (debtorId) conditions.push(eq(debts.debtorId, debtorId));
     if (creditorId) conditions.push(eq(debts.creditorId, creditorId));
     if (uploadedById) conditions.push(eq(debts.uploadedById, uploadedById));
     if (involvedUserId) {
-      conditions.push(or(eq(debts.debtorId, involvedUserId), eq(debts.creditorId, involvedUserId)));
+      conditions.push(or(eq(debts.debtorId, involvedUserId), eq(debts.creditorId, involvedUserId)) as SQL);
     }
-
+  
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
     const countPromise = this.db.select({ count: count() }).from(debts).where(where).get();
@@ -50,33 +48,25 @@ export class DebtRepository implements DebtRepositoryInterface {
 
     const [countRes, dataRes] = await Promise.all([countPromise, dataPromise]);
 
-    return {
-      items: dataRes as DebtEntity[],
-      pagination: {
-        total: countRes?.count ?? 0,
-        page: Math.floor(offset / limit) + 1,
-        limit
-      }
-    };
+    return PaginationPlugin.toPaginatedResult(dataRes as DebtEntity[], countRes?.count ?? 0, limit, offset);
   }
 
   async count(options: Omit<DebtFilterOptions, 'limit' | 'offset'>): Promise<number> {
     const { status, debtorId, creditorId, uploadedById, involvedUserId, includeDeleted = false } = options;
     
-    const conditions = [];
-    if (!includeDeleted) conditions.push(isNull(debts.deletedAt));
-    if (status && status !== 'all') conditions.push(eq(debts.status, status));
+    const conditions: SQL[] = SoftDeletePlugin.applyCheck([], debts.deletedAt, includeDeleted);
+    if (status && status !== 'all') conditions.push(eq(debts.status, status as any));
     if (debtorId) conditions.push(eq(debts.debtorId, debtorId));
     if (creditorId) conditions.push(eq(debts.creditorId, creditorId));
     if (uploadedById) conditions.push(eq(debts.uploadedById, uploadedById));
     if (involvedUserId) {
-      conditions.push(or(eq(debts.debtorId, involvedUserId), eq(debts.creditorId, involvedUserId)));
+      conditions.push(or(eq(debts.debtorId, involvedUserId), eq(debts.creditorId, involvedUserId)) as SQL);
     }
-
+  
     const where = conditions.length > 0 ? and(...conditions) : undefined;
-
+  
     const result = await this.db.select({ count: count() }).from(debts).where(where).get();
-    return result?.count ?? 0;
+    return (result as any)?.count ?? 0;
   }
 
   async create(data: CreateDebtData): Promise<DebtEntity> {
@@ -162,11 +152,13 @@ export class DebtRepository implements DebtRepositoryInterface {
       .select({ count: count() })
       .from(debts)
       .where(
-        and(
-          or(eq(debts.debtorPhone, phone), eq(debts.creditorPhone, phone)),
-          ne(debts.status, 'paid'),
-          ne(debts.status, 'cancelled'),
-          isNull(debts.deletedAt)
+        SoftDeletePlugin.filter(
+          and(
+            or(eq(debts.debtorPhone, phone), eq(debts.creditorPhone, phone)),
+            ne(debts.status, 'paid'),
+            ne(debts.status, 'cancelled')
+          ),
+          debts.deletedAt
         )
       )
       .get();
@@ -220,7 +212,12 @@ export class DebtRepository implements DebtRepositoryInterface {
     const totalResult = await this.db
       .select({ count: count() })
       .from(debts)
-      .where(and(or(eq(debts.debtorId, userId), eq(debts.creditorId, userId)), isNull(debts.deletedAt)))
+      .where(
+        SoftDeletePlugin.filter(
+          or(eq(debts.debtorId, userId), eq(debts.creditorId, userId)),
+          debts.deletedAt
+        )
+      )
       .get();
     
     // Simplified implementation for other counts
@@ -231,3 +228,4 @@ export class DebtRepository implements DebtRepositoryInterface {
     };
   }
 }
+

@@ -1,10 +1,10 @@
 import { injectable, inject } from 'tsyringe';
 import { randomUUIDv7 } from 'bun';
-import { eq, and, inArray, count, ne } from '@repo/db';
+import { eq, and, inArray, ne, type SQL } from '@repo/db';
 import { users, type User as DBUser, type DbClient } from '@repo/db';
 import type { UserWithNotifications } from '@repo/types';
 import type { UserRepositoryInterface } from '../Contracts/UserRepositoryInterface';
-import { configs } from '@/config';
+import { paginate } from '../Plugins/PaginationPlugin';
 
 @injectable()
 export class UserRepository implements UserRepositoryInterface {
@@ -13,25 +13,7 @@ export class UserRepository implements UserRepositoryInterface {
   ) {}
 
   async findMany(limit: number, offset: number): Promise<{ data: DBUser[]; total: number }> {
-    const safeLimit = Math.min(Math.max(limit, 1), configs.PAGINATION.MAX_LIMIT);
-    const safeOffset = Math.min(Math.max(offset, 0), configs.PAGINATION.MAX_OFFSET);
-
-    const countPromise = this.db.select({ count: count() }).from(users).get();
-    const dataPromise = this.db.select().from(users).limit(safeLimit).offset(safeOffset).all();
-
-    const [countRes, dataRes] = await Promise.allSettled([countPromise, dataPromise]);
-
-    if (countRes.status === 'rejected') {
-      throw new Error(`Database count query failed: ${String(countRes.reason)}`);
-    }
-    if (dataRes.status === 'rejected') {
-      throw new Error(`Database data query failed: ${String(dataRes.reason)}`);
-    }
-
-    return {
-      data: dataRes.value as DBUser[],
-      total: countRes.value?.count ?? 0
-    };
+    return paginate(this.db, users, limit, offset);
   }
 
   async findByIds(ids: string[]): Promise<DBUser[]> {
@@ -50,7 +32,7 @@ export class UserRepository implements UserRepositoryInterface {
   }
 
   async findByPhone(phone: string, excludeId?: string): Promise<DBUser | null> {
-    const conditions = [eq(users.phoneNumber, phone)];
+    const conditions: SQL[] = [eq(users.phoneNumber, phone)];
     if (excludeId) conditions.push(ne(users.id, excludeId));
 
     const user = await this.db
@@ -62,7 +44,7 @@ export class UserRepository implements UserRepositoryInterface {
   }
 
   async findByEmail(email: string, excludeId?: string): Promise<DBUser | null> {
-    const conditions = [eq(users.email, email)];
+    const conditions: SQL[] = [eq(users.email, email)];
     if (excludeId) conditions.push(ne(users.id, excludeId));
 
     const user = await this.db
@@ -160,18 +142,22 @@ export class UserRepository implements UserRepositoryInterface {
   async getUsersForNotifications(userIds: string[]): Promise<UserWithNotifications[]> {
     if (userIds.length === 0) return [];
     
-    // Simplified fetch - in real app would include settings
     const results = await this.db
       .select()
       .from(users)
       .where(inArray(users.id, userIds))
       .all();
     
-    return results.map(u => ({
+    return results.map((u: any) => ({
       id: u.id,
       email: u.email,
       phoneNumber: u.phoneNumber,
-      pushSubscription: (u as { pushSubscription?: string }).pushSubscription
+      pushSubscription: (u as { pushSubscription?: string }).pushSubscription,
+      role: u.role,
+      permissions: u.permissions as any,
+      emailVerified: u.emailVerified,
+      emailNotificationsEnabled: u.emailNotificationsEnabled,
+      pushNotificationsEnabled: u.pushNotificationsEnabled
     })) as UserWithNotifications[];
   }
 }

@@ -9,3 +9,4 @@ export interface BankAccountRepositoryInterface {
   delete(id: string): Promise<void>;
   setPrimary(id: string, userId: string): Promise<void>;
 }
+

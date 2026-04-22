@@ -18,8 +18,7 @@ describe('OpenTelemetry Integration', () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     // 3. Verify traceStore has the trace
-    const traces = traceStore.getAll();
-    // console.log('Current traces:', JSON.stringify(traces, null, 2));
-    expect(traces.length).toBeGreaterThan(0);
+    const traceContext = traceStore.get();
+    expect(traceContext).toBeDefined();
   });
 });

@@ -53,6 +53,7 @@ export interface SafeUser extends Omit<
   permissions: string[];
   createdAt: Date | string | null;
   updatedAt: Date | string | null;
+  [key: string]: unknown;
 }
 
 /**

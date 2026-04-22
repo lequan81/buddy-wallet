@@ -61,67 +61,15 @@ export const createError = (
 });
 
 // ============================================
-// API RESPONSE HELPERS
+// HELPERS
 // ============================================
 
-export interface ApiResponse<T> {
-  ok: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-  };
-  details?: string;
-  timestamp: string;
-}
-
 /**
- * Creates a standardized API response object.
+ * Creates an error definition object.
+ * Used internally for error constant definitions.
  */
-export function apiResponse<T>(params: {
-  ok: boolean;
-  data?: T;
-  error?: { code: string; message: string };
-  details?: string;
-}): ApiResponse<T> {
-  return {
-    ok: params.ok,
-    ...(params.data !== undefined ? { data: params.data } : {}),
-    ...(params.error ? { error: params.error } : {}),
-    ...(params.details ? { details: params.details } : {}),
-    timestamp: new Date().toISOString()
-  };
-}
-
-/**
- * Creates a successful API response.
- */
-export function apiSuccess<T>(data: T): ApiResponse<T> {
-  return apiResponse({
-    ok: true,
-    data
-  });
-}
-
-/**
- * Creates an error API response.
- */
-export function apiError(
-  error: { code: string; message: string } | { code: string; error?: any },
-  details?: string
-): ApiResponse<never> {
-  if ('message' in error) {
-    return apiResponse({
-      ok: false,
-      error: { code: error.code, message: (error as any).message },
-      details: details
-    });
-  }
-
-  return apiResponse({
-    ok: false,
-    error: { code: (error as any).code, message: '' },
-    details: (error as any).error || details
-  });
-}
+export const defineError = (code: string, message: string) => ({
+  code,
+  message
+});
 

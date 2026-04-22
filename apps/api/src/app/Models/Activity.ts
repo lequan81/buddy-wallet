@@ -5,8 +5,8 @@
  */
 
 export interface ActivityChanges {
-  before?: Record<string, any>;
-  after?: Record<string, any>;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
 }
 
 export class Activity {
@@ -21,6 +21,30 @@ export class Activity {
     public readonly userAgent?: string,
     public readonly createdAt: Date = new Date()
   ) {}
+
+  /**
+   * Static factory for creating new activities
+   */
+  static create(params: {
+    userId: string;
+    action: string;
+    resource: string;
+    resourceId: string;
+    changes?: ActivityChanges;
+    ipAddress?: string;
+    userAgent?: string;
+  }): Activity {
+    return new Activity(
+      crypto.randomUUID(),
+      params.userId,
+      params.action,
+      params.resource,
+      params.resourceId,
+      params.changes,
+      params.ipAddress,
+      params.userAgent
+    );
+  }
 
   /**
    * Get human-readable action description

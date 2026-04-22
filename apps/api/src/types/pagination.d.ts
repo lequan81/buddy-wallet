@@ -9,3 +9,4 @@ export type PaginationQuery = {
   offset?: string | number | null;
   page?: string | number | null;
 };
+

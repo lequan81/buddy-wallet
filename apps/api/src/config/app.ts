@@ -7,9 +7,10 @@ export const appConfig = {
   PORT: env.string('PORT', '3000'),
   WEB_URL: env.string('WEB_URL', 'http://localhost:5173'),
   IS_PRODUCTION: nodeEnv === 'production',
-  PAGINATION: {
-    DEFAULT_LIMIT: env.int('PAGINATION_DEFAULT_LIMIT', 20),
-    MAX_LIMIT: env.int('PAGINATION_MAX_LIMIT', 100),
-    MAX_OFFSET: env.int('PAGINATION_MAX_OFFSET', 50000)
+  Pagination: {
+    DEFAULT_LIMIT: env.int('Pagination_DEFAULT_LIMIT', 20),
+    MAX_LIMIT: env.int('Pagination_MAX_LIMIT', 100),
+    MAX_OFFSET: env.int('Pagination_MAX_OFFSET', 50000)
   }
 };
+

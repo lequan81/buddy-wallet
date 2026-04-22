@@ -1,34 +1,24 @@
 /**
- * HTTP Middlewares - Request processing, security, and logging
+ * HTTP Middlewares - Central export point
  *
- * Per Laravel convention, all middleware is centralized in app/Http/Middlewares/
+ * Middlewares are different from Plugins:
+ * - Middlewares: Transform requests/responses (traditional pattern)
+ * - Plugins: Extend Elysia context with .derive() and .macro()
+ *
+ * For Elysia plugins, use `@/app/Providers/Plugins/`
+ * For infrastructure (Redis, Telemetry), use `@/infra/`
  */
 
-// CORS and CSRF protection
-export { corsPlugin } from './cors.middleware';
-export { csrfPlugin } from './csrf.middleware';
+// Rate Limiting
+export * from './RateLimiting/RateLimitMiddleware';
 
-// Rate limiting with configurable options
-export {
-  authRateLimiter,
-  authIdentifierRateLimiter,
-  authRecoveryRateLimiter,
-  authResetRateLimiter,
-  authOtpRateLimiter,
-  standardRateLimiter,
-  strictRateLimiter,
-  burstRateLimiter,
-  uploadRateLimiter,
-  broadcastRateLimiter,
-  deleteRateLimiter,
-  createRateLimiter,
-  fileDownloadRateLimiter,
-  identifierKeyGenerator,
-  defaultKeyGenerator
-} from './rate-limit.middleware';
+// Security
+export { corsPlugin } from './Security/CorsMiddleware';
+export { csrfPlugin } from './Security/CsrfMiddleware';
+export { securityHeadersPlugin } from './Security/SecurityHeadersMiddleware';
 
-// Logging and pagination
-export { requestLoggerPlugin } from './request-logger.middleware';
-export { securityHeadersPlugin } from './security-headers.middleware';
-export { paginationMiddleware, validatePaginationParams } from './pagination.middleware';
+// Logging
+export { requestLoggerPlugin } from './Logging/RequestLoggerMiddleware';
 
+// Pagination
+export * from './Pagination/PaginationMiddleware';

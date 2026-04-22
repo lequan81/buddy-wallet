@@ -5,13 +5,14 @@
  * - Fetching list of supported banks
  * - Generating QR codes (via URL construction)
  */
+import { injectable } from 'tsyringe';
 import { MAJOR_BANKS_FALLBACK } from '@repo/config';
-import { cache } from '@/lib/redis';
+import { cache } from '@infra/Redis';
 import { log } from '@repo/logger';
-import { configs } from '@/configs';
+import { configs } from '@/config';
 
 /** VietQR bank info returned by the API */
-interface VietQRBank {
+export interface VietQRBank {
   id: number;
   name: string;
   code: string;
@@ -23,8 +24,8 @@ interface VietQRBank {
   swift_code?: string;
 }
 
-/** VietQR API response envelope */
-interface VietQRResponse {
+/** VietQR API Response envelope */
+export interface VietQRResponse {
   code: string;
   desc: string;
   data: VietQRBank[];
@@ -32,6 +33,7 @@ interface VietQRResponse {
 
 const VIETQR_API_URL = 'https://api.vietqr.io/v2/banks';
 
+@injectable()
 export class VietQRService {
   /**
    * Get list of supported banks
@@ -53,11 +55,11 @@ export class VietQRService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), configs.AUTH.FETCH_TIMEOUT_MS);
 
-      const response = await fetch(VIETQR_API_URL, { signal: controller.signal });
+      const Response = await fetch(VIETQR_API_URL, { signal: controller.signal });
       clearTimeout(timeoutId);
 
-      if (response.ok) {
-        const result = (await response.json()) as VietQRResponse;
+      if (Response.ok) {
+        const result = (await Response.json()) as VietQRResponse;
 
         if (result.code === '00' && result.data.length > 0) {
           // Cache fresh data (cache.set handles JSON.stringify internally)
@@ -131,3 +133,4 @@ export class VietQRService {
     });
   }
 }
+

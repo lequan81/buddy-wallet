@@ -10,3 +10,4 @@ export interface StorageServiceInterface {
   delete(relativePath: string): Promise<void>;
   resolvePath(relativePath: string): string;
 }
+

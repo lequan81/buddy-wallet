@@ -95,3 +95,4 @@ export function fromCatch(error: unknown, defaultCode: string): Result<never> {
   // Otherwise use default
   return { code: defaultCode };
 }
+

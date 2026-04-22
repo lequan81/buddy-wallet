@@ -143,3 +143,4 @@ export function getCIDRPrefix(cidr: string): number | null {
   const prefix = parseInt(parts[1], 10);
   return isNaN(prefix) ? null : prefix;
 }
+

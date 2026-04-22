@@ -3,77 +3,8 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./src/*"],
-      "@app/*": ["./src/app/*"],
-      "@lib/*": ["./src/lib/*"],
-      "@config/*": ["./src/config/*"],
-      "@routes/*": ["./src/routes/*"],
-      "@decorators/*": ["./src/decorators/*"],
-      "@plugins": [
-        "./src/lib/plugins"
-      ],
-      "@plugins/*": [
-        "./src/lib/plugins/*"
-      ],
-      "@controllers": [
-        "./src/app/Http/Controllers"
-      ],
-      "@controllers/*": [
-        "./src/app/Http/Controllers/*"
-      ],
-      "@services": [
-        "./src/app/Services"
-      ],
-      "@services/*": [
-        "./src/app/Services/*"
-      ],
-      "@repositories": [
-        "./src/app/Repositories"
-      ],
-      "@repositories/*": [
-        "./src/app/Repositories/*"
-      ],
-      "@api-types": [
-        "./src/types/index.d.ts"
-      ],
-      "@api-types/*": [
-        "./src/types/*"
-      ],
-      "@configs": [
-        "./src/configs"
-      ],
-      "@configs/*": [
-        "./src/configs/*"
-      ],
-      "@domain": [
-        "./src/domain"
-      ],
-      "@domain/*": [
-        "./src/domain/*"
-      ],
-      "@shared": [
-        "./src/shared"
-      ],
-      "@shared/*": [
-        "./src/shared/*"
-      ],
-      "@modules": [
-        "./src/modules"
-      ],
-      "@modules/*": [
-        "./src/modules/*"
-      ],
-      "@repo/permissions": [
-        "./src/lib/security/permissions"
-      ],
-      "@utils": [
-        "./src/lib"
-      ],
-      "@utils/*": [
-        "./src/lib/*"
-      ],
-      "@instrumentation": [
-        "./src/instrumentation"
-      ]
+      "@infra/*": ["./src/app/Providers/Plugins/Infrastructure/*"],
+      "@infra/Redis": ["./src/app/Providers/Plugins/Infrastructure/Redis/index.ts"]
     },
     "types": [
       "bun-types",

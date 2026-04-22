@@ -55,6 +55,7 @@ export const resetPasswordSchema = v.pipe(
 	)
 );
 
+
 export const changePasswordSchema = v.pipe(
 	v.strictObject({
 		currentPassword: v.pipe(v.string(), v.minLength(1, 'Current password is required')),
@@ -67,3 +68,20 @@ export const changePasswordSchema = v.pipe(
 	)
 );
 
+/**
+ * OTP Verification Schema
+ */
+export const verifyOtpSchema = v.strictObject({
+	phoneNumber: phoneSchema,
+	otp: v.pipe(v.string(), v.length(6, 'OTP must be 6 digits'))
+});
+
+/**
+ * OTP Resend Schema
+ */
+export const resendOtpSchema = v.strictObject({
+	phoneNumber: phoneSchema
+});
+
+export type VerifyOtpInput = v.InferInput<typeof verifyOtpSchema>;
+export type ResendOtpInput = v.InferInput<typeof resendOtpSchema>;

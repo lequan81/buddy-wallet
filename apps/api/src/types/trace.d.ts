@@ -29,3 +29,4 @@ export interface TraceStore {
   clear(): void;
   stats(): TraceStats;
 }
+

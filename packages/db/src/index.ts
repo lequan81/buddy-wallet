@@ -21,5 +21,7 @@ export {
   isNull,
   not,
   count,
-  inArray
+  inArray,
+  type SQL,
+  type AnyColumn
 } from 'drizzle-orm';

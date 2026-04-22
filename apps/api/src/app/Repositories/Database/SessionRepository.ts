@@ -11,16 +11,16 @@ export class SessionRepository implements SessionRepositoryInterface {
 
   async findById(id: string): Promise<DBSession | null> {
     const session = await this.db.select().from(sessions).where(eq(sessions.id, id)).get();
-    return (session as DBSession) || null;
+    return (session as any as DBSession) || null;
   }
 
   async findActiveByRefreshToken(hash: string): Promise<DBSession | null> {
     const session = await this.db
       .select()
       .from(sessions)
-      .where(and(eq(sessions.refreshTokenHash, hash), eq(sessions.status, 'active')))
+      .where(and(eq(sessions.refreshToken, hash), eq(sessions.status, 'active')))
       .get();
-    return (session as DBSession) || null;
+    return (session as any as DBSession) || null;
   }
 
   async findActiveByUserId(userId: string): Promise<DBSession[]> {
@@ -37,7 +37,7 @@ export class SessionRepository implements SessionRepositoryInterface {
       .from(sessions)
       .where(and(eq(sessions.id, id), eq(sessions.userId, userId), eq(sessions.status, 'active')))
       .get();
-    return (session as DBSession) || null;
+    return (session as any as DBSession) || null;
   }
 
   async update(id: string, data: Partial<DBSession>): Promise<void> {
@@ -50,7 +50,7 @@ export class SessionRepository implements SessionRepositoryInterface {
       .set({
         status: 'revoked',
         revokedAt: new Date(),
-        revokedReason: reason as DBSession['revokedReason']
+        revokedReason: reason as any
       })
       .where(eq(sessions.id, id));
   }
@@ -61,7 +61,7 @@ export class SessionRepository implements SessionRepositoryInterface {
       .set({
         status: 'revoked',
         revokedAt: new Date(),
-        revokedReason: 'security_reset'
+        revokedReason: 'password_change'
       })
       .where(and(eq(sessions.userId, userId), eq(sessions.status, 'active')));
   }
@@ -95,7 +95,7 @@ export class SessionRepository implements SessionRepositoryInterface {
       .set({
         status: 'revoked',
         revokedAt: new Date(),
-        revokedReason: reason as DBSession['revokedReason']
+        revokedReason: reason as any
       })
       .where(
         and(
@@ -106,3 +106,4 @@ export class SessionRepository implements SessionRepositoryInterface {
       );
   }
 }
+

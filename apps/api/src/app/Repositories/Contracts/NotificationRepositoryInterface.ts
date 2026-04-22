@@ -19,3 +19,4 @@ export interface NotificationRepositoryInterface {
   }): Promise<void>;
   cleanupInactive(daysOld: number): Promise<number>;
 }
+

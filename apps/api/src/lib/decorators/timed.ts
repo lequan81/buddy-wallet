@@ -92,3 +92,4 @@ export function Timed(options: TimedOptions | number, fallback?: () => any) {
     return descriptor;
   };
 }
+

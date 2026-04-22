@@ -8,3 +8,4 @@ export interface FileRepositoryInterface {
   updateStatus(id: string, status: FileStatus, reviewerId: string, reason?: string): Promise<void>;
   deleteById(id: string): Promise<void>;
 }
+

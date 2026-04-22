@@ -7,3 +7,4 @@ export function OnEvent(eventName: string) {
     Reflect.defineMetadata('eventListeners', existing, target.constructor);
   };
 }
+

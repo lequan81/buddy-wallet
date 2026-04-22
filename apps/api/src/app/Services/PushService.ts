@@ -4,19 +4,23 @@
  * Handles Web Push notification subscriptions and sending.
  * Uses web-push library with VAPID authentication.
  */
+import { injectable, inject } from 'tsyringe';
 import webpush from 'web-push';
 import { logger } from '@repo/logger';
 import type { Result } from '@repo/types';
-import type { INotificationRepository } from '@/types/repositories';
-import { configs } from '@/configs';
+import type { NotificationRepositoryInterface } from '@/app/Repositories/Contracts';
+import { configs } from '@/config';
 import { formatVND } from '@repo/utils';
-import type { PushPayload, SubscribeInput, SendResult } from '@/types/push';
+import type { PushPayload, SubscribeInput } from '@/types/push';
 
+@injectable()
 export class PushService {
   private readonly PUSH_CHUNK_SIZE = 100;
   private static vapidConfigured = false;
 
-  constructor(private notificationRepo: INotificationRepository) {
+  constructor(
+    @inject('NotificationRepositoryInterface') private notificationRepo: NotificationRepositoryInterface
+  ) {
     if (!PushService.vapidConfigured) {
       this.configureVapid();
       PushService.vapidConfigured = true;
@@ -301,3 +305,4 @@ export class PushService {
     });
   }
 }
+

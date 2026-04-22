@@ -1,10 +1,11 @@
+import { injectable } from 'tsyringe';
 import { logger } from '@repo/logger';
-import { toOptional } from '@repo/utils';
 import type { StorageServiceInterface } from '../Repositories/Contracts/StorageServiceInterface';
 
 const normalizeStoragePath = (rawPath: string): string =>
   rawPath.replace(/\\/g, '/').replace(/^\/+/, '');
 
+@injectable()
 export class S3StorageService implements StorageServiceInterface {
   constructor(
     private readonly s3Client: Bun.S3Client,
@@ -62,3 +63,4 @@ export class S3StorageService implements StorageServiceInterface {
     return `s3://${this.bucket}/${key}`;
   }
 }
+

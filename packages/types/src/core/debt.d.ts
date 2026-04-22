@@ -16,6 +16,7 @@ export interface Debt {
   creditorId: string | null;
   uploadedById: string;
   amount: number;
+  currency: string;
   description: string | null;
   status: DebtStatus;
   confirmedByCreditor: boolean;
@@ -67,6 +68,15 @@ export interface CreateDebtInput {
   dueDate?: Date | string | null;
   status?: DebtStatus;
   direction: DebtDirection;
+}
+
+export interface UpdateDebtStatusInput {
+  status: DebtStatus;
+  notes?: string;
+}
+
+export interface UpdateDebtInput extends Partial<CreateDebtInput> {
+  id?: string;
 }
 
 export interface StatusUpdateResultData {

@@ -3,19 +3,20 @@
  *
  * Handles CRUD operations for user bank accounts.
  */
+import { injectable, inject } from 'tsyringe';
 import { log } from '@repo/logger';
-import type { Result } from '@repo/types';
-import type { IBankAccountRepository } from '@/types/repositories';
-import type { BankAccount, NewBankAccount } from '@repo/db';
+import type { Result, BankAccount } from '@repo/types';
+import type { BankAccountRepositoryInterface } from '@/app/Repositories/Contracts';
 
+@injectable()
 export class BankAccountService {
-  constructor(private bankRepo: IBankAccountRepository) {}
+  constructor(@inject('BankAccountRepositoryInterface') private bankRepo: BankAccountRepositoryInterface) {}
 
   /**
    * Add a new bank account
    * If set as default, unsets other default accounts for the user.
    */
-  async addBankAccount(data: Omit<NewBankAccount, 'id' | 'createdAt' | 'updatedAt'>): Promise<Result<BankAccount>> {
+  async addBankAccount(data: Omit<BankAccount, 'id' | 'createdAt' | 'updatedAt'>): Promise<Result<BankAccount>> {
     try {
       // If new account is default, unset existing default
       if (data.isDefault) {
@@ -44,7 +45,7 @@ export class BankAccountService {
   async updateBankAccount(
     id: string,
     userId: string,
-    data: Partial<Omit<NewBankAccount, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>
+    data: Partial<Omit<BankAccount, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>
   ): Promise<Result<BankAccount>> {
     try {
       const account = await this.bankRepo.findById(id);
@@ -109,3 +110,4 @@ export class BankAccountService {
     return { data: undefined };
   }
 }
+

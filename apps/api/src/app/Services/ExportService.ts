@@ -4,14 +4,15 @@
  * Handles data export: user debts and admin exports.
  * Uses constructor injection for testability.
  */
+import { injectable, inject } from 'tsyringe';
 import ExcelJS from 'exceljs';
 import { buildCSV, escapeCSVCell, maskPhone } from '@repo/utils';
 import { logger } from '@repo/logger';
-import type { Result } from '@repo/types';
-import type { IUserRepository, IDebtRepository } from '@/types/repositories';
+import type { Result, DebtDetails } from '@repo/types';
+import type { UserRepositoryInterface, DebtRepositoryInterface } from '@/app/Repositories/Contracts';
 import type { ExportFormat } from '@/types';
 
-interface ExportData {
+export interface ExportData {
   buffer: Buffer;
   contentType: string;
   filename: string;
@@ -20,10 +21,11 @@ interface ExportData {
 /**
  * ExportService class with dependency injection
  */
+@injectable()
 export class ExportService {
   constructor(
-    private readonly debtRepo: IDebtRepository,
-    private readonly userRepo: IUserRepository
+    @inject('DebtRepositoryInterface') private readonly debtRepo: DebtRepositoryInterface,
+    @inject('UserRepositoryInterface') private readonly userRepo: UserRepositoryInterface
   ) { }
 
   /**
@@ -32,7 +34,7 @@ export class ExportService {
   async exportUserDebts(userId: string, format: ExportFormat = 'xlsx'): Promise<Result<ExportData>> {
     // Fetch debts where user is debtor OR creditor
     const paginatedResult = await this.debtRepo.findMany({ involvedUserId: userId, limit: 10000 }); // Large limit for export
-    const userDebts = paginatedResult.data;
+    const userDebts = paginatedResult.items;
 
     if (userDebts.length === 0) {
       return { code: 'NO_DEBTS', error: 'No debts to export' };
@@ -41,7 +43,7 @@ export class ExportService {
     const userMap = await this.getUserMapForDebts(userDebts);
 
     // Format data
-    const data = userDebts.map((d: { debtorId?: string | null; creditorId?: string | null; debtorPhone?: string | null; creditorPhone?: string | null; amount?: number; status?: string; description?: string | null; createdAt?: Date | string | null; updatedAt?: Date | string | null; id?: string }) => {
+    const data = userDebts.map((d: any) => {
       const debtor = userMap.get(d.debtorId ?? '') || { email: d.debtorPhone, name: d.debtorPhone };
       const creditor = userMap.get(d.creditorId ?? '') || {
         email: d.creditorPhone,
@@ -49,10 +51,12 @@ export class ExportService {
       };
       const isCreditor = d.creditorId === userId;
 
+      const actor = isCreditor ? debtor : creditor;
+
       return {
         Date: d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '',
         Type: isCreditor ? 'Lent' : 'Borrowed',
-        Person: isCreditor ? debtor.name || debtor.email : creditor.name || creditor.email,
+        Person: (actor as any).name || (actor as any).email || (actor as any).phoneNumber || '',
         Amount: d.amount,
         Status: d.status,
         Description: d.description || ''
@@ -67,7 +71,7 @@ export class ExportService {
    */
   async exportAllDebts(format: ExportFormat = 'xlsx'): Promise<Result<ExportData>> {
     const paginatedResult = await this.debtRepo.findMany({ limit: 50000, includeDeleted: false });
-    const allDebts = paginatedResult.data;
+    const allDebts = paginatedResult.items;
 
     if (allDebts.length === 0) {
       return { code: 'NO_DEBTS', error: 'No debts to export' };
@@ -75,9 +79,9 @@ export class ExportService {
 
     const userMap = await this.getUserMapForDebts(allDebts);
 
-    const data = allDebts.map((d: { debtorId?: string | null; creditorId?: string | null; debtorPhone?: string | null; creditorPhone?: string | null; amount?: number; status?: string; description?: string | null; createdAt?: Date | string | null; updatedAt?: Date | string | null; id?: string }) => {
-      const debtor = userMap.get(d.debtorId ?? '') as { name?: string | null; email?: string | null; phoneNumber?: string | null } | undefined;
-      const creditor = userMap.get(d.creditorId ?? '') as { name?: string | null; email?: string | null; phoneNumber?: string | null } | undefined;
+    const data = allDebts.map((d: any) => {
+      const debtor = userMap.get(d.debtorId ?? '') as any;
+      const creditor = userMap.get(d.creditorId ?? '') as any;
 
       return {
         ID: d.id,
@@ -153,11 +157,6 @@ export class ExportService {
 
   /**
    * Stream user debts as CSV with chunking and batched user lookups
-   * Batches all unique user IDs upfront to prevent N+1 query pattern
-   *
-   * Performance: For 10k debts with 100-chunk size:
-   * - Old: 100 database queries (1 per chunk) + 1 debt query per chunk
-   * - New: 1 debt pagination query + 1 batched user query
    */
   async *streamUserDebtsAsCSV(userId: string): AsyncGenerator<string, void> {
     const chunkSize = 1000;
@@ -174,7 +173,7 @@ export class ExportService {
         offset
       });
 
-      const debts = result.data;
+      const debts = result.items;
       if (debts.length === 0) {
         break;
       }
@@ -190,7 +189,7 @@ export class ExportService {
           escapeCSVCell(debtor?.name || debtor?.email || debt.debtorPhone || ''),
           escapeCSVCell(debt.creditorId || ''),
           escapeCSVCell(creditor?.name || creditor?.email || debt.creditorPhone || ''),
-          escapeCSVCell(debt.amount ?? ''),
+          escapeCSVCell((debt as any).amount ?? ''),
           escapeCSVCell(debt.status || ''),
           escapeCSVCell(debt.description || ''),
           escapeCSVCell(debt.createdAt ? new Date(debt.createdAt).toISOString() : ''),
@@ -223,6 +222,6 @@ export class ExportService {
     }
 
     const users = await this.userRepo.findByIds(Array.from(userIds));
-    return new Map(users.map((u) => [u.id, u]));
+    return new Map(users.map((u: any) => [u.id, u]));
   }
 }

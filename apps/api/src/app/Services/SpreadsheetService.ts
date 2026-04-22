@@ -1,8 +1,10 @@
+import { injectable } from 'tsyringe';
 import type { DetectedMapping } from '@/types';
 import { Workbook } from 'exceljs';
 import { Readable } from 'node:stream';
 import { colToZeroBasedIndex, indexToColumnLetter, parseCSV } from '@repo/utils';
 
+@injectable()
 export class SpreadsheetService {
   /**
    * Convert 'A' or 'A:Amount' to 0-based index.
@@ -95,3 +97,4 @@ export class SpreadsheetService {
     return autoMapping;
   }
 }
+

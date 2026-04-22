@@ -21,10 +21,13 @@ export const directionSchema = v.picklist(['BORROW', 'LEND'], 'Invalid direction
  * Input schema for creating a debt (Server-side)
  */
 export const CreateDebtInputSchema = v.strictObject({
-  amount: amountSchema,
-  description: descriptionSchema,
   counterpartyPhone: phoneSchema,
-  direction: directionSchema
+  amount: amountSchema,
+  direction: directionSchema,
+  description: v.optional(v.string()),
+  counterpartyName: v.optional(v.string()),
+  dueDate: v.optional(v.nullable(v.union([v.date(), v.string()]))),
+  status: v.optional(v.picklist(['pending', 'confirmed', 'disputed', 'paid', 'cancelled'] as const))
 });
 
 /**
@@ -42,3 +45,37 @@ export const CreateDebtClientSchema = v.strictObject({
 
 export type CreateDebtInput = v.InferInput<typeof CreateDebtInputSchema>;
 export type CreateDebtClientInput = v.InferInput<typeof CreateDebtClientSchema>;
+
+/**
+ * Debt Status Schema
+ */
+export const debtStatusSchema = v.picklist(['pending', 'confirmed', 'disputed', 'paid', 'cancelled'] as const);
+export type DebtStatus = v.InferInput<typeof debtStatusSchema>;
+
+/**
+ * Debt Direction Schema
+ */
+export const debtDirectionSchema = v.picklist(['owed', 'owing'] as const);
+export type DebtDirection = v.InferInput<typeof debtDirectionSchema>;
+
+/**
+ * Debt Query Schema (Pagination & Filtering)
+ */
+export const debtQuerySchema = v.strictObject({
+  status: v.optional(debtStatusSchema),
+  direction: v.optional(debtDirectionSchema),
+  page: v.pipe(v.optional(v.number(), 1), v.minValue(1)),
+  limit: v.pipe(v.optional(v.number(), 20), v.minValue(1), v.maxValue(100))
+});
+
+export type DebtQueryInput = v.InferInput<typeof debtQuerySchema>;
+
+/**
+ * Update Debt Status Schema
+ */
+export const updateDebtStatusSchema = v.strictObject({
+  status: v.picklist(['confirmed', 'disputed', 'paid', 'cancelled'] as const),
+  notes: v.optional(v.string())
+});
+
+export type UpdateDebtStatusInput = v.InferInput<typeof updateDebtStatusSchema>;

@@ -1,20 +1,59 @@
 import { injectable, inject } from 'tsyringe';
-import { userCache, isRedisAvailable } from '@/lib/redis';
-import { toSafeUser } from '@lib/security/password';
+import { userCache, isRedisAvailable } from '@infra/Redis';
+import { toSafeUser } from '@/lib/mappers/user';
 import type { SafeUser, UserResult, PaginatedResult } from '@repo/types';
 import type { UserRepositoryInterface } from '@/app/Repositories/Contracts/UserRepositoryInterface';
 import type { SessionRepositoryInterface } from '@/app/Repositories/Contracts/SessionRepositoryInterface';
 
-
+/**
+ * UserService - User profile and account management
+ *
+ * Handles user-related operations:
+ * - User profile retrieval (with Redis caching)
+ * - User listing (admin only, paginated)
+ * - Account status management (activation/deactivation)
+ * - Account deletion (GDPR compliance)
+ * - Session invalidation on status changes
+ *
+ * Security:
+ * - Returns SafeUser objects (passwords and sensitive data stripped)
+ * - Redis caching for profile lookups (reduces DB load)
+ * - Session revocation when accounts are deactivated
+ *
+ * @example
+ * ```typescript
+ * // Get user profile
+ * const result = await userService.getUserById('user-123');
+ * if (result.data) console.log(result.data.name);
+ *
+ * // Deactivate user
+ * await userService.toggleUserStatus('user-123');
+ * ```
+ */
 @injectable()
 export class UserService {
+  /**
+   * Creates an instance of UserService
+   * @param userRepo - Repository for user data access
+   * @param sessionRepo - Repository for session management (revocation)
+   */
   constructor(
     @inject('UserRepositoryInterface') private readonly userRepo: UserRepositoryInterface,
     @inject('SessionRepositoryInterface') private readonly sessionRepo: SessionRepositoryInterface
   ) {}
 
   /**
-   * Get all users (admin only) with pagination
+   * Retrieves all users (admin only)
+   *
+   * Returns paginated list of safe user objects.
+   * Passwords and sensitive data are automatically stripped.
+   *
+   * @param options - Pagination options
+   * @param options.limit - Maximum users per page (default: 50)
+   * @param options.offset - Number of users to skip (default: 0)
+   * @returns Paginated list of safe user profiles
+   * @throws Never throws - returns empty result on error
+   * @permission ADMIN required
    */
   async getAllUsers(
     options: { limit?: number; offset?: number } = {}
@@ -37,14 +76,21 @@ export class UserService {
   }
 
   /**
-   * Get a single user by ID with caching
+   * Retrieves a user by ID with Redis caching
+   *
+   * First checks Redis cache, then falls back to database.
+   * Caches successful lookups for 1 hour.
+   *
+   * @param userId - The user's unique identifier
+   * @returns Result with SafeUser on success, or error code
+   * @throws Never throws - returns Result with error code on failure
    */
   async getUserById(userId: string): Promise<UserResult> {
     // Try cache first
     if (isRedisAvailable()) {
-      const cached = await userCache.get(userId);
+      const cached = await userCache.get(userId) as SafeUser | null;
       if (cached) {
-        return { data: cached as unknown as SafeUser };
+        return { data: cached };
       }
     }
 
@@ -59,14 +105,22 @@ export class UserService {
 
     // Cache the user profile
     if (isRedisAvailable()) {
-      await userCache.set(userId, safeUser as unknown as Record<string, unknown>);
+      await userCache.set(userId, safeUser);
     }
 
-    return { data: safeUser as SafeUser };
+    return { data: safeUser };
   }
 
   /**
-   * Toggle user active status and revoke sessions if deactivating
+   * Toggles a user's active status
+   *
+   * If deactivating, all active sessions are revoked immediately.
+   * This forces re-authentication on next request.
+   *
+   * @param userId - The user to toggle
+   * @returns Result with updated SafeUser, or error code
+   * @throws Never throws - returns Result with error code on failure
+   * @sideEffect Revokes all sessions if deactivating
    */
   async toggleUserStatus(userId: string): Promise<UserResult> {
     const targetUser = await this.userRepo.findById(userId);
@@ -138,7 +192,7 @@ export class UserService {
     }
 
     // Build update object
-    const updateData: Partial<any> = {
+    const updateData: Record<string, unknown> = {
       updatedAt: new Date()
     };
 
@@ -178,3 +232,4 @@ export class UserService {
     return result.data.emailVerified === true && result.data.pushNotificationsEnabled === true;
   }
 }
+

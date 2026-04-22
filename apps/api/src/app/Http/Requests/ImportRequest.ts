@@ -1,59 +1,52 @@
 /**
  * Import/Export Request DTOs
  *
- * Validation schemas for import/export endpoints.
+ * Validation schemas for import/export endpoints using Valibot.
  */
 
-import { z } from 'zod';
+import * as v from 'valibot';
+import {
+  progressQuerySchema,
+  progressBatchSchema,
+  importLogsQuerySchema
+} from '@repo/validation';
 
 /**
  * Preview import request
  */
-export const PreviewImportRequest = z.object({
-  file: z.instanceof(File),
-  sheetName: z.string().optional()
+export const PreviewImportRequest = v.object({
+  file: v.instance(File),
+  sheetName: v.optional(v.string())
 });
 
-export type PreviewImportRequest = z.infer<typeof PreviewImportRequest>;
+export type PreviewImportRequest = v.InferInput<typeof PreviewImportRequest>;
 
 /**
  * Start import request
  */
-export const StartImportRequest = z.object({
-  file: z.instanceof(File),
-  mapping: z.record(z.string(), z.string()),
-  sheetName: z.string().optional()
+export const StartImportRequest = v.object({
+  file: v.instance(File),
+  mapping: v.record(v.string(), v.string()),
+  sheetName: v.optional(v.string())
 });
 
-export type StartImportRequest = z.infer<typeof StartImportRequest>;
+export type StartImportRequest = v.InferInput<typeof StartImportRequest>;
 
 /**
  * Import progress query
  */
-export const ProgressQueryRequest = z.object({
-  logId: z.string(),
-  timeout: z.number().int().positive().default(30000)
-});
-
-export type ProgressQueryRequest = z.infer<typeof ProgressQueryRequest>;
+export const ProgressQueryRequest = progressQuerySchema;
+export type ProgressQueryRequest = v.InferInput<typeof ProgressQueryRequest>;
 
 /**
  * Progress batch body
  */
-export const ProgressBatchRequest = z.object({
-  logId: z.string(),
-  batchSize: z.number().int().positive().default(50)
-});
-
-export type ProgressBatchRequest = z.infer<typeof ProgressBatchRequest>;
+export const ProgressBatchRequest = progressBatchSchema;
+export type ProgressBatchRequest = v.InferInput<typeof ProgressBatchRequest>;
 
 /**
  * Logs query parameters
  */
-export const LogsQueryRequest = z.object({
-  page: z.number().int().positive().default(1),
-  limit: z.number().int().positive().max(50).default(10),
-  status: z.enum(['pending', 'processing', 'success', 'failed']).optional()
-});
+export const LogsQueryRequest = importLogsQuerySchema;
+export type LogsQueryRequest = v.InferInput<typeof LogsQueryRequest>;
 
-export type LogsQueryRequest = z.infer<typeof LogsQueryRequest>;

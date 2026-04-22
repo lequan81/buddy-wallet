@@ -74,3 +74,4 @@ export function hasAllPermissions(userPermissions: string[], required: Permissio
 export function hasAnyPermission(userPermissions: string[], required: Permission[]): boolean {
   return required.some((permission) => userPermissions.includes(permission));
 }
+

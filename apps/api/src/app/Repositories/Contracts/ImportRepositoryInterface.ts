@@ -31,3 +31,4 @@ export interface ImportRepositoryInterface {
 
   createDebtsBatch(debtsToCreate: any[]): Promise<void>;
 }
+

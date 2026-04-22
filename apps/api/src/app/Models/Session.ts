@@ -18,6 +18,30 @@ export class Session {
   ) {}
 
   /**
+   * Static factory for creating new sessions
+   */
+  static create(params: {
+    userId: string;
+    token: string;
+    ipAddress: string;
+    userAgent?: string;
+    expiresInDays?: number;
+  }): Session {
+    const expiresAt = params.expiresInDays
+      ? new Date(Date.now() + params.expiresInDays * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    return new Session(
+      crypto.randomUUID(),
+      params.userId,
+      params.token,
+      params.ipAddress,
+      params.userAgent,
+      expiresAt
+    );
+  }
+
+  /**
    * Check if session is active (not expired/revoked)
    */
   isActive(): boolean {
@@ -71,3 +95,4 @@ export class Session {
     return this.lastActivityAt < oneHourAgo;
   }
 }
+

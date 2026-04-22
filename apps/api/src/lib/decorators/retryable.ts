@@ -4,11 +4,11 @@ export interface RetryableOptions {
   maxAttempts?: number;
   backoffMs?: number;
   maxBackoffMs?: number;
-  retryableErrors?: string[];
+  RetryableErrors?: string[];
 }
 
 export function Retryable(options: RetryableOptions = {}) {
-  const { maxAttempts = 3, backoffMs = 1000, maxBackoffMs = 10000, retryableErrors } = options;
+  const { maxAttempts = 3, backoffMs = 1000, maxBackoffMs = 10000, RetryableErrors } = options;
 
   return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
@@ -23,8 +23,8 @@ export function Retryable(options: RetryableOptions = {}) {
         } catch (error) {
           lastError = error as Error;
 
-          const isRetryable = retryableErrors
-            ? retryableErrors.some(e => lastError.message.includes(e))
+          const isRetryable = RetryableErrors
+            ? RetryableErrors.some(e => lastError.message.includes(e))
             : true;
 
           if (!isRetryable || attempt === maxAttempts) {
@@ -46,3 +46,4 @@ export function Retryable(options: RetryableOptions = {}) {
     return descriptor;
   };
 }
+

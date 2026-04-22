@@ -70,8 +70,8 @@ export function validatePasswordComplexity(password: string): PasswordValidation
  */
 
 export function isCommonPassword(password: string): boolean {
-  // Direct match
-  if (COMMON_PASSWORDS.has(password)) return true;
+  // Direct match - cast to expected literal type
+  if (COMMON_PASSWORDS.has(password as typeof SHARED_CONSTANTS.SECURITY.COMMON_PASSWORDS[number])) return true;
   
   const lower = password.toLowerCase();
   
@@ -91,13 +91,10 @@ export function isCommonPassword(password: string): boolean {
 }
 
 /**
- * Strips sensitive data from user object for API responses
+ * Re-export toSafeUser from mappers for backward compatibility
+ * @deprecated Use @/lib/mappers instead
  */
-export function toSafeUser(user: any): any {
-  if (!user) return null;
-  const { password, ...safeUser } = user;
-  return safeUser;
-}
+export { toSafeUser } from '../mappers/user';
 
 /**
  * Redact identifier (email/phone) for logging
@@ -132,7 +129,7 @@ export function generateSecureToken(length: number = 32): string {
 /**
  * Very basic user agent parser for session display
  */
-export function parseUserAgent(ua: string | null, _clientHints?: any): { deviceName: string, deviceType: string } {
+export function parseUserAgent(ua: string | null, _clientHints?: unknown): { deviceName: string, deviceType: string } {
   if (!ua) return { deviceName: 'Unknown', deviceType: 'unknown' };
   
   let deviceName = 'Generic Device';
@@ -156,7 +153,7 @@ export function parseUserAgent(ua: string | null, _clientHints?: any): { deviceN
 export async function getLocationFromIP(
   ip: string | null,
   clientLocation?: string | null,
-  coordinates?: any
+  coordinates?: { latitude?: number; longitude?: number }
 ): Promise<string | null> {
   if (clientLocation) return clientLocation;
   // Fallback to coordinates if provided
@@ -165,3 +162,4 @@ export async function getLocationFromIP(
   }
   return ip ? 'Remote Location' : null;
 }
+

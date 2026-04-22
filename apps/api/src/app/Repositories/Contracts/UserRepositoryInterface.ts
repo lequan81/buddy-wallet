@@ -34,3 +34,4 @@ export interface UserRepositoryInterface {
   updatePermissions?(id: string, permissions: string[]): Promise<void>;
   getUsersForNotifications?(userIds: string[]): Promise<UserWithNotifications[]>;
 }
+

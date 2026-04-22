@@ -1,6 +1,6 @@
 import { injectable, inject } from 'tsyringe';
-import type { ActivityLog, ActivityResource } from '@repo/db';
-import type { LogActivityInput, ActivityFilters, ActivityLogResult } from '@/types/services/activity';
+import type { ActivityLog, ActivityResource } from '@repo/types';
+import type { LogActivityInput, ActivityFilters, ActivityLogResult } from '@/app/Repositories/Contracts/Types/activity';
 import type { ActivityRepositoryInterface } from '@/app/Repositories/Contracts/ActivityRepositoryInterface';
 
 @injectable()
@@ -30,34 +30,14 @@ export class ActivityService {
    * Get activity logs for a user with optional filters
    */
   async getLogsForUser(userId: string, filters: ActivityFilters = {}): Promise<ActivityLogResult> {
-    const result = await this.activityRepo.findManyByUserId(userId, filters);
-    const { limit = 50, offset = 0 } = filters;
-
-    return {
-      items: result.data as any,
-      pagination: {
-        page: Math.floor(offset / limit) + 1,
-        limit,
-        total: result.pagination.total
-      }
-    };
+    return this.activityRepo.findManyByUserId(userId, filters);
   }
 
   /**
    * Get all activity logs (admin only) with filters
    */
   async getAllLogs(filters: ActivityFilters = {}): Promise<ActivityLogResult> {
-    const result = await this.activityRepo.findMany(filters);
-    const { limit = 50, offset = 0 } = filters;
-
-    return {
-      items: result.data as any,
-      pagination: {
-        page: Math.floor(offset / limit) + 1,
-        limit,
-        total: result.pagination.total
-      }
-    };
+    return this.activityRepo.findMany(filters);
   }
 
   /**
@@ -74,3 +54,4 @@ export class ActivityService {
     return this.activityRepo.findRecentByUserId(userId, limit);
   }
 }
+

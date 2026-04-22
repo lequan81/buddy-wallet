@@ -5,10 +5,10 @@ import { Timed } from '@/lib/decorators/timed';
 
 /**
  * Email Service
- * Handles sending transactional emails (OTP, password reset, notifications, etc.)
+ * Handles sending Transactional emails (OTP, password reset, notifications, etc.)
  * Supports multiple providers and retry logic
  */
-interface EmailMessage {
+export interface EmailMessage {
   to: string;
   subject: string;
   html: string;
@@ -16,7 +16,7 @@ interface EmailMessage {
   replyTo?: string;
 }
 
-interface SendResult {
+export interface SendResult {
   success: boolean;
   messageId?: string;
   error?: string;
@@ -112,3 +112,4 @@ export class EmailService {
     });
   }
 }
+

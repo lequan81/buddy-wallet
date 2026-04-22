@@ -1,47 +1,38 @@
 /**
  * Storage/Upload Request DTOs
  *
- * Validation schemas for file upload endpoints.
+ * Validation schemas for file upload endpoints using Valibot.
  */
 
-import { z } from 'zod';
+import * as v from 'valibot';
+import {
+  uploadQRSchema,
+  uploadPaymentProofSchema,
+  rejectProofSchema,
+  approveProofSchema
+} from '@repo/validation';
 
 /**
  * Upload QR code request
  */
-export const UploadQRRequest = z.object({
-  file: z.instanceof(File),
-  debtId: z.string().optional()
-});
-
-export type UploadQRRequest = z.infer<typeof UploadQRRequest>;
+export const UploadQRRequest = uploadQRSchema;
+export type UploadQRRequest = v.InferInput<typeof UploadQRRequest>;
 
 /**
  * Upload payment proof request
  */
-export const UploadPaymentProofRequest = z.object({
-  file: z.instanceof(File),
-  debtId: z.string(),
-  description: z.string().optional()
-});
-
-export type UploadPaymentProofRequest = z.infer<typeof UploadPaymentProofRequest>;
+export const UploadPaymentProofRequest = uploadPaymentProofSchema;
+export type UploadPaymentProofRequest = v.InferInput<typeof UploadPaymentProofRequest>;
 
 /**
  * Reject proof request
  */
-export const RejectProofRequest = z.object({
-  fileId: z.string(),
-  rejectionReason: z.string().min(5, 'Reason must be at least 5 characters')
-});
-
-export type RejectProofRequest = z.infer<typeof RejectProofRequest>;
+export const RejectProofRequest = rejectProofSchema;
+export type RejectProofRequest = v.InferInput<typeof RejectProofRequest>;
 
 /**
  * Approve proof request
  */
-export const ApproveProofRequest = z.object({
-  fileId: z.string()
-});
+export const ApproveProofRequest = approveProofSchema;
+export type ApproveProofRequest = v.InferInput<typeof ApproveProofRequest>;
 
-export type ApproveProofRequest = z.infer<typeof ApproveProofRequest>;

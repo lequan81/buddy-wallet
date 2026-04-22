@@ -10,15 +10,15 @@
  * - Immutability: Creates new instances on state change
  */
 
-import type { DebtStatus } from '@repo/config';
+import type { DebtStatus } from '@repo/types';
 
 export class Debt {
   constructor(
     public readonly id: string,
     public readonly amount: number,
     public readonly currency: string,
-    public readonly debtorId: string,
-    public readonly creditorId: string,
+    public readonly debtorId: string | null,
+    public readonly creditorId: string | null,
     private _status: DebtStatus,
     public readonly createdAt: Date,
     public readonly updatedAt: Date = new Date(),
@@ -68,8 +68,8 @@ export class Debt {
    * Cancel the debt (creditor initiated)
    * @throws Error if debt cannot be cancelled
    */
-  cancel(): Debt {
-    if (!this.canBeCancelledBy(this.creditorId)) {
+  cancel(userId: string): Debt {
+    if (!this.canBeCancelledBy(userId)) {
       throw new Error('Debt cannot be cancelled');
     }
     return new Debt(
@@ -89,8 +89,8 @@ export class Debt {
    * Confirm the debt (debtor initiated)
    * @throws Error if debt cannot be confirmed
    */
-  confirm(): Debt {
-    if (!this.canBeConfirmedBy(this.debtorId)) {
+  confirm(userId: string): Debt {
+    if (!this.canBeConfirmedBy(userId)) {
       throw new Error('Debt cannot be confirmed');
     }
     return new Debt(
@@ -110,8 +110,8 @@ export class Debt {
    * Dispute the debt (debtor initiated)
    * @throws Error if debt cannot be disputed
    */
-  dispute(): Debt {
-    if (!this.canBeDisputedBy(this.debtorId)) {
+  dispute(userId: string): Debt {
+    if (!this.canBeDisputedBy(userId)) {
       throw new Error('Debt cannot be disputed');
     }
     return new Debt(
@@ -131,8 +131,8 @@ export class Debt {
    * Mark debt as paid (debtor initiated)
    * @throws Error if debt cannot be marked as paid
    */
-  markAsPaid(): Debt {
-    if (!this.canBePaidBy(this.debtorId)) {
+  markAsPaid(userId: string): Debt {
+    if (!this.canBePaidBy(userId)) {
       throw new Error('Debt cannot be marked as paid');
     }
     return new Debt(
@@ -195,3 +195,4 @@ export class Debt {
     return this._status === 'paid' || this._status === 'cancelled';
   }
 }
+

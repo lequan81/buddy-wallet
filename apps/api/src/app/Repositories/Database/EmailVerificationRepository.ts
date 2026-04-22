@@ -9,14 +9,17 @@ export class EmailVerificationRepository implements EmailVerificationRepositoryI
     @inject('Database') private db: DbClient
   ) {}
 
-  async create(data: Omit<EmailVerification, 'createdAt' | 'updatedAt' | 'verified' | 'attempts'>): Promise<EmailVerification> {
+  async create(data: Omit<EmailVerification, 'createdAt' | 'verified' | 'attempts' | 'lastSentAt' | 'maxAttempts'> & { maxAttempts?: number }): Promise<EmailVerification> {
+    const now = new Date();
     const [created] = await this.db
       .insert(emailVerifications)
       .values({
         ...data,
         verified: false,
         attempts: 0,
-        updatedAt: new Date()
+        maxAttempts: data.maxAttempts ?? 5,
+        lastSentAt: now,
+        createdAt: now
       })
       .returning();
     return created as EmailVerification;
@@ -30,20 +33,20 @@ export class EmailVerificationRepository implements EmailVerificationRepositoryI
       .orderBy(desc(emailVerifications.createdAt))
       .limit(1)
       .get();
-    return (result as EmailVerification) || null;
+    return (result as any as EmailVerification) || null;
   }
 
   async updateAttempts(id: string, attempts: number): Promise<void> {
     await this.db
       .update(emailVerifications)
-      .set({ attempts, updatedAt: new Date() })
+      .set({ attempts })
       .where(eq(emailVerifications.id, id));
   }
 
   async markVerified(id: string): Promise<void> {
     await this.db
       .update(emailVerifications)
-      .set({ verified: true, updatedAt: new Date() })
+      .set({ verified: true })
       .where(eq(emailVerifications.id, id));
   }
 
@@ -55,8 +58,26 @@ export class EmailVerificationRepository implements EmailVerificationRepositoryI
       .all()) as EmailVerification[];
   }
 
-  async getPendingCount(userId: string): Promise<number> {
+  async findLatestUnverified(email: string): Promise<EmailVerification | null> {
     const result = await this.db
+      .select()
+      .from(emailVerifications)
+      .where(and(eq(emailVerifications.email, email), eq(emailVerifications.verified, false)))
+      .orderBy(desc(emailVerifications.createdAt))
+      .limit(1)
+      .get();
+    return (result as any as EmailVerification) || null;
+  }
+
+  async invalidateExisting(userId: string, email: string): Promise<void> {
+    await this.db
+      .update(emailVerifications)
+      .set({ verified: true })
+      .where(and(eq(emailVerifications.userId, userId), eq(emailVerifications.email, email), eq(emailVerifications.verified, false)));
+  }
+
+  async getPendingCount(userId: string): Promise<number> {
+    const result: any = await this.db
       .select({ count: count() })
       .from(emailVerifications)
       .where(and(eq(emailVerifications.userId, userId), eq(emailVerifications.verified, false)))
@@ -64,3 +85,4 @@ export class EmailVerificationRepository implements EmailVerificationRepositoryI
     return result?.count ?? 0;
   }
 }
+

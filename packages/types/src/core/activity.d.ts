@@ -28,7 +28,8 @@ export type ActivityAction =
 	| 'confirmed'
 	| 'paid'
 	| 'disputed'
-	| 'cancelled';
+	| 'cancelled'
+	| string;
 
 export type ActivityResource =
 	| 'debt'
@@ -38,7 +39,8 @@ export type ActivityResource =
 	| 'export'
 	| 'bank_account'
 	| 'file'
-	| 'push_subscription';
+	| 'push_subscription'
+	| string;
 
 export interface ActivityLog {
 	id: string;

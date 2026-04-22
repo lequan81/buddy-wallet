@@ -4,4 +4,3 @@ export * from './result';
 export * from './security/password';
 export * from './helpers';
 
-// Subpath imports preferred: @lib/helpers, @lib/security, etc.

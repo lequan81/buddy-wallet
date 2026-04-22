@@ -4,7 +4,7 @@
 # Silence file watcher warnings for monorepo packages
 silent = true
 # Preload OpenTelemetry instrumentation before main app
-preload = ["./src/instrumentation.ts"]
+preload = ["./src/lib/telemetry/index.ts"]
 
 [run.watch]
 silent = true
