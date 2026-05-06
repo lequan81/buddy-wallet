@@ -1,13 +1,13 @@
 /**
  * Application Entry Point
  *
- * Initializes and starts the Elysia API server.
+ * Initializes and starts the Elysia API server using bootstrap.
  */
 
-import { bootstrap, start } from './bootstrap';
+import { start, bootstrap } from './bootstrap';
 
+// Export app for testing
 export const app = await bootstrap();
-export { bootstrap, start };
 
 if (import.meta.main) {
   start().catch((error) => {
@@ -15,4 +15,3 @@ if (import.meta.main) {
     process.exit(1);
   });
 }
-

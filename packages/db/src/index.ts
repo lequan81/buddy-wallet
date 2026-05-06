@@ -1,11 +1,19 @@
-// Export mọi thứ cần thiết
+// Export everything needed
 export * from './schema';
 export * from './db';
 
-import { type BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
-import * as schema from './schema';
+import { db } from './db';
 
-export type DbClient = BunSQLiteDatabase<typeof schema>;
+/**
+ * Database client type — accepts both the main db instance and transaction objects.
+ * This allows repositories to be used inside db.transaction() callbacks.
+ *
+ * Uses ReturnType to extract the transaction parameter type from the actual db instance,
+ * ensuring perfect type compatibility without manual generic constraints.
+ */
+type TxParam = Parameters<Parameters<(typeof db)['transaction']>[0]>[0];
+
+export type DbClient = typeof db | TxParam;
 
 export {
   eq,

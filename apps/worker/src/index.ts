@@ -1,7 +1,11 @@
 /**
- * Import Worker - Background Job Processor
+ * Background Worker - Job Processor
  *
  * Runs as a separate Bun process in apps/worker workspace.
+ * Processes jobs from Redis queues:
+ *   - bw:queue:imports: Excel import processing
+ *   - bw:queue:push_notifications: Web push delivery
+ *   - Outbox event dispatch (polling)
  */
 import { logger } from '@repo/logger';
 import { BACKEND_CONSTANTS } from '@repo/config';
@@ -9,6 +13,7 @@ import { initRedis, getRedis, closeRedis } from './redis';
 import { validatePayload, isStorageConfigured } from './utils';
 import { processImportJob } from './jobs/import.job';
 import { dispatchOutboxBatch } from './jobs/outbox-dispatch.job';
+import { processPushJob, type PushJobPayload } from './jobs/push-notification.job';
 
 // ── Startup & Configuration ────────────────────────────────
 const KILL_TIMEOUT_MS = BACKEND_CONSTANTS.WORKER.KILL_TIMEOUT_MS || 300000;
@@ -17,9 +22,10 @@ const DRAIN_TIMEOUT_MS = Number.parseInt(Bun.env.WORKER_DRAIN_TIMEOUT_MS ?? '100
 let shuttingDown = false;
 let inFlightImportJobs = 0;
 let inFlightOutboxBatches = 0;
+let inFlightPushJobs = 0;
 
 function getInFlightCount(): number {
-  return inFlightImportJobs + inFlightOutboxBatches;
+  return inFlightImportJobs + inFlightOutboxBatches + inFlightPushJobs;
 }
 
 async function waitForDrain(): Promise<void> {
@@ -48,7 +54,8 @@ async function shutdown(signal: string): Promise<void> {
     if (getInFlightCount() > 0) {
       logger.warn('[Worker] Drain timeout reached, forcing shutdown', {
         inFlightImportJobs,
-        inFlightOutboxBatches
+        inFlightOutboxBatches,
+        inFlightPushJobs
       });
     }
 
@@ -68,7 +75,7 @@ process.on('SIGTERM', () => {
 
 // ── Main Queue Loop ────────────────────────────────────────
 async function main() {
-  logger.info('[Worker] Import Worker starting...');
+  logger.info('[Worker] Background Worker starting...');
 
   if (!isStorageConfigured()) {
     logger.warn('[Worker] S3 storage not fully configured. Job processing will fail unless storage is available.');
@@ -80,18 +87,20 @@ async function main() {
     process.exit(1);
   }
 
-  logger.info('[Worker] Listening on import_jobs queue...');
+  logger.info('[Worker] Listening on queues: bw:queue:imports, bw:queue:push_notifications');
 
   let consecutiveErrors = 0;
 
   while (!shuttingDown) {
     try {
       const redis = getRedis();
-      const result = await redis.blpop('import_jobs', 30);
 
-      if (result && result.length === 2) {
+      // ── Import Jobs ──────────────────────────────────────
+      const importResult = await redis.blpop('bw:queue:imports', 5);
+
+      if (importResult && importResult.length === 2) {
         consecutiveErrors = 0;
-        const [, payloadString] = result;
+        const [, payloadString] = importResult;
 
         let parsed: unknown;
         try {
@@ -108,7 +117,7 @@ async function main() {
           continue;
         }
 
-        logger.info(`[Worker] Processing job: ${parsed.jobId} (${parsed.type})`);
+        logger.info(`[Worker] Processing import job: ${parsed.jobId} (${parsed.type})`);
         inFlightImportJobs++;
         try {
           await processImportJob(parsed);
@@ -118,6 +127,37 @@ async function main() {
         continue;
       }
 
+      // ── Push Notification Jobs ───────────────────────────
+      const pushResult = await redis.blpop('bw:queue:push_notifications', 5);
+
+      if (pushResult && pushResult.length === 2) {
+        consecutiveErrors = 0;
+        const [, pushPayloadString] = pushResult;
+
+        let pushParsed: PushJobPayload;
+        try {
+          pushParsed = JSON.parse(pushPayloadString) as PushJobPayload;
+        } catch {
+          logger.error('[Worker] Received invalid push JSON payload', { raw: pushPayloadString.slice(0, 100) });
+          continue;
+        }
+
+        if (!pushParsed.userId || !pushParsed.payload?.title) {
+          logger.error('[Worker] Invalid push job payload', { userId: pushParsed.userId });
+          continue;
+        }
+
+        logger.debug(`[Worker] Processing push job for user: ${pushParsed.userId}`);
+        inFlightPushJobs++;
+        try {
+          await processPushJob(pushParsed);
+        } finally {
+          inFlightPushJobs = Math.max(0, inFlightPushJobs - 1);
+        }
+        continue;
+      }
+
+      // ── Outbox Dispatch (polling fallback) ───────────────
       inFlightOutboxBatches++;
       const outbox = await dispatchOutboxBatch(OUTBOX_BATCH_SIZE).finally(() => {
         inFlightOutboxBatches = Math.max(0, inFlightOutboxBatches - 1);

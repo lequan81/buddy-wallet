@@ -8,6 +8,11 @@
 	import { cn } from '$lib/utils';
 	import { getImportStatusColor, formatDate } from '$lib/utils/status';
 	import type { ImportLog } from '@repo/types/core/import';
+	import type { ImportJob } from '$lib/stores/import-progress.svelte';
+
+	interface ImportProgressStoreLike {
+		getJob: (id: string) => ImportJob | null;
+	}
 
 	let {
 		logs,
@@ -26,7 +31,7 @@
 		totalHistoryPages: number;
 		connectionError: string;
 		showConnectionFallback: boolean;
-		importProgress: any;
+		importProgress: ImportProgressStoreLike;
 		onFetchLogs: (page: number) => void;
 		onViewDetails: (log: ImportLog) => void;
 	} = $props();

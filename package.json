@@ -3,7 +3,6 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "build:emails": "turbo run build --filter=@repo/email-templates",
     "dev": "turbo run dev --filter=@repo/web --filter=@repo/api --filter=@repo/worker --ui=tui",
     "lint": "turbo run lint",
     "check": "turbo run check check-types",
@@ -30,9 +29,9 @@
     "packages/*"
   ],
   "overrides": {
-    "@sinclair/typebox": "^0.34.0",
-    "svelte": "^5.45.6",
+    "@sinclair/typebox": "^0.34.8",
+    "svelte": "^5.55.3",
     "tailwindcss": "^4.1.17",
-    "typescript": "^6.0.0"
+    "typescript": "^6.0.2"
   }
 }

@@ -1,3 +1,6 @@
+import type { Result } from '../api/base';
+import type { ImportState } from '../infrastructure/workflow';
+
 /**
  * CSV/Spreadsheet Column Mapping
  */
@@ -16,14 +19,7 @@ export interface ImportConfig {
   startRow: number;
 }
 
-export type ImportLogStatus =
-  | 'pending'
-  | 'queued'
-  | 'processing'
-  | 'preview'
-  | 'success'
-  | 'failed'
-  | 'cancelled';
+export type ImportLogStatus = ImportState;
 
 export interface ImportLog {
   id: string;
@@ -98,14 +94,8 @@ export interface ImportResultData {
  * Result types for import/preview operations
  * These are returned from import.job.ts (worker)
  */
-export type PreviewResult =
-  | { data: PreviewResultData }
-  | { code: string; error?: string };
+export type PreviewResult = Result<PreviewResultData>;
 
-export type ImportResult =
-  | { data: ImportResultData }
-  | { code: string; error?: string };
+export type ImportResult = Result<ImportResultData>;
 
-export type ProgressResult =
-  | { data: ImportProgress }
-  | { code: string; error?: string };
+export type ProgressResult = Result<ImportProgress>;

@@ -7,6 +7,7 @@
  */
 import { API_URL, getDefaultHeaders } from './api-config';
 import { treaty } from '@elysiajs/eden';
+
 import type { App } from '@repo/api/types';
 
 // Singleton promise prevents multiple concurrent refresh attempts
@@ -36,7 +37,9 @@ export async function refreshAccessToken(
 					...(cookies ? { Cookie: cookies } : {})
 				}
 			});
-			const { data, error } = await api.v1.auth.refresh.post();
+			// Extract refresh token from cookies string
+			const refreshToken = cookies?.match(/refresh_token=([^;]+)/)?.[1] || '';
+			const { data, error } = await api.v1.auth.refresh.post({ refreshToken });
 			if (error) return false;
 			// Backend returns success response directly (no envelope), just check if we got data
 			return data != null;

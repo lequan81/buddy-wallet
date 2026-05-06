@@ -1,26 +1,31 @@
 import { fail } from '@sveltejs/kit';
-import type { PageServerLoad, Actions } from './$types';
-import type { BankAccount, BankInfo } from '@repo/types/core/bank';
-import { accountNumberSchema, accountNameSchema, v } from '@repo/validation/client';
+import type { PageServerLoad } from './$types';
+import type { BankAccount, VietQRBank } from '@repo/types/core/bank';
+import { fetchBanks } from '$lib/services/vietqr';
+import { extractApiData } from '$lib/services/api-envelope';
 
 export const load: PageServerLoad = async ({
 	locals
 }) => {
 	if (!locals.user) return fail(401);
 
-	const { api } = locals;
-
-	// Parallel fetch using Eden
-	const [banksRes, myAccountsRes] = await Promise.all([
-			(locals.api.v1.banks as any).list.get(),
-			(locals.api.v1.banks as any).index.get()
-	]);
-
-	const banks = (banksRes.data as { items?: BankInfo[] } | null)?.items || [];
-	const accounts = (myAccountsRes.data as { items?: BankAccount[] } | null)?.items || [];
+	const { data: accountEnvelope } = await locals.api.v1.bank.accounts.get();
+	const accounts = extractApiData<BankAccount[]>(accountEnvelope).data ?? [];
+	const banks = await fetchBanks();
+	const mappedBanks: VietQRBank[] = banks.map((bank) => ({
+		id: bank.id,
+		code: bank.code,
+		bin: bank.bin,
+		name: bank.name,
+		shortName: bank.shortName,
+		logo: bank.logo,
+		swift_code: bank.swift_code,
+		transferSupported: bank.transferSupported,
+		lookupSupported: bank.lookupSupported
+	}));
 
 	return {
-		banks,
+		banks: mappedBanks,
 		accounts
 	};
 };

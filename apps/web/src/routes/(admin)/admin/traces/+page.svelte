@@ -3,9 +3,19 @@
 	import * as Card from '@repo/ui/components/ui/card';
 	import * as Table from '@repo/ui/components/ui/table';
 	import { Badge } from '@repo/ui/components/ui/badge';
-	import { formatDuration, TRACE_STATUS_COLORS, cn } from '$lib/utils';
+import { formatDuration, TRACE_STATUS_COLORS, cn } from '$lib/utils';
 
-	let { data } = $props();
+let { data } = $props();
+
+const getTraceStatusCode = (status: unknown): keyof typeof TRACE_STATUS_COLORS => {
+	if (typeof status === 'object' && status !== null && 'code' in status) {
+		const code = (status as { code?: string }).code;
+		if (typeof code === 'string' && code in TRACE_STATUS_COLORS) {
+			return code as keyof typeof TRACE_STATUS_COLORS;
+		}
+	}
+	return 'UNSET';
+};
 </script>
 
 <div class="space-y-6">
@@ -42,11 +52,10 @@
 										variant="outline"
 										class={cn(
 											'border-0 text-white',
-											TRACE_STATUS_COLORS[(trace.status as any)?.code as keyof typeof TRACE_STATUS_COLORS] ||
-												TRACE_STATUS_COLORS.UNSET
+											TRACE_STATUS_COLORS[getTraceStatusCode(trace.status)] || TRACE_STATUS_COLORS.UNSET
 										)}
 									>
-										{(trace.status as any)?.code || 'UNSET'}
+										{getTraceStatusCode(trace.status)}
 									</Badge>
 								</Table.Cell>
 								<Table.Cell>{new Date(trace.timestamp).toLocaleTimeString()}</Table.Cell>

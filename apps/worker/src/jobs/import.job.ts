@@ -1,11 +1,21 @@
 import { logger } from '@repo/logger';
 import { db, debts, users, importLogs, eq, or, inArray } from '@repo/db';
+import type { NewDebt } from '@repo/db';
 import { randomUUIDv7 } from 'bun';
 import { colLetterToIndex, toOptional } from '@repo/utils';
 import { SHARED_CONSTANTS, STORAGE_CONFIG } from '@repo/config';
 import type { WorkerJobPayload } from '@repo/types';
 import { setProgress, clearProgressCache, getRedis } from '../redis';
 import { parseFile, validateRowCount } from '../parser';
+
+interface AutoColumnMapping {
+  name: string;
+  amount: string;
+  phone: string;
+  email: string;
+  description: string;
+  dueDate: string;
+}
 
 const s3Client = new Bun.S3Client({
   endpoint: toOptional(STORAGE_CONFIG.ENDPOINT),
@@ -50,7 +60,11 @@ export async function processImportJob(payload: WorkerJobPayload) {
     const fileBuffer = Buffer.from(await sourceFile.arrayBuffer());
 
     // 2. Parse File All Rows
-    const allRows = await parseFile(fileBuffer, payload.fileName);
+    const parseResult = await parseFile(fileBuffer, payload.fileName);
+    if (parseResult.kind === 'error') {
+      throw new Error(parseResult.message);
+    }
+    const allRows = parseResult.rows;
 
     if (payload.type === 'preview') {
       setProgress(jobId, {
@@ -79,7 +93,7 @@ export async function processImportJob(payload: WorkerJobPayload) {
         columnHeaders.push(headerName ? `${letter}:${headerName}` : letter);
       }
 
-      const autoMapping: any = { name: '', amount: '', phone: '', email: '', description: '', dueDate: '' };
+      const autoMapping: AutoColumnMapping = { name: '', amount: '', phone: '', email: '', description: '', dueDate: '' };
       const headerRow = allRows[0] || [];
       headerRow.forEach((header, i) => {
         const h = String(header).toLowerCase().trim();
@@ -130,7 +144,11 @@ export async function processImportJob(payload: WorkerJobPayload) {
     }
 
     const startRow = config?.startRow || 2;
-    const totalRowsToProcess = validateRowCount(allRows, startRow);
+    const rowValidation = validateRowCount(allRows, startRow);
+    if (rowValidation.kind === 'error') {
+      throw new Error(rowValidation.message);
+    }
+    const totalRowsToProcess = rowValidation.count;
 
     setProgress(jobId, {
       status: 'processing',
@@ -179,7 +197,7 @@ export async function processImportJob(payload: WorkerJobPayload) {
 
     // 4. Transform Rows to Debts
     const errors: string[] = [];
-    const newDebts: any[] = [];
+    const newDebts: NewDebt[] = [];
     let consecutiveEmpty = 0;
     let rowCount = 0;
 
@@ -196,7 +214,7 @@ export async function processImportJob(payload: WorkerJobPayload) {
       if (rowCount % 100 === 0) {
         try {
           const redis = getRedis();
-          const status = await redis.send('HGET', [`job:${jobId}`, 'status']);
+          const status = await redis.send('HGET', [`bw:job:${jobId}`, 'status']);
           if (status === 'cancelled') {
             logger.info(`[Job:${jobId}] Cancelled by user`);
             return;

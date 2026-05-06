@@ -1,8 +1,12 @@
-import { describe, test, expect } from 'bun:test';
-import { db, users } from '@repo/db';
+import { describe, expect, test } from 'bun:test';
+import { UserRepository } from '@/repositories/user/user.repo';
+import { SessionRepository } from '@/repositories/auth/session.repo';
+import { DebtRepository } from '@/repositories/debt/debt.repo';
 
-describe('Database Integration', () => {
-  test('should have a valid db instance', () => {
-    expect(db).toBeDefined();
+describe('Repository Construction', () => {
+  test('repositories instantiate without DI container', () => {
+    expect(new UserRepository()).toBeDefined();
+    expect(new SessionRepository()).toBeDefined();
+    expect(new DebtRepository()).toBeDefined();
   });
 });

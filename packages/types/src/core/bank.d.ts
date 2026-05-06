@@ -1,37 +1,44 @@
 /**
  * Core Bank Types
+ *
+ * Uses a generic Bank<TIdType> pattern with pre-configured variants.
  */
+
 export interface BankBranch {
   name: string;
   code?: string;
   address?: string;
 }
 
-export interface BankInfo {
-  id: string;
+/** Base bank fields shared across all bank types */
+export interface BankBase {
   name: string;
   code: string;
   bin: string;
   shortName: string;
   logo: string;
-  transferSupported: number;
-  lookupSupported: number;
-  support: number;
-  isTransfer: number;
   swift_code?: string;
-}
-
-export interface VietQRBank {
-  id: number;
-  name: string;
-  code: string;
-  bin: string;
-  shortName: string;
-  logo: string;
   transferSupported?: number;
   lookupSupported?: number;
-  swift_code?: string;
 }
+
+/** Generic bank with configurable ID type and optional fields */
+export type Bank<
+  TIdType extends string | number = string,
+  TOptional extends keyof BankBase = never
+> = {
+  id: TIdType;
+} & Required<Pick<BankBase, Exclude<keyof BankBase, TOptional>>>
+  & Partial<Pick<BankBase, TOptional>>;
+
+/** BankInfo — all required, string ID */
+export type BankInfo = Bank<string> & {
+  support: number;
+  isTransfer: number;
+};
+
+/** VietQRBank — numeric ID, optional transfer fields */
+export type VietQRBank = Bank<number, 'transferSupported' | 'lookupSupported'>;
 
 export interface BankAccount {
   id: string;

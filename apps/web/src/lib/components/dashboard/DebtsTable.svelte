@@ -9,7 +9,7 @@
 		ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight
 	} from '@repo/icons';
 	import { cn } from '$lib/utils';
-	import { formatCurrency } from '@repo/utils/format';
+	import { formatCurrency, formatDate } from '@repo/utils/format';
 	import type { Debt } from '@repo/types/core/debt';
 	import { resolve } from '$app/paths';
 	import DebtStatusBadge from '$lib/components/DebtStatusBadge.svelte';
@@ -199,6 +199,7 @@
 								<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 								<form
 									{...batchDeleteDebts.enhance(async ({ submit }) => {
+										if (dashState.isSubmitting) return;
 										dashState.isSubmitting = true;
 										try {
 											await submit();
@@ -212,6 +213,7 @@
 									<input type="hidden" name="ids" value={Array.from(dashState.selectedIds)} />
 									<AlertDialog.Action
 										type="submit"
+										disabled={dashState.isSubmitting}
 										class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 									>
 										{dashState.isSubmitting ? 'Deleting...' : 'Delete'}
@@ -244,6 +246,7 @@
 								<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 								<form
 									{...deleteAllDebts.enhance(async ({ submit }) => {
+										if (dashState.isSubmitting) return;
 										dashState.isSubmitting = true;
 										try {
 											await submit();
@@ -256,6 +259,7 @@
 									<input type="hidden" name="confirm" value="true" />
 									<AlertDialog.Action
 										type="submit"
+										disabled={dashState.isSubmitting}
 										class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 									>
 										{dashState.isSubmitting ? 'Deleting...' : 'Delete all'}
@@ -397,7 +401,7 @@
 							{formatCurrency(debt.amount)}
 						</Table.Cell>
 						<Table.Cell class="text-muted-foreground tabular-nums">
-							{new Date(debt.createdAt).toLocaleDateString()}
+							{formatDate(debt.createdAt)}
 						</Table.Cell>
 						<Table.Cell class="pr-6 text-right">
 							<div class="flex items-center justify-end gap-1">
@@ -436,6 +440,7 @@
 												<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 												<form
 													{...deleteDebt.enhance(async ({ submit }) => {
+														if (dashState.isDeleting) return;
 														dashState.isDeleting = true;
 														try {
 															await submit();
@@ -449,6 +454,7 @@
 													<input type="hidden" name="id" value={debt.id} />
 													<AlertDialog.Action
 														type="submit"
+														disabled={dashState.isDeleting}
 														class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 													>
 														{dashState.isDeleting ? 'Deleting...' : 'Delete'}

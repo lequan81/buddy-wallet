@@ -8,8 +8,8 @@ const jwtSecret = env.string('JWT_SECRET', '');
 
 export const authConfig = {
   JWT_SECRET: jwtSecret,
-  JWT_REFRESH_SECRET: jwtSecret,
-  CSRF_SECRET: env.string('CSRF_SECRET', jwtSecret),
+  JWT_REFRESH_SECRET: env.string('JWT_REFRESH_SECRET', jwtSecret),
+  CSRF_SECRET: env.string('CSRF_SECRET', new Bun.CryptoHasher('sha256').update(jwtSecret + 'csrf_salt').digest('hex')),
   ACCESS_TOKEN_LIFETIME: env.int('ACCESS_TOKEN_LIFETIME', ACCESS_TOKEN_LIFETIME_MS),
   REFRESH_TOKEN_LIFETIME: env.int('REFRESH_TOKEN_LIFETIME', REFRESH_TOKEN_LIFETIME_MS),
   JWT_BLACKLIST_SECONDS: env.int('JWT_BLACKLIST_SECONDS', JWT_BLACKLIST_SECONDS),

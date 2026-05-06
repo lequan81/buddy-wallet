@@ -12,8 +12,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const { api } = locals;
 
 	try {
-		// Fetch the import log details
-		const { data: logRes, error: logErr, status } = await api.v1.import.logs({ id }).get();
+		const { data: logRes, error: logErr, status } = await api.v1.data['import']({ id }).progress.get();
 
 		if (logErr) {
 			if (status === 404) {
@@ -23,7 +22,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		}
 
 		// The successful logRes is the log object (flattened)
-		const importLog = logRes as Record<string, unknown> | null;
+		const importLog = logRes as unknown as Record<string, unknown> | null;
 
 		// If the import is still pending/processing, also fetch current progress
 		let progress: Record<string, unknown> | null = null;
@@ -35,9 +34,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				importLog.status === 'processing' ||
 				importLog.status === 'preview')
 		) {
-			const { data: progressRes, error: progressErr } = await api.v1.import.progress({ logId: id }).get();
+			const { data: progressRes, error: progressErr } = await api.v1.data['import']({ id }).progress.get();
 			if (!progressErr && progressRes) {
-				progress = progressRes as Record<string, unknown>;
+				progress = progressRes as unknown as Record<string, unknown>;
 			}
 		}
 
@@ -83,15 +82,41 @@ export const actions: Actions = {
 			const safeFile = new File([safeBlob], file.name, { type: file.type });
 
 			try {
-				const body: { file: File; config: string; previewLogId?: string } = {
+				const config = JSON.parse(configRaw);
+				const mapping = config.mapping || {};
+				const startRow = config.startRow || 1;
+
+				// Use the new start-from-preview endpoint if we have a previewLogId
+				if (previewLogId) {
+				const { data, error } = await locals.api.v1.data['import']({ id: previewLogId }).start.post({
+						columnMapping: mapping,
+						startRow
+					});
+
+					if (error) {
+						const errVal = error.value as { code?: string; message?: string };
+						return fail(typeof error.status === 'number' ? error.status : 500, {
+							code: errVal?.code || 'BE_UNKNOWN',
+							message: errVal?.message || 'Import failed'
+						});
+					}
+
+					const res = (data || {}) as unknown as Record<string, unknown>;
+					return {
+						success: true,
+						jobId: previewLogId,
+						imported: res.imported,
+						failed: res.failed
+					};
+				}
+
+				// Fallback: legacy JSON import
+				const body: { file: File; config: string } = {
 					file: safeFile,
 					config: configRaw
 				};
-				if (previewLogId) {
-					body.previewLogId = previewLogId;
-				}
 
-				const { data, error } = await locals.api.v1.import.debts.post(body);
+				const { data, error } = await locals.api.v1.data.import.post(body);
 
 				if (error) {
 					const errVal = error.value as { code?: string; message?: string };

@@ -18,6 +18,13 @@
 	let emailEnabled = $state(false);
 	let pushEnabled = $state(false);
 
+	const hasVerifiedEmail = (value: unknown): boolean => {
+		if (!value || typeof value !== 'object') return false;
+		if (!('emailVerified' in value)) return false;
+
+		return value.emailVerified === true;
+	};
+
 	// Initialize from data on mount
 	$effect(() => {
 		emailEnabled = data.preferences?.emailNotificationsEnabled ?? false;
@@ -28,7 +35,7 @@
 	// Check both preferences from server load and user data from parent layout
 	let canEnablePush = $derived(
 		data.preferences?.emailVerified === true || 
-		(data.user as any)?.emailVerified === true
+		hasVerifiedEmail(data.user)
 	);
 
 	// DEBUG: $inspect is auto-stripped in production builds

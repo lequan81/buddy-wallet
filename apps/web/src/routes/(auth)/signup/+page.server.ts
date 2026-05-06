@@ -2,11 +2,16 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { createTreatyClient } from '$lib/services/api';
 import { superValidate, message } from 'sveltekit-superforms';
-import { valibot } from 'sveltekit-superforms/adapters';
-import { signupSchema } from '@repo/validation/client';
+import { typebox } from 'sveltekit-superforms/adapters';
+import type { TSchema } from '@sinclair/typebox';
+import { registerRequestSchema, type RegisterRequest } from '@repo/schema/dto/auth';
+
+// Cast needed: @repo/schema uses @sinclair/typebox (v0.34) while superforms
+// expects `typebox` (v1.0+). Runtime behavior is identical.
+const adapter = typebox(registerRequestSchema as unknown as TSchema & { '~kind': string });
 
 export const load: PageServerLoad = async () => {
-	const form = await superValidate(valibot(signupSchema));
+	const form = await superValidate(adapter);
 	return {
 		form,
 		layout: 'guest'
@@ -15,19 +20,20 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
 	default: async ({ request, fetch, cookies }) => {
-		const form = await superValidate(request, valibot(signupSchema));
+		const form = await superValidate(request, adapter);
 
 		if (!form.valid) {
 			return fail(400, { form });
 		}
 
 		try {
+			const data = form.data as RegisterRequest;
 			const api = createTreatyClient(fetch);
 			const { error } = await api.v1.auth.register.post({
-				name: form.data.name,
-				phoneNumber: form.data.phoneNumber,
-				email: form.data.email || undefined,
-				password: form.data.password
+				fullName: data.name,
+				phone: data.phoneNumber,
+				email: data.email || undefined,
+				password: data.password
 			});
 
 			if (error) {
@@ -58,8 +64,9 @@ export const actions: Actions = {
 		}
 
 		// If email provided, set cookie and redirect to verify-email
-		if (form.data.email) {
-			cookies.set('pending_verification_email', form.data.email, {
+		const email = (form.data as RegisterRequest).email;
+		if (email) {
+			cookies.set('pending_verification_email', email, {
 				path: '/',
 				httpOnly: true,
 				maxAge: 600 // 10 minutes

@@ -12,7 +12,7 @@
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import QuickActions from '$lib/components/dashboard/QuickActions.svelte';
 	import FinancialSummary from '$lib/components/dashboard/FinancialSummary.svelte';
-	import { formatCurrency } from '@repo/utils/format';
+	import { formatCurrency, formatDate } from '@repo/utils/format';
 	import type { Debt } from '@repo/types/core/debt';
 	import { DEBT_STATUS } from '@repo/config/shared/status';
 	import CreateDebtModal from '$lib/components/dashboard/CreateDebtModal.svelte';
@@ -213,7 +213,7 @@
 											{formatCurrency(debt.amount)}
 										</p>
 										<p class="text-xs text-yellow-600 dark:text-yellow-400">
-											{new Date(debt.createdAt).toLocaleDateString()}
+											{formatDate(debt.createdAt)}
 										</p>
 									</div>
 								</a>

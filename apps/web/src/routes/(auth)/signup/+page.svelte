@@ -7,17 +7,17 @@
 	import * as Card from '@repo/ui/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
-	import type { Infer } from 'sveltekit-superforms';
+	import type { Static } from '@sinclair/typebox';
 	import type { PageData } from './$types';
-	import { signupSchema } from '@repo/validation/client';
+	import { registerRequestSchema } from '@repo/schema/dto/auth';
 
 	const { data }: { data: PageData } = $props();
 
 	// superForm expects the form data directly, not a getter
 	// svelte-ignore state_referenced_locally
 	const { form, errors, constraints, message, enhance, delayed } = superForm<
-		Infer<typeof signupSchema>
-	>(data.form, {
+		Static<typeof registerRequestSchema>
+	>(data.form as Parameters<typeof superForm<Static<typeof registerRequestSchema>>>[0], {
 		onResult: ({ result }) => {
 			if (result.type === 'failure') {
 				toast.error('Please check your input');

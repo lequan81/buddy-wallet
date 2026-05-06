@@ -1,5 +1,5 @@
 import type { Result } from '../api/base';
-import type { SafeUser } from '../core/user';
+import type { UserResponse } from '../core/user';
 import type { ClientHints, ClientLocation, Coordinates } from '../infrastructure/sessions';
 
 export interface RegisterInput {
@@ -25,7 +25,7 @@ export interface AuthResultData {
   refreshToken?: string; // Optional for register (no tokens yet)
   sessionId?: string;
   expiresIn?: number;
-  user?: SafeUser;
+  user?: UserResponse;
   isNewUser?: boolean;
   mustChangePassword?: boolean;
 }

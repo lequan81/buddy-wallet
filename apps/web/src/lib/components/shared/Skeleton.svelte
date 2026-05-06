@@ -6,7 +6,7 @@
 		...props
 	}: {
 		class?: string;
-		[key: string]: any;
+		[key: string]: unknown;
 	} = $props();
 </script>
 

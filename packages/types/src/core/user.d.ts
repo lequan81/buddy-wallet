@@ -1,8 +1,11 @@
 /**
  * Core User Types
+ *
+ * Uses a generic User<TInclude, TExclude> pattern with pre-configured variants.
  */
 
-export interface UserEntity {
+/** All possible user fields */
+export interface UserFields {
   id: string;
   name: string;
   phoneNumber: string;
@@ -29,59 +32,60 @@ export interface UserEntity {
   updatedAt: Date;
 }
 
-export type CurrentUser = Pick<UserEntity, 'id' | 'role' | 'phoneNumber' | 'email'> & {
-  permissions: string[];
-};
-
-export interface SafeUser extends Omit<
-  UserEntity,
+/** Field categories for masking */
+export type SensitiveFields =
   | 'password'
+  | 'temporaryPassword'
+  | 'temporaryPasswordExpires'
+  | 'temporaryPasswordUsed';
+
+export type InternalFields =
   | 'isLocked'
   | 'lockoutUntil'
   | 'failedLoginAttempts'
   | 'lastFailedLoginAt'
   | 'phoneVerified'
   | 'sessionVersion'
-  | 'lastPasswordChangeAt'
-  | 'temporaryPassword'
-  | 'temporaryPasswordExpires'
-  | 'temporaryPasswordUsed'
-  | 'createdAt'
-  | 'updatedAt'
-  | 'permissions'
-> {
-  permissions: string[];
-  createdAt: Date | string | null;
-  updatedAt: Date | string | null;
+  | 'lastPasswordChangeAt';
+
+/** Generic user type with configurable field inclusion */
+export type User<
+  TInclude extends keyof UserFields = keyof UserFields,
+  TExclude extends keyof UserFields = never
+> = Pick<UserFields, Exclude<TInclude, TExclude>>;
+
+/** Pre-configured user variants */
+export type UserEntity = User<keyof UserFields>;
+
+/** API response user type (excludes sensitive and internal fields) */
+export type UserResponse = User<keyof UserFields, SensitiveFields | InternalFields | 'createdAt' | 'updatedAt'> & {
+  createdAt: Date | string;
+  updatedAt: Date | string;
   [key: string]: unknown;
-}
+};
+
+export type CurrentUser = User<'id' | 'role' | 'phoneNumber' | 'email' | 'permissions'>;
+
+export type UserWithNotifications = User<
+  'id' | 'email' | 'role' | 'permissions' | 'phoneNumber' |
+  'emailVerified' | 'emailNotificationsEnabled' | 'pushNotificationsEnabled'
+>;
 
 /**
  * Result type for user operations
- * Returns either { data: SafeUser } or { code: string, error?: string }
+ * Returns either { data: UserResponse } or { code: string, error?: string }
  */
-export type UserResult = Result<SafeUser>;
+export type UserResult = Result<UserResponse>;
 
 /**
  * Result type for user list operations
  */
-export type UserListResult = Result<SafeUser[]>;
+export type UserListResult = Result<UserResponse[]>;
 
 /**
  * Result type for session operations
  */
 export type SessionsResult = Result<SessionsResponse>;
-
-export interface UserWithNotifications {
-  id: string;
-  email: string | null;
-  role: string;
-  permissions: string[];
-  phoneNumber: string;
-  emailVerified: boolean;
-  emailNotificationsEnabled: boolean;
-  pushNotificationsEnabled: boolean;
-}
 
 export interface Session {
   id: string;

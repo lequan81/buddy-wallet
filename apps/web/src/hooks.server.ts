@@ -66,17 +66,17 @@ async function tryGetUser(
 			{ autoRefresh: false }
 		);
 
-		const { data, error, status } = await api.v1.auth.me.get({
+		const { data, error, status } = await api.v1.user.profile.get({
 			fetch: { signal: controller.signal },
 			headers: { 'User-Agent': event.request.headers.get('user-agent') || '' }
 		});
 
 		clearTimeout(timeout);
 
-		const user = !error && (data as any)?.item ? (data as any).item : null;
+		const user = !error && (data as { item?: App.Locals['user'] })?.item ? (data as { item?: App.Locals['user'] }).item : null;
 
 		// Handle locked account — redirect immediately
-		if (user && (user as { isLocked?: boolean }).isLocked) {
+		if (user && (user as unknown as { isLocked?: boolean }).isLocked) {
 			handleLockedAccount(event, user);
 		}
 
@@ -98,9 +98,11 @@ async function tryGetUser(
  */
 function handleLockedAccount(
 	event: RequestEvent,
-	userData: { lockoutUntil?: string; email?: string; isLocked?: boolean }
+	userData: App.Locals['user']
 ): never {
-	const lockoutUntil = userData.lockoutUntil;
+	if (!userData) throw redirect(303, `/account-locked`);
+
+	const lockoutUntil = (userData as unknown as { lockoutUntil?: string }).lockoutUntil;
 	const isTemporaryLock = lockoutUntil && new Date(lockoutUntil) > new Date();
 
 	if (isTemporaryLock || !lockoutUntil) {
@@ -138,19 +140,22 @@ async function tryRefreshToken(
 			{ autoRefresh: false }
 		);
 
-		const { data, error, response } = await api.v1.auth.refresh.post({
-			fetch: { signal: controller.signal },
-			headers: { 'User-Agent': event.request.headers.get('user-agent') || '' }
-		});
+		const { data, error, response } = await api.v1.auth.refresh.post(
+			{ refreshToken },
+			{
+				fetch: { signal: controller.signal },
+				headers: { 'User-Agent': event.request.headers.get('user-agent') || '' }
+			}
+		);
 
 		clearTimeout(timeout);
 
-		if (error || !data || 'error' in data || !(data as any).item) return { user: null, newSessionToken: undefined, timedOut: false };
+		if (error || !data || 'error' in data || !(data as { item?: App.Locals['user'] }).item) return { user: null, newSessionToken: undefined, timedOut: false };
 
 		// Forward new cookies to the browser
 		const newToken = forwardRefreshCookies(event, response);
 
-		return { user: (data as any).item, newSessionToken: newToken, timedOut: false };
+		return { user: (data as { item?: App.Locals['user'] }).item ?? null, newSessionToken: newToken, timedOut: false };
 	} catch (err) {
 		clearTimeout(timeout);
 		if (isAbortError(err)) return { user: null, newSessionToken: undefined, timedOut: true };

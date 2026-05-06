@@ -7,6 +7,7 @@ export type ActivityAction =
 	| 'login_failed'
 	| 'export'
 	| 'import'
+	| 'import_preview'
 	| 'status_change'
 	| 'password_change'
 	| 'logout_all'

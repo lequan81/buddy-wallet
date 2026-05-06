@@ -10,7 +10,7 @@
 	import { toast } from 'svelte-sonner';
 	import { cn } from '$lib/utils';
 	import { Badge } from '@repo/ui/components/ui/badge';
-	import { phoneSchema, amountClientSchema, descriptionSchema, validateField } from '@repo/validation/client';
+	import { phoneSchema, amountClientSchema, descriptionSchema, validateField } from '@repo/schema/dto/debt';
 
 	import {
 		Phone,

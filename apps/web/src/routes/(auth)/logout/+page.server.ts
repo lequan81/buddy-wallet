@@ -6,7 +6,7 @@ export const actions: Actions = {
 		// Call backend to invalidate session
 		if (locals.user) {
 			try {
-				await locals.api.v1.auth.logout.post();
+				await locals.api.v1.auth.logout.post({});
 			} catch (error) {
 				console.error('[AUTH] Logout error:', error);
 			}

@@ -1,32 +1,23 @@
-import { describe, it, expect, test } from 'bun:test';
-import { configs } from '@/config';
+import { describe, expect, test } from 'bun:test';
+import { validateUserPassword } from '@/modules/auth/services/auth.service';
+import { hashPassword, verifyPassword } from '@/commons/security/password';
 
-describe('Auth Utilities', () => {
-  it('Configuration should include Argon2 options', () => {
-    expect(configs.AUTH.ARGON2_OPTIONS).toBeDefined();
-    expect(configs.AUTH.ARGON2_OPTIONS.algorithm).toBe('argon2id');
+describe('Auth Security Baseline', () => {
+  test('validateUserPassword rejects weak passwords', () => {
+    const result = validateUserPassword('weak');
+    expect('code' in result).toBe(true);
   });
 
-  test('Bun.password should hash and verify correctly', async () => {
-    const password = 'TestPassword123!';
+  test('validateUserPassword accepts strong passwords', () => {
+    const result = validateUserPassword('StrongPass123!');
+    expect('code' in result).toBe(false);
+  });
 
-    // Hash
-    const start = performance.now();
-    const hash = await Bun.password.hash(password, configs.AUTH.ARGON2_OPTIONS);
-    const end = performance.now();
+  test('hashPassword/verifyPassword round-trip works', async () => {
+    const password = 'StrongPass123!';
+    const hash = await hashPassword(password);
 
-    expect(hash).toBeDefined();
-    expect(typeof hash).toBe('string');
-    expect(hash.length).toBeGreaterThan(0);
-
-    console.log(`Hashing took ${end - start}ms`);
-
-    // Verify correct password
-    const isValid = await Bun.password.verify(password, hash);
-    expect(isValid).toBe(true);
-
-    // Verify incorrect password
-    const isInvalid = await Bun.password.verify('WrongPassword', hash);
-    expect(isInvalid).toBe(false);
+    expect(await verifyPassword(password, hash)).toBe(true);
+    expect(await verifyPassword('WrongPass123!', hash)).toBe(false);
   });
 });

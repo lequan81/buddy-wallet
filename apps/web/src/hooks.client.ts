@@ -20,6 +20,16 @@ interface ErrorReport {
 	url: string;
 }
 
+interface NetworkInformationLike extends EventTarget {
+	effectiveType?: string;
+	saveData?: boolean;
+	addEventListener(type: 'change', listener: () => void): void;
+}
+
+interface NavigatorWithConnection extends Navigator {
+	connection?: NetworkInformationLike;
+}
+
 /**
  * Send error data to a tracking endpoint.
  *
@@ -83,8 +93,8 @@ async function sendToErrorTracking({ error, status, url }: ErrorReport): Promise
 // 	// Initialize dataLayer and gtag function
 // 	window.dataLayer = window.dataLayer || [];
 // 	function gtag(...args: unknown[]) {
-// 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-// 		(window.dataLayer as any[]).push(args);
+// 		
+// 		(window.dataLayer as unknown[]).push(args);
 // 	}
 // 	gtag('js', new Date());
 // 	gtag('config', measurementId, {
@@ -131,8 +141,7 @@ async function sendToErrorTracking({ error, status, url }: ErrorReport): Promise
  *   - JS: `document.documentElement.dataset.slowNetwork === 'true'`
  */
 function detectNetworkQuality(): void {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const conn = (navigator as any).connection;
+	const conn = (navigator as NavigatorWithConnection).connection;
 	if (!conn) return;
 
 	const updateNetworkStatus = () => {

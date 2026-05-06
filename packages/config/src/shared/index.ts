@@ -4,8 +4,51 @@ export * from './security';
 export * from './banks';
 
 /**
+ * Shape constraint for SHARED_CONSTANTS — ensures all required keys are present
+ */
+interface SharedConstantsShape {
+  IMPORT: {
+    MAX_ROWS: number;
+    MAX_FILE_SIZE: number;
+    MAX_SYNC_PROCESS_SIZE: number;
+    MAX_EMPTY_ROWS: number;
+    CHUNK_SIZE: number;
+    PREVIEW_ROWS: number;
+    STALE_LOG_LIFETIME: number;
+    ACCEPTED_EXTENSIONS: readonly string[];
+    ACCEPTED_MIME_TYPES: readonly string[];
+  };
+  PAGINATION: { DEFAULT_SIZE: number; MAX_SIZE: number };
+  DEBT: {
+    MIN_AMOUNT: number;
+    MAX_AMOUNT: number;
+    MAX_BATCH_DELETE: number;
+    DUPLICATE_CHECK_DAYS: number;
+    DUPLICATE_TOLERANCE: number;
+  };
+  USER: {
+    MAX_DAILY_IMPORT_ROWS: number;
+    MAX_PENDING_DEBTS: number;
+    PASSWORD_MIN_LENGTH: number;
+  };
+  AUTH: {
+    OTP_EXPIRY_MINUTES: number;
+    OTP_RESEND_COOLDOWN_SECONDS: number;
+    OTP_MAX_RESENDS_PER_HOUR: number;
+    OTP_MAX_ATTEMPTS: number;
+    TEMP_PASSWORD_EXPIRY_HOURS: number;
+    SESSION_MAX_AGE_SECONDS: number;
+    REFRESH_TOKEN_MAX_AGE_DAYS: number;
+    LOCKOUT_DURATION_MS: number;
+  };
+  SECURITY: {
+    COMMON_PASSWORDS: readonly string[];
+  };
+}
+
+/**
  * Shared Business Constants
- * 
+ *
  * NOTE: Values here are DEFAULTS. Local .env always takes priority.
  */
 export const SHARED_CONSTANTS = {
@@ -58,6 +101,7 @@ export const SHARED_CONSTANTS = {
     TEMP_PASSWORD_EXPIRY_HOURS: 24,
     SESSION_MAX_AGE_SECONDS: 15 * 60, // 15 minutes
     REFRESH_TOKEN_MAX_AGE_DAYS: 90,
+    LOCKOUT_DURATION_MS: 15 * 60 * 1000, // 15 minutes
   },
 
   // Security - Common passwords to block
@@ -71,7 +115,7 @@ export const SHARED_CONSTANTS = {
       'admin12345', 'pass123', 'pass1234', 'Qwer!234', 'Letme1n!'
     ] as const,
   }
-} as const;
+} as const satisfies SharedConstantsShape;
 
 /**
  * Import database field definitions (language-agnostic)

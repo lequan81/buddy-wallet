@@ -11,14 +11,33 @@
 	import { Separator } from '@repo/ui/components/ui/separator';
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
+	import type { ActionData, PageData } from './$types';
+	import type { BankAccount, VietQRBank } from '@repo/types/core/bank';
 	// Icons
 
-	let { data, form } = $props();
+	type FormResult = ActionData | null | undefined;
+	type TriggerProps = Record<string, unknown>;
+
+	let { data, form }: { data: PageData; form: FormResult } = $props();
+
+	const getFormErrorMessage = (value: FormResult): string | null => {
+		if (!value || typeof value !== 'object') return null;
+		if (!('error' in value)) return null;
+		const maybeError = value.error;
+		if (typeof maybeError === 'string') return maybeError;
+		if (typeof maybeError === 'object' && maybeError && 'message' in maybeError) {
+			const message = maybeError.message;
+			return typeof message === 'string' ? message : null;
+		}
+
+		return null;
+	};
 
 	// Toast on form results
 	$effect(() => {
-		if (form && typeof form === 'object' && 'error' in form) {
-			toast.error((form as any).error?.message || 'An error occurred');
+		const formErrorMessage = getFormErrorMessage(form);
+		if (formErrorMessage) {
+			toast.error(formErrorMessage);
 		}
 		if (form && typeof form === 'object' && 'success' in form) {
 			toast.success('Bank account updated successfully');
@@ -26,8 +45,8 @@
 	});
 
 	// Provide fallback array to avoid undefined errors if data is somehow missing
-	let accounts = $derived(data.accounts || []);
-	let banks = $derived(data.banks || []);
+	let accounts = $derived((data.accounts || []) as BankAccount[]);
+	let banks = $derived((data.banks || []) as VietQRBank[]);
 
 	let isAdding = $state(false);
 	let isSubmitting = $state(false);
@@ -35,7 +54,7 @@
 
 	// Selected bank for new account
 	let selectedBankCode = $state('');
-	let selectedBank = $derived(banks.find((b: any) => b.code === selectedBankCode));
+	let selectedBank = $derived(banks.find((b) => b.code === selectedBankCode));
 
 	// Form state
 	let accountNumber = $state('');
@@ -126,7 +145,7 @@
 		}
 	});
 
-	function startEdit(account: any) {
+	function startEdit(account: BankAccount) {
 		isEditing = true;
 		editingId = account.id;
 		accountNumber = account.accountNumber;
@@ -134,7 +153,7 @@
 
 		// Find bank code by name/bin (since we might not have code stored directly if it changed)
 		// Usually we store bankName/bin. Let's try to match by bin first.
-		const bank = banks.find((b: any) => b.bin === account.bankBin);
+		const bank = banks.find((b) => b.bin === account.bankBin);
 		if (bank) {
 			selectedBankCode = bank.code;
 		} else {
@@ -283,9 +302,9 @@
 	</div>
 	<Separator />
 
-	{#if form && typeof form === 'object' && 'error' in form}
+	{#if getFormErrorMessage(form)}
 		<div class="rounded-md bg-red-50 p-3 text-sm text-red-500 dark:bg-red-900/10">
-			{(form as any).error?.message || 'An error occurred'}
+			{getFormErrorMessage(form) || 'An error occurred'}
 		</div>
 	{/if}
 
@@ -338,7 +357,7 @@
 								}}
 							>
 								<AlertDialog.Trigger>
-									{#snippet child({ props }: { props: Record<string, any> })}
+									{#snippet child({ props }: { props: TriggerProps })}
 										<Button
 											variant="ghost"
 											size="icon"

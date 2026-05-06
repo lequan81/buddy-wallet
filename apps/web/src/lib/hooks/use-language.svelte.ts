@@ -65,7 +65,7 @@ export function useLanguage() {
 			document.cookie = `PARAGLIDE_LOCALE=${nextLocale};path=/;max-age=31536000;SameSite=Lax`;
 
 			// 3. Chuyển hướng không reload (UX như Native App)
-			// eslint-disable-next-line svelte/no-navigation-without-resolve
+			
 			return goto(nextHref, {
 				replaceState: true,
 				noScroll: true,

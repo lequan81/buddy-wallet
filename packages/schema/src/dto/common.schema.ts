@@ -3,116 +3,115 @@
  * These provide PascalCase exports for TypeScript compatibility
  */
 
-import * as v from 'valibot';
+import { Type, type Static } from '@sinclair/typebox';
 
 // Response schemas
-export const ErrorResponseSchema = v.object({
-  error: v.object({
-    code: v.string(),
-    message: v.string()
+export const ErrorResponseSchema = Type.Object({
+  error: Type.Object({
+    code: Type.String(),
+    message: Type.String()
   })
 });
 
-export const ActivityListResponseSchema = v.object({
-  data: v.object({
-    items: v.array(v.object({})),
-    pagination: v.object({
-      page: v.number(),
-      limit: v.number(),
-      total: v.number()
+export const ActivityListResponseSchema = Type.Object({
+  data: Type.Object({
+    items: Type.Array(Type.Object({})),
+    pagination: Type.Object({
+      page: Type.Number(),
+      limit: Type.Number(),
+      total: Type.Number()
     })
   })
 });
 
-export const RecentActivityResponseSchema = v.object({
-  data: v.array(v.object({}))
+export const RecentActivityResponseSchema = Type.Object({
+  data: Type.Array(Type.Object({}))
 });
 
 // Bank schemas
-export const UpdateBankAccountSchema = v.object({
-  isDefault: v.optional(v.boolean()),
-  accountName: v.optional(v.string())
+export const UpdateBankAccountSchema = Type.Object({
+  isDefault: Type.Optional(Type.Boolean()),
+  accountName: Type.Optional(Type.String())
 });
 
 // Debt schemas
-export const DebtQuerySchema = v.object({
-  status: v.optional(v.string()),
-  limit: v.optional(v.number()),
-  offset: v.optional(v.number())
+export const DebtQuerySchema = Type.Object({
+  status: Type.Optional(Type.String()),
+  limit: Type.Optional(Type.Number()),
+  offset: Type.Optional(Type.Number())
 });
 
-export const UpdateDebtStatusSchema = v.object({
-  status: v.string()
+export const UpdateDebtStatusSchema = Type.Object({
+  status: Type.String()
 });
 
-export const UpdateDebtSchema = v.object({
-  description: v.optional(v.string()),
-  amount: v.optional(v.number())
+export const UpdateDebtSchema = Type.Object({
+  description: Type.Optional(Type.String()),
+  amount: Type.Optional(Type.Number())
 });
 
-export const SuggestDebtEditSchema = v.object({
-  fieldName: v.string(),
-  suggestedValue: v.string()
+export const SuggestDebtEditSchema = Type.Object({
+  fieldName: Type.String(),
+  suggestedValue: Type.String()
 });
 
-export const DeleteBatchDebtSchema = v.object({
-  ids: v.array(v.string())
+export const DeleteBatchDebtSchema = Type.Object({
+  ids: Type.Array(Type.String())
 });
 
-export const RecentDebtsResponseSchema = v.object({
-  data: v.array(v.object({}))
+export const RecentDebtsResponseSchema = Type.Object({
+  data: Type.Array(Type.Object({}))
 });
 
 // Pagination schema
-export const PaginationQuerySchema = v.object({
-  limit: v.optional(v.number()),
-  offset: v.optional(v.number()),
-  page: v.optional(v.number())
+export const PaginationQuerySchema = Type.Object({
+  limit: Type.Optional(Type.Number()),
+  offset: Type.Optional(Type.Number()),
+  page: Type.Optional(Type.Number())
 });
 
 // Profile schema
-export const UpdateProfileSchema = v.object({
-  name: v.optional(v.string()),
-  email: v.optional(v.string()),
-  phoneNumber: v.optional(v.string()),
-  emailNotificationsEnabled: v.optional(v.boolean()),
-  pushNotificationsEnabled: v.optional(v.boolean())
+export const UpdateProfileSchema = Type.Object({
+  name: Type.Optional(Type.String()),
+  email: Type.Optional(Type.String()),
+  phoneNumber: Type.Optional(Type.String()),
+  emailNotificationsEnabled: Type.Optional(Type.Boolean()),
+  pushNotificationsEnabled: Type.Optional(Type.Boolean())
 });
 
 // Import schemas
-export const PreviewImportSchema = v.object({
-  file: v.string()
+export const PreviewImportSchema = Type.Object({
+  file: Type.String()
 });
 
-export const StartImportSchema = v.object({
-  fileId: v.string(),
-  options: v.optional(v.object({}))
+export const StartImportSchema = Type.Object({
+  fileId: Type.String(),
+  options: Type.Optional(Type.Object({}))
 });
 
-export const ProgressSSEQuerySchema = v.object({
-  logIds: v.string()
+export const ProgressSSEQuerySchema = Type.Object({
+  logIds: Type.String()
 });
 
-export const ProgressBatchBodySchema = v.object({
-  jobIds: v.array(v.string())
+export const ProgressBatchBodySchema = Type.Object({
+  jobIds: Type.Array(Type.String())
 });
 
-export const LogsQuerySchema = v.object({
-  page: v.optional(v.number()),
-  limit: v.optional(v.number())
+export const LogsQuerySchema = Type.Object({
+  page: Type.Optional(Type.Number()),
+  limit: Type.Optional(Type.Number())
 });
 
 // Storage schemas
-export const UploadQRSchema = v.object({
-  file: v.string()
+export const UploadQRSchema = Type.Object({
+  file: Type.String()
 });
 
-export const UploadPaymentProofSchema = v.object({
-  file: v.string(),
-  debtId: v.string()
+export const UploadPaymentProofSchema = Type.Object({
+  file: Type.String(),
+  debtId: Type.String()
 });
 
-export const RejectProofSchema = v.object({
-  reason: v.optional(v.string())
+export const RejectProofSchema = Type.Object({
+  reason: Type.Optional(Type.String())
 });
-

@@ -1,15 +1,15 @@
-import * as v from 'valibot';
+import { Type, type Static } from '@sinclair/typebox';
 
-export const createDebtRequestSchema = v.object({
-  amount: v.pipe(v.number(), v.minValue(1, 'amount must be greater than 0')),
-  description: v.pipe(v.string(), v.maxLength(500, 'description too long')),
-  counterpartyPhone: v.pipe(v.string(), v.minLength(9, 'counterpartyPhone is too short'), v.maxLength(20, 'counterpartyPhone is too long')),
-  direction: v.picklist(['BORROW', 'LEND']),
-  expiryOption: v.optional(v.picklist(['never', '7d', '30d', '90d'])),
-  confirmDuplicate: v.optional(v.boolean())
+export const createDebtRequestSchema = Type.Object({
+  amount: Type.Number({ minimum: 1 }),
+  description: Type.String({ maxLength: 500 }),
+  counterpartyPhone: Type.String({ minLength: 9, maxLength: 20 }),
+  direction: Type.Union([Type.Literal('BORROW'), Type.Literal('LEND')]),
+  expiryOption: Type.Optional(Type.Union([Type.Literal('never'), Type.Literal('7d'), Type.Literal('30d'), Type.Literal('90d')])),
+  confirmDuplicate: Type.Optional(Type.Boolean())
 });
 
-export type CreateDebtRequest = v.InferOutput<typeof createDebtRequestSchema>;
+export type CreateDebtRequest = Static<typeof createDebtRequestSchema>;
 
 // Aliases for controller imports
 export const CreateDebtSchema = createDebtRequestSchema;

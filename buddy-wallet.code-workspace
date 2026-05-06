@@ -25,10 +25,6 @@
       "path": "packages/config"
     },
     {
-      "name": "validation",
-      "path": "packages/validation"
-    },
-    {
       "name": "types",
       "path": "packages/types"
     },
@@ -37,16 +33,16 @@
       "path": "packages/utils"
     },
     {
+      "name": "schema",
+      "path": "packages/schema"
+    },
+    {
       "name": "logger",
       "path": "packages/logger"
     },
     {
       "name": "errors",
       "path": "packages/errors"
-    },
-    {
-      "name": "email template",
-      "path": "packages/email-templates"
     },
     {
       "name": "ts-config",
@@ -71,6 +67,6 @@
       "**/node_modules": true,
       "**/.active_tasks": true
     },
-    "typescript.tsdk": "node_modules/typescript/lib"
+    "ts.tsdk.path": "node_modules/typescript/lib"
   }
 }

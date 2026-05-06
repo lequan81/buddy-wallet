@@ -1,9 +1,16 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
-import type { AdminPermissions } from '@repo/types/infrastructure';
 
 // Admin pages: SSR only (user-specific data)
 export const ssr = true;
+
+interface AdminPermissions {
+	isAdmin: boolean;
+	canManageUsers: boolean;
+	canViewAnalytics: boolean;
+	canImportData: boolean;
+	canExportData: boolean;
+}
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const emptyPermissions: AdminPermissions = {

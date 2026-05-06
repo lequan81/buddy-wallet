@@ -10,7 +10,7 @@
 	}: {
 		title: string;
 		description?: string;
-		actions?: any;
+		actions?: (() => unknown) | null;
 		class?: string;
 	} = $props();
 </script>

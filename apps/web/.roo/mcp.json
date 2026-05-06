@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "bunx",
+      "args": [
+        "--bun",
+        "shadcn@latest",
+        "mcp",
+        "--cwd",
+        "packages/ui"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "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"
+      }
+    },
+    "svelte": {
+      "command": "bunx",
+      "args": [
+        "--bun",
+        "-y",
+        "@sveltejs/mcp"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "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"
+      }
+    }
+  }
+}

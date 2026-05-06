@@ -24,14 +24,12 @@ export type RevokedReason =
 
 /**
  * Sessions table for access + refresh token authentication
- * - accessToken: Short-lived JWT (15 min) - DEPRECATED, use accessTokenHash
  * - accessTokenHash: Hashed access token for secure storage
  * - refreshToken: Long-lived secure random token (90 days) - stored hashed
  * - Supports soft delete for audit trail (Facebook/Instagram style)
  *
  * SECURITY UPDATE (2026-02-05):
- * Access tokens are now stored hashed to prevent theft if database is compromised.
- * Old plaintext accessToken column kept temporarily for migration compatibility.
+ * Access tokens are stored hashed to prevent theft if database is compromised.
  */
 export const sessions = sqliteTable('sessions', {
   id: text('id', { length: 24 }).primaryKey(),
@@ -39,8 +37,7 @@ export const sessions = sqliteTable('sessions', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
 
-  // Access token (short-lived JWT) - SECURITY: Now stored hashed
-  accessToken: text('access_token'), // DEPRECATED: Migrate to accessTokenHash
+  // Access token (short-lived JWT) - SECURITY: stored hashed only
   accessTokenHash: text('access_token_hash'), // NEW: Hashed token for secure storage
   accessTokenExpiresAt: integer('access_token_expires_at', { mode: 'timestamp' }).notNull(),
 

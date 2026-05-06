@@ -1,10 +1,10 @@
 import type { Result } from '../api/base';
-import type { SafeUser } from '../core/user';
+import type { UserResponse } from '../core/user';
 import type { SessionInfo } from '../infrastructure/sessions';
 import type { JwtService } from './auth.service';
 
 export interface RefreshSessionData {
-  user: SafeUser;
+  user: UserResponse;
   accessToken: string;
   refreshToken?: string;
   expiresIn: number;

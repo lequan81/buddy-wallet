@@ -4,6 +4,7 @@
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Badge } from '@repo/ui/components/ui/badge';
+	import { formatDate } from '@repo/utils/format';
 	import type { ImportLog, ImportDetailResult } from '@repo/types/core/import';
 
 	let { log } = $props<{ log: ImportLog }>();
@@ -32,13 +33,10 @@
 		}
 	}
 
-	function handleViewDebt(_debtId: string) {
+	function handleViewDebt(debtId: string) {
 		dispatch('viewDebt');
 	}
 
-	function formatDate(dateStr: string) {
-		return new Date(dateStr).toLocaleString();
-	}
 </script>
 
 <div class="space-y-4">

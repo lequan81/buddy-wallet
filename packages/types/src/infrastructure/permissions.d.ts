@@ -1,30 +1,48 @@
 /**
- * Application Permissions
+ * Application Permissions — Type Definitions
  *
- * Defines all permissions in the system with role-based and context-based access control.
+ * The Permission type is derived from the PERMISSIONS constant values.
+ * This ensures the type only includes actually-used permissions,
+ * not all possible entity:action combinations.
+ *
+ * To add a new permission:
+ * 1. Add it to PERMISSIONS in permissions.ts
+ * 2. The Permission type automatically includes it
  */
 
-export const PERMISSIONS: {
-  readonly ADMIN_VIEW: 'admin:view';
-  readonly ADMIN_MANAGE_USERS: 'admin:manage-users';
-  readonly ADMIN_IMPORT: 'admin:import';
-  readonly ADMIN_BROADCAST: 'admin:broadcast';
-  readonly USER_VIEW_PROFILE: 'user:view-profile';
-  readonly USER_UPDATE_PROFILE: 'user:update-profile';
-  readonly DEBT_CREATE: 'debt:create';
-  readonly DEBT_VIEW_OWN: 'debt:view-own';
-  readonly DEBT_UPDATE_OWN: 'debt:update-own';
-  readonly DEBT_DELETE_OWN: 'debt:delete-own';
-  readonly DEBT_VIEW_ALL: 'debt:view-all';
-  readonly DEBT_DELETE_ALL: 'debt:delete-all';
+/** Permission type — derived from PERMISSIONS constant values in permissions.ts */
+export type Permission =
+  // Admin permissions
+  | 'admin:view'
+  | 'admin:manage-user'
+  | 'admin:import'
+  | 'admin:broadcast'
+  // User permissions
+  | 'user:view-profile'
+  | 'user:update-profile'
+  // Debt permissions
+  | 'debt:create'
+  | 'debt:view-own'
+  | 'debt:update-own'
+  | 'debt:delete-own'
+  | 'debt:view-all'
+  | 'debt:delete-all'
+  // Storage permissions
+  | 'storage:upload'
+  | 'storage:view-own'
+  | 'storage:delete-own'
+  | 'proof:upload'
+  | 'proof:approve'
+  | 'proof:reject'
+  // Bank account permissions
+  | 'bank:create'
+  | 'bank:view-own'
+  | 'bank:update-own'
+  | 'bank:delete-own';
+
+/** Permission check functions */
+export type PermissionChecker = {
+  hasPermission(userPermissions: string[], required: Permission): boolean;
+  hasAllPermissions(userPermissions: string[], required: Permission[]): boolean;
+  hasAnyPermission(userPermissions: string[], required: Permission[]): boolean;
 };
-
-export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
-
-export const DEFAULT_USER_PERMISSIONS: Permission[];
-export const ADMIN_PERMISSIONS: Permission[];
-
-export function hasPermission(userPermissions: string[], required: Permission): boolean;
-export function hasAllPermissions(userPermissions: string[], required: Permission[]): boolean;
-export function hasAnyPermission(userPermissions: string[], required: Permission[]): boolean;
-

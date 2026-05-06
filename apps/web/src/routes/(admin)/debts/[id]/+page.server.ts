@@ -2,12 +2,10 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { DebtDetails } from '@repo/types/core/debt';
 import type { BankAccount } from '@repo/types/core/bank';
+import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
 
 const extractDebt = (payload: unknown): DebtDetails | null => {
-	if (!payload || typeof payload !== 'object') return null;
-	const item = (payload as { item?: unknown }).item;
-	if (item) return item as DebtDetails;
-	return null;
+	return extractApiData<DebtDetails>(payload).data;
 };
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -36,9 +34,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const debt = extractDebt(debtData);
 
 	if (debtError || !debt) {
-		const errVal = debtError?.value as Record<string, unknown> | undefined;
-		const errMsg = (errVal?.message || errVal?.error) as string | undefined;
-		const finalMsg = typeof errMsg === 'string' ? errMsg : 'Debt not found';
+		const finalMsg = extractApiErrorMessage(debtError?.value, 'Debt not found');
 		return { debt: null, error: finalMsg };
 	}
 
@@ -52,16 +48,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	let creditorBanks: BankAccount[] = [];
 	let pendingProofs: Array<{ id: string; url: string; createdAt: string; status: string }> = [];
 
-	// If I am the debtor, I need creditor's bank info to pay
+	// Backend does not currently provide an endpoint to fetch another user's bank accounts.
 	if (isDebtor && debt.creditorId) {
-				const { data: bankData } = await (locals.api.v1.banks as any).index.get({ query: { userId: debt.creditorId } });
-		creditorBanks = (bankData?.items as unknown as BankAccount[]) || [];
+		creditorBanks = [];
 	}
 
-	// If I am the creditor, I want to see pending proofs.
 	if (isCreditor) {
-		const { data: proofsData } = await api.v1.upload['pending-proofs']({ debtId: debt.id }).get();
-		pendingProofs = ((proofsData as { files?: typeof pendingProofs } | null)?.files || []);
+		// TODO: pending-proofs endpoint is not yet implemented in backend
+		pendingProofs = [];
 	}
 
 	return {

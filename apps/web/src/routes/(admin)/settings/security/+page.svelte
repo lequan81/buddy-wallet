@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { AlertTriangle, Clock, Key, LogOut, Monitor, Shield, Smartphone, Tablet } from '@repo/icons';
+	import { formatDate } from '@repo/utils/format';
 
 	import { revokeSession, logoutAll, changePassword } from '$lib/remotes/security.remote';
 
@@ -263,7 +264,7 @@
 									</p>
 									<p class="text-xs text-muted-foreground">
 										{session.ipAddress || 'IP Hidden'} &bull; {session.lastActiveAt
-											? new Date(session.lastActiveAt).toLocaleDateString()
+											? formatDate(session.lastActiveAt)
 											: 'Unknown'}
 									</p>
 								</div>
@@ -276,7 +277,7 @@
 									{/if}
 								</div>
 								<div class="text-xs text-muted-foreground">
-									Signed in: {new Date(session.createdAt ?? Date.now()).toLocaleDateString()}
+									Signed in: {formatDate(session.createdAt)}
 								</div>
 							</div>
 						</div>

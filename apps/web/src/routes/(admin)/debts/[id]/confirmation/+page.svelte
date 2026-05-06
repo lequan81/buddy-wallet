@@ -5,8 +5,9 @@
 	import { cn } from '$lib/utils';
 	import { formatCurrency } from '@repo/utils/format';
 	import { DEBT_STATUS } from '@repo/config/shared/status';
+	import type { PageData } from './$types';
 
-	let { data } = $props();
+	let { data } = $props<{ data: PageData }>();
 
 	const getStatusMessage = () => {
 		if (data.status === DEBT_STATUS.PAID) {

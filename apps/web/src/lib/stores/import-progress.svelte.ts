@@ -1,6 +1,6 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { api } from '$lib/services/api';
-import type { ImportProgress, ProgressResult } from '@repo/types/core/import';
+import type { ImportProgress } from '@repo/types/core/import';
 import type { ImportJob } from '@repo/types/infrastructure/jobs';
 import {
 	normalizeImportWorkflowState,
@@ -9,19 +9,29 @@ import {
 } from '$lib/state-machines/import-workflow.machine';
 
 /**
- * Import Progress Store — HTTP Polling only
+ * Import Progress Store — XHR Polling with exponential backoff
  *
- * Uses the existing `/progress-batch` endpoint to poll for job status
- * every 3 seconds. No WebSocket connection needed — this approach is:
+ * Uses the `/progress-poll` endpoint to poll for job status.
+ * Implements exponential backoff: 1s → 2s → 4s → 8s → max 30s.
+ * Uses AbortController for clean cancellation.
+ *
+ * No SSE/WebSocket — this approach is:
  *  - More scalable (no persistent connections per user)
  *  - More reliable (works across proxies, firewalls, mobile networks)
  *  - Simpler to debug and maintain
  */
+
+const MIN_INTERVAL_MS = 1000;
+const MAX_INTERVAL_MS = 30000;
+const BACKOFF_MULTIPLIER = 2;
+
 class ImportProgressStore {
 	activeJobs = new SvelteMap<string, ImportJob>();
 	fileCache = new Map<string, File>();
-	private pollingInterval: ReturnType<typeof setInterval> | undefined;
-	private sseSource: EventSource | undefined;
+	private pollingTimer: ReturnType<typeof setTimeout> | undefined;
+	private abortController: AbortController | undefined;
+	private currentIntervalMs = MIN_INTERVAL_MS;
+	private isPolling = false;
 
 	addJob(jobId: string, type: 'preview' | 'import', fileName: string, userId: string, file?: File) {
 		const initialTransition = transitionImportWorkflow('pending', 'pending');
@@ -53,7 +63,7 @@ class ImportProgressStore {
 		this.startMonitoring();
 	}
 
-	/** Decide between SSE (primary) or Polling (fallback) */
+	/** Start or restart monitoring for pending jobs */
 	private startMonitoring() {
 		const pendingIds = this.getPendingJobIds();
 		if (pendingIds.length === 0) {
@@ -61,99 +71,91 @@ class ImportProgressStore {
 			return;
 		}
 
-		const url = `/v1/import/progress-sse?logIds=${pendingIds.join(',')}`;
-		
-		// If already monitoring these exact jobs, don't restart
-		if (this.sseSource && this.sseSource.url.endsWith(url)) {
+		if (!this.isPolling) {
+			console.log(`[Import] Monitoring ${pendingIds.length} jobs...`);
+			this.currentIntervalMs = MIN_INTERVAL_MS;
+			this.isPolling = true;
+			this.schedulePoll();
+		}
+	}
+
+	/** Schedule the next poll using exponential backoff */
+	private schedulePoll() {
+		if (!this.isPolling) return;
+
+		this.pollingTimer = setTimeout(async () => {
+			await this.executePoll();
+		}, this.currentIntervalMs);
+	}
+
+	/** Execute a single poll request */
+	private async executePoll() {
+		const pendingIds = this.getPendingJobIds();
+		if (pendingIds.length === 0) {
+			this.stopMonitoring();
 			return;
 		}
 
-		console.log(`[Import] Monitoring ${pendingIds.length} jobs...`);
-		this.startSSE(url);
-	}
+		// Create a new AbortController for this request
+		this.abortController?.abort();
+		this.abortController = new AbortController();
 
-	/** Attempt SSE connection */
-	private startSSE(url: string) {
-		this.stopSSE();
-		this.sseSource = new EventSource(url);
+		try {
+			
+			const { data, error } = await api.v1.data['import/progress-poll'].post(
+				{ logIds: pendingIds },
+				{ fetch: { signal: this.abortController.signal } }
+			);
 
-		this.sseSource.onopen = () => {
-			console.log('[Import] [SSE] Connected and streaming updates');
-		};
+			if (!error && data) {
+				// Reset backoff on success
+				this.currentIntervalMs = MIN_INTERVAL_MS;
 
-		this.sseSource.onmessage = (event) => {
-			try {
-				const parsed = JSON.parse(event.data) as Record<string, ProgressResult>;
-				// Extract data from API response format: { success: true, data: { logId: ImportProgress } }
+				// Handle API response: unwrap { data: ... } envelope
+				const result = (data as Record<string, unknown>)?.data || data;
+
+				// Extract ImportProgress from ProgressResult union
 				const progressMap: Record<string, ImportProgress> = {};
-				for (const [id, result] of Object.entries(parsed)) {
-					// Extract from { data: ImportProgress } or { code, error }
-					if (result && typeof result === 'object' && 'data' in result) {
-						progressMap[id] = result.data;
-					}
-				}
-				console.log('[Import] [SSE] Received update for', Object.keys(progressMap).length, 'jobs');
-				this.applyProgressUpdates(progressMap);
-				
-				// If all jobs terminal, SSE will be closed by server or we can stop
-				if (this.getPendingJobIds().length === 0) {
-					console.log('[Import] [SSE] All jobs completed, stopping...');
-					this.stopMonitoring();
-				}
-			} catch (err) {
-				console.error('[Import] [SSE] Error parsing message', err);
-			}
-		};
-
-		this.sseSource.onerror = (err) => {
-			console.warn('[Import] [SSE] Connection error, falling back to polling...', err);
-			this.fallbackToPolling();
-		};
-	}
-
-	/** Fallback mechanism if SSE fails */
-	private fallbackToPolling() {
-		this.stopSSE();
-		this.startPolling();
-	}
-
-	/** Poll `/progress-batch` every 3s - fallback for SSE */
-	private startPolling() {
-		if (this.pollingInterval) return;
-
-		console.log('[Import] [Polling] Started fallback polling interval (3s)');
-		this.pollingInterval = setInterval(async () => {
-			const pendingIds = this.getPendingJobIds();
-			if (pendingIds.length === 0) {
-				this.stopMonitoring();
-				return;
-			}
-
-			try {
-				const { data, error } = await api.v1.import['progress-batch'].post({
-					logIds: pendingIds
-				});
-
-				if (!error && data) {
-					console.log('[Import] [Polling] Batch update received');
-					// Handle API response: could be direct object or wrapped in { data: ... }
-					const result = (data as any)?.data || data as any;
-					
-					// Extract ImportProgress from ProgressResult union
-					const progressMap: Record<string, ImportProgress> = {};
-					for (const [id, item] of Object.entries(result)) {
-						if (item && typeof item === 'object' && 'data' in item) {
-							progressMap[id] = (item as { data: ImportProgress }).data;
-						} else if (item && typeof item === 'object' && 'status' in item) {
-							progressMap[id] = item as ImportProgress;
+				for (const [id, item] of Object.entries(result as Record<string, unknown>)) {
+					if (item && typeof item === 'object') {
+						const obj = item as Record<string, unknown>;
+						if ('data' in obj) {
+							progressMap[id] = (obj as { data: ImportProgress }).data;
+						} else if ('status' in obj) {
+							progressMap[id] = obj as unknown as ImportProgress;
 						}
 					}
-					this.applyProgressUpdates(progressMap);
 				}
-			} catch {
-				// Retry silently
+
+				console.log('[Import] [Poll] Batch update received for', Object.keys(progressMap).length, 'jobs');
+				this.applyProgressUpdates(progressMap);
+
+				// Check meta for hasActiveJobs
+				const meta = (data as Record<string, unknown>)?.meta as Record<string, unknown> | undefined;
+				if (meta && meta.hasActiveJobs === false && this.getPendingJobIds().length === 0) {
+					this.stopMonitoring();
+					return;
+				}
 			}
-		}, 3000);
+		} catch (err: unknown) {
+			if (err instanceof DOMException && err.name === 'AbortError') {
+				// Request was aborted (cancelled), don't backoff
+				return;
+			}
+			// On error, apply exponential backoff
+			this.currentIntervalMs = Math.min(
+				this.currentIntervalMs * BACKOFF_MULTIPLIER,
+				MAX_INTERVAL_MS
+			);
+			console.warn(`[Import] [Poll] Error, backing off to ${this.currentIntervalMs}ms`, err);
+		}
+
+		// Continue polling if there are still pending jobs
+		if (this.getPendingJobIds().length > 0) {
+			this.schedulePoll();
+		} else {
+			this.stopMonitoring();
+		}
 	}
 
 	private getPendingJobIds(): string[] {
@@ -168,27 +170,18 @@ class ImportProgressStore {
 	}
 
 	private stopMonitoring() {
-		this.stopSSE();
-		this.stopPolling();
-	}
-
-	private stopSSE() {
-		if (this.sseSource) {
-			this.sseSource.close();
-			this.sseSource = undefined;
-			console.log('[Import] [SSE] Disconnected');
+		this.isPolling = false;
+		if (this.pollingTimer) {
+			clearTimeout(this.pollingTimer);
+			this.pollingTimer = undefined;
 		}
+		this.abortController?.abort();
+		this.abortController = undefined;
+		this.currentIntervalMs = MIN_INTERVAL_MS;
+		console.log('[Import] [Poll] Stopped monitoring');
 	}
 
-	private stopPolling() {
-		if (this.pollingInterval) {
-			clearInterval(this.pollingInterval);
-			this.pollingInterval = undefined;
-			console.log('[Import] [Polling] Stopped');
-		}
-	}
-
-	/** Apply progress data from any source (SSE or Polling) */
+	/** Apply progress data from poll response */
 	private applyProgressUpdates(data: Record<string, ImportProgress>) {
 		for (const [id, result] of Object.entries(data)) {
 			const job = this.activeJobs.get(id);
@@ -210,9 +203,9 @@ class ImportProgressStore {
 
 			if (job.status === 'success' && result.result) {
 				if (result.result && typeof result.result === 'object' && 'data' in result.result) {
-					job.result = result.result as any;
+					job.result = result.result as { data: import('@repo/types/core/import').PreviewResultData };
 				} else {
-					job.result = { data: result.result } as any;
+					job.result = { data: result.result } as { data: import('@repo/types/core/import').ImportResultData };
 				}
 				// Auto-cleanup preview jobs after 30s
 				if (job.type === 'preview') {
@@ -228,7 +221,7 @@ class ImportProgressStore {
 	}
 
 	destroy() {
-		this.stopPolling();
+		this.stopMonitoring();
 	}
 
 	removeJob(jobId: string) {

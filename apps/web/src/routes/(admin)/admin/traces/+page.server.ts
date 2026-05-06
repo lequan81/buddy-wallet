@@ -2,7 +2,8 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		const { data, error } = await locals.api.traces.json.get();
+		const debugApi = locals.api as unknown as Record<string, { get?: () => Promise<{ data?: unknown; error?: unknown }> }>;
+		const { data, error } = (await debugApi['debug/traces/json']?.get?.()) || {};
 
 		if (error) {
 			return {

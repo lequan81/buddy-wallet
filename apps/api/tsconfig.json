@@ -2,20 +2,12 @@
   "extends": "@repo/typescript-config/app.json",
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"],
-      "@infra/*": ["./src/app/Providers/Plugins/Infrastructure/*"],
-      "@infra/Redis": ["./src/app/Providers/Plugins/Infrastructure/Redis/index.ts"]
+      "@/*": ["./src/*"]
     },
-    "types": [
-      "bun-types",
-      "node"
-    ],
+    "types": ["bun-types"],
     "noEmit": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
-  "include": [
-    "src/**/*",
-    "tests/**/*"
-  ]
+  "include": ["src/**/*", "tests/**/*"]
 }

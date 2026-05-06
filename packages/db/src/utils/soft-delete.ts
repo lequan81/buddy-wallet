@@ -17,7 +17,7 @@ export const SOFT_DELETE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
  * Usage: db.select().from(table).where(notDeleted(table.deletedAt))
  */
 export function notDeleted<T>(deletedAtColumn: T) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  
   return isNull(deletedAtColumn as any);
 }
 

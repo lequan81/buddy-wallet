@@ -1,6 +1,6 @@
 // Unified production server - runs API + Web on single port
 import { app } from './apps/api/dist/index.js'; // Elysia app instance (built output)
-// @ts-expect-error - SvelteKit's adapter-bun handler is JS, and is only available after build
+
 import { handler } from './apps/web/build/handler.js';
 
 const port = Bun.env.PORT || 3000;

@@ -1,64 +1,38 @@
-/**
- * Auth Service Unit Tests
- *
- * Demonstrates testing with dependency injection container.
- * Uses the DI container for proper service resolution and test doubles.
- */
-import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
-import { AuthService } from '@/app/Services/AuthService';
+import { describe, expect, it } from 'bun:test';
 import {
-  createTestContainer,
-  mockRepositories,
-  resetContainer,
-  isErrorResult
-} from '../utils/di-helpers';
+  validateUserPassword,
+  generateOtp,
+  generateRefreshToken,
+  getTokenLifetimes,
+  buildResetUrl
+} from '@/modules/auth/services/auth.service';
 
-describe('AuthService (Unit Tests with DI Container)', () => {
-  let authService: AuthService;
-
-  beforeEach(() => {
-    // Reset container before each test
-    resetContainer();
-
-    // Create test container with mock dependencies
-    const testContainer = createTestContainer();
-    testContainer.register('UserRepositoryInterface', {
-      useValue: mockRepositories.userRepository()
-    });
-    testContainer.register('DebtRepositoryInterface', {
-      useValue: mockRepositories.debtRepository()
-    });
-
-    // Resolve service from container
-    authService = testContainer.resolve(AuthService);
+describe('Auth Service Functions', () => {
+  it('validates strong passwords', () => {
+    const result = validateUserPassword('ValidPass123!');
+    expect('code' in result).toBe(false);
   });
 
-  afterEach(() => {
-    resetContainer();
+  it('generates six-digit OTP', () => {
+    const otp = generateOtp();
+    expect(otp).toHaveLength(6);
+    expect(/^\d{6}$/.test(otp)).toBe(true);
   });
 
-  describe('input validation', () => {
-    it('should reject invalid phone numbers', async () => {
-      const result = await authService.register({
-        name: 'Test User',
-        phoneNumber: '123', // Too short
-        password: 'password123'
-      });
+  it('generates random refresh token', () => {
+    const token = generateRefreshToken();
+    expect(typeof token).toBe('string');
+    expect(token.length).toBeGreaterThan(20);
+  });
 
-      expect(isErrorResult(result)).toBe(true);
-      if (isErrorResult(result)) {
-        expect(result.code).toBeDefined();
-      }
-    });
+  it('returns token lifetimes from config', () => {
+    const lifetimes = getTokenLifetimes();
+    expect(lifetimes.accessMs).toBeGreaterThan(0);
+    expect(lifetimes.refreshMs).toBeGreaterThan(0);
+  });
 
-    it('should reject empty phone numbers', async () => {
-      const result = await authService.register({
-        name: 'Test User',
-        phoneNumber: '',
-        password: 'password123'
-      });
-
-      expect(isErrorResult(result)).toBe(true);
-    });
+  it('builds reset URL containing token', () => {
+    const url = buildResetUrl('abc123');
+    expect(url.includes('abc123')).toBe(true);
   });
 });

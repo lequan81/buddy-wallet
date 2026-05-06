@@ -6,7 +6,7 @@ import { deLocalizeHref } from '$lib/paraglide/runtime';
 export const transport = {};
 
 /** @type {import('@sveltejs/kit').Reroute} */
-export function reroute({ url }) {
+export function reroute({ url }: { url: URL }) {
 	// deLocalizeHref sẽ biến '/gioi-thieu' thành '/about' để SvelteKit tìm đúng file route
 	return deLocalizeHref(url.pathname);
 }

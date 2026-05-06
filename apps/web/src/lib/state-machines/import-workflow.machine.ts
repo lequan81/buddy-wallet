@@ -8,6 +8,7 @@ const TRANSITIONS: Record<ImportWorkflowState, ImportWorkflowState[]> = {
 	pending: ['queued', 'processing', 'failed', 'cancelled'],
 	queued: ['processing', 'failed', 'cancelled'],
 	processing: ['success', 'failed', 'cancelled'],
+	preview: ['success', 'failed', 'cancelled'],
 	success: [],
 	failed: [],
 	cancelled: []

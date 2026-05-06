@@ -36,7 +36,8 @@ export const actions: Actions = {
 
 		try {
 			const api = createTreatyClient(fetch);
-			const { data, error } = await api.v1.auth['force-change-password'].post({
+			const { data, error } = await api.v1.user['change-password'].post({
+				currentPassword: '',
 				newPassword
 			});
 
@@ -46,7 +47,7 @@ export const actions: Actions = {
 				return fail(400, { message: errorMessage });
 			}
 
-				if ((data as any)?.success) {
+				if ((data as unknown as { success?: boolean })?.success) {
 				// Clear session cookies after password change
 				cookies.delete('session', { path: '/' });
 				cookies.delete('refresh_token', { path: '/' });

@@ -135,8 +135,8 @@ export default defineConfig({
 			'bits-ui',
 			'formsnap',
 			'svelte-sonner',
+			'@sinclair/typebox',
 			'sveltekit-superforms',
-			'valibot',
 			'@elysiajs/eden',
 			// Add common UI dependencies for faster startup
 			'@internationalized/date',
@@ -158,7 +158,7 @@ export default defineConfig({
 			'@repo/config',
 			'@repo/config/shared',
 			'@repo/config/frontend',
-			'@repo/validation',
+			'@repo/schema',
 			'@repo/errors',
 			'@repo/utils',
 			'@repo/types',

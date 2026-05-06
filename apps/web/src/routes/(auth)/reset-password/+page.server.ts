@@ -31,8 +31,7 @@ export const actions: Actions = {
 
 		try {
 			const api = createTreatyClient(fetch);
-			const { data, error } = await api.v1.auth['reset-password'].post({
-				email,
+			const { error } = await api.v1.auth['reset-password'].post({
 				token,
 				newPassword
 			});
@@ -42,7 +41,7 @@ export const actions: Actions = {
 				const errorMessage = errorData?.error?.message || 'Invalid or expired reset link';
 				return fail(400, { message: errorMessage });
 			}
-		} catch (err) {
+		} catch (_err) {
 			return fail(503, { message: 'Unable to connect to server. Please try again later.' });
 		}
 

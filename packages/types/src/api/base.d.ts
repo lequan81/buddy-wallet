@@ -6,9 +6,9 @@
  * Result<T> - Type-safe discriminated union for all service responses
  * No success boolean needed - presence of 'data' or 'code' indicates which case
  */
-export type Result<T> = 
+export type Result<T> =
   | { data: T }                                    // Success: has data
-  | { code: string; error?: string };             // Error: has code + optional error message
+  | { code: string; error?: string; message?: string }; // Error: has code + optional error/message
 
 /**
  * Success variant only
@@ -18,7 +18,7 @@ export type SuccessResult<T> = { data: T };
 /**
  * Error variant only
  */
-export type ErrorResult = { code: string; error?: string };
+export type ErrorResult = { code: string; error?: string; message?: string };
 
 export type ExpiryOption = 'never' | '1d' | '3d' | '7d' | '30d' | '90d';
 
@@ -48,3 +48,13 @@ export type ApiResponse<T = void> =
   | { data: T }
   | { error: { code: string; message: string; details?: string } };
 
+/** Enhanced result with kind discriminator (opt-in) */
+export type EnhancedResult<T, E = string> =
+  | { kind: 'success'; data: T; code?: never; error?: never }
+  | { kind: 'error'; code: E; message: string; data?: never; cause?: unknown }
+  | { kind: 'validation'; field: string; issues: string[]; data?: never };
+
+/** Exhaustive switch helper */
+export function assertNever(x: never): never {
+  throw new Error(`Unexpected case: ${JSON.stringify(x)}`);
+}

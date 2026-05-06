@@ -34,9 +34,8 @@ export const actions: Actions = {
 
 		try {
 			const api = createTreatyClient(fetch);
-			const { error } = await api.v1.auth['verify-otp'].post({
-				email,
-				otp
+			const { error } = await api.v1.auth['verify-email'].post({
+				token: otp
 			});
 
 			if (error) {

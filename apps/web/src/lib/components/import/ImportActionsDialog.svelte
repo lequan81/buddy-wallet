@@ -4,6 +4,7 @@
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Badge } from '@repo/ui/components/ui/badge';
+	import { formatDate } from '@repo/utils/format';
 	import type { ImportLog } from '@repo/types/core/import';
 
 	let { log } = $props<{ log: ImportLog }>();
@@ -61,10 +62,6 @@
 		} catch (error) {
 			console.error('Failed to share results:', error);
 		}
-	}
-
-	function formatDate(dateStr: string) {
-		return new Date(dateStr).toLocaleString();
 	}
 
 	function getSuccessRate() {

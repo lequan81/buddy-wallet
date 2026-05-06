@@ -1,5 +1,6 @@
 
-import type { SafeUser } from './user';
+import type { UserResponse } from './user';
+import type { Result } from '../api/base';
 
 /**
  * Core Debt Types
@@ -39,9 +40,9 @@ export interface Debt {
 }
 
 export interface DebtDetails extends Debt {
-  debtor?: SafeUser | null;
-  creditor?: SafeUser | null;
-  uploader?: SafeUser | null;
+  debtor?: UserResponse | null;
+  creditor?: UserResponse | null;
+  uploader?: UserResponse | null;
 }
 
 export interface DebtResultData {
@@ -56,9 +57,7 @@ export interface DebtResultData {
   duplicates?: Array<{ id: string; amount: number; description: string | null; createdAt: Date }>;
 }
 
-export type DebtResult = 
-  | ({ data: DebtResultData })
-  | ({ code: string; error?: string; message?: string });
+export type DebtResult = Result<DebtResultData>;
 
 export interface CreateDebtInput {
   counterpartyPhone: string;
@@ -89,6 +88,4 @@ export interface StatusUpdateResultData {
   validTransitions?: DebtStatus[];
 }
 
-export type StatusUpdateResult = 
-  | ({ data: StatusUpdateResultData })
-  | ({ code: string; error?: string; message?: string });
+export type StatusUpdateResult = Result<StatusUpdateResultData>;

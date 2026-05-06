@@ -123,8 +123,16 @@ export function setProgress(logId: string, progress: ImportProgress): void {
   try {
     const redis = getRedis();
     redis
-      .send('SETEX', [`bw:import:${logId}`, '3600', JSON.stringify(progress)])
-      .then(() => onRedisSuccess())
+      .send('HSET', [
+        `bw:job:${logId}`,
+        'progress', JSON.stringify(progress),
+        'status', String(progress.status || 'processing')
+      ])
+      .then(() => {
+        onRedisSuccess();
+        // Refresh TTL
+        redis.send('EXPIRE', [`bw:job:${logId}`, '3600']).catch(() => {});
+      })
       .catch((err) => onRedisFailure(err));
   } catch {
     // Redis unavailable

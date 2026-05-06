@@ -43,13 +43,7 @@ export default [
     }
   },
   {
-    files: [
-      'src/app/Repositories/**/*.ts',
-      'src/lib/mappers/**/*.ts',
-      'src/lib/decorators/transactional.ts',
-      'src/app/Providers/AppServiceProvider.ts',
-      'src/app/Providers/Plugins/**/*.ts'
-    ],
+    files: ['src/repositories/**/*.ts'],
     rules: {
       'no-restricted-imports': 'off'
     }
@@ -63,11 +57,7 @@ export default [
           patterns: [
             {
               group: ['@repo/db', '@/app/Repositories/Database/*'],
-              message: 'Controllers must flow through Actions, not DB/repositories.'
-            },
-            {
-              group: ['@/app/Services/*'],
-              message: 'Controllers should depend on Actions as their use-case boundary.'
+              message: 'Controllers must flow through Services, not DB/repositories.'
             }
           ]
         }

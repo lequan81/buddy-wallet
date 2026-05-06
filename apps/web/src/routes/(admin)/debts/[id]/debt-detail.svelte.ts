@@ -4,6 +4,16 @@ import type { BankAccount } from '@repo/types/core/bank';
 import type { DebtDetails, DebtStatus } from '@repo/types/core/debt';
 import { DEBT_STATUS } from '@repo/config/shared/status';
 
+type PaymentProofApi = {
+	'post': (payload: { file: File }) => Promise<{
+		error?: { value?: unknown } | null;
+	}>;
+};
+
+type StorageRoutes = {
+	'payment-proof'?: (params: { debtId: string }) => PaymentProofApi;
+};
+
 export class DebtDetailState {
 	debt = $state<DebtDetails>();
 	
@@ -133,7 +143,17 @@ export class DebtDetailState {
 		this.uploadError = '';
 		this.uploadSuccess = false;
 
-		const res = await api.v1.upload['payment-proof']({ debtId: this.debt.id }).post({ file: this.uploadFile[0] });
+		
+		const storageRoutes = api.v1.storage as unknown as StorageRoutes;
+		const paymentProofRoute = storageRoutes['payment-proof']?.({ debtId: this.debt.id });
+
+		if (!paymentProofRoute) {
+			this.uploadError = 'Payment proof upload endpoint is not available';
+			this.isUploading = false;
+			return;
+		}
+
+		const res = await paymentProofRoute.post({ file: this.uploadFile[0] });
 
 		this.isUploading = false;
 		if (res.error) {

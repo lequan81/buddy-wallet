@@ -7,7 +7,7 @@
 	import * as Card from '@repo/ui/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
-	import { emailSchema, phoneSchema, validateField } from '@repo/validation/client';
+	import { emailSchema, phoneSchema, validateField } from '@repo/schema/dto/auth';
 	let { form } = $props();
 
 	let email = $state('');

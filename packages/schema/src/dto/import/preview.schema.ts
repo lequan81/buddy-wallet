@@ -1,12 +1,7 @@
-import * as v from 'valibot';
+import { Type, type Static } from '@sinclair/typebox';
 
-const spreadsheetFileSchema = v.custom<File>(
-  (value) => value instanceof File,
-  'file must be a File'
-);
-
-export const previewImportRequestSchema = v.object({
-  file: spreadsheetFileSchema
+export const previewImportRequestSchema = Type.Object({
+  file: Type.Unknown() // File instance — validated at runtime
 });
 
-export type PreviewImportRequest = v.InferOutput<typeof previewImportRequestSchema>;
+export type PreviewImportRequest = Static<typeof previewImportRequestSchema>;

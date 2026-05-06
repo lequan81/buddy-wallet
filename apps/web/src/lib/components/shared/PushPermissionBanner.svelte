@@ -6,7 +6,8 @@
 		pushState,
 		initializePushState,
 		subscribeToPush,
-		dismissBanner,
+		dismissBannerTemporarily,
+		dismissBannerPermanently,
 		shouldShowBanner
 	} from '$lib/push.svelte';
 
@@ -39,12 +40,12 @@
 	}
 
 	function handleDismiss() {
-		dismissBanner(false); // Temporary dismiss (7 days)
+		dismissBannerTemporarily(); // Temporary dismiss (7 days)
 		visible = false;
 	}
 
 	function handleNeverShow() {
-		dismissBanner(true); // Permanent dismiss
+		dismissBannerPermanently(); // Permanent dismiss
 		visible = false;
 	}
 </script>

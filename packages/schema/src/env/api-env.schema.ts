@@ -1,24 +1,21 @@
-import * as v from 'valibot';
+import { Type, type Static } from '@sinclair/typebox';
 
-const numberString = (label: string) =>
-  v.pipe(v.string(), v.regex(/^\d+$/, `${label} must be a number string`));
-
-export const apiEnvSchema = v.object({
-  NODE_ENV: v.picklist(['development', 'staging', 'production']),
-  PORT: v.optional(numberString('PORT')),
-  WEB_URL: v.string(),
-  DATABASE_URL: v.string(),
-  REDIS_URL: v.optional(v.string()),
-  JWT_SECRET: v.pipe(v.string(), v.minLength(16, 'JWT_SECRET must be at least 16 chars')),
-  JWT_REFRESH_SECRET: v.pipe(v.string(), v.minLength(16, 'JWT_REFRESH_SECRET must be at least 16 chars')),
-  ACCESS_TOKEN_LIFETIME: v.optional(numberString('ACCESS_TOKEN_LIFETIME')),
-  REFRESH_TOKEN_LIFETIME: v.optional(numberString('REFRESH_TOKEN_LIFETIME')),
-  SMTP_HOST: v.optional(v.string()),
-  SMTP_PORT: v.optional(numberString('SMTP_PORT')),
-  SMTP_USER: v.optional(v.string()),
-  SMTP_PASSWORD: v.optional(v.string()),
-  SMTP_FROM_NOREPLY: v.optional(v.string()),
-  SMTP_FROM_SUPPORT: v.optional(v.string())
+export const apiEnvSchema = Type.Object({
+  NODE_ENV: Type.Union([Type.Literal('development'), Type.Literal('staging'), Type.Literal('production')]),
+  PORT: Type.Optional(Type.String({ pattern: '^\\d+$' })),
+  WEB_URL: Type.String(),
+  DATABASE_URL: Type.String(),
+  REDIS_URL: Type.Optional(Type.String()),
+  JWT_SECRET: Type.String({ minLength: 16 }),
+  JWT_REFRESH_SECRET: Type.String({ minLength: 16 }),
+  ACCESS_TOKEN_LIFETIME: Type.Optional(Type.String({ pattern: '^\\d+$' })),
+  REFRESH_TOKEN_LIFETIME: Type.Optional(Type.String({ pattern: '^\\d+$' })),
+  SMTP_HOST: Type.Optional(Type.String()),
+  SMTP_PORT: Type.Optional(Type.String({ pattern: '^\\d+$' })),
+  SMTP_USER: Type.Optional(Type.String()),
+  SMTP_PASSWORD: Type.Optional(Type.String()),
+  SMTP_FROM_NOREPLY: Type.Optional(Type.String()),
+  SMTP_FROM_SUPPORT: Type.Optional(Type.String())
 });
 
-export type ApiEnv = v.InferOutput<typeof apiEnvSchema>;
+export type ApiEnv = Static<typeof apiEnvSchema>;

@@ -1,14 +1,11 @@
-import * as v from 'valibot';
+import { Type, type Static } from '@sinclair/typebox';
 
-const numberString = (label: string) =>
-  v.pipe(v.string(), v.regex(/^\d+$/, `${label} must be a number string`));
-
-export const workerEnvSchema = v.object({
-  NODE_ENV: v.picklist(['development', 'staging', 'production']),
-  DATABASE_URL: v.string(),
-  REDIS_URL: v.optional(v.string()),
-  IMPORT_CHUNK_SIZE: v.optional(numberString('IMPORT_CHUNK_SIZE')),
-  IMPORT_MAX_ROWS: v.optional(numberString('IMPORT_MAX_ROWS'))
+export const workerEnvSchema = Type.Object({
+  NODE_ENV: Type.Union([Type.Literal('development'), Type.Literal('staging'), Type.Literal('production')]),
+  DATABASE_URL: Type.String(),
+  REDIS_URL: Type.Optional(Type.String()),
+  IMPORT_CHUNK_SIZE: Type.Optional(Type.String({ pattern: '^\\d+$' })),
+  IMPORT_MAX_ROWS: Type.Optional(Type.String({ pattern: '^\\d+$' }))
 });
 
-export type WorkerEnv = v.InferOutput<typeof workerEnvSchema>;
+export type WorkerEnv = Static<typeof workerEnvSchema>;

@@ -1,11 +1,11 @@
 import type { PaginatedResult } from '../api/pagination';
-import type { SafeUser, UserResult } from '../core/user';
+import type { UserResponse, UserResult } from '../core/user';
 
 export interface IUserService {
   getAllUsers(options?: {
     limit?: number;
     offset?: number;
-  }): Promise<PaginatedResult<SafeUser>>;
+  }): Promise<PaginatedResult<UserResponse>>;
   getUserById(userId: string): Promise<UserResult>;
   toggleUserStatus(userId: string): Promise<UserResult>;
   updateUserPermissions?(userId: string, permissions: string[]): Promise<UserResult>;

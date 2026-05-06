@@ -1,12 +1,9 @@
-export type ImportWorkflowState =
-  | 'pending'
-  | 'queued'
-  | 'processing'
-  | 'success'
-  | 'failed'
-  | 'cancelled';
+import type { ImportState } from './workflow';
 
-export type ImportWorkflowLegacyState = ImportWorkflowState | 'preview' | 'completed';
+/** @deprecated Use ImportState from './workflow' instead */
+export type ImportWorkflowState = ImportState;
+
+export type ImportWorkflowLegacyState = ImportState | 'completed';
 
 export interface ImportWorkflowTransition {
   from: ImportWorkflowState;

@@ -1,18 +1,17 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import type { Debt } from '@repo/types/core/debt';
+import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
 
-type RecentContactsResponse = { success: true; items: string[] };
+const hasAccounts = (accounts: unknown[] | null): boolean => Array.isArray(accounts) && accounts.length > 0;
 
-const getRecentContacts = (data: unknown): string[] => {
-	if (!data || typeof data !== 'object') return [];
-	const items = (data as { items?: unknown }).items;
-	return Array.isArray(items) ? items : [];
-};
+const getRecentContacts = (debts: Debt[] | null, currentPhone: string | null): string[] => {
+	if (!Array.isArray(debts)) return [];
+	const contacts = debts
+		.flatMap((debt) => [debt.creditorPhone, debt.debtorPhone])
+		.filter((phone): phone is string => typeof phone === 'string' && phone.length > 0 && phone !== currentPhone);
 
-const hasAccounts = (payload: unknown): boolean => {
-	if (!payload || typeof payload !== 'object') return false;
-	const items = (payload as { items?: unknown }).items;
-	return Array.isArray(items) && items.length > 0;
+	return Array.from(new Set(contacts)).slice(0, 10);
 };
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -45,11 +44,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	try {
 		const { api } = locals;
 		const [bankRes, contactsRes] = await Promise.all([
-			(api.v1.banks as any).me.get(),
-			(api.v1.debts as any)['recent-contacts'].get()
+			api.v1.bank.accounts.get(),
+			api.v1.debts.get({ query: { limit: '10', page: '1' } })
 		]);
-		hasBankAccount = hasAccounts(bankRes.data);
-		recentContacts = getRecentContacts(contactsRes.data as RecentContactsResponse | null);
+		hasBankAccount = hasAccounts(extractApiData<unknown[]>(bankRes.data).data);
+		recentContacts = getRecentContacts(extractApiData<Debt[]>(contactsRes.data).data, locals.user.phoneNumber ?? null);
 	} catch (err) {
 		console.error('[Debt Create] Failed to load data:', err);
 	}
@@ -101,8 +100,8 @@ export const actions: Actions = {
 		// Block LEND debt creation if no bank account
 		if (direction === 'LEND') {
 			try {
-				const { data } = await (api.v1.banks as any).me.get();
-				const hasBankAccount = hasAccounts(data);
+				const { data } = await api.v1.bank.accounts.get();
+				const hasBankAccount = hasAccounts(extractApiData<unknown[]>(data).data);
 
 				if (!hasBankAccount) {
 					return fail(400, {
@@ -117,7 +116,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const { data, error, status } = await (locals.api.v1.debts as any).index.post({
+			const { error, status } = await locals.api.v1.debts.post({
 				amount,
 				description,
 				counterpartyPhone,
@@ -127,7 +126,7 @@ export const actions: Actions = {
 			});
 
 			if (error) {
-				const errorObj = error.value as (Record<string, unknown> & { duplicates?: unknown[] }) | undefined;
+				const errorObj = error.value as (Record<string, unknown> & { duplicates?: unknown[]; code?: string }) | undefined;
 
 				// Handle duplicate warning
 				if (status === 409 && errorObj?.code === 'DUPLICATE_WARNING') {
@@ -137,15 +136,7 @@ export const actions: Actions = {
 						duplicates: Array.isArray(errorObj?.duplicates) ? errorObj?.duplicates : []
 					});
 				}
-
-				const nestedError =
-					typeof errorObj?.error === 'string' ? errorObj?.error : (errorObj?.error as Record<string, unknown>)?.message;
-				const errMsg =
-					(errorObj?.details as string) ||
-					(errorObj?.message as string) ||
-					(nestedError as string) ||
-					'Failed to create debt';
-				return fail(400, { message: errMsg });
+				return fail(400, { message: extractApiErrorMessage(error.value, 'Failed to create debt') });
 			}
 		} catch (err) {
 			console.error(err);

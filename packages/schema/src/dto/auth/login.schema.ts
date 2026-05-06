@@ -1,11 +1,11 @@
-import * as v from 'valibot';
+import { Type, type Static } from '@sinclair/typebox';
 
-export const loginRequestSchema = v.object({
-  email: v.string(),
-  password: v.pipe(v.string(), v.minLength(1, 'password is required'))
+export const loginRequestSchema = Type.Object({
+  email: Type.String(),
+  password: Type.String({ minLength: 1 })
 });
 
-export type LoginRequest = v.InferOutput<typeof loginRequestSchema>;
+export type LoginRequest = Static<typeof loginRequestSchema>;
 
 // Alias for controller imports
 export const LoginSchema = loginRequestSchema;

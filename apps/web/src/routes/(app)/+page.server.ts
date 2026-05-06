@@ -1,6 +1,12 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { createTreatyClient } from '$lib/services/api';
+import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
+
+interface CheckDebtPayload {
+	hasDebts: boolean;
+	phone: string;
+}
 
 export const actions: Actions = {
 	checkDebt: async ({ request, fetch }) => {
@@ -16,26 +22,26 @@ export const actions: Actions = {
 
 		try {
 			const api = createTreatyClient(fetch);
-			const { data, error } = await api.v1.public['check-debt'].get({
-				query: { phoneNumber }
+			const { data, error } = await api['check-debt'].get({
+				query: { phone: phoneNumber }
 			});
 
 			if (error) {
-				const errVal = error.value as Record<string, unknown>;
 				return fail(typeof error.status === 'number' ? error.status : 500, {
-					error: (errVal?.message as string) || 'Failed to check debt status',
+					error: extractApiErrorMessage(error.value, 'Failed to check debt status'),
 					phoneNumber
 				});
 			}
 
+			const parsed = extractApiData<CheckDebtPayload>(data);
+			const result = parsed.data ?? {
+				hasDebts: false,
+				phone: ''
+			};
+
 			return {
 				success: true,
-				result: (data as any) || {
-					success: false,
-					phone: '',
-					found: false,
-					count: 0
-				},
+				result,
 				phoneNumber
 			};
 		} catch {

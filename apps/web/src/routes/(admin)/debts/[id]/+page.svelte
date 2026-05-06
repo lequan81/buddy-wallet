@@ -23,22 +23,31 @@
 	import DebtStatusBadge from '$lib/components/DebtStatusBadge.svelte';
 	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
-	import type { DebtDetails } from '@repo/types/core/debt';
-	import { DEBT_STATUS } from '@repo/config/shared/status';
+import type { DebtDetails } from '@repo/types/core/debt';
+import { DEBT_STATUS } from '@repo/config/shared/status';
 
-	let { data, form } = $props<{ data: PageData; form: ActionData }>();
-	let debt = $derived(data.debt as DebtDetails | null);
-	let creditorBanks = $derived(data.creditorBanks || []);
-	let pendingProofs = $derived(data.pendingProofs || []);
+type CurrentUserLike = { id?: string } | null | undefined;
+type FormWithMessage = ActionData & { message?: string; error?: { message?: string } | string };
+
+let { data, form } = $props<{ data: PageData; form: ActionData }>();
+let debt = $derived(data.debt as DebtDetails | null);
+let creditorBanks = $derived(data.creditorBanks || []);
+let pendingProofs = $derived(data.pendingProofs || []);
 	
 	const state = $derived(debt ? new DebtDetailState(
 		debt as DebtDetails,
 		data.creditorBanks || [],
-		data.currentUser as any,
+		data.currentUser as CurrentUserLike,
 		data.currentUser?.id === debt.creditorId,
 		data.currentUser?.id === debt.creditorId,
 		data.currentUser?.id === debt.debtorId
 	) : null);
+
+	const getFormErrorMessage = (value: ActionData | null | undefined): string => {
+		if (!value || !('error' in value) || !value.error) return 'An error occurred';
+		if (typeof value.error === 'string') return value.error;
+		return (value.error as { message?: string }).message || 'An error occurred';
+	};
 
 	$effect(() => {
 		if (data.debt && state) {
@@ -51,13 +60,11 @@
 	$effect(() => {
 		if (form && state) {
 			if ('error' in form && form.error) {
-				const errorMessage = typeof form.error === 'string' 
-					? form.error 
-					: (form.error as any).message || 'An error occurred';
+				const errorMessage = getFormErrorMessage(form);
 				toast.error(errorMessage);
 			}
 			if ('success' in form && form.success) {
-				const successForm = form as any;
+				const successForm = form as FormWithMessage;
 				if (successForm.message) toast.success(successForm.message);
 				
 				if (successForm.allProofsApproved && successForm.debtId) {
@@ -143,15 +150,15 @@
 			{#if state && form && typeof form === 'object'}
 		{#if 'error' in form && form.error}
 			<div class="mb-4 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-				{(form.error as any).message || 'An error occurred'}
+				{getFormErrorMessage(form)}
 			</div>
 		{/if}
 
-		{#if 'success' in form && (form as any).message}
+		{#if 'success' in form && (form as FormWithMessage).message}
 			<div class="mb-4 rounded-md bg-success/15 p-3 text-sm text-success">
-				{(form as any).message}
+				{(form as FormWithMessage).message}
 			</div>
-		{/if}
+	{/if}
 	{/if}
 
 			<!-- Confirmation Banner for Counterparty -->
@@ -184,6 +191,7 @@
 							<div class="flex gap-2">
 								<form
 									{...confirmDebt.enhance(async ({ submit }) => {
+										if (state?.isSubmitting) return;
 										const previousDebt = snapshotDebt();
 										applyConfirmOptimistic();
 										if (state) state.isSubmitting = true;
@@ -205,6 +213,7 @@
 								</form>
 								<form
 									{...updateDebtStatus.enhance(async ({ data: formData, submit }) => {
+										if (state?.isSubmitting) return;
 										formData.status = DEBT_STATUS.DISPUTED;
 										const previousDebt = snapshotDebt();
 										applyStatusOptimistic(DEBT_STATUS.DISPUTED);
@@ -275,6 +284,7 @@
 								<div class="mt-3 flex gap-2">
 									<form
 										{...respondSuggestion.enhance(async ({ data: formData, submit }) => {
+											if (state?.isSubmitting) return;
 											formData.accept = 'true';
 											if (state) state.isSubmitting = true;
 											try {
@@ -292,6 +302,7 @@
 									</form>
 									<form
 										{...respondSuggestion.enhance(async ({ data: formData, submit }) => {
+											if (state?.isSubmitting) return;
 											formData.accept = 'false';
 											if (state) state.isSubmitting = true;
 											try {
@@ -440,7 +451,7 @@
 														bind:value={s.selectedBankId}
 													>
 														{#each creditorBanks as bank}
-															<option value={bank.id}>{(bank as any).shortName || (bank as any).bankCode || 'Bank'} - {bank.accountNumber}</option>
+															<option value={bank.id}>{bank.shortName || bank.bankCode || 'Bank'} - {bank.accountNumber}</option>
 														{/each}
 													</select>
 												</div>
@@ -535,16 +546,17 @@
 											<form
 												class="flex-1"
 												{...approveProof.enhance(async ({ data: formData, submit }) => {
+													if (state?.isSubmitting) return;
 													formData.proofId = proof.id;
 													if (state) state.isSubmitting = true;
 													try {
 														await submit();
 													} finally {
 														if (state) state.isSubmitting = false;
-													invalidateAll();
-												}
-											})}
-										>
+														invalidateAll();
+													}
+												})}
+											>
 											<Button
 												type="submit"
 												size="sm"
@@ -557,6 +569,7 @@
 										<form
 											class="flex-1"
 											{...rejectProof.enhance(async ({ data: formData, submit }) => {
+												if (state?.isSubmitting) return;
 												formData.proofId = proof.id;
 												const reason = prompt('Enter rejection reason:');
 												if (reason === null) {
@@ -601,6 +614,7 @@
 					<Card.Content>
 						<form
 							{...updateDebt.enhance(async ({ submit }) => {
+								if (s.isSubmitting) return;
 								const previousDebt = snapshotDebt();
 								const patch: Record<string, unknown> = { updatedAt: new Date().toISOString() };
 								if (s.editDescription) patch.description = s.editDescription;
@@ -613,7 +627,7 @@
 									s.isSubmitting = false;
 									s.isEditing = false;
 									if (previousDebt) {
-										s.debt = previousDebt as any;
+										s.debt = previousDebt;
 									}
 									invalidateAll();
 								}
@@ -676,6 +690,7 @@
 									{#each s.validTransitions as transition}
 										<form
 											{...updateDebtStatus.enhance(async ({ data: formData, submit }) => {
+												if (s.isSubmitting) return;
 												formData.status = transition.status;
 												const previousDebt = snapshotDebt();
 												applyStatusOptimistic(transition.status);
@@ -748,6 +763,7 @@
 												<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 												<form
 													{...deleteDebt.enhance(async ({ data, submit }) => {
+														if (state?.isSubmitting) return;
 														if (debt) data.id = debt.id;
 														if (state) state.isSubmitting = true;
 														try {
@@ -831,21 +847,24 @@
 					</AlertDialog.Cancel>
 					<form
 						{...updateDebtStatus.enhance(async ({ data: formData, submit }) => {
+							if (s.isSubmitting) return;
 							formData.status = 'paid';
 							const previousDebt = snapshotDebt();
 							applyStatusOptimistic('paid');
+							s.isSubmitting = true;
 							try {
 								await submit();
 							} finally {
+								s.isSubmitting = false;
 								s.showMarkAsPaidModal = false;
 								if (previousDebt) {
-									s.debt = previousDebt as any;
+									s.debt = previousDebt;
 								}
 								invalidateAll();
 							}
 						})}
 					>
-					<AlertDialog.Action type="submit" class="bg-success hover:bg-success/90">
+					<AlertDialog.Action type="submit" disabled={s.isSubmitting} class="bg-success hover:bg-success/90">
 						<Check class="mr-2 h-4 w-4" />
 						Yes, Mark as Paid
 					</AlertDialog.Action>
@@ -869,6 +888,7 @@
 				</AlertDialog.Header>
 				<form
 					{...suggestEdit.enhance(async ({ submit }) => {
+						if (s.isSuggesting) return;
 						s.isSuggesting = true;
 						try {
 							await submit();
@@ -927,4 +947,3 @@
 	</AlertDialog.Root>
 	{/if}
 </PageContainer>
-

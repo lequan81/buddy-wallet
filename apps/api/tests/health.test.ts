@@ -1,14 +1,27 @@
-import { describe, expect, it, test } from 'bun:test';
-import { app } from '../src';
+import { describe, expect, test } from 'bun:test';
+import { determineHealthStatus, getSystemInfo } from '@/modules/system/services/system.service';
 
-describe('Health Check', () => {
-  test('GET /health should return 200 OK', async () => {
-    const response = await app.handle(new Request('http://localhost/health'));
-    expect(response.status).toBe(200);
+describe('System Health Service', () => {
+  test('determineHealthStatus returns healthy when all services are up', () => {
+    const status = determineHealthStatus({ database: 'up', redis: 'up', storage: 'up' });
+    expect(status).toBe('healthy');
+  });
 
-    const body = await response.json();
-    expect(body).toHaveProperty('status', 'ok');
-    expect(body).toHaveProperty('version');
-    expect(body).toHaveProperty('uptime');
+  test('determineHealthStatus returns degraded when at least one service is up', () => {
+    const status = determineHealthStatus({ database: 'up', redis: 'down', storage: 'down' });
+    expect(status).toBe('degraded');
+  });
+
+  test('determineHealthStatus returns unhealthy when all services are down', () => {
+    const status = determineHealthStatus({ database: 'down', redis: 'down', storage: 'down' });
+    expect(status).toBe('unhealthy');
+  });
+
+  test('getSystemInfo includes expected keys', () => {
+    const info = getSystemInfo();
+    expect(typeof info.version).toBe('string');
+    expect(typeof info.environment).toBe('string');
+    expect(typeof info.uptime).toBe('number');
+    expect(typeof info.memory.used).toBe('number');
   });
 });

@@ -1,4 +1,6 @@
-export type JobStatus = 'pending' | 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'success' | 'preview';
+import type { JobState } from './workflow';
+
+export type JobStatus = JobState;
 export type JobType = 'import' | 'preview' | 'export' | 'notification' | 'cleanup' | 'sync';
 export type ImportJobType = 'import' | 'preview';
 

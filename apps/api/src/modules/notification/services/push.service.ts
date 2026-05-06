@@ -1,0 +1,44 @@
+/**
+ * Push Notification Service — API Side
+ * @logicType backend
+ *
+ * Enqueues push notification jobs to Redis for the worker to process.
+ * Does NOT send push directly — the dedicated worker handles delivery.
+ *
+ * Queue: `push_notifications`
+ */
+import { log } from '@repo/logger';
+import { enqueueJob, createJob } from '@/providers/redis/queue';
+import { isRedisAvailable } from '@/providers/redis/connection';
+
+export interface PushPayload {
+  title: string;
+  body: string;
+  url?: string;
+  icon?: string;
+}
+
+/**
+ * Enqueue a push notification job for a specific user.
+ * Fire-and-forget — returns immediately. The worker will deliver.
+ */
+export async function enqueuePush(userId: string, payload: PushPayload): Promise<boolean> {
+  if (!isRedisAvailable()) {
+    log.debug('PUSH', 'Redis unavailable, skipping push enqueue', { userId });
+    return false;
+  }
+
+  try {
+    const job = createJob('push-notification', {
+      userId,
+      payload
+    });
+
+    await enqueueJob('push_notifications', job);
+    log.debug('PUSH', 'Push job enqueued', { userId, jobId: job.id });
+    return true;
+  } catch (err) {
+    log.error('PUSH', 'Failed to enqueue push job', { userId, error: String(err) });
+    return false;
+  }
+}

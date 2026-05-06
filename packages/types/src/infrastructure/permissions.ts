@@ -7,9 +7,9 @@
 export const PERMISSIONS = {
   // Admin permissions
   ADMIN_VIEW: 'admin:view',
-  ADMIN_MANAGE_USERS: 'admin:manage-users',
+  ADMIN_MANAGE_USERS: 'admin:manage-user',
   ADMIN_IMPORT: 'admin:import',
-  ADMIN_BROADCAST: 'admin:broadcast', // For sending broadcasts to all users
+  ADMIN_BROADCAST: 'admin:broadcast',
 
   // User permissions
   USER_VIEW_PROFILE: 'user:view-profile',
@@ -20,8 +20,22 @@ export const PERMISSIONS = {
   DEBT_VIEW_OWN: 'debt:view-own',
   DEBT_UPDATE_OWN: 'debt:update-own',
   DEBT_DELETE_OWN: 'debt:delete-own',
-  DEBT_VIEW_ALL: 'debt:view-all', // Admin only
-  DEBT_DELETE_ALL: 'debt:delete-all' // Admin only
+  DEBT_VIEW_ALL: 'debt:view-all',
+  DEBT_DELETE_ALL: 'debt:delete-all',
+
+  // Storage permissions
+  STORAGE_UPLOAD: 'storage:upload',
+  STORAGE_VIEW_OWN: 'storage:view-own',
+  STORAGE_DELETE_OWN: 'storage:delete-own',
+  PROOF_UPLOAD: 'proof:upload',
+  PROOF_APPROVE: 'proof:approve',
+  PROOF_REJECT: 'proof:reject',
+
+  // Bank account permissions
+  BANK_CREATE: 'bank:create',
+  BANK_VIEW_OWN: 'bank:view-own',
+  BANK_UPDATE_OWN: 'bank:update-own',
+  BANK_DELETE_OWN: 'bank:delete-own'
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -35,7 +49,15 @@ export const DEFAULT_USER_PERMISSIONS: Permission[] = [
   PERMISSIONS.DEBT_CREATE,
   PERMISSIONS.DEBT_VIEW_OWN,
   PERMISSIONS.DEBT_UPDATE_OWN,
-  PERMISSIONS.DEBT_DELETE_OWN
+  PERMISSIONS.DEBT_DELETE_OWN,
+  PERMISSIONS.STORAGE_UPLOAD,
+  PERMISSIONS.STORAGE_VIEW_OWN,
+  PERMISSIONS.STORAGE_DELETE_OWN,
+  PERMISSIONS.PROOF_UPLOAD,
+  PERMISSIONS.BANK_CREATE,
+  PERMISSIONS.BANK_VIEW_OWN,
+  PERMISSIONS.BANK_UPDATE_OWN,
+  PERMISSIONS.BANK_DELETE_OWN
 ];
 
 /**
@@ -48,7 +70,9 @@ export const ADMIN_PERMISSIONS: Permission[] = [
   PERMISSIONS.ADMIN_IMPORT,
   PERMISSIONS.ADMIN_BROADCAST,
   PERMISSIONS.DEBT_VIEW_ALL,
-  PERMISSIONS.DEBT_DELETE_ALL
+  PERMISSIONS.DEBT_DELETE_ALL,
+  PERMISSIONS.PROOF_APPROVE,
+  PERMISSIONS.PROOF_REJECT
 ];
 
 /**

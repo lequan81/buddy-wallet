@@ -4,6 +4,7 @@
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui/components/ui/card';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { AlertTriangle, Clock, Mail } from '@repo/icons';
+	import { formatDate } from '@repo/utils/format';
 
 	const lockoutUntil = $derived(page.url.searchParams.get('until'));
 	const email = $derived(page.url.searchParams.get('email'));
@@ -12,8 +13,7 @@
 
 	const formattedUnlockTime = $derived(() => {
 		if (!lockoutUntil) return '';
-		const date = new Date(lockoutUntil);
-		return date.toLocaleString();
+		return formatDate(lockoutUntil);
 	});
 
 	const timeRemaining = $derived(() => {

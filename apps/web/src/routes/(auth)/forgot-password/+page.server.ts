@@ -20,9 +20,8 @@ export const actions: Actions = {
 
 		try {
 			const api = createTreatyClient(fetch);
-			const { data, error } = await api.v1.auth['forgot-password'].post({
-				email,
-				phoneNumber
+			const { error } = await api.v1.auth['request-password-reset'].post({
+				identifier: email
 			});
 
 			if (error) {
@@ -33,7 +32,7 @@ export const actions: Actions = {
 
 			// Always return success to prevent user enumeration
 			return { success: true };
-		} catch (err) {
+		} catch (_err) {
 			return fail(503, { message: 'Unable to connect to server. Please try again later.' });
 		}
 	}

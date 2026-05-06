@@ -1,73 +1,114 @@
 import { getRequestEvent, query } from '$app/server';
-import * as v from 'valibot';
+import type { Debt } from '@repo/types/core/debt';
+import type { UserResponse } from '@repo/types/core/user';
+import type { Pagination } from '@repo/types/api/pagination';
+import { extractApiData, buildPaginationFromMeta } from '$lib/services/api-envelope';
 
-export const getDashboardDebts = query(v.object({ statusFilter: v.string(), page: v.number(), pageSize: v.number() }), async ({statusFilter, page, pageSize}) => {
-	const { locals } = getRequestEvent();
-	if (!locals.user) return { debts: [], pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false } };
+interface DashboardDebtsInput {
+	statusFilter: string;
+	page: number;
+	pageSize: number;
+}
 
-	const offset = (page - 1) * pageSize;
-	const debtsQuery: Record<string, string> = {
-		limit: pageSize.toString(),
-		offset: offset.toString()
-	};
-	if (statusFilter !== 'all') {
-		debtsQuery.status = statusFilter;
-	}
+interface DebtListResult {
+	debts: Debt[];
+	pagination: Pagination;
+}
 
-		return (locals.api.v1.debts as any).index
-		.get({ query: debtsQuery })
-		.then(({ data }: { data: any }) => {
+const emptyPagination = (pageSize: number): Pagination => ({
+	total: 0,
+	limit: pageSize,
+	page: 1,
+	offset: 0,
+	hasMore: false
+});
+
+const emptyDebtsResult = (pageSize: number): DebtListResult => ({
+	debts: [],
+	pagination: emptyPagination(pageSize)
+});
+
+export const getDashboardDebts = query(
+	'unchecked' as const,
+	async ({ statusFilter, page, pageSize }: DashboardDebtsInput): Promise<DebtListResult> => {
+		const { locals } = getRequestEvent();
+		if (!locals.user) return emptyDebtsResult(pageSize);
+
+		const debtsQuery: Record<string, string> = {
+			limit: String(pageSize),
+			page: String(page)
+		};
+		if (statusFilter !== 'all') {
+			debtsQuery.status = statusFilter;
+		}
+
+		try {
+			const { data } = await locals.api.v1.debts.get({ query: debtsQuery });
+			const parsed = extractApiData<Debt[]>(data);
+			if (!parsed.data) {
+				return emptyDebtsResult(pageSize);
+			}
+
 			return {
-				debts: (data?.items || []) as any[],
-				pagination: data?.pagination ? {
-					...data.pagination,
-					offset,
-					hasMore: (data.pagination.total > offset + pageSize)
-				} : { total: 0, limit: pageSize, offset: 0, hasMore: false }
+				debts: parsed.data,
+				pagination: buildPaginationFromMeta(parsed.meta, page, pageSize)
 			};
-		})
-		.catch(() => ({
-			debts: [],
-			pagination: { total: 0, limit: pageSize, offset: 0, hasMore: false }
-		}));
-});
+		} catch {
+			return emptyDebtsResult(pageSize);
+		}
+	}
+);
 
-export const getDashboardUsers = query(v.boolean(), async (canManageUsers) => {
-	const { locals } = getRequestEvent();
-	if (!locals.user) return [];
+export const getDashboardUsers = query(
+	'unchecked' as const,
+	async (canManageUsers: boolean): Promise<UserResponse[]> => {
+		const { locals } = getRequestEvent();
+		if (!locals.user || !canManageUsers) return [];
 
-	if (!canManageUsers) return [];
-	return (locals.api.v1.users as any).index
-		.get()
-		.then(({ data }: { data: any }) => (data?.items || []) as any[])
-		.catch(() => []);
-});
+		try {
+			const { data } = await locals.api.v1.user['admin/users'].get({
+				query: { page: '1', limit: '100' }
+			});
+			const parsed = extractApiData<UserResponse[]>(data);
+			return parsed.data ?? [];
+		} catch {
+			return [];
+		}
+	}
+);
 
 export const getDashboardSecondaryData = query(async () => {
 	const { locals } = getRequestEvent();
-	if (!locals.user) return { hasBankAccount: false, recentContacts: [] };
-	
+	if (!locals.user) return { hasBankAccount: false, recentContacts: [] as Debt[] };
+
 	let hasBankAccount = false;
-	let recentContacts: string[] = [];
+	let recentContacts: Debt[] = [];
 	try {
 		const [bankRes, contactsRes] = await Promise.all([
-				(locals.api.v1.banks as any).index.get(),
-				(locals.api.v1.debts as any).index.get({ query: { limit: '10' } })
+			locals.api.v1.bank.accounts.get(),
+			locals.api.v1.debts.get({ query: { limit: '10', page: '1' } })
 		]);
-		hasBankAccount = Array.isArray(bankRes.data?.items) && bankRes.data.items.length > 0;
-		recentContacts = contactsRes.data?.items || [];
+
+		const bankParsed = extractApiData<unknown[]>(bankRes.data);
+		hasBankAccount = Array.isArray(bankParsed.data) && bankParsed.data.length > 0;
+
+		const contactsParsed = extractApiData<Debt[]>(contactsRes.data);
+		recentContacts = contactsParsed.data ?? [];
 	} catch (err) {
 		console.error('[Dashboard] Failed to load bank/contacts:', err);
 	}
 	return { hasBankAccount, recentContacts };
 });
 
-export const getRecentDebts = query(async () => {
+export const getRecentDebts = query(async (): Promise<Debt[]> => {
 	const { locals } = getRequestEvent();
 	if (!locals.user) return [];
 
-	return (locals.api.v1.debts as any).recent
-		.get()
-		.then((res: any) => (res.data?.items || res.items || []) as any[])
-		.catch(() => []);
+	try {
+		const { data } = await locals.api.v1.debts.get({ query: { limit: '10', page: '1' } });
+		const parsed = extractApiData<Debt[]>(data);
+		return parsed.data ?? [];
+	} catch {
+		return [];
+	}
 });

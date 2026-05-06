@@ -3,6 +3,7 @@
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Plus, Clock, FileSpreadsheet } from '@repo/icons';
+	import { formatDate } from '@repo/utils/format';
 
 	interface RecentDebtItem {
 		id: string;
@@ -30,9 +31,6 @@
 		onOpenModal(debt);
 	}
 
-	function formatDate(dateStr: string) {
-		return new Date(dateStr).toLocaleDateString();
-	}
 </script>
 
 <!-- Quick Actions Section -->

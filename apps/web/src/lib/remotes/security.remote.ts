@@ -1,66 +1,58 @@
 import { form, getRequestEvent } from '$app/server';
 import { invalid, redirect } from '@sveltejs/kit';
-import { v, changePasswordSchema } from '@repo/validation/client';
+import { Type } from '@sinclair/typebox';
+import { changePasswordSchema } from '@repo/schema/dto/auth';
+import { toStandardSchema } from '@repo/schema/adapters/standard-schema';
+import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
 
 export const revokeSession = form(
-	v.object({
-		sessionId: v.string()
-	}),
-	async ({ sessionId }) => {
+	toStandardSchema(
+		Type.Object({
+			sessionId: Type.String()
+		})
+	),
+	async ({ sessionId: _sessionId }) => {
 		const { locals } = getRequestEvent();
 		if (!locals.user) invalid('Unauthorized');
 
-		const { error } = await locals.api.v1.auth.sessions({ sessionId }).revoke.post();
-
-		if (error) {
-			const errVal = error.value as Record<string, unknown>;
-			invalid((errVal?.message as string) || (errVal?.details as string) || 'Failed to revoke session');
-		}
-
-		return { success: true, message: 'Session revoked successfully' };
+		invalid('Session revocation endpoint is not available');
 	}
 );
 
-export const logoutAll = form(
-	v.object({}),
-	async () => {
-		const { locals, cookies } = getRequestEvent();
-		if (!locals.user) invalid('Unauthorized');
+export const logoutAll = form(toStandardSchema(Type.Object({})), async () => {
+	const { locals, cookies } = getRequestEvent();
+	if (!locals.user) invalid('Unauthorized');
 
-		const { error } = await locals.api.v1.auth['logout-all'].post();
-
-		if (error) {
-			const errVal = error.value as Record<string, unknown>;
-			invalid((errVal?.message as string) || (errVal?.details as string) || 'Failed to logout all devices');
-		}
-
-		cookies.delete('session', { path: '/' });
-		cookies.delete('refresh_token', { path: '/' });
-
-		throw redirect(303, '/login?reason=logout_all');
+	const { error } = await locals.api.v1.auth.logout.post({ allDevices: true });
+	if (error) {
+		invalid(extractApiErrorMessage(error.value, 'Failed to logout all devices'));
 	}
-);
+
+	cookies.delete('session', { path: '/' });
+	cookies.delete('refresh_token', { path: '/' });
+
+	throw redirect(303, '/login?reason=logout_all');
+});
 
 export const changePassword = form(
-	changePasswordSchema,
-	async ({ currentPassword, newPassword, confirmPassword }) => {
+	toStandardSchema(changePasswordSchema),
+	async ({ currentPassword, newPassword, confirmPassword: _confirmPassword }) => {
 		const { locals } = getRequestEvent();
 		if (!locals.user) invalid('Unauthorized');
 
-		// The schema matches what the API expects
-		const { data, error }: { data: any, error: any } = await locals.api.v1.auth['change-password'].post({
+		const { data, error } = await locals.api.v1.user['change-password'].post({
 			currentPassword,
 			newPassword
 		});
 
 		if (error) {
-			const errVal = error.value as Record<string, unknown>;
-			invalid((errVal?.message as string) || (errVal?.details as string) || 'Failed to change password');
+			invalid(extractApiErrorMessage(error.value, 'Failed to change password'));
 		}
 
+		const parsed = extractApiData<{ message?: string }>(data);
 		return {
 			success: true,
-			message: data?.message || 'Password changed successfully'
+			message: parsed.message || parsed.data?.message || 'Password changed successfully'
 		};
 	}
 );

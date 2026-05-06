@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		return {
-			health: data,
+			health: data as HealthData,
 			lastUpdated: new Date().toISOString()
 		};
 	} catch (err) {

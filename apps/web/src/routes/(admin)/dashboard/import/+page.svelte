@@ -13,7 +13,7 @@
 	import { IMPORT_DB_FIELDS } from '@repo/config/shared';
 	import * as m from '$lib/paraglide/messages';
 	import type { UploadState } from '$lib/types';
-	import type { ImportLog, PreviewResult } from '@repo/types/core/import';
+	import type { ImportLog } from '@repo/types/core/import';
 
 	// Components
 	import ImportSkeleton from '$lib/components/import/ImportSkeleton.svelte';
@@ -138,7 +138,8 @@
 		ui.showConnectionFallback = false;
 
 		try {
-			const { data: response, error } = await (api.v1.import.logs as any).index.get({
+			
+			const { data: response, error } = await api.v1.data['import/logs'].get({
 				query: {
 					page: String(pageNumber),
 					limit: '10'
@@ -218,14 +219,14 @@
 			if (currentJob.type === 'preview') {
 				const previewRes = 'data' in res ? res.data : res; 
 				setUploadStatus('preview-ready');
-				uploadState.fileName = (previewRes as any).fileName || uploadState.fileName;
-				uploadState.totalRows = (previewRes as any).totalRows || 0;
-				uploadState.columnHeaders = (previewRes as any).columnHeaders || [];
-				uploadState.previewData = (previewRes as any).previewData || [];
+				uploadState.fileName = (previewRes as { fileName?: string }).fileName || uploadState.fileName;
+				uploadState.totalRows = (previewRes as { totalRows?: number }).totalRows || 0;
+				uploadState.columnHeaders = (previewRes as { columnHeaders?: string[] }).columnHeaders || [];
+				uploadState.previewData = (previewRes as { previewData?: string[][] }).previewData || [];
 
-				if ((previewRes as any).autoMapping) {
+				if ((previewRes as { autoMapping?: Record<string, string> }).autoMapping) {
 					const current = untrack(() => importForm.columnMapping);
-					importForm.columnMapping = { ...current, ...(previewRes as any).autoMapping };
+					importForm.columnMapping = { ...current, ...(previewRes as { autoMapping?: Record<string, string> }).autoMapping };
 				}
 				void fetchLogs(1);
 			} else if (currentJob.type === 'import') {

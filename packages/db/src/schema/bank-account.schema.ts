@@ -1,6 +1,4 @@
 import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
-import { createInsertSchema } from 'drizzle-valibot';
-import * as v from 'valibot';
 import { users } from './user.schema';
 
 export const bankAccounts = sqliteTable(
@@ -26,7 +24,8 @@ export const bankAccounts = sqliteTable(
     updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
   },
   (table) => ({
-    userIdIdx: index('idx_bank_accounts_user_id').on(table.userId)
+    userIdIdx: index('idx_bank_accounts_user_id').on(table.userId),
+    userDefaultIdx: index('idx_bank_accounts_user_default').on(table.userId, table.isDefault)
     // Ensure one default account per user might be handled effectively in logic or partial index if sqlite supported it well for this case,
     // but logic is safer for "one default per user" across DB flavors.
   })
@@ -34,17 +33,3 @@ export const bankAccounts = sqliteTable(
 
 export type BankAccount = typeof bankAccounts.$inferSelect;
 export type NewBankAccount = typeof bankAccounts.$inferInsert;
-
-export const insertBankAccountSchema = v.omit(
-  createInsertSchema(bankAccounts, {
-    bankCode: v.string('Mã ngân hàng là bắt buộc'),
-    bankName: v.string('Tên ngân hàng là bắt buộc'),
-    bankBin: v.string('Mã BIN ngân hàng là bắt buộc'),
-    accountNumber: v.pipe(
-      v.string('Số tài khoản là bắt buộc'),
-      v.minLength(4, 'Số tài khoản quá ngắn')
-    ),
-    accountName: v.optional(v.string('Tên chủ tài khoản'))
-  }),
-  ['id', 'createdAt', 'updatedAt', 'userId']
-);

@@ -1,36 +1,28 @@
 import { form, getRequestEvent } from '$app/server';
 import { invalid } from '@sveltejs/kit';
-import { v, accountNumberSchema, accountNameSchema } from '@repo/validation/client';
+import { extractApiErrorMessage } from '$lib/services/api-envelope';
 
 export const addBank = form(
-	v.object({
-		bankCode: v.string(),
-		bankName: v.string(),
-		bankBin: v.string(),
-		accountNumber: accountNumberSchema,
-		accountName: accountNameSchema,
-		isDefault: v.optional(v.picklist(['on']))
-	}),
-	async ({ bankCode, bankName, bankBin, accountNumber, accountName, isDefault }) => {
+	'unchecked' as const,
+	async (data) => {
 		const { locals } = getRequestEvent();
 		if (!locals.user) {
 			invalid('Unauthorized');
 		}
 
 		const payload = {
-			bankCode,
-			bankName,
-			bankBin,
-			accountNumber,
-			accountName,
-			isDefault: isDefault === 'on'
+			bankCode: data.bankCode as string,
+			bankName: data.bankName as string,
+			bankBin: data.bankBin as string,
+			accountNumber: data.accountNumber as string,
+			accountName: data.accountName as string,
+			isDefault: data.isDefault === 'on'
 		};
 
-		const { error } = await (locals.api.v1.banks as any).me.post(payload);
+		const { error } = await locals.api.v1.bank.accounts.post(payload);
 
 		if (error) {
-			const errVal = error.value as Record<string, unknown>;
-			invalid((errVal?.message as string) || (errVal?.details as string) || 'Failed to add account');
+			invalid(extractApiErrorMessage(error.value, 'Failed to add account'));
 		}
 
 		return { success: true };
@@ -38,34 +30,25 @@ export const addBank = form(
 );
 
 export const editBank = form(
-	v.object({
-		id: v.string(),
-		bankCode: v.string(),
-		bankName: v.string(),
-		bankBin: v.string(),
-		accountNumber: accountNumberSchema,
-		accountName: accountNameSchema,
-		isDefault: v.optional(v.picklist(['on']))
-	}),
-	async ({ id, bankCode, bankName, bankBin, accountNumber, accountName, isDefault }) => {
+	'unchecked' as const,
+	async (data) => {
 		const { locals } = getRequestEvent();
 		if (!locals.user) invalid('Unauthorized');
 
+		const id = data.id as string;
 		const payload = {
-			bankCode,
-			bankName,
-			bankBin,
-			accountNumber,
-			accountName,
-			isDefault: isDefault === 'on'
+			bankCode: data.bankCode as string,
+			bankName: data.bankName as string,
+			bankBin: data.bankBin as string,
+			accountNumber: data.accountNumber as string,
+			accountName: data.accountName as string,
+			isDefault: data.isDefault === 'on'
 		};
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const { error } = await (locals.api.v1.banks({ id }) as any).patch(payload);
+		const { error } = await locals.api.v1.bank.accounts({ id }).patch(payload);
 
 		if (error) {
-			const errVal = error.value as Record<string, unknown>;
-			invalid((errVal?.message as string) || (errVal?.details as string) || 'Failed to update account');
+			invalid(extractApiErrorMessage(error.value, 'Failed to update account'));
 		}
 
 		return { success: true };
@@ -73,17 +56,16 @@ export const editBank = form(
 );
 
 export const deleteBank = form(
-	v.object({
-		id: v.string()
-	}),
-	async ({ id }) => {
+	'unchecked' as const,
+	async (data) => {
 		const { locals } = getRequestEvent();
 		if (!locals.user) invalid('Unauthorized');
 
-		const { error } = await locals.api.v1.banks({ id }).delete();
+		const id = data.id as string;
+		const { error } = await locals.api.v1.bank.accounts({ id }).delete();
 
 		if (error) {
-			invalid('Failed to delete account');
+			invalid(extractApiErrorMessage(error.value, 'Failed to delete account'));
 		}
 
 		return { success: true };

@@ -30,7 +30,7 @@
 		warning?: string;
 		validationState?: 'default' | 'success' | 'error' | 'warning';
 		showPasswordToggle?: boolean;
-		icon?: Component<any>;
+		icon?: Component<unknown>;
 		helpText?: string;
 	} = $props();
 
@@ -38,7 +38,7 @@
 	let inputValue = $derived(value ?? '');
 
 	let showPassword = $state(false);
-	let inputType = $derived(showPasswordToggle && showPassword ? 'text' : ((type ?? 'text') as any));
+	let inputType = $derived(showPasswordToggle && showPassword ? 'text' : (type ?? 'text'));
 
 	const stateConfig = $derived.by(() => {
 		const configs = {
@@ -106,7 +106,7 @@
 				StateIcon || showPasswordToggle ? 'pr-10' : '',
 				className
 			)}
-			{...restProps as any}
+			{...restProps}
 		/>
 
 		{#if showPasswordToggle}

@@ -14,12 +14,13 @@
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import { cn } from '$lib/utils';
+	import { formatDate } from '@repo/utils/format';
 	import {
 		phoneSchema,
 		amountClientSchema,
 		descriptionSchema,
 		validateField
-	} from '@repo/validation/client';
+	} from '@repo/schema/dto/debt';
 
 	import { type PageData, type ActionData } from './$types';
 
@@ -29,16 +30,16 @@
 	// Bank account check - only needed for lending money, not for borrowing
 	let hasBankAccount = $derived(data.hasBankAccount ?? true);
 	let canLend = $derived(hasBankAccount);
-	let _canBorrow = $derived(true); // Always allow borrowing regardless of bank account
+	let canBorrow = $derived(true); // Always allow borrowing regardless of bank account
 
 	// Use $derived for direction to react to canLend changes
-	let _directionState = $state('LEND');
+	let directionState = $state('LEND');
 	let direction = $derived.by(() => {
 		// If can't lend and currently on LEND, switch to BORROW
-		if (!hasBankAccount && _directionState === 'LEND') {
+		if (!hasBankAccount && directionState === 'LEND') {
 			return 'BORROW';
 		}
-		return _directionState;
+		return directionState;
 	});
 
 	// Recent contacts
@@ -62,7 +63,7 @@
 
 	// Preview modal state
 	let showPreviewModal = $state(false);
-	let _formElement: HTMLFormElement | undefined = $state(undefined);
+	let formElement: HTMLFormElement | undefined = $state(undefined);
 
 	// Duplicate modal state
 	let showDuplicateModal = $state(false);
@@ -111,14 +112,6 @@
 			isSubmitting = true;
 			formEl.requestSubmit();
 		}
-	}
-
-	function formatDate(dateStr: string) {
-		return new Date(dateStr).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric'
-		});
 	}
 
 	function formatCurrency(amount: number) {
@@ -250,7 +243,7 @@
 								id="lend"
 								class="peer sr-only"
 								checked={direction === 'LEND'}
-								onchange={() => (_directionState = 'LEND')}
+								onchange={() => (directionState = 'LEND')}
 								disabled={!canLend}
 							/>
 							<Label
@@ -282,7 +275,7 @@
 								id="borrow"
 								class="peer sr-only"
 								checked={direction === 'BORROW'}
-								onchange={() => (_directionState = 'BORROW')}
+								onchange={() => (directionState = 'BORROW')}
 							/>
 							<Label
 								for="borrow"

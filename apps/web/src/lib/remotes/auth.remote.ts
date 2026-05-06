@@ -1,9 +1,10 @@
 import { form, getRequestEvent } from '$app/server';
 import { invalid, redirect } from '@sveltejs/kit';
 import { createTreatyClient } from '$lib/services/api';
-import { loginSchema } from '@repo/validation/client';
+import { loginRequestSchema as loginSchema } from '@repo/schema/dto/auth';
+import { toStandardSchema } from '@repo/schema/adapters/standard-schema';
 
-export const loginRemote = form(loginSchema, async ({ email, password }) => {
+export const loginRemote = form(toStandardSchema(loginSchema), async ({ email, password }) => {
 	const event = getRequestEvent();
 	const { request, fetch, cookies, url } = event;
 	const redirectTo = url.searchParams.get('redirectTo') || '/';
@@ -11,7 +12,7 @@ export const loginRemote = form(loginSchema, async ({ email, password }) => {
 	try {
 		const api = createTreatyClient(fetch);
 		const { data, error, response } = await api.v1.auth.login.post(
-			{ email, password },
+			{ identifier: email, password },
 			{
 				headers: {
 					'User-Agent': request.headers.get('user-agent') || ''
@@ -25,9 +26,8 @@ export const loginRemote = form(loginSchema, async ({ email, password }) => {
 			invalid(errorMessage);
 		}
 
-		if (data && !('error' in data) && data.mustChangePassword) {
-			throw redirect(303, '/change-password?required=true');
-
+		if (data && !('error' in data)) {
+			// Extract and set session cookies from the API response
 			let setCookieHeaders: string[] = response.headers.getSetCookie?.() || [];
 			if (setCookieHeaders.length === 0) {
 				const headerVal = response.headers.get('set-cookie');
@@ -62,6 +62,12 @@ export const loginRemote = form(loginSchema, async ({ email, password }) => {
 				}
 			}
 
+			// If user must change password, redirect to change-password page
+			if ((data as unknown as Record<string, unknown>)?.mustChangePassword) {
+				throw redirect(303, '/change-password?required=true');
+			}
+
+			// Normal successful login — redirect to destination
 			throw redirect(303, redirectTo);
 		}
 

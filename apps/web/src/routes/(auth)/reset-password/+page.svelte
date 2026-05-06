@@ -7,7 +7,7 @@
 	import * as Card from '@repo/ui/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
-	import { passwordSchema, validateField } from '@repo/validation/client';
+	import { passwordSchema, validateField } from '@repo/schema/dto/auth';
 	let { form, data } = $props();
 
 	let newPassword = $state('');

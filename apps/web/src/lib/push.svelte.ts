@@ -11,6 +11,13 @@ import { api } from '$lib/services/api';
 import { getDeviceInfo } from '$lib/utils/device';
 import { getCookie, setCookie, deleteCookie } from '$lib/utils/cookie-utils';
 
+type ApiCallResult = { data?: unknown; error?: { value?: unknown } | null };
+type NotificationEndpoint = {
+	get?: (...args: unknown[]) => Promise<ApiCallResult>;
+	post?: (...args: unknown[]) => Promise<ApiCallResult>;
+};
+const notificationsApi = api.v1.notifications as unknown as Record<string, NotificationEndpoint> & NotificationEndpoint;
+
 const COOKIE_KEYS = {
 	PUSH_BANNER_DISMISSED: 'bw-push-dismissed',
 	PUSH_BANNER_DISMISSED_UNTIL: 'bw-push-dismissed-until'
@@ -79,17 +86,19 @@ export async function fetchVapidKey(): Promise<string | null> {
 	}
 
 	try {
-		const { data, error } = await api.v1.push['vapid-key'].get();
-		const vapidData = (data as { data?: { publicKey?: string }; publicKey?: string })?.data || data;
+		
+		const { data, error } = (await notificationsApi['vapid-key']?.get?.()) || {};
+		interface VapidResponse { data?: { publicKey?: string }; publicKey?: string }
+		const vapidData = (data as VapidResponse)?.data || (data as VapidResponse);
 
-		if (error || !(vapidData as any)?.publicKey) {
-			pushState.error = error ? ((error.value as { message?: string })?.message || 'Failed to fetch VAPID key') : 'Failed to fetch VAPID key';
+		if (error || !vapidData?.publicKey) {
+			pushState.error = error ? ((error.value as { error?: { message?: string } })?.error?.message || 'Failed to fetch VAPID key') : 'Failed to fetch VAPID key';
 			return null;
 		}
 
-		pushState.vapidPublicKey = (vapidData as any).publicKey;
+		pushState.vapidPublicKey = vapidData.publicKey;
 		pushState.error = null;
-		return (vapidData as any).publicKey as string;
+		return vapidData.publicKey;
 	} catch (err) {
 		const errorMsg = err instanceof Error ? err.message : 'Failed to fetch VAPID key';
 		pushState.error = errorMsg;
@@ -190,7 +199,8 @@ export async function subscribeToPush(): Promise<boolean> {
 		const { deviceName, deviceType } = getDeviceInfo();
 
 		// Send subscription to server
-		const { error } = await (api.v1.push.subscribe as any).post({
+		
+		const { error } = (await notificationsApi.subscribe?.post?.({
 				endpoint: subscription.endpoint,
 				keys: {
 					p256dh: arrayBufferToBase64Url(p256dhKey),
@@ -199,7 +209,7 @@ export async function subscribeToPush(): Promise<boolean> {
 				expirationTime: subscription.expirationTime?.toString() || null,
 				deviceName,
 				deviceType
-			});
+			})) || {};
 
 		if (error) {
 			throw new Error('Failed to save subscription on server');
@@ -239,7 +249,8 @@ export async function unsubscribeFromPush(): Promise<boolean> {
 		await subscription.unsubscribe();
 
 		// Remove from server
-		await api.v1.push.unsubscribe.post({ endpoint: subscription.endpoint });
+		
+		await notificationsApi.unsubscribe?.post?.({ endpoint: subscription.endpoint });
 
 		pushState.isSubscribed = false;
 		pushState.isLoading = false;
@@ -257,7 +268,8 @@ export async function unsubscribeFromPush(): Promise<boolean> {
 // Send test notification
 export async function sendTestNotification(): Promise<boolean> {
 	try {
-		const { error } = await api.v1.push.test.post();
+		
+		const { error } = (await notificationsApi.test?.post?.()) || {};
 		return !error;
 	} catch {
 		return false;
@@ -277,22 +289,26 @@ export function shouldShowBanner(): boolean {
 
 	// Check if temporarily dismissed
 	const dismissedUntil = getCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED_UNTIL);
-	if (dismissedUntil && Date.now() < parseInt(dismissedUntil, 10)) return false;
+	if (dismissedUntil) {
+		const dismissedTime = Date.parse(dismissedUntil);
+		if (dismissedTime > Date.now()) return false;
+		// Expired, clean up
+		deleteCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED_UNTIL);
+	}
 
 	return true;
 }
 
-export function dismissBanner(permanent = false): void {
-	if (permanent) {
-		setCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED, 'true', 365);
-	} else {
-		// Dismiss for 7 days
-		const dismissUntil = Date.now() + 7 * 24 * 60 * 60 * 1000;
-		setCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED_UNTIL, dismissUntil.toString(), 7);
-	}
+// Dismiss banner temporarily (e.g., for 7 days)
+export function dismissBannerTemporarily(days = 7): void {
+	const until = Date.now() + days * 24 * 60 * 60 * 1000;
+	
+	const untilDate = new Date(until);
+	setCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED_UNTIL, untilDate.toISOString(), days);
 }
 
-export function resetBannerDismissal(): void {
-	deleteCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED);
+// Dismiss banner permanently
+export function dismissBannerPermanently(): void {
+	setCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED, 'true', 365);
 	deleteCookie(COOKIE_KEYS.PUSH_BANNER_DISMISSED_UNTIL);
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Activity, AlertTriangle, Check, Edit, FileText, LogIn, LogOut, Plus, Shield, Trash2, User, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from '@repo/icons';
+	import { formatDate } from '@repo/utils/format';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import * as Card from '@repo/ui/components/ui/card';
@@ -8,16 +9,6 @@
 	import { cn } from '$lib/utils';
 
 	let { data } = $props();
-
-	const formatDate = (date: string | number | Date) => {
-		return new Date(date).toLocaleString('en-US', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	};
 
 	// Unified action config -- replaces 3 separate switch statements
 	const ACTION_CONFIG: Record<string, { icon: typeof Activity; color: string }> = {
