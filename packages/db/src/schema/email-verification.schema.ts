@@ -6,6 +6,10 @@ import { users } from './user.schema';
  *
  * Stores OTP codes for email verification with rate limiting support.
  * OTP is stored as hash for security.
+ *
+ * NOTE: This table uses WITHOUT ROWID in the migration SQL for better
+ * performance on primary-key-only lookups. Drizzle ORM doesn't natively
+ * support WITHOUT ROWID, so it's applied in the consolidated migration.
  */
 export const emailVerifications = sqliteTable(
   'email_verifications',

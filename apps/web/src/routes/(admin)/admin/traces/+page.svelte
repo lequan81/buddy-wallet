@@ -1,13 +1,21 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { Activity } from '@repo/icons';
 	import * as Card from '@repo/ui/components/ui/card';
 	import * as Table from '@repo/ui/components/ui/table';
 	import { Badge } from '@repo/ui/components/ui/badge';
-import { formatDuration, TRACE_STATUS_COLORS, cn } from '$lib/utils';
+	import { formatDuration, TRACE_STATUS_COLORS, cn } from '$lib/utils';
 
-let { data } = $props();
+	interface Trace {
+		name: string;
+		traceId: string;
+		duration: number;
+		status: unknown;
+		timestamp: string | number;
+	}
 
-const getTraceStatusCode = (status: unknown): keyof typeof TRACE_STATUS_COLORS => {
+	let { data } = $props<{ data: { traces: Trace[] } }>();
+
+	const getTraceStatusCode = (status: unknown): keyof typeof TRACE_STATUS_COLORS => {
 	if (typeof status === 'object' && status !== null && 'code' in status) {
 		const code = (status as { code?: string }).code;
 		if (typeof code === 'string' && code in TRACE_STATUS_COLORS) {

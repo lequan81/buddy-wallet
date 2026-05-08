@@ -8,10 +8,10 @@
 	import { cn } from '$lib/utils';
 	import { getImportStatusColor, formatDate } from '$lib/utils/status';
 	import type { ImportLog } from '@repo/types/core/import';
-	import type { ImportJob } from '$lib/stores/import-progress.svelte';
+	import type { ImportJob } from '@repo/types/infrastructure/jobs';
 
 	interface ImportProgressStoreLike {
-		getJob: (id: string) => ImportJob | null;
+		getJob: (id: string) => ImportJob | null | undefined;
 	}
 
 	let {
@@ -187,10 +187,10 @@
 													: 'Pending'}
 										</span>
 										<span class="text-[10px] text-muted-foreground">
-											{activeJob.progress?.percentage || 0}%
+											{typeof activeJob.progress === 'object' ? activeJob.progress?.percentage || 0 : 0}%
 										</span>
 									</div>
-									<Progress value={activeJob.progress?.percentage || 0} class="h-1" />
+									<Progress value={typeof activeJob.progress === 'object' ? activeJob.progress?.percentage || 0 : 0} class="h-1" />
 									{#if activeJob.message}
 										<p class="text-[10px] text-muted-foreground truncate" title={activeJob.message}>
 											{activeJob.message}

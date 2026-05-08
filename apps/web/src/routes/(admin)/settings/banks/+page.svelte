@@ -149,7 +149,7 @@
 		isEditing = true;
 		editingId = account.id;
 		accountNumber = account.accountNumber;
-		accountName = account.accountName;
+		accountName = account.accountName ?? '';
 
 		// Find bank code by name/bin (since we might not have code stored directly if it changed)
 		// Usually we store bankName/bin. Let's try to match by bin first.

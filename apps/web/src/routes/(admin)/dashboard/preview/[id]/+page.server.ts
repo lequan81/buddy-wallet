@@ -111,12 +111,13 @@ export const actions: Actions = {
 				}
 
 				// Fallback: legacy JSON import
-				const body: { file: File; config: string } = {
-					file: safeFile,
-					config: configRaw
-				};
-
-				const { data, error } = await locals.api.v1.data.import.post(body);
+						const body = {
+							file: safeFile,
+							config: configRaw
+						};
+		
+						// Legacy endpoint body shape differs from typed schema
+						const { data, error } = await locals.api.v1.data.import.post(body as unknown as Parameters<typeof locals.api.v1.data.import.post>[0]);
 
 				if (error) {
 					const errVal = error.value as { code?: string; message?: string };
@@ -126,7 +127,7 @@ export const actions: Actions = {
 					});
 				}
 
-				const d = (data || {}) as Record<string, unknown>;
+				const d = ((data || {}) as unknown) as Record<string, unknown>;
 				return {
 					success: true,
 					jobId: typeof d.jobId === 'string' ? d.jobId : undefined,

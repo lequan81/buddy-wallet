@@ -22,7 +22,6 @@ export function apiError(
   const msg = detail || error.message || error.error || 'An error occurred';
   return new Response(
     JSON.stringify({
-      success: false,
       error: {
         code: error.code,
         message: msg,
@@ -43,7 +42,6 @@ export function apiSuccess<T>(
 ): Response {
   return new Response(
     JSON.stringify({
-      success: true,
       data,
       ...(message ? { message } : {}),
       ...(meta ? { meta } : {})
@@ -58,7 +56,6 @@ export function apiSuccess<T>(
 export function apiCreated<T>(data: T, message?: string): Response {
   return new Response(
     JSON.stringify({
-      success: true,
       data,
       ...(message ? { message } : {})
     }),
@@ -72,7 +69,6 @@ export function apiCreated<T>(data: T, message?: string): Response {
 export function apiAccepted<T>(data: T, message?: string): Response {
   return new Response(
     JSON.stringify({
-      success: true,
       data,
       ...(message ? { message } : {})
     }),

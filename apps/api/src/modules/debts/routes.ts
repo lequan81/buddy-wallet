@@ -25,11 +25,11 @@ export const debtRoutes = new Elysia({ prefix: '/debts' })
     body: CreateDebtSchema,
     detail: { tags: ['debts'], description: 'Create a new debt' }
   })
-  .delete('/batch', requirePermission('debt:delete-own', debt.batchRemove), {
+  .delete('/batch', requirePermission('debt:delete-own', debt.batchRemove) as any, {
     body: BatchDeleteSchema,
     detail: { tags: ['debts'], description: 'Batch delete debts' }
   })
-  .delete('/all', requirePermission('debt:delete-own', debt.removeAll), {
+  .delete('/all', requirePermission('debt:delete-own', debt.removeAll) as any, {
     query: DeleteAllQuerySchema,
     detail: { tags: ['debts'], description: 'Delete all eligible debts' }
   })

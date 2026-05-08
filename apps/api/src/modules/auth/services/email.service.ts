@@ -97,7 +97,7 @@ export async function sendEmail(message: EmailMessage): Promise<SendResult> {
     });
 
     const email = createMessage({
-      from: sanitizeHeaderValue(Bun.env.SMTP_FROM || Bun.env.SMTP_USER || 'noreply@example.com'),
+      from: sanitizeHeaderValue(Bun.env.SMTP_FROM_NOREPLY || Bun.env.SMTP_USER || 'noreply@example.com'),
       to: safeTo,
       subject: safeSubject,
       ...(safeReplyTo ? { replyTo: safeReplyTo } : {}),

@@ -21,8 +21,8 @@ export const servicesConfig = {
     S3_ENDPOINT: env.string('S3_ENDPOINT', ''),
     S3_REGION: env.string('S3_REGION', ''),
     S3_BUCKET: env.string('S3_BUCKET', ''),
-    S3_ACCESS_KEY_ID: env.string('S3_ACCESS_KEY_ID', ''),
-    S3_SECRET_ACCESS_KEY: env.string('S3_SECRET_ACCESS_KEY', ''),
+    S3_ACCESS_KEY: env.string('S3_ACCESS_KEY', ''),
+    S3_SECRET_KEY: env.string('S3_SECRET_KEY', ''),
     S3_PUBLIC_BASE_URL: env.string('S3_PUBLIC_BASE_URL', ''),
     S3_FORCE_PATH_STYLE: env.bool('S3_FORCE_PATH_STYLE', true)
   },

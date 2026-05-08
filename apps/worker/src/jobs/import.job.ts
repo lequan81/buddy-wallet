@@ -3,7 +3,7 @@ import { db, debts, users, importLogs, eq, or, inArray } from '@repo/db';
 import type { NewDebt } from '@repo/db';
 import { randomUUIDv7 } from 'bun';
 import { colLetterToIndex, toOptional } from '@repo/utils';
-import { SHARED_CONSTANTS, STORAGE_CONFIG } from '@repo/config';
+import { SHARED_CONSTANTS, STORAGE_CONFIG, buildS3Endpoint } from '@repo/config';
 import type { WorkerJobPayload } from '@repo/types';
 import { setProgress, clearProgressCache, getRedis } from '../redis';
 import { parseFile, validateRowCount } from '../parser';
@@ -17,12 +17,15 @@ interface AutoColumnMapping {
   dueDate: string;
 }
 
+// Build endpoint with auto-protocol detection
+const resolvedEndpoint = buildS3Endpoint(STORAGE_CONFIG.ENDPOINT, STORAGE_CONFIG.SSL);
+
 const s3Client = new Bun.S3Client({
-  endpoint: toOptional(STORAGE_CONFIG.ENDPOINT),
+  endpoint: toOptional(resolvedEndpoint),
   region: toOptional(STORAGE_CONFIG.REGION),
   bucket: toOptional(STORAGE_CONFIG.BUCKET),
-  accessKeyId: toOptional(STORAGE_CONFIG.ACCESS_KEY_ID),
-  secretAccessKey: toOptional(STORAGE_CONFIG.SECRET_ACCESS_KEY),
+  accessKeyId: toOptional(STORAGE_CONFIG.ACCESS_KEY),
+  secretAccessKey: toOptional(STORAGE_CONFIG.SECRET_KEY),
   virtualHostedStyle: !STORAGE_CONFIG.FORCE_PATH_STYLE
 });
 

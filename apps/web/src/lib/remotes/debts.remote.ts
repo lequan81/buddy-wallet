@@ -22,7 +22,7 @@ const ensureAuthenticated = () => {
 };
 
 const parseApiFailure = (apiError: ApiErrorResult | null | undefined, fallbackMessage: string): never => {
-	invalid(extractApiErrorMessage(apiError?.value, fallbackMessage));
+	invalid(extractApiErrorMessage(apiError, fallbackMessage));
 };
 
 export const batchDeleteDebts = form('unchecked' as const, async (data) => {
@@ -77,7 +77,7 @@ export const updateDebtStatus = form('unchecked' as const, async (data) => {
 	const debtId = params.id;
 	if (!debtId) error(400, { code: 'BAD_REQUEST', message: 'Debt ID not found in URL' });
 
-	let apiError: ApiErrorResult | undefined;
+	let apiError: ApiErrorResult | null | undefined;
 	if (status === 'confirmed') {
 		({ error: apiError } = await locals.api.v1.debts({ id: debtId }).confirm.post({}));
 	} else if (status === 'cancelled') {

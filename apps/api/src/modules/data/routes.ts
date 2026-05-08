@@ -19,7 +19,7 @@ export const dataRoutes = new Elysia({ prefix: '/data' })
     detail: { tags: ['data'], description: 'Export data in JSON or CSV format' }
   })
   // Import Preview — accepts file upload, returns preview + suggested mapping
-  .post('/import/preview', requirePermission('admin:import', importPreview.preview), {
+  .post('/import/preview', requirePermission('admin:import', importPreview.preview) as any, {
     detail: { tags: ['data'], description: 'Upload Excel/CSV file for import preview' }
   })
   // Start import from preview — uses stored parsed JSON + column mapping

@@ -4,7 +4,7 @@ import type { Server } from 'bun';
  * Extract client IP from request headers and server
  * SECURITY: Handles proxies and direct Connections
  */
-export function getClientIP(request: Request, server: Server | null): string | null {
+export function getClientIP(request: Request, server: Server<any> | null): string | null {
   // 1. Try Bun's native requestIP (most reliable if not behind proxy)
   const nativeIp = server?.requestIP(request)?.address;
   if (nativeIp) return nativeIp;

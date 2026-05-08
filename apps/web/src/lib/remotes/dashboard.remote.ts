@@ -66,9 +66,9 @@ export const getDashboardUsers = query(
 		if (!locals.user || !canManageUsers) return [];
 
 		try {
-			const { data } = await locals.api.v1.user['admin/users'].get({
-				query: { page: '1', limit: '100' }
-			});
+			const { data } = await locals.api.v1.user.admin.users.get({
+					query: { page: 1, limit: 100 }
+				});
 			const parsed = extractApiData<UserResponse[]>(data);
 			return parsed.data ?? [];
 		} catch {
@@ -86,7 +86,7 @@ export const getDashboardSecondaryData = query(async () => {
 	try {
 		const [bankRes, contactsRes] = await Promise.all([
 			locals.api.v1.bank.accounts.get(),
-			locals.api.v1.debts.get({ query: { limit: '10', page: '1' } })
+			locals.api.v1.debts.get({ query: { limit: 10, page: 1 } })
 		]);
 
 		const bankParsed = extractApiData<unknown[]>(bankRes.data);
@@ -105,7 +105,7 @@ export const getRecentDebts = query(async (): Promise<Debt[]> => {
 	if (!locals.user) return [];
 
 	try {
-		const { data } = await locals.api.v1.debts.get({ query: { limit: '10', page: '1' } });
+		const { data } = await locals.api.v1.debts.get({ query: { limit: 10, page: 1 } });
 		const parsed = extractApiData<Debt[]>(data);
 		return parsed.data ?? [];
 	} catch {

@@ -38,7 +38,7 @@ async function waitForDrain(): Promise<void> {
 
 const killTimeout = setTimeout(() => {
   logger.error(`[Worker] Kill timeout reached (${KILL_TIMEOUT_MS / 1000 / 60} min)`);
-  process.exit(1);
+  process.exit(0);
 }, KILL_TIMEOUT_MS);
 
 async function shutdown(signal: string): Promise<void> {
@@ -201,5 +201,5 @@ async function main() {
 
 main().catch((err) => {
   logger.error('[Worker] Fatal error', { error: String(err) });
-  process.exit(1);
+  process.exit(shuttingDown ? 0 : 1);
 });

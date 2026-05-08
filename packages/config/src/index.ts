@@ -33,7 +33,7 @@ export {
 } from './env';
 export { AUTH_CONSTANTS } from './auth';
 export { IMPORT_CONFIG } from './import';
-export { STORAGE_CONFIG } from './storage';
+export { STORAGE_CONFIG, buildS3Endpoint } from './storage';
 export { BACKEND_CONSTANTS } from './app/backend';
 export { REDIS_CONFIG, buildRedisUrl } from './app/redis';
 export {

@@ -73,15 +73,15 @@
 					<DropdownMenu.Trigger class={cn(buttonVariants({ variant: 'ghost', size: 'icon' }))}>
 						<Avatar.Root class="h-8 w-8">
 							<Avatar.Fallback class="text-xs"
-								>{user.email?.[0]?.toUpperCase() || 'U'}</Avatar.Fallback
+								>{user?.email?.[0]?.toUpperCase() || 'U'}</Avatar.Fallback
 							>
 						</Avatar.Root>
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content align="end" class="w-56">
 						<DropdownMenu.Label class="font-normal">
 							<div class="flex flex-col space-y-1">
-								<p class="text-sm leading-none font-medium">{user.email}</p>
-								<p class="text-xs leading-none text-muted-foreground capitalize">{user.role}</p>
+								<p class="text-sm leading-none font-medium">{user?.email ?? ''}</p>
+								<p class="text-xs leading-none text-muted-foreground capitalize">{user?.role ?? ''}</p>
 							</div>
 						</DropdownMenu.Label>
 						<DropdownMenu.Separator />

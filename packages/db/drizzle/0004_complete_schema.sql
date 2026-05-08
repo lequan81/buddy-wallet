@@ -1,2 +1,0 @@
--- Placeholder migration (all columns added in 0001)
--- Kept for migration history continuity

@@ -2,15 +2,13 @@ import type { Pagination } from '@repo/types/api/pagination';
 
 type UnknownRecord = Record<string, unknown>;
 
-interface ApiEnvelopeSuccess<T> {
-	success: true;
+interface ApiEnvelopeData<T> {
 	data: T;
 	message?: string;
 	meta?: UnknownRecord;
 }
 
 interface ApiEnvelopeError {
-	success: false;
 	error?: {
 		code?: string;
 		message?: string;
@@ -22,16 +20,41 @@ interface ApiEnvelopeError {
 const isObject = (value: unknown): value is UnknownRecord =>
 	typeof value === 'object' && value !== null;
 
+/**
+ * Extract data from the API response envelope.
+ * Success responses have shape: { data: T, message?, meta? }
+ * Error responses have shape: { error: { code, message } }
+ */
 export function extractApiData<T>(payload: unknown): {
 	data: T | null;
 	meta?: UnknownRecord;
 	message?: string;
 } {
-	if (!isObject(payload) || payload.success !== true || !('data' in payload)) {
+	if (payload === null || payload === undefined) return { data: null };
+
+	// Support both:
+	// 1) direct API envelopes: { data, meta?, message? }
+	// 2) Eden Treaty responses: { data: { data, meta?, message? }, error, status, response }
+	// 3) already-unwrapped values: T
+	let candidate: unknown = payload;
+	if (
+		isObject(candidate) &&
+		'response' in candidate &&
+		'status' in candidate &&
+		'data' in candidate
+	) {
+		candidate = (candidate as { data: unknown }).data;
+	}
+
+	if (isObject(candidate) && 'error' in candidate && !('data' in candidate)) {
 		return { data: null };
 	}
 
-	const envelope = payload as ApiEnvelopeSuccess<T>;
+	if (!isObject(candidate) || !('data' in candidate)) {
+		return { data: candidate as T };
+	}
+
+	const envelope = candidate as unknown as ApiEnvelopeData<T>;
 	return {
 		data: envelope.data,
 		meta: envelope.meta,
@@ -42,7 +65,7 @@ export function extractApiData<T>(payload: unknown): {
 export function extractApiErrorMessage(value: unknown, fallback: string): string {
 	if (!isObject(value)) return fallback;
 
-	const envelope = value as ApiEnvelopeError;
+	const envelope = value as unknown as ApiEnvelopeError;
 	const nestedMessage = envelope.error?.message;
 	if (typeof nestedMessage === 'string' && nestedMessage.length > 0) return nestedMessage;
 

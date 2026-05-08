@@ -2,11 +2,35 @@ import { SvelteMap } from 'svelte/reactivity';
 import { api } from '$lib/services/api';
 import type { ImportProgress } from '@repo/types/core/import';
 import type { ImportJob } from '@repo/types/infrastructure/jobs';
-import {
-	normalizeImportWorkflowState,
-	isImportWorkflowTerminal,
-	transitionImportWorkflow
-} from '$lib/state-machines/import-workflow.machine';
+// Inline workflow state helpers (replaces state machine)
+const WORKFLOW_TERMINAL_STATES = new Set(['success', 'failed', 'cancelled']);
+
+const ALLOWED_WORKFLOW_TRANSITIONS: Record<string, string[]> = {
+	pending: ['queued', 'processing', 'failed', 'cancelled'],
+	queued: ['processing', 'failed', 'cancelled'],
+	processing: ['success', 'failed', 'cancelled'],
+	preview: ['success', 'failed', 'cancelled'],
+	success: [],
+	failed: [],
+	cancelled: []
+};
+
+function normalizeStatus(state: string | undefined): string {
+	if (state === 'preview' || state === 'completed') return 'success';
+	if (['queued', 'processing', 'success', 'failed', 'cancelled'].includes(state ?? '')) return state!;
+	return 'pending';
+}
+
+function isTerminal(state: string): boolean {
+	return WORKFLOW_TERMINAL_STATES.has(normalizeStatus(state));
+}
+
+function canTransition(from: string, to: string): boolean {
+	const normFrom = normalizeStatus(from);
+	const normTo = normalizeStatus(to);
+	if (normFrom === normTo) return true;
+	return ALLOWED_WORKFLOW_TRANSITIONS[normFrom]?.includes(normTo) ?? false;
+}
 
 /**
  * Import Progress Store — XHR Polling with exponential backoff
@@ -34,8 +58,7 @@ class ImportProgressStore {
 	private isPolling = false;
 
 	addJob(jobId: string, type: 'preview' | 'import', fileName: string, userId: string, file?: File) {
-		const initialTransition = transitionImportWorkflow('pending', 'pending');
-		const status = initialTransition.to as ImportJob['status'];
+		const status = 'pending' as ImportJob['status'];
 		const now = new Date();
 
 		this.activeJobs.set(jobId, {
@@ -102,7 +125,7 @@ class ImportProgressStore {
 
 		try {
 			
-			const { data, error } = await api.v1.data['import/progress-poll'].post(
+			const { data, error } = await api.v1.data.import['progress-poll'].post(
 				{ logIds: pendingIds },
 				{ fetch: { signal: this.abortController.signal } }
 			);
@@ -112,7 +135,7 @@ class ImportProgressStore {
 				this.currentIntervalMs = MIN_INTERVAL_MS;
 
 				// Handle API response: unwrap { data: ... } envelope
-				const result = (data as Record<string, unknown>)?.data || data;
+					const result = (data as unknown as Record<string, unknown>)?.data || data;
 
 				// Extract ImportProgress from ProgressResult union
 				const progressMap: Record<string, ImportProgress> = {};
@@ -131,7 +154,7 @@ class ImportProgressStore {
 				this.applyProgressUpdates(progressMap);
 
 				// Check meta for hasActiveJobs
-				const meta = (data as Record<string, unknown>)?.meta as Record<string, unknown> | undefined;
+					const meta = (data as unknown as Record<string, unknown>)?.meta as Record<string, unknown> | undefined;
 				if (meta && meta.hasActiveJobs === false && this.getPendingJobIds().length === 0) {
 					this.stopMonitoring();
 					return;
@@ -161,8 +184,8 @@ class ImportProgressStore {
 	private getPendingJobIds(): string[] {
 		const pendingIds: string[] = [];
 		for (const [id, job] of this.activeJobs) {
-			const status = normalizeImportWorkflowState((job.status || 'pending') as string);
-			if (!isImportWorkflowTerminal(status)) {
+			const status = normalizeStatus((job.status || 'pending') as string);
+				if (!isTerminal(status)) {
 				pendingIds.push(id);
 			}
 		}
@@ -187,12 +210,11 @@ class ImportProgressStore {
 			const job = this.activeJobs.get(id);
 			if (!job) continue;
 
-			const transition = transitionImportWorkflow(job.status as string, result.status || 'pending');
-			if (!transition.allowed) {
-				console.warn('[Import][FSM]', transition.reason);
-			} else {
-				job.status = transition.to as ImportJob['status'];
-			}
+			if (!canTransition(job.status as string, result.status || 'pending')) {
+					console.warn(`[Import][FSM] Invalid transition ${job.status} -> ${result.status}`);
+				} else {
+					job.status = normalizeStatus(result.status || 'pending') as ImportJob['status'];
+				}
 
 			job.progress = {
 				current: result.current || 0,

@@ -3,9 +3,7 @@
  * @logicType http
  */
 
-import { db } from '@/providers/database';
 import { uploadStorage } from '@/providers/storage';
-import { FileRepository } from '@/repositories/storage/file.repo';
 import { BE_ERRORS } from '@repo/errors';
 import { calculatePagination } from '@/commons/pagination';
 import { SHARED_CONSTANTS } from '@repo/config';
@@ -17,11 +15,18 @@ import {
 } from '../services/storage.service';
 import type { GetFileUrlContext, ListFilesContext, RemoveFileContext, UploadFileContext } from '../types/handler.types';
 import { apiSuccess, apiError, apiCreated } from '@/commons/http/response';
+import { logActivity } from '@/commons/activity-logger';
 
 const MAX_FILE_SIZE = SHARED_CONSTANTS.IMPORT.MAX_FILE_SIZE;
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
-const fileRepo = new FileRepository(db);
+/**
+ * Check if a storage key belongs to the given user.
+ * Keys follow the pattern: uploads/{userId}/{timestamp}-{random}.{ext}
+ */
+function isOwnedByUser(key: string, userId: string): boolean {
+  return key.startsWith(`uploads/${userId}/`);
+}
 
 export const storage = {
   /** POST /storage/upload */
@@ -43,72 +48,67 @@ export const storage = {
     }
 
     await uploadStorage.save(key, buffer);
-    const metadata = await fileRepo.createUpload({
-      uploadedById: user.id,
-      storagePath: key,
-      mimeType: file.type,
-      sizeBytes: file.size
-    }).catch(async () => {
-      await uploadStorage.delete(key);
-      return null;
+
+    const url = uploadStorage.resolvePath(key);
+
+    logActivity({
+      userId: user.id,
+      action: 'upload',
+      resource: 'file',
+      resourceId: key,
+      metadata: { fileName: file.name, size: file.size, contentType: file.type }
     });
 
-    if (!metadata) {
-      return apiError(BE_ERRORS.FILE_UPLOAD_FAILED);
-    }
-
-    const url = uploadStorage.resolvePath(metadata.storagePath);
-
     return apiCreated({
-      key: metadata.storagePath,
+      key,
       url,
-      size: metadata.sizeBytes,
-      contentType: metadata.mimeType,
-      uploadedAt: metadata.createdAt
+      size: file.size,
+      contentType: file.type,
+      uploadedAt: new Date()
     }, 'File uploaded successfully');
   },
 
   /** DELETE /storage/file */
   remove: async ({ body, user }: RemoveFileContext) => {
     const { key } = body;
-    const file = await fileRepo.findByStoragePathAndUser(key, user.id);
-    if (!file) {
-      return apiError(BE_ERRORS.FILE_NOT_FOUND);
+
+    if (!isOwnedByUser(key, user.id)) {
+      return apiError(BE_ERRORS.FILE_PERMISSION_DENIED, 'You do not have permission to delete this file');
     }
 
     const deleteResult = await uploadStorage.delete(key);
     if (!deleteResult.success) {
       return apiError(BE_ERRORS.FILE_UPLOAD_FAILED, `Failed to delete file from storage: ${deleteResult.error}`);
     }
-    await fileRepo.deleteByStoragePathAndUser(key, user.id);
+
+    logActivity({
+      userId: user.id,
+      action: 'delete',
+      resource: 'file',
+      resourceId: key
+    });
+
     return apiSuccess({ deleted: true }, 'File deleted successfully');
   },
 
   /** GET /storage/file/:key */
   getUrl: async ({ params, user }: GetFileUrlContext) => {
     const { key } = params;
-    const file = await fileRepo.findByStoragePathAndUser(key, user.id);
-    if (!file) {
-      return apiError(BE_ERRORS.FILE_NOT_FOUND);
+
+    if (!isOwnedByUser(key, user.id)) {
+      return apiError(BE_ERRORS.FILE_PERMISSION_DENIED, 'You do not have permission to access this file');
     }
 
-    return apiSuccess({ url: uploadStorage.resolvePath(file.storagePath) });
+    return apiSuccess({ url: uploadStorage.resolvePath(key) });
   },
 
   /** GET /storage/files */
-  list: async ({ query, user }: ListFilesContext) => {
+  list: async ({ query, user: _user }: ListFilesContext) => {
     const { page = 1, limit = 20 } = query;
 
-    const result = await fileRepo.findByUserIdPaginated(user.id, limit, (page - 1) * limit);
-
-    const filesWithUrls = result.data.map((file) => ({
-      key: file.storagePath,
-      url: uploadStorage.resolvePath(file.storagePath),
-      size: file.sizeBytes,
-      contentType: file.mimeType,
-      uploadedAt: file.createdAt
-    }));
-
-    return apiSuccess(filesWithUrls, undefined, calculatePagination(result.total, page, limit) as unknown as Record<string, unknown>);
+    // File metadata is no longer tracked in the database.
+    // S3 listing is not exposed through the storage service.
+    // Return empty list — files are managed directly via the storage provider.
+    return apiSuccess([], undefined, calculatePagination(0, page, limit) as unknown as Record<string, unknown>);
   }
 };

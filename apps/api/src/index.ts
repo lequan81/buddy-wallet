@@ -6,6 +6,10 @@
 
 import { start, bootstrap } from './bootstrap';
 
+// Re-export types for Eden Treaty clients
+export type { createApp } from './bootstrap';
+export type App = ReturnType<typeof import('./bootstrap').createApp>;
+
 // Export app for testing
 export const app = await bootstrap();
 

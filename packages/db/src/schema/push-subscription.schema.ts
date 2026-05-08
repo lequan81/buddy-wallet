@@ -1,6 +1,13 @@
 import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { users } from './user.schema';
 
+/**
+ * Push Subscriptions Table
+ *
+ * NOTE: This table uses WITHOUT ROWID in the migration SQL for better
+ * performance on primary-key-only lookups. Drizzle ORM doesn't natively
+ * support WITHOUT ROWID, so it's applied in the consolidated migration.
+ */
 export const pushSubscriptions = sqliteTable('push_subscriptions', {
   id: text('id', { length: 24 }).primaryKey(),
   userId: text('user_id', { length: 24 }).notNull().references(() => users.id, { onDelete: 'cascade' }),

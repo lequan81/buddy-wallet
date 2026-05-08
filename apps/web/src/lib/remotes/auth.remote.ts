@@ -1,6 +1,7 @@
 import { form, getRequestEvent } from '$app/server';
 import { invalid, redirect } from '@sveltejs/kit';
 import { createTreatyClient } from '$lib/services/api';
+import { extractApiData } from '$lib/services/api-envelope';
 import { loginRequestSchema as loginSchema } from '@repo/schema/dto/auth';
 import { toStandardSchema } from '@repo/schema/adapters/standard-schema';
 
@@ -27,6 +28,8 @@ export const loginRemote = form(toStandardSchema(loginSchema), async ({ email, p
 		}
 
 		if (data && !('error' in data)) {
+			const parsed = extractApiData<{ mustChangePassword?: boolean }>(data);
+
 			// Extract and set session cookies from the API response
 			let setCookieHeaders: string[] = response.headers.getSetCookie?.() || [];
 			if (setCookieHeaders.length === 0) {
@@ -63,7 +66,7 @@ export const loginRemote = form(toStandardSchema(loginSchema), async ({ email, p
 			}
 
 			// If user must change password, redirect to change-password page
-			if ((data as unknown as Record<string, unknown>)?.mustChangePassword) {
+			if (parsed.data?.mustChangePassword) {
 				throw redirect(303, '/change-password?required=true');
 			}
 

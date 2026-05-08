@@ -25,10 +25,10 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const pageSize = Number.parseInt(url.searchParams.get('pageSize') || '10', 10);
 
 	try {
-		const { data, error } = await locals.api.v1.user['admin/users'].get({
+		const { data, error } = await locals.api.v1.user.admin.users.get({
 			query: {
-				limit: String(pageSize),
-				page: String(page)
+				limit: pageSize,
+				page: page
 			}
 		});
 

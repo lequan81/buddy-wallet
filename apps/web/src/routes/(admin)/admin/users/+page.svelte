@@ -122,7 +122,7 @@
 									<p class="text-sm text-muted-foreground">
 										<Phone
 											class="mr-1 inline-block h-5 w-5 align-middle text-muted-foreground"
-										/>{user.email}
+										/>{user.email ?? ''}
 									</p>
 								</div>
 							</td>

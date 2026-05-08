@@ -43,7 +43,7 @@ import type { UserResponse } from '@repo/types';
 /**
  * Context available to routes using the requireActor/requirePermission macros
  */
-interface ActorContext {
+export interface ActorContext {
   actor: UserResponse | null;
   permissions: string[];
   set: { status: number };

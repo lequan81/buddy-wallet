@@ -11,10 +11,13 @@ export const updateNotifications = form('unchecked' as const, async (data) => {
 	const emailNotificationsEnabled = data.emailNotificationsEnabled === 'true';
 	const pushNotificationsEnabled = data.pushNotificationsEnabled === 'true';
 
-	const { error: apiError } = await api.v1.user.profile.patch({
+	// TODO: Replace with dedicated notification preferences endpoint when available
+	const notificationPayload = {
 		emailNotificationsEnabled,
 		pushNotificationsEnabled
-	});
+	} as Record<string, unknown>;
+
+	const { error: apiError } = await api.v1.user.profile.patch(notificationPayload);
 
 	if (apiError) {
 		invalid(extractApiErrorMessage(apiError.value, 'Failed to update notification preferences'));

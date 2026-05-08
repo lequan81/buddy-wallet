@@ -9,7 +9,7 @@ import type { Server } from 'bun';
 
 interface RateLimitContext {
   user?: { id: string };
-  server?: Server;
+  server?: Server<any>;
 }
 
 interface RateLimitConfig {
@@ -109,7 +109,7 @@ export function createRateLimiter(config: RateLimitConfig) {
       // Pass full context to keyGenerator so it can access user if available
       const rateLimitCtx: RateLimitContext = {
         user: (ctx as { user?: { id: string } }).user,
-        server: (ctx as { server?: Server }).server
+        server: (ctx as { server?: Server<any> }).server
       };
       const generatedKey = await keyGenerator(request, rateLimitCtx);
       const key = `ratelimit:${generatedKey}`;

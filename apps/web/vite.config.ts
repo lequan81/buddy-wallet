@@ -63,17 +63,17 @@ export default defineConfig({
 				categories: ['finance', 'productivity'],
 				icons: [
 					{
-						src: '/icons/pwa-192x192.png',
+						src: 'https://s3.buddywallet.dpdns.org/buddy-wallet/public/icon/pwa-192x192.png',
 						sizes: '192x192',
 						type: 'image/png'
 					},
 					{
-						src: '/icons/pwa-512x512.png',
+						src: 'https://s3.buddywallet.dpdns.org/buddy-wallet/public/icon/pwa-512x512.png',
 						sizes: '512x512',
 						type: 'image/png'
 					},
 					{
-						src: '/icons/pwa-512x512.png',
+						src: 'https://s3.buddywallet.dpdns.org/buddy-wallet/public/icon/pwa-512x512.png',
 						sizes: '512x512',
 						type: 'image/png',
 						purpose: 'maskable'
@@ -100,13 +100,13 @@ export default defineConfig({
 						name: 'Dashboard',
 						short_name: 'Dashboard',
 						url: '/dashboard',
-						icons: [{ src: '/icons/pwa-192x192.png', sizes: '192x192' }]
+						icons: [{ src: 'https://s3.buddywallet.dpdns.org/buddy-wallet/public/icon/pwa-192x192.png', sizes: '192x192' }]
 					},
 					{
 						name: 'New Debt',
 						short_name: 'New Debt',
 						url: '/debts/create',
-						icons: [{ src: '/icons/pwa-192x192.png', sizes: '192x192' }]
+						icons: [{ src: 'https://s3.buddywallet.dpdns.org/buddy-wallet/public/icon/pwa-192x192.png', sizes: '192x192' }]
 					}
 				]
 			},

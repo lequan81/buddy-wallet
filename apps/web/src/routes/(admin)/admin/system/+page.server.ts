@@ -1,4 +1,5 @@
 import type { PageServerLoad } from './$types';
+import { extractApiData } from '$lib/services/api-envelope';
 
 interface HealthData {
 	status: string;
@@ -20,8 +21,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 			};
 		}
 
+		const parsed = extractApiData<HealthData>(data);
+		if (!parsed.data) {
+			return {
+				health: null as HealthData | null,
+				error: 'Failed to fetch system stats'
+			};
+		}
+
 		return {
-			health: data as HealthData,
+			health: parsed.data,
 			lastUpdated: new Date().toISOString()
 		};
 	} catch (err) {

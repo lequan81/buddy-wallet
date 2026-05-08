@@ -1,7 +1,7 @@
 {
   "extends": "@repo/typescript-config/app.json",
   "compilerOptions": {
-    "types": ["bun-types", "node"]
+    "types": ["bun-types"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

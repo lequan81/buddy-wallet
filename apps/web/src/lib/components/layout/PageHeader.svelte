@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Separator } from '@repo/ui/components/ui/separator';
 	import { cn } from '$lib/utils';
+	import type { Snippet } from 'svelte';
 
 	let {
 		title,
@@ -10,7 +11,7 @@
 	}: {
 		title: string;
 		description?: string;
-		actions?: (() => unknown) | null;
+		actions?: Snippet | null;
 		class?: string;
 	} = $props();
 </script>

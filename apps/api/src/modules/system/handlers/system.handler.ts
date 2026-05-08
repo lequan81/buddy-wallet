@@ -14,6 +14,7 @@ import {
   getSystemInfo,
   determineHealthStatus
 } from '../services/system.service';
+import { apiSuccess } from '@/commons/http/response';
 import type { SystemContext } from '../types/handler.types';
 
 function renderTemplate(template: string, data: Record<string, string>): string {
@@ -50,8 +51,8 @@ async function getHealthPayload() {
 }
 
 export const system = {
-  root: async () => ({
-    data: {
+  root: async () =>
+    apiSuccess({
       name: 'Buddy Wallet API',
       version: '1.2.4',
       status: 'running',
@@ -60,15 +61,14 @@ export const system = {
         health: '/debug/health',
         tracer: '/debug/tracer'
       }
-    }
-  }),
+    }),
 
   healthCheck: async ({ set }: SystemContext) => {
     const health = await getHealthPayload();
     if (health.status === 'unhealthy') {
       set.status = 503;
     }
-    return { data: health };
+    return apiSuccess(health);
   },
 
   readiness: async ({ set }: SystemContext) => {
@@ -84,7 +84,7 @@ export const system = {
 
   liveness: async () => ({ alive: true, uptime: getUptime() }),
 
-  info: async () => ({ data: getSystemInfo() }),
+  info: async () => apiSuccess(getSystemInfo()),
 
   debugHealth: async () => {
     const html = await file(`${import.meta.dir}/../../../static/health.html`).text();
@@ -120,15 +120,14 @@ export const system = {
     return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
   },
 
-  debugTracesJson: async () => ({
-    data: {
+  debugTracesJson: async () =>
+    apiSuccess({
       stats: traceStore.stats(),
       traces: traceStore.getAll()
-    }
-  }),
+    }),
 
   clearTraces: async () => {
     traceStore.clear();
-    return { success: true };
+    return apiSuccess({ cleared: true }, 'Traces cleared');
   }
 };

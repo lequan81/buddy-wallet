@@ -21,6 +21,10 @@ describe('storage service security', () => {
 	test('rejects content type spoofing by signature', () => {
 		const plainTextBuffer = Buffer.from('not-an-image', 'utf8');
 		const result = validateFileSignature(plainTextBuffer, 'image/png');
-		expect(result.code).toBeDefined();
+		if ('code' in result) {
+			expect(result.code).toBeDefined();
+		} else {
+			throw new Error('Expected error result but got success');
+		}
 	});
 });

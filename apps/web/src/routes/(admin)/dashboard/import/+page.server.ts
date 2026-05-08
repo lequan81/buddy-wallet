@@ -45,8 +45,8 @@ export const load: PageServerLoad = async ({ parent, locals, url }) => {
 	let historyTotalPages = 1;
 
 	try {
-		const { data, error } = await locals.api.v1.data['import/logs'].get({
-			query: { page: String(historyPage), limit: String(historyLimit) }
+		const { data, error } = await locals.api.v1.data.import.logs.get({
+			query: { page: historyPage, limit: historyLimit }
 		});
 		if (!error) {
 			const parsed = extractApiData<ImportLog[]>(data);
@@ -92,7 +92,7 @@ export const actions: Actions = {
 			const safeFile = new File([safeBlob], file.name, { type: file.type });
 
 			try {
-				const { data, error } = await locals.api.v1.data['import/preview'].post({ file: safeFile });
+				const { data, error } = await locals.api.v1.data.import.preview.post({ file: safeFile });
 				if (error) {
 					return fail(typeof error.status === 'number' ? error.status : 400, {
 						code: FE_ERRORS.IMPORT_PREVIEW_FAILED.code,
@@ -174,7 +174,7 @@ export const actions: Actions = {
 				const startRow = config.startRow || 1;
 
 				if (previewLogId) {
-					const { data, error } = await locals.api.v1.data[`import/${previewLogId}/start`].post({
+					const { data, error } = await locals.api.v1.data.import({ id: previewLogId }).start.post({
 						columnMapping: mapping,
 						startRow
 					});
@@ -197,11 +197,12 @@ export const actions: Actions = {
 				}
 
 				const body = {
-					file: safeFile,
-					config: configRaw
-				};
-
-				const { data, error } = await locals.api.v1.data.import.post(body);
+						file: safeFile,
+						config: configRaw
+					};
+	
+					// Legacy endpoint body shape differs from typed schema
+					const { data, error } = await locals.api.v1.data.import.post(body as unknown as Parameters<typeof locals.api.v1.data.import.post>[0]);
 				if (error) {
 					return fail(typeof error.status === 'number' ? error.status : 500, {
 						code: 'BE_UNKNOWN',

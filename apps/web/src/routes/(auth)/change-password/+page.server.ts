@@ -47,13 +47,13 @@ export const actions: Actions = {
 				return fail(400, { message: errorMessage });
 			}
 
-				if ((data as unknown as { success?: boolean })?.success) {
-				// Clear session cookies after password change
-				cookies.delete('session', { path: '/' });
-				cookies.delete('refresh_token', { path: '/' });
-
-				return { success: true };
-			}
+				if (data && !error) {
+					// Clear session cookies after password change
+					cookies.delete('session', { path: '/' });
+					cookies.delete('refresh_token', { path: '/' });
+	
+					return { success: true };
+				}
 
 			return fail(500, { message: 'Unexpected error occurred' });
 		} catch (_err) {

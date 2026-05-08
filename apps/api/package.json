@@ -6,8 +6,9 @@
     "lint": "eslint .",
     "dev": "bun --env-file .env --watch src/index.ts",
     "build": "bun build src/index.ts --outdir=dist --target=bun --external @repo/* --external @elysiajs/* --external @bogeychan/* --external @opentelemetry/* --external @minilibs/* --external @upyo/* --sourcemap --minify",
+    "generate-types": "dts-bundle-generator --project tsconfig.types.json --no-check --silent -o dist/index.d.ts src/index.ts",
     "start": "bun run dist/index.js",
-    "check-types": "bunx tsc --noEmit",
+    "check-types": "bunx tsc --noEmit && bun run generate-types",
     "clean": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\""
   },
   "dependencies": {
@@ -36,6 +37,7 @@
     "bun-types": "1.3.11",
     "elysia": "^1.4.28",
     "exceljs": "^4.4.0",
+    "jose": "^6.2.3",
     "sharp": "^0.34.5",
     "web-push": "^3.6.7"
   },
@@ -49,14 +51,14 @@
   },
   "main": "src/index.ts",
   "module": "src/index.ts",
-  "types": "src/index.d.ts",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.d.ts",
+      "types": "./dist/index.d.ts",
       "default": "./src/index.ts"
     },
     "./types": {
-      "types": "./src/index.d.ts"
+      "types": "./dist/index.d.ts"
     }
   }
 }

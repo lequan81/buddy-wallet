@@ -5,7 +5,7 @@ import { redirect } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { createTreatyClient } from '$lib/services/api';
 import { FRONTEND_CONSTANTS } from '@repo/config/frontend';
-import { createAuthResolutionMachine } from '$lib/state-machines/auth-resolution.machine';
+type AuthStatus = 'idle' | 'resolving' | 'authenticated' | 'unauthenticated' | 'offline';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -53,10 +53,11 @@ function isAuthAwarePublicRoute(pathname: string): boolean {
  */
 async function tryGetUser(
 	event: RequestEvent,
-	token: string
+	token: string,
+	timeoutMs: number
 ): Promise<{ user: App.Locals['user']; status: number | undefined; timedOut: boolean }> {
 	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), FRONTEND_CONSTANTS.AUTH_TIMEOUT_MS);
+	const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
 	try {
 		const api = createTreatyClient(
@@ -73,7 +74,9 @@ async function tryGetUser(
 
 		clearTimeout(timeout);
 
-		const user = !error && (data as { item?: App.Locals['user'] })?.item ? (data as { item?: App.Locals['user'] }).item : null;
+		// API returns { data: { ...user } } on success — extract user from envelope
+		const envelope = data as { data?: App.Locals['user'] } | null;
+		const user = !error && envelope?.data ? envelope.data : null;
 
 		// Handle locked account — redirect immediately
 		if (user && (user as unknown as { isLocked?: boolean }).isLocked) {
@@ -127,10 +130,11 @@ function handleLockedAccount(
  */
 async function tryRefreshToken(
 	event: RequestEvent,
-	refreshToken: string
+	refreshToken: string,
+	timeoutMs: number
 ): Promise<{ user: App.Locals['user']; newSessionToken: string | undefined; timedOut: boolean }> {
 	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), FRONTEND_CONSTANTS.AUTH_TIMEOUT_MS);
+	const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
 	try {
 		const api = createTreatyClient(
@@ -150,12 +154,21 @@ async function tryRefreshToken(
 
 		clearTimeout(timeout);
 
-		if (error || !data || 'error' in data || !(data as { item?: App.Locals['user'] }).item) return { user: null, newSessionToken: undefined, timedOut: false };
+		// Refresh endpoint returns { data: { accessToken, refreshToken, ... } }
+		// It does NOT return user data. Check for data presence.
+		const envelope = data as { data?: { accessToken?: string } } | null;
+		if (error || !envelope?.data) return { user: null, newSessionToken: undefined, timedOut: false };
 
-		// Forward new cookies to the browser
+		// Forward new cookies to the browser and get the new session token
 		const newToken = forwardRefreshCookies(event, response);
 
-		return { user: (data as { item?: App.Locals['user'] }).item ?? null, newSessionToken: newToken, timedOut: false };
+		// Re-call /me with the new token to get the user
+		if (newToken) {
+			const meResult = await tryGetUser(event, newToken, timeoutMs);
+			return { user: meResult.user, newSessionToken: newToken, timedOut: meResult.timedOut };
+		}
+
+		return { user: null, newSessionToken: newToken, timedOut: false };
 	} catch (err) {
 		clearTimeout(timeout);
 		if (isAbortError(err)) return { user: null, newSessionToken: undefined, timedOut: true };
@@ -235,15 +248,18 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	const refreshToken = event.cookies.get('refresh_token');
 	const pathname = event.url.pathname;
 	const isPublic = isPublicRoute(pathname);
-	const authResolution = createAuthResolutionMachine();
+	let authStatus: AuthStatus = 'idle';
 
 	// ── Determine whether to attempt auth ────────────────────────────────
 	const isAuthAware = !isPublic || isAuthAwarePublicRoute(pathname);
 	const shouldAttemptMe = Boolean(currentToken) && isAuthAware;
 	const shouldAttemptRefresh = Boolean(refreshToken) && isAuthAware;
+	const authTimeoutMs = isPublic
+		? Math.min(FRONTEND_CONSTANTS.AUTH_TIMEOUT_MS, 1000)
+		: FRONTEND_CONSTANTS.AUTH_TIMEOUT_MS;
 
 	if (isAuthAware) {
-		authResolution.send('START');
+		authStatus = 'resolving';
 	}
 
 	// ── Try to resolve user ──────────────────────────────────────────────
@@ -252,29 +268,29 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	try {
 		// Step 1: Try /me with current session token
 		if (shouldAttemptMe && currentToken) {
-			const result = await tryGetUser(event, currentToken);
+			const result = await tryGetUser(event, currentToken, authTimeoutMs);
 			user = result.user;
 
 			if (result.timedOut && !result.user) {
-				authResolution.send('TIMEOUT');
-			}
-
-			if (user) {
-				authResolution.send('USER_RESOLVED');
-			}
+					authStatus = 'offline';
+				}
+	
+				if (user) {
+					authStatus = 'authenticated';
+				}
 
 			// Step 2: If /me failed (401), try refresh
 			if (!user && result.status === 401 && shouldAttemptRefresh && refreshToken) {
-				const refreshResult = await tryRefreshToken(event, refreshToken);
+				const refreshResult = await tryRefreshToken(event, refreshToken, authTimeoutMs);
 				user = refreshResult.user;
 
 				if (refreshResult.timedOut && !refreshResult.user) {
-					authResolution.send('TIMEOUT');
-				}
-
-				if (user) {
-					authResolution.send('USER_RESOLVED');
-				}
+						authStatus = 'offline';
+					}
+	
+					if (user) {
+						authStatus = 'authenticated';
+					}
 
 				if (refreshResult.newSessionToken) {
 					currentToken = refreshResult.newSessionToken;
@@ -283,16 +299,16 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 		}
 		// Step 2b: No session token but have refresh token
 		else if (shouldAttemptRefresh && refreshToken) {
-			const refreshResult = await tryRefreshToken(event, refreshToken);
+			const refreshResult = await tryRefreshToken(event, refreshToken, authTimeoutMs);
 			user = refreshResult.user;
 
 			if (refreshResult.timedOut && !refreshResult.user) {
-				authResolution.send('TIMEOUT');
-			}
-
-			if (user) {
-				authResolution.send('USER_RESOLVED');
-			}
+					authStatus = 'offline';
+				}
+	
+				if (user) {
+					authStatus = 'authenticated';
+				}
 
 			if (refreshResult.newSessionToken) {
 				currentToken = refreshResult.newSessionToken;
@@ -301,15 +317,15 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	} catch (err: unknown) {
 		if (!isAbortError(err)) {
 			console.warn('[WARN] Backend API unavailable');
-			authResolution.send('NETWORK_ERROR');
+			authStatus = 'offline';
 		}
 	}
 
-	if (!user && authResolution.getState() === 'resolving') {
-		authResolution.send('NO_USER');
+	if (!user && authStatus === 'resolving') {
+		authStatus = 'unauthenticated';
 	}
 
-	const apiOffline = !isPublic && authResolution.getState() === 'offline';
+	const apiOffline = !isPublic && authStatus === 'offline';
 
 	// ── Populate locals ──────────────────────────────────────────────────
 	event.locals.user = user;

@@ -5,7 +5,7 @@
  * This is only used in development mode.
  */
 
-interface TraceSpan {
+export interface TraceSpan {
   id: string;
   traceId: string;
   spanId?: string;

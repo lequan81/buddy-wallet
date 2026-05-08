@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	try {
-		const { data, error } = await locals.api.v1.data['import']({ id: params.id }).progress.get();
+		const { data, error } = await locals.api.v1.data.import({ id: params.id }).progress.get();
 		if (error) {
 			return json(
 				{ error: error.value?.message || 'Failed to fetch import results' },

@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { AlertCircle, AlertTriangle, CheckCircle2, Eye, EyeOff } from '@repo/icons';
 	import { Input } from '@repo/ui/components/ui/input';
 	import { Label } from '@repo/ui/components/ui/label';
@@ -30,15 +30,14 @@
 		warning?: string;
 		validationState?: 'default' | 'success' | 'error' | 'warning';
 		showPasswordToggle?: boolean;
-		icon?: Component<unknown>;
+		icon?: Component;
 		helpText?: string;
 	} = $props();
 
-	// Ensure we always have a string value for the input
-	let inputValue = $derived(value ?? '');
-
 	let showPassword = $state(false);
 	let inputType = $derived(showPasswordToggle && showPassword ? 'text' : (type ?? 'text'));
+
+	const inputProps = restProps as Record<string, unknown>;
 
 	const stateConfig = $derived.by(() => {
 		const configs = {
@@ -106,7 +105,7 @@
 				StateIcon || showPasswordToggle ? 'pr-10' : '',
 				className
 			)}
-			{...restProps}
+			{...inputProps}
 		/>
 
 		{#if showPasswordToggle}
@@ -137,5 +136,9 @@
 			{/if}
 			<span>{stateConfig.message}</span>
 		</p>
+	{/if}
+
+	{#if helpText}
+		<p class="text-sm text-muted-foreground">{helpText}</p>
 	{/if}
 </div>

@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "81e6c5fb-131b-4887-83a4-7240016fecbd",
-  "prevId": "37509eb1-33da-4ec9-b037-08b0865abd84",
+  "id": "0cf1b93b-ecab-4f72-aeed-8e6a4cc9edfc",
+  "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "users": {
       "name": "users",
@@ -290,6 +290,14 @@
           "notNull": true,
           "autoincrement": false
         },
+        "currency": {
+          "name": "currency",
+          "type": "text(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'USD'"
+        },
         "description": {
           "name": "description",
           "type": "text",
@@ -468,11 +476,62 @@
           ],
           "isUnique": false
         },
-        "idx_debts_status_created_at": {
-          "name": "idx_debts_status_created_at",
+        "idx_debts_status_created_at_id": {
+          "name": "idx_debts_status_created_at_id",
           "columns": [
             "status",
-            "created_at"
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_debts_debtor_created_at_id": {
+          "name": "idx_debts_debtor_created_at_id",
+          "columns": [
+            "debtor_id",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_debts_creditor_created_at_id": {
+          "name": "idx_debts_creditor_created_at_id",
+          "columns": [
+            "creditor_id",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_debts_debtor_status_deleted_created_id": {
+          "name": "idx_debts_debtor_status_deleted_created_id",
+          "columns": [
+            "debtor_id",
+            "status",
+            "deleted_at",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_debts_creditor_status_deleted_created_id": {
+          "name": "idx_debts_creditor_status_deleted_created_id",
+          "columns": [
+            "creditor_id",
+            "status",
+            "deleted_at",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_debts_uploaded_deleted_created_id": {
+          "name": "idx_debts_uploaded_deleted_created_id",
+          "columns": [
+            "uploaded_by_id",
+            "deleted_at",
+            "created_at",
+            "id"
           ],
           "isUnique": false
         }
@@ -550,13 +609,6 @@
           "type": "text(24)",
           "primaryKey": false,
           "notNull": true,
-          "autoincrement": false
-        },
-        "access_token": {
-          "name": "access_token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
           "autoincrement": false
         },
         "access_token_hash": {
@@ -843,7 +895,24 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "idx_import_logs_user_id": {
+          "name": "idx_import_logs_user_id",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        },
+        "idx_import_logs_user_created_at_id": {
+          "name": "idx_import_logs_user_created_at_id",
+          "columns": [
+            "user_id",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "import_logs_user_id_users_id_fk": {
           "name": "import_logs_user_id_users_id_fk",
@@ -851,155 +920,6 @@
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "file_metadata": {
-      "name": "file_metadata",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text(24)",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "original_name": {
-          "name": "original_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "size_bytes": {
-          "name": "size_bytes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "storage_path": {
-          "name": "storage_path",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "uploaded_by_id": {
-          "name": "uploaded_by_id",
-          "type": "text(24)",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "file_type": {
-          "name": "file_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "related_debt_id": {
-          "name": "related_debt_id",
-          "type": "text(24)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'pending'"
-        },
-        "reviewed_by_id": {
-          "name": "reviewed_by_id",
-          "type": "text(24)",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "reviewed_at": {
-          "name": "reviewed_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "rejection_reason": {
-          "name": "rejection_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "file_metadata_uploaded_by_id_users_id_fk": {
-          "name": "file_metadata_uploaded_by_id_users_id_fk",
-          "tableFrom": "file_metadata",
-          "tableTo": "users",
-          "columnsFrom": [
-            "uploaded_by_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "file_metadata_related_debt_id_debts_id_fk": {
-          "name": "file_metadata_related_debt_id_debts_id_fk",
-          "tableFrom": "file_metadata",
-          "tableTo": "debts",
-          "columnsFrom": [
-            "related_debt_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "file_metadata_reviewed_by_id_users_id_fk": {
-          "name": "file_metadata_reviewed_by_id_users_id_fk",
-          "tableFrom": "file_metadata",
-          "tableTo": "users",
-          "columnsFrom": [
-            "reviewed_by_id"
           ],
           "columnsTo": [
             "id"
@@ -1262,6 +1182,34 @@
           ],
           "isUnique": false
         },
+        "idx_activity_logs_user_created_at_id": {
+          "name": "idx_activity_logs_user_created_at_id",
+          "columns": [
+            "user_id",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_activity_logs_user_action_created_id": {
+          "name": "idx_activity_logs_user_action_created_id",
+          "columns": [
+            "user_id",
+            "action",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        },
+        "idx_activity_logs_resource_created_id": {
+          "name": "idx_activity_logs_resource_created_id",
+          "columns": [
+            "resource",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        },
         "idx_activity_logs_resource_id": {
           "name": "idx_activity_logs_resource_id",
           "columns": [
@@ -1370,6 +1318,14 @@
           "name": "idx_bank_accounts_user_id",
           "columns": [
             "user_id"
+          ],
+          "isUnique": false
+        },
+        "idx_bank_accounts_user_default": {
+          "name": "idx_bank_accounts_user_default",
+          "columns": [
+            "user_id",
+            "is_default"
           ],
           "isUnique": false
         }
@@ -1499,6 +1455,264 @@
         "email_verifications_user_id_users_id_fk": {
           "name": "email_verifications_user_id_users_id_fk",
           "tableFrom": "email_verifications",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "outbox_events": {
+      "name": "outbox_events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text(24)",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "aggregate_type": {
+          "name": "aggregate_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "aggregate_id": {
+          "name": "aggregate_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "payload": {
+          "name": "payload",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "max_attempts": {
+          "name": "max_attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 10
+        },
+        "available_at": {
+          "name": "available_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_outbox_status_available_at": {
+          "name": "idx_outbox_status_available_at",
+          "columns": [
+            "status",
+            "available_at",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_outbox_aggregate": {
+          "name": "idx_outbox_aggregate",
+          "columns": [
+            "aggregate_type",
+            "aggregate_id"
+          ],
+          "isUnique": false
+        },
+        "idx_outbox_event_type": {
+          "name": "idx_outbox_event_type",
+          "columns": [
+            "event_type"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "notifications": {
+      "name": "notifications",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_read": {
+          "name": "is_read",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "read_at": {
+          "name": "read_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_notifications_user_id": {
+          "name": "idx_notifications_user_id",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        },
+        "idx_notifications_user_read": {
+          "name": "idx_notifications_user_read",
+          "columns": [
+            "user_id",
+            "is_read"
+          ],
+          "isUnique": false
+        },
+        "idx_notifications_user_created_at": {
+          "name": "idx_notifications_user_created_at",
+          "columns": [
+            "user_id",
+            "created_at",
+            "id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "notifications_user_id_users_id_fk": {
+          "name": "notifications_user_id_users_id_fk",
+          "tableFrom": "notifications",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"

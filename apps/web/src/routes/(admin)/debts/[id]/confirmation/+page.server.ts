@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	}
 
 	// Fetch all debts and find the one with matching ID
-	const { data, error } = await locals.api.v1.debts.get({ query: { page: '1', limit: '100' } });
+	const { data, error } = await locals.api.v1.debts.get({ query: { page: 1, limit: 100 } });
 
 	if (error) {
 		return { debt: null, error: 'Unable to fetch debt', status };

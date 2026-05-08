@@ -38,19 +38,17 @@ export const actions: Actions = {
 		if (!locals.user || !locals.accessToken) {
 			return fail(401, { error: 'Unauthorized' });
 		}
-		// Keep raw fetch for binary file download - Treaty doesn't handle binary responses
+		// Keep raw fetch for file download - Treaty doesn't handle non-JSON responses well
 		const headers = getAuthHeaders(locals.accessToken);
-		const res = await fetch(`${SERVER_API_URL}/v1/export/debts`, { headers });
+		const res = await fetch(`${SERVER_API_URL}/v1/data/export?type=debts&format=csv`, { headers });
 		if (!res.ok) {
 			const data = await res.json().catch(() => ({}));
 			return fail(res.status, {
 				error: (data?.message ?? data?.error) || 'Export failed'
 			});
 		}
-		const contentType =
-			res.headers.get('Content-Type') ?? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-		const contentDisposition =
-			res.headers.get('Content-Disposition') ?? 'attachment; filename="debts.xlsx"';
+		const contentType = res.headers.get('Content-Type') ?? 'text/csv; charset=utf-8';
+		const contentDisposition = res.headers.get('Content-Disposition') ?? 'attachment; filename="debts_export.csv"';
 		const buffer = await res.arrayBuffer();
 		return new Response(buffer, {
 			status: 200,

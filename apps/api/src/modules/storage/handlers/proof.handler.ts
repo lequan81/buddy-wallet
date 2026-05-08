@@ -10,7 +10,6 @@
 
 import { db } from '@/providers/database';
 import { uploadStorage } from '@/providers/storage';
-import { FileRepository } from '@/repositories/storage/file.repo';
 import { DebtRepository } from '@/repositories/debt/debt.repo';
 import { BE_ERRORS } from '@repo/errors';
 import { validateFileType, validateFileSize, generateFileKey } from '../services/storage.service';
@@ -44,70 +43,49 @@ export const proof = {
     const sizeV = validateFileSize(file.size, MAX_FILE_SIZE);
     if ('code' in sizeV) { return apiError(BE_ERRORS.FILE_TOO_LARGE, sizeV.error); }
 
-    // Upload file to storage (outside transaction — S3/filesystem is not transactional)
+    // Upload file to storage
     const key = generateFileKey(user.id, `proof-${debtId}-${file.name}`);
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     await uploadStorage.save(key, buffer);
 
-    // Transaction: create file metadata + update debt proof tracking atomically
+    // Update debt proof tracking
     try {
-      const result = await db.transaction(async (tx) => {
-        const txFileRepo = new FileRepository(tx);
-        const txDebtRepo = new DebtRepository(tx);
-
-        const metadata = await txFileRepo.createUpload({
-          uploadedById: user.id,
-          storagePath: key,
-          mimeType: file.type,
-          sizeBytes: file.size
-        });
-
-        await txDebtRepo.update(debtId, {
-          hasPendingProof: true,
-          proofCount: (debt.proofCount || 0) + 1,
-          lastProofUploadedAt: new Date(),
-          updatedAt: new Date()
-        });
-
-        return metadata;
+      await debtRepo.update(debtId, {
+        hasPendingProof: true,
+        proofCount: (debt.proofCount || 0) + 1,
+        lastProofUploadedAt: new Date(),
+        updatedAt: new Date()
       });
 
       logActivity({
         userId: user.id,
         action: 'upload',
         resource: 'file',
-        resourceId: result.id,
-        metadata: { debtId, type: 'payment_proof' }
+        resourceId: debtId,
+        metadata: { debtId, type: 'payment_proof', storagePath: key }
       });
 
       return apiCreated({
-        id: result.id,
-        key: result.storagePath,
-        url: uploadStorage.resolvePath(result.storagePath),
-        size: result.sizeBytes,
-        contentType: result.mimeType,
-        uploadedAt: result.createdAt
+        key,
+        url: uploadStorage.resolvePath(key),
+        size: file.size,
+        contentType: file.type,
+        uploadedAt: new Date()
       }, 'Payment proof uploaded');
     } catch (txErr) {
-      logger.error('Transaction failed for proof upload', { debtId, userId: user.id, error: String(txErr) });
-      // Rollback: delete uploaded file if DB transaction fails
+      logger.error('Failed to update debt proof tracking', { debtId, userId: user.id, error: String(txErr) });
+      // Rollback: delete uploaded file if DB update fails
       await uploadStorage.delete(key).catch((deleteErr) => {
-        logger.warn('Failed to cleanup file after transaction failure', { key, error: String(deleteErr) });
+        logger.warn('Failed to cleanup file after failure', { key, error: String(deleteErr) });
       });
-      return apiError(BE_ERRORS.FILE_STORAGE_ERROR, 'File upload failed due to transaction error');
+      return apiError(BE_ERRORS.FILE_STORAGE_ERROR, 'File upload failed due to database error');
     }
   },
 
   /** POST /storage/proof/:id/approve */
   approve: async ({ params, user }: ApproveProofContext) => {
     const { id } = params;
-
-    const fileRepo = new FileRepository(db);
-    const file = await fileRepo.findById(id);
-    if (!file) {
-      return apiError(BE_ERRORS.FILE_NOT_FOUND);
-    }
 
     // TODO: When payment_proofs table is added, update proof status and
     // check if all proofs for the debt are approved → auto-mark debt as 'paid'
@@ -126,12 +104,6 @@ export const proof = {
   reject: async ({ params, body, user }: RejectProofContext) => {
     const { id } = params;
     const { reason } = body;
-
-    const fileRepo = new FileRepository(db);
-    const file = await fileRepo.findById(id);
-    if (!file) {
-      return apiError(BE_ERRORS.FILE_NOT_FOUND);
-    }
 
     logActivity({
       userId: user.id,

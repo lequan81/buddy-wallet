@@ -20,6 +20,7 @@
     "check-types": "bunx tsc --noEmit",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
+    "push": "drizzle-kit push",
     "studio": "drizzle-kit studio",
     "seed": "bun run src/seeds/index.ts"
   },
@@ -34,7 +35,6 @@
     "eslint": "^9.39.4",
     "better-sqlite3": "^12.8.0",
     "drizzle-kit": "^0.31.10",
-    "typescript": "^6.0.0",
-    "@types/node": "^24.0.0"
+    "typescript": "^6.0.0"
   }
 }

@@ -1,10 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { buildPaginationFromMeta, extractApiData, extractApiErrorMessage } from './api-envelope';
+import { buildPaginationFromMeta, extractApiData, extractApiErrorMessage } from '../../lib/services/api-envelope';
 
 describe('api-envelope helpers', () => {
-	test('extracts data and meta from success envelope', () => {
+	test('extracts data and meta from envelope', () => {
 		const payload = {
-			success: true,
 			data: [{ id: '1' }],
 			meta: { total: 1, page: 1, limit: 10 }
 		};
@@ -14,9 +13,15 @@ describe('api-envelope helpers', () => {
 		expect(parsed.meta).toEqual({ total: 1, page: 1, limit: 10 });
 	});
 
+	test('returns null data when payload has no data field', () => {
+		const payload = { error: { code: 'NOT_FOUND', message: 'Not found' } };
+		const parsed = extractApiData<unknown>(payload);
+		expect(parsed.data).toBeNull();
+	});
+
 	test('prefers nested error.message', () => {
 		const message = extractApiErrorMessage(
-			{ success: false, error: { message: 'Nested message' }, message: 'Outer message' },
+			{ error: { message: 'Nested message' }, message: 'Outer message' },
 			'Fallback'
 		);
 		expect(message).toBe('Nested message');

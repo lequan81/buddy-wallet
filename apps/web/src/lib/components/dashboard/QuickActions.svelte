@@ -9,7 +9,7 @@
 		id: string;
 		description: string | null;
 		amount: number | string;
-		createdAt: string;
+		createdAt: string | Date | null;
 		phone?: string;
 		counterpartyPhone?: string;
 		counterpartyName?: string;

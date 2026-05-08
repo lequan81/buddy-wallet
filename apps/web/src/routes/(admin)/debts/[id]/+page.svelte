@@ -26,25 +26,35 @@
 import type { DebtDetails } from '@repo/types/core/debt';
 import { DEBT_STATUS } from '@repo/config/shared/status';
 
-type CurrentUserLike = { id?: string } | null | undefined;
-type FormWithMessage = ActionData & { message?: string; error?: { message?: string } | string };
+type FormWithMessage = ActionData & {
+	message?: string;
+	error?: { message?: string } | string;
+	allProofsApproved?: boolean;
+	debtId?: string;
+};
 
 let { data, form } = $props<{ data: PageData; form: ActionData }>();
 let debt = $derived(data.debt as DebtDetails | null);
 let creditorBanks = $derived(data.creditorBanks || []);
 let pendingProofs = $derived(data.pendingProofs || []);
 	
-	const state = $derived(debt ? new DebtDetailState(
-		debt as DebtDetails,
-		data.creditorBanks || [],
-		data.currentUser as CurrentUserLike,
-		data.currentUser?.id === debt.creditorId,
-		data.currentUser?.id === debt.creditorId,
-		data.currentUser?.id === debt.debtorId
-	) : null);
+	const state = $derived(
+		debt && data.currentUser
+			? new DebtDetailState(
+					debt as DebtDetails,
+					data.creditorBanks || [],
+					data.currentUser,
+					data.currentUser.id === debt.creditorId,
+					data.currentUser.id === debt.creditorId,
+					data.currentUser.id === debt.debtorId
+				)
+			: null
+	);
 
 	const getFormErrorMessage = (value: ActionData | null | undefined): string => {
-		if (!value || !('error' in value) || !value.error) return 'An error occurred';
+		if (!value || typeof value !== 'object' || !('error' in value) || !value.error) {
+			return 'An error occurred';
+		}
 		if (typeof value.error === 'string') return value.error;
 		return (value.error as { message?: string }).message || 'An error occurred';
 	};
@@ -58,7 +68,7 @@ let pendingProofs = $derived(data.pendingProofs || []);
 	});
 
 	$effect(() => {
-		if (form && state) {
+		if (form && typeof form === 'object' && state) {
 			if ('error' in form && form.error) {
 				const errorMessage = getFormErrorMessage(form);
 				toast.error(errorMessage);

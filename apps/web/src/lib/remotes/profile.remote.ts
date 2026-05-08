@@ -12,7 +12,7 @@ export const updateProfile = form(toStandardSchema(profileSchema), async (data) 
 
 	const { error: apiError } = await api.v1.user.profile.patch({
 		phoneNumber: data.phoneNumber
-	});
+	} as Record<string, unknown>);
 
 	if (apiError) {
 		invalid(extractApiErrorMessage(apiError.value, 'Failed to update profile'));

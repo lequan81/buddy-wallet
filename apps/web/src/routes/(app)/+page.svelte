@@ -18,7 +18,7 @@
 
 	let result = $derived.by(() => {
 		if (form?.success && form?.result) {
-			return form.result as { success: boolean; phone: string; found: boolean; count: number };
+			return form.result as { hasDebts: boolean; phone: string };
 		}
 		return null;
 	});
@@ -98,12 +98,12 @@
 				<div
 					class={cn(
 						'mt-4 rounded-lg border p-5 transition-all duration-300 animate-in fade-in slide-in-from-bottom-2',
-						result.found ? 'border-destructive/20 bg-destructive/5' : 'border-emerald-500/20 bg-emerald-500/5'
+						result.hasDebts ? 'border-destructive/20 bg-destructive/5' : 'border-emerald-500/20 bg-emerald-500/5'
 					)}
 				>
-					{#if result.found}
+					{#if result.hasDebts}
 						<p class="mb-3 text-center text-sm font-medium text-destructive">
-							You have <span class="text-lg font-bold">{result.count}</span> pending debt{result.count !== 1 ? 's' : ''}
+							You have pending debts linked to this phone number.
 						</p>
 						<Button
 							href={resolve(`/login`, {})}

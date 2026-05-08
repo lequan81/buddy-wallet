@@ -33,8 +33,8 @@
 
 	let { children, data } = $props<{ children: Snippet; data: Record<string, unknown> }>();
 	
-	let user = $derived(data.user);
-	let permissions = $derived(data.permissions);
+	let user = $derived(data.user ?? null);
+	let permissions = $derived(data.permissions ?? null);
 	
 	let displayName = $derived(user?.name || user?.email || user?.phoneNumber || 'User');
 	let avatarInitial = $derived(

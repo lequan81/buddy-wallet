@@ -6,31 +6,25 @@
  * These are used in route definitions as middleware wrappers.
  */
 
-import type { AuthenticatedHandlerContext } from '@/types/handler-context';
+import type { AuthenticatedHandlerContext, BaseHandlerContext } from '@/types/handler-context';
 import { BE_ERRORS } from '@repo/errors';
 import { apiError } from '@/commons/http/response';
 import { hasPermission, hasAnyPermission } from '@/commons/security/permissions';
 import type { Permission } from '@/commons/security/permissions';
 
-type UserContext = {
-  user?: {
-    permissions?: Permission[];
-  };
-};
-
 /**
  * Require an authenticated user to access this route.
  * Returns 401 if no user is found.
  */
-export function requireUser<TBody, TParams, TQuery, TResult>(
+export function requireUser<TBody = unknown, TParams = Record<string, string>, TQuery = Record<string, unknown>, TResult = unknown>(
   handler: (ctx: AuthenticatedHandlerContext<TBody, TParams, TQuery>) => TResult | Promise<TResult>
 ) {
-  return (ctx: UserContext) => {
+  return (ctx: BaseHandlerContext<TBody, TParams, TQuery>) => {
     if (!ctx.user) {
       return apiError(BE_ERRORS.AUTH_NO_SESSION);
     }
 
-    return handler(ctx as unknown as AuthenticatedHandlerContext<TBody, TParams, TQuery>);
+    return handler(ctx as AuthenticatedHandlerContext<TBody, TParams, TQuery>);
   };
 }
 
@@ -41,13 +35,13 @@ export function requireUser<TBody, TParams, TQuery, TResult>(
  * @param permission - Single permission or array (any match required)
  * @param handler - The route handler
  */
-export function requirePermission<TBody, TParams, TQuery, TResult>(
+export function requirePermission<TBody = unknown, TParams = Record<string, string>, TQuery = Record<string, unknown>, TResult = unknown>(
   permission: Permission | Permission[],
   handler: (ctx: AuthenticatedHandlerContext<TBody, TParams, TQuery>) => TResult | Promise<TResult>
 ) {
   const required = Array.isArray(permission) ? permission : [permission];
 
-  return (ctx: UserContext) => {
+  return (ctx: BaseHandlerContext<TBody, TParams, TQuery>) => {
     if (!ctx.user) {
       return apiError(BE_ERRORS.AUTH_NO_SESSION);
     }
@@ -61,6 +55,6 @@ export function requirePermission<TBody, TParams, TQuery, TResult>(
       return apiError(BE_ERRORS.PERMISSION_DENIED);
     }
 
-    return handler(ctx as unknown as AuthenticatedHandlerContext<TBody, TParams, TQuery>);
+    return handler(ctx as AuthenticatedHandlerContext<TBody, TParams, TQuery>);
   };
 }

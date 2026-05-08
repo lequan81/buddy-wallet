@@ -21,6 +21,12 @@
     "check-types": { "dependsOn": ["^check-types"], "cache": true },
     "test": { "dependsOn": ["^build"], "cache": true },
     "generate": { "cache": false },
+    "generate-types": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**/*.ts", "tsconfig.json"],
+      "outputs": ["dist/index.d.ts"],
+      "cache": true
+    },
     "start": { "dependsOn": ["build"], "cache": false, "persistent": true },
     "clean": { "cache": false }
   }

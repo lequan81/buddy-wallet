@@ -45,7 +45,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		const { api } = locals;
 		const [bankRes, contactsRes] = await Promise.all([
 			api.v1.bank.accounts.get(),
-			api.v1.debts.get({ query: { limit: '10', page: '1' } })
+			api.v1.debts.get({ query: { limit: 10, page: 1 } })
 		]);
 		hasBankAccount = hasAccounts(extractApiData<unknown[]>(bankRes.data).data);
 		recentContacts = getRecentContacts(extractApiData<Debt[]>(contactsRes.data).data, locals.user.phoneNumber ?? null);
@@ -116,14 +116,16 @@ export const actions: Actions = {
 		}
 
 		try {
-			const { error, status } = await locals.api.v1.debts.post({
-				amount,
-				description,
-				counterpartyPhone,
-				direction,
-				expiryOption: expiryOption as 'never' | '7d' | '30d' | '90d',
-				confirmDuplicate
-			});
+			// API schema uses debtorId but form sends counterpartyPhone
+				// The backend handler resolves the counterparty from the phone number
+				const { error, status } = await locals.api.v1.debts.post({
+					amount,
+					description,
+					counterpartyPhone,
+					direction,
+					expiryOption: expiryOption as 'never' | '7d' | '30d' | '90d',
+					confirmDuplicate
+				} as unknown as Parameters<typeof locals.api.v1.debts.post>[0]);
 
 			if (error) {
 				const errorObj = error.value as (Record<string, unknown> & { duplicates?: unknown[]; code?: string }) | undefined;

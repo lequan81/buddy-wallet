@@ -18,7 +18,6 @@ const config = {
 			async: true
 		}
 	},
-
 	kit: {
 		experimental: {
 			remoteFunctions: true
@@ -27,6 +26,11 @@ const config = {
 			preloadStrategy: 'preload-js'
 		},
 		inlineStyleThreshold: 4096,
+		typescript: {
+			config: (tsconfig) => ({
+				...tsconfig
+			})
+		},
 		// adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
 		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
 		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
@@ -39,15 +43,18 @@ const config = {
 			'@repo/schema': '../../packages/schema/src',
 			'@repo/schema/*': '../../packages/schema/src/*',
 			'@repo/types': '../../packages/types/src',
-			'@repo/errors': '../../packages/errors',
-			'@/*': '../../apps/api/src/*',
+			'@repo/errors': '../../packages/errors'
+		},
+		paths: {
+			base: '',
+			assets: ''
 		},
 		serviceWorker: {
 			register: false // Service worker registration handled by @vite-pwa/sveltekit
+		},
+		files: {
+			serviceWorker: 'src/service-worker/index.ts'
 		}
-	},
-	files: {
-		serviceWorker: 'src/service-worker/index.ts'
 	},
 	extensions: ['.svelte', '.svx', '.md']
 };

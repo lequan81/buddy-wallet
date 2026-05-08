@@ -9,7 +9,14 @@
 	import { api } from '$lib/services/api';
 	import { importProgress } from '$lib/stores/import-progress.svelte';
 	import { importUpload } from '$lib/stores/import-upload.svelte';
-	import { transitionImportUploadState } from '$lib/state-machines/import-upload.machine';
+	const ALLOWED_UPLOAD_TRANSITIONS: Record<string, string[]> = {
+		idle: ['uploading'],
+		uploading: ['uploaded', 'preview-loading', 'error'],
+		uploaded: ['preview-loading', 'preview-ready', 'error'],
+		'preview-loading': ['preview-ready', 'error', 'idle'],
+		'preview-ready': ['idle', 'uploading', 'error'],
+		error: ['idle', 'uploading']
+	};
 	import { IMPORT_DB_FIELDS } from '@repo/config/shared';
 	import * as m from '$lib/paraglide/messages';
 	import type { UploadState } from '$lib/types';
@@ -121,13 +128,11 @@
 	};
 
 	const setUploadStatus = (nextStatus: UploadState['status']) => {
-		const transition = transitionImportUploadState(uploadState.status, nextStatus);
-		if (!transition.allowed) {
-			console.warn('[Import][UploadFSM]', transition.reason);
+		if (uploadState.status !== nextStatus && !ALLOWED_UPLOAD_TRANSITIONS[uploadState.status]?.includes(nextStatus)) {
+			console.warn(`[Import] Invalid upload transition ${uploadState.status} -> ${nextStatus}`);
 			return;
 		}
-
-		uploadState.status = transition.to;
+		uploadState.status = nextStatus;
 	};
 
 	const fetchLogs = async (pageNumber = historyPage, options: { silent?: boolean } = {}) => {
@@ -139,10 +144,10 @@
 
 		try {
 			
-			const { data: response, error } = await api.v1.data['import/logs'].get({
+			const { data: response, error } = await api.v1.data.import.logs.get({
 				query: {
-					page: String(pageNumber),
-					limit: '10'
+					page: pageNumber,
+					limit: 10
 				}
 			});
 

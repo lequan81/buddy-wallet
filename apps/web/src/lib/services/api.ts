@@ -5,7 +5,6 @@
 
 import { treaty } from '@elysiajs/eden';
 import type { App } from '@repo/api/types';
-import type { ApiResponse } from '@repo/types';
 import {
 	API_URL,
 	getDefaultHeaders,
@@ -16,23 +15,24 @@ import {
 
 export { API_URL, WEB_URL, getDefaultHeaders, getAuthHeaders, getServerHeaders } from './api-config';
 
-// --- Type Flattening Utilities ---
-
-/**
- * Map an ApiResponse<T> to T by unwrapping it.
- */
-type MapApiResponse<T> = T extends ApiResponse<infer R> ? R : T;
+// --- Type Utilities ---
 
 /**
  * Recursive type that unwraps ApiResponse envelopes from Eden Treaty results.
  * This ensures the frontend works with normalized payloads directly.
+ *
+ * Key fix: preserves intersection types where an endpoint is BOTH callable
+ * (for parametrized routes like `debts({ id })`) AND has object properties
+ * (for direct routes like `debts.get()`).
  */
 type FlattenTreaty<T> = T extends (...args: infer Args) => infer R
-	? (...args: Args) => FlattenTreaty<R>
+	? ((...args: Args) => FlattenTreaty<R>) & {
+		[K in keyof T as K extends keyof Function ? never : K]: FlattenTreaty<T[K]>
+	  }
 	: T extends Promise<infer R>
 	? Promise<FlattenTreaty<R>>
 	: T extends { data: infer D; error: infer E; status: infer S; response: infer Res }
-	? { data: MapApiResponse<D>; error: E; status: S; response: Res }
+	? { data: D; error: E; status: S; response: Res }
 	: T extends object
 	? { [K in keyof T]: FlattenTreaty<T[K]> }
 	: T;
@@ -41,9 +41,7 @@ type FlattenTreaty<T> = T extends (...args: infer Args) => infer R
 import { refreshAccessToken } from './auth-refresh';
 
 /**
- * Create a Treaty client with auto-refresh support and response flattening.
- *
- * This version automatically unwraps { success: true, data: T } into T.
+ * Create a Treaty client with auto-refresh support and stable typing.
  */
 export const createTreatyClient = (
 	fetcher?: typeof fetch,
@@ -57,7 +55,7 @@ export const createTreatyClient = (
 	/**
 	 * Custom fetcher that:
 	 * 1. Handles token refresh on 401
-	 * 2. Unwraps the standardized API { success, data } envelope
+	 * 2. Preserves backend JSON body shape (no runtime unwrapping)
 	 */
 	const customFetcher = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
 		let response = await originalFetcher(input, init);
@@ -76,11 +74,11 @@ export const createTreatyClient = (
 			}
 		}
 
-		// 2. Wrap JSON method to unwrap the backend envelope
+		// 2. Keep the backend JSON body shape unchanged
 		const originalJson = response.json.bind(response);
 		response.json = async () => {
 			const body = await originalJson();
-			// Return response body as-is (backend returns data directly for success, wrapped error for failures)
+			// Return response body as-is.
 			return body;
 		};
 
@@ -101,7 +99,7 @@ export const createTreatyClient = (
 		}
 	});
 
-	// Cast to flattened type so IDE suggests payload properties directly
+	// Cast to a function/object-preserving type without modifying runtime payload shape
 	return client as unknown as FlattenTreaty<typeof client>;
 };
 

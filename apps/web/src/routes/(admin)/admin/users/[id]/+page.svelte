@@ -1,14 +1,18 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { ArrowLeft, Calendar, DollarSign, Phone, Shield, TrendingDown, TrendingUp, User, UserCheck, UserX } from '@repo/icons';
-	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { formatCurrency, formatDate } from '@repo/utils/format';
 	import { DEBT_STATUS } from '@repo/config/shared/status';
+	import { toggleUserStatus } from '$lib/remotes/admin-users.remote';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	let isSubmitting = $state(false);
+	const toggleError = $derived.by(() => {
+		const issues = toggleUserStatus.fields.allIssues();
+		return issues && issues.length > 0 ? issues[0]?.message : null;
+	});
 
 	const debtStats = $derived(() => {
 		const debts = data.debts ?? [];
@@ -59,16 +63,15 @@
 
 			<!-- Status Toggle -->
 			<form
-				method="POST"
-				action="?/toggleStatus"
-				use:enhance={() => {
+				{...toggleUserStatus.enhance(async ({ submit }) => {
 					isSubmitting = true;
-					return async ({ update }) => {
-						await update();
+					try {
+						await submit();
+						await invalidateAll();
+					} finally {
 						isSubmitting = false;
-						invalidateAll();
-					};
-				}}
+					}
+				})}
 			>
 				{#if data.targetUser?.isActive !== false}
 					<button
@@ -92,9 +95,9 @@
 			</form>
 		</div>
 
-		{#if form?.error}
+		{#if toggleError}
 			<div class="mt-4 rounded-lg bg-red-100 p-3 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-				{form.error}
+				{toggleError}
 			</div>
 		{/if}
 
