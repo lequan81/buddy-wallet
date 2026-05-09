@@ -30,8 +30,10 @@ declare global {
 			} | null;
 			/** Current access token (valid after refresh if needed) */
 			accessToken: string | undefined;
-			/** Pre-configured API client with valid token */
+			/** Pre-configured API client with valid token (only created when auth is resolved) */
 			api: ReturnType<typeof createTreatyClient>;
+			/** Cookie-sniff signal: true if session/refresh cookies exist (no API call needed) */
+			hasSession: boolean;
 		}
 		// interface PageData {}
 		// interface PageState {}

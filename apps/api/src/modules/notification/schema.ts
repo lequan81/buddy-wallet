@@ -1,51 +1,44 @@
 /**
  * Notification Module Schema Definitions
  * 
- * TypeBox definitions for validation - Schema is Single Source of Truth
+ * Valibot definitions for validation - Schema is Single Source of Truth
  * Following ElysiaJS schema-first & type-driven development
  */
 
-import { t } from 'elysia';
+import * as v from 'valibot';
 
 // List notifications query schema
-export const ListNotificationsQuerySchema = t.Object({
-  unreadOnly: t.Optional(t.Boolean({ default: false })),
-  page: t.Optional(t.Number({
-    minimum: 1,
-    default: 1
-  })),
-  limit: t.Optional(t.Number({
-    minimum: 1,
-    maximum: 100,
-    default: 20
-  }))
+export const ListNotificationsQuerySchema = v.object({
+  unreadOnly: v.optional(v.boolean()),
+  page: v.optional(v.pipe(v.number(), v.minValue(1))),
+  limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100)))
 });
 
 // Mark notification as read schema
-export const MarkAsReadSchema = t.Object({
-  notificationIds: t.Array(t.String())
+export const MarkAsReadSchema = v.object({
+  notificationIds: v.array(v.string())
 });
 
 // Response schemas
-export const NotificationResponseSchema = t.Object({
-  id: t.String(),
-  userId: t.String(),
-  type: t.String(),
-  title: t.String(),
-  message: t.String(),
-  data: t.Optional(t.Unknown()),
-  isRead: t.Boolean(),
-  createdAt: t.Date(),
-  readAt: t.Optional(t.Date())
+export const NotificationResponseSchema = v.object({
+  id: v.string(),
+  userId: v.string(),
+  type: v.string(),
+  title: v.string(),
+  message: v.string(),
+  data: v.optional(v.unknown()),
+  isRead: v.boolean(),
+  createdAt: v.date(),
+  readAt: v.optional(v.date())
 });
 
-export const NotificationListResponseSchema = t.Object({
-  data: t.Array(NotificationResponseSchema),
-  meta: t.Object({
-    total: t.Number(),
-    unreadCount: t.Number(),
-    page: t.Number(),
-    limit: t.Number(),
-    totalPages: t.Number()
+export const NotificationListResponseSchema = v.object({
+  data: v.array(NotificationResponseSchema),
+  meta: v.object({
+    total: v.number(),
+    unreadCount: v.number(),
+    page: v.number(),
+    limit: v.number(),
+    totalPages: v.number()
   })
 });

@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { Loader2, ShieldCheck } from '@repo/icons';
-	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
+	import { createTreatyClient } from '$lib/services/api';
+	import { extractApiErrorMessage } from '$lib/services/api-envelope';
+	import { goto } from '$app/navigation';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	// 6-digit OTP state
 	let digits = $state(['', '', '', '', '', '']);
@@ -50,12 +52,34 @@
 		inputRefs[focusIndex]?.focus();
 	}
 
-	// Show errors from server
-	$effect(() => {
-		if (form?.message) {
-			toast.error(form.message);
+	async function handleVerify() {
+		if (!canSubmit) return;
+		isSubmitting = true;
+
+		try {
+			const api = createTreatyClient(fetch);
+			const { error } = await api.v1.auth['verify-email'].post({ token: otp });
+
+			if (error) {
+				toast.error(extractApiErrorMessage(error.value, 'Verification failed'));
+			} else {
+				toast.success('Email verified!');
+				await goto('/login?verified=true');
+			}
+		} catch {
+			toast.error('Unable to connect to server. Please try again.');
+		} finally {
+			isSubmitting = false;
 		}
-	});
+	}
+
+	async function handleSkip() {
+		try {
+			await goto('/login');
+		} catch {
+			toast.error('Unable to connect to server.');
+		}
+	}
 </script>
 
 <div class="flex min-h-[calc(100vh-4rem)] items-center justify-center p-4">
@@ -75,24 +99,9 @@
 
 		<Card.Content>
 			<form
-				method="POST"
-				action="?/verify"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ result, update }) => {
-						isSubmitting = false;
-						if (result.type === 'redirect') {
-							window.location.href = result.location;
-						} else {
-							await update();
-						}
-					};
-				}}
+				onsubmit={(e) => { e.preventDefault(); handleVerify(); }}
 				class="space-y-6"
 			>
-				<!-- Hidden input to send the full OTP -->
-				<input type="hidden" name="otp" value={otp} />
-
 				<!-- 6-digit OTP input grid -->
 				<div class="flex justify-center gap-3">
 					{#each digits as _, i}
@@ -103,8 +112,7 @@
 							maxlength="1"
 							class="h-14 w-12 rounded-lg border-2 border-input bg-background text-center text-xl font-bold
 								transition-all duration-150
-								focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none
-								{form?.message ? 'border-destructive' : ''}"
+								focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
 							value={digits[i]}
 							oninput={(e) => handleInput(i, e)}
 							onkeydown={(e) => handleKeydown(i, e)}
@@ -130,11 +138,9 @@
 
 		<Card.Footer class="flex flex-col space-y-3">
 			<!-- Skip -->
-			<form method="POST" action="?/skip" class="w-full" use:enhance>
-				<Button variant="ghost" type="submit" class="h-10 w-full text-muted-foreground">
-					Skip for now
-				</Button>
-			</form>
+			<Button variant="ghost" type="button" class="h-10 w-full text-muted-foreground" onclick={handleSkip}>
+				Skip for now
+			</Button>
 		</Card.Footer>
 	</Card.Root>
 </div>

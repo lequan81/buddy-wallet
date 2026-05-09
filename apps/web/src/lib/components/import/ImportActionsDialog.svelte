@@ -6,6 +6,7 @@
 	import { Badge } from '@repo/ui/components/ui/badge';
 	import { formatDate } from '@repo/utils/format';
 	import type { ImportLog } from '@repo/types/core/import';
+	import { getImportExport } from '$lib/remotes/import.remote';
 
 	let { log } = $props<{ log: ImportLog }>();
 
@@ -18,9 +19,10 @@
 		if (!log.previewLogId) return;
 		
 		try {
-			const response = await fetch(`/dashboard/import/export/${log.previewLogId}`);
-			if (response.ok) {
-				const blob = await response.blob();
+			const data = await getImportExport(log.previewLogId);
+			if (data) {
+				const jsonStr = JSON.stringify(data, null, 2);
+				const blob = new Blob([jsonStr], { type: 'application/json' });
 				const url = window.URL.createObjectURL(blob);
 				const a = document.createElement('a');
 				a.href = url;
@@ -41,8 +43,8 @@
 		if (!log.previewLogId) return;
 		
 		try {
-			const response = await fetch(`/dashboard/import/export/${log.previewLogId}`);
-			if (response.ok) {
+			const data = await getImportExport(log.previewLogId);
+			if (data) {
 				if (navigator.share) {
 					await navigator.share({
 						title: `Import Results: ${log.fileName}`,

@@ -135,7 +135,7 @@ export default defineConfig({
 			'bits-ui',
 			'formsnap',
 			'svelte-sonner',
-			'@sinclair/typebox',
+			'valibot',
 			'sveltekit-superforms',
 			'@elysiajs/eden',
 			// Add common UI dependencies for faster startup

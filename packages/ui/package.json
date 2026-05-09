@@ -91,6 +91,10 @@
       "types": "./src/lib/components/ui/textarea/index.ts",
       "default": "./src/lib/components/ui/textarea/index.ts"
     },
+    "./components/ui/select": {
+      "types": "./src/lib/components/ui/select/index.ts",
+      "default": "./src/lib/components/ui/select/index.ts"
+    },
     "./lib/utils.js": {
       "types": "./src/lib/utils.ts",
       "default": "./src/lib/utils.ts"

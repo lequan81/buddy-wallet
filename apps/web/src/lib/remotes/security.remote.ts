@@ -1,14 +1,14 @@
 import { form, getRequestEvent } from '$app/server';
 import { invalid, redirect } from '@sveltejs/kit';
-import { Type } from '@sinclair/typebox';
+import * as v from 'valibot';
 import { changePasswordSchema } from '@repo/schema/dto/auth';
 import { toStandardSchema } from '@repo/schema/adapters/standard-schema';
 import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
 
 export const revokeSession = form(
 	toStandardSchema(
-		Type.Object({
-			sessionId: Type.String()
+		v.object({
+			sessionId: v.string()
 		})
 	),
 	async ({ sessionId: _sessionId }) => {
@@ -19,7 +19,7 @@ export const revokeSession = form(
 	}
 );
 
-export const logoutAll = form(toStandardSchema(Type.Object({})), async () => {
+export const logoutAll = form(toStandardSchema(v.object({})), async () => {
 	const { locals, cookies } = getRequestEvent();
 	if (!locals.user) invalid('Unauthorized');
 

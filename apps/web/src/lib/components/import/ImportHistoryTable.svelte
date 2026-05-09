@@ -4,6 +4,7 @@
 	import { Badge } from '@repo/ui/components/ui/badge';
 	import * as Table from '@repo/ui/components/ui/table';
 	import { Progress } from '@repo/ui/components/ui/progress';
+	import * as Select from '@repo/ui/components/ui/select';
 	import ConnectionFallback from '$lib/components/shared/ConnectionFallback.svelte';
 	import { cn } from '$lib/utils';
 	import { getImportStatusColor, formatDate } from '$lib/utils/status';
@@ -266,18 +267,22 @@
 
 		<div class="flex items-center gap-2">
 			<span class="text-xs text-muted-foreground font-medium">Go to</span>
-			<select
-				value={jumpPage} 
-				onchange={(e: Event) => {
-					jumpPage = (e.target as HTMLSelectElement).value;
+			<Select.Root
+				value={jumpPage}
+				onValueChange={(v: string) => {
+					jumpPage = v;
 					handleJump();
 				}}
-				class="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs text-muted-foreground focus:ring-1 focus:ring-primary focus:outline-none"
 			>
-				{#each Array(totalHistoryPages) as _, i}
-					<option value={i + 1}>{i + 1}</option>
-				{/each}
-			</select>
+				<Select.Trigger class="h-8 w-auto rounded-md border px-2 py-1 text-xs text-muted-foreground">
+					<Select.Value />
+				</Select.Trigger>
+				<Select.Content>
+					{#each Array(totalHistoryPages) as _, i}
+						<Select.Item value={(i + 1).toString()} label={(i + 1).toString()} />
+					{/each}
+				</Select.Content>
+			</Select.Root>
 		</div>
 	</div>
 {/if}

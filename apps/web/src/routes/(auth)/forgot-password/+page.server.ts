@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { createTreatyClient } from '$lib/services/api';
+import { extractApiErrorMessage } from '$lib/services/api-envelope';
 
 export const load: PageServerLoad = async () => {
 	return {
@@ -25,8 +26,7 @@ export const actions: Actions = {
 			});
 
 			if (error) {
-				const errorData = error.value as { error?: { message: string } };
-				const errorMessage = errorData?.error?.message || 'Request failed';
+				const errorMessage = extractApiErrorMessage(error.value, 'Request failed');
 				return fail(400, { message: errorMessage });
 			}
 

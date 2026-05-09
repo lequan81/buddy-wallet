@@ -5,7 +5,8 @@
  * Admin routes use requirePermission('admin:manage-user') for access control.
  */
 
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
+import * as v from 'valibot';
 import { UpdateProfileSchema, ChangePasswordSchema, ListUsersQuerySchema } from './schema';
 import { profile } from './handlers/profile.handler';
 import { admin } from './handlers/admin.handler';
@@ -28,20 +29,20 @@ export const userRoutes = new Elysia({ prefix: '/user' })
     detail: { tags: ['user', 'admin'], description: 'List all users (admin only)' }
   })
   .get('/admin/users/:id', requirePermission('admin:manage-user', admin.getUser), {
-    params: t.Object({ id: t.String() }),
+    params: v.object({ id: v.string() }),
     detail: { tags: ['user', 'admin'], description: 'Get user by ID (admin only)' }
   })
   .patch('/admin/users/:id', requirePermission('admin:manage-user', admin.updateUser), {
-    params: t.Object({ id: t.String() }),
-    body: t.Object({
-      name: t.Optional(t.String()),
-      email: t.Optional(t.String()),
-      role: t.Optional(t.String()),
-      isActive: t.Optional(t.Boolean())
+    params: v.object({ id: v.string() }),
+    body: v.object({
+      name: v.optional(v.string()),
+      email: v.optional(v.string()),
+      role: v.optional(v.string()),
+      isActive: v.optional(v.boolean())
     }),
     detail: { tags: ['user', 'admin'], description: 'Update user (admin only)' }
   })
   .delete('/admin/users/:id', requirePermission('admin:manage-user', admin.deleteUser), {
-    params: t.Object({ id: t.String() }),
+    params: v.object({ id: v.string() }),
     detail: { tags: ['user', 'admin'], description: 'Delete user (admin only)' }
   });

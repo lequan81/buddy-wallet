@@ -2,76 +2,62 @@
 	import { resolve } from '$app/paths';
 	import { Check, Circle, Loader2 } from '@repo/icons';
 	import { toast } from 'svelte-sonner';
-	import { superForm } from 'sveltekit-superforms';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
-	import type { Static } from '@sinclair/typebox';
-	import type { PageData } from './$types';
-	import { registerRequestSchema } from '@repo/schema/dto/auth';
+	import { registerRemote } from '$lib/remotes/auth.remote';
 
-	const { data }: { data: PageData } = $props();
+	let name = $state('');
+	let phoneNumber = $state('');
+	let email = $state('');
+	let password = $state('');
+	let confirmPassword = $state('');
+	let isSubmitting = $state(false);
 
-	// superForm expects the form data directly, not a getter
-	// svelte-ignore state_referenced_locally
-	const { form, errors, constraints, message, enhance, delayed } = superForm<
-		Static<typeof registerRequestSchema>
-	>(data.form as Parameters<typeof superForm<Static<typeof registerRequestSchema>>>[0], {
-		onResult: ({ result }) => {
-			if (result.type === 'failure') {
-				toast.error('Please check your input');
-			}
-		}
-	});
-
-	// Password validation rules (Visual feedback only, schema handles actual validation)
+	// Password validation rules
 	const passwordRules = $derived([
-		{ label: 'At least 8 characters', valid: ($form.password?.length ?? 0) >= 8 },
-		{ label: 'One uppercase letter', valid: /[A-Z]/.test($form.password ?? '') },
-		{ label: 'One lowercase letter', valid: /[a-z]/.test($form.password ?? '') },
-		{ label: 'One number', valid: /\d/.test($form.password ?? '') },
-		{ label: 'One special character', valid: /[!@#$%^&*(),.?":{}|<>]/.test($form.password ?? '') }
+		{ label: 'At least 8 characters', valid: password.length >= 8 },
+		{ label: 'One uppercase letter', valid: /[A-Z]/.test(password) },
+		{ label: 'One lowercase letter', valid: /[a-z]/.test(password) },
+		{ label: 'One number', valid: /\d/.test(password) },
+		{ label: 'One special character', valid: /[!@#$%^&*(),.?":{}|<>]/.test(password) }
 	]);
 
-	// Repeat password state
-	let confirmPassword = $state('');
+	// Confirm password state
 	let confirmPasswordState = $derived.by(() => {
 		if (confirmPassword === '') return 'default' as const;
-		if (confirmPassword !== ($form.password ?? '')) return 'error' as const;
+		if (confirmPassword !== password) return 'error' as const;
 		return 'success' as const;
 	});
 	let confirmPasswordMessage = $derived.by(() => {
 		if (confirmPassword === '') return '';
-		if (confirmPassword !== ($form.password ?? '')) return 'Passwords do not match';
+		if (confirmPassword !== password) return 'Passwords do not match';
 		return 'Passwords match';
 	});
 
 	// Determine validation states
-	const nameState = $derived($errors.name ? 'error' : $form.name ? 'success' : 'default');
+	const nameState = $derived(name ? 'success' : 'default');
 	const phoneState = $derived(
-		$errors.phoneNumber
-			? 'error'
-			: $form.phoneNumber && $form.phoneNumber.length >= 10
-				? 'success'
-				: 'default'
+		phoneNumber && phoneNumber.length >= 10 ? 'success' : 'default'
 	);
 	const emailState = $derived(
-		$errors.email ? 'error' : $form.email && $form.email.includes('@') ? 'success' : 'default'
+		email && email.includes('@') ? 'success' : 'default'
 	);
 	const passwordState = $derived(
-		$errors.password ? 'error' : passwordRules.every((r) => r.valid) ? 'success' : 'default'
+		passwordRules.every((r) => r.valid) ? 'success' : password ? 'error' : 'default'
 	);
 	const canSubmit = $derived(
 		passwordRules.every((r) => r.valid) &&
-			(confirmPassword === '' || confirmPassword === ($form.password ?? '')) &&
-			!$delayed
+			(confirmPassword === '' || confirmPassword === password) &&
+			!isSubmitting
 	);
 
-	// Show toast on form error message if server returns specific message
+	// Show errors from remote function
 	$effect(() => {
-		if ($message) {
-			toast.error($message);
+		const issues = registerRemote.fields.allIssues();
+		if (issues && issues.length > 0) {
+			toast.error(issues[0].message);
 		}
 	});
 </script>
@@ -84,19 +70,27 @@
 		</Card.Header>
 
 		<Card.Content>
-			<form method="POST" use:enhance class="space-y-4">
+			<form
+				{...registerRemote.enhance(async ({ submit }) => {
+					isSubmitting = true;
+					try {
+						await submit();
+					} finally {
+						isSubmitting = false;
+					}
+				})}
+				class="space-y-4"
+			>
 				<!-- Name Field -->
 				<FormInput
 					label="Full Name"
 					name="name"
 					type="text"
-					placeholder="Nguyá»…n VÄƒn A"
-					bind:value={$form.name}
+					placeholder="Nguyễn Văn A"
+					bind:value={name}
 					validationState={nameState}
-					error={$errors.name?.[0]}
 					success={nameState === 'success' ? 'Name looks good' : undefined}
 					required
-					{...$constraints.name}
 				/>
 
 				<!-- Phone Number Field (Required) -->
@@ -106,16 +100,12 @@
 						name="phoneNumber"
 						type="tel"
 						placeholder="0901234567"
-						bind:value={$form.phoneNumber}
+						bind:value={phoneNumber}
 						validationState={phoneState}
-						error={$errors.phoneNumber?.[0]}
 						success={phoneState === 'success' ? 'Phone number is valid' : undefined}
 						required
-						{...$constraints.phoneNumber}
 					/>
-					{#if !$errors.phoneNumber}
-						<p class="text-xs text-muted-foreground">Used to link debts to your account</p>
-					{/if}
+					<p class="text-xs text-muted-foreground">Used to link debts to your account</p>
 				</div>
 
 				<!-- Email Field (Optional) -->
@@ -124,11 +114,9 @@
 					name="email"
 					type="email"
 					placeholder="name@example.com"
-					bind:value={$form.email}
+					bind:value={email}
 					validationState={emailState}
-					error={$errors.email?.[0]}
 					success={emailState === 'success' ? 'Email looks good' : undefined}
-					{...$constraints.email}
 				/>
 
 				<!-- Password Field -->
@@ -138,17 +126,14 @@
 						name="password"
 						type="password"
 						placeholder="Create a strong password"
-						bind:value={$form.password}
+						bind:value={password}
 						validationState={passwordState}
-						error={$errors.password?.[0]}
 						success={passwordState === 'success' ? 'Strong password' : undefined}
 						showPasswordToggle={true}
 						required
-						minlength={$constraints.password?.minlength}
-						maxlength={$constraints.password?.maxlength}
 					/>
 
-					<!-- Password Requirements - Always visible, no layout shift -->
+					<!-- Password Requirements -->
 					<div class="grid grid-cols-2 gap-x-4 gap-y-1 pt-1">
 						{#each passwordRules as rule}
 							<div class="flex items-center gap-1.5 text-xs">
@@ -178,10 +163,10 @@
 					required
 				/>
 
-				<!-- Submit Button - Fixed height -->
+				<!-- Submit Button -->
 				<Button type="submit" class="h-10 w-full" disabled={!canSubmit}>
 					<span class="inline-flex items-center justify-center">
-						{#if $delayed}
+						{#if isSubmitting}
 							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 							Creating account...
 						{:else}

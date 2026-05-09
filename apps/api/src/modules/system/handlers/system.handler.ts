@@ -71,18 +71,17 @@ export const system = {
     return apiSuccess(health);
   },
 
-  readiness: async ({ set }: SystemContext) => {
+  readiness: async () => {
     const [database, redis] = await Promise.all([checkDatabaseHealth(), checkRedisHealth()]);
 
     if (database === 'down' || redis === 'down') {
-      set.status = 503;
-      return { ready: false, services: { database, redis } };
+      return apiSuccess({ ready: false, services: { database, redis } }, undefined, undefined, 503);
     }
 
-    return { ready: true, services: { database, redis } };
+    return apiSuccess({ ready: true, services: { database, redis } });
   },
 
-  liveness: async () => ({ alive: true, uptime: getUptime() }),
+  liveness: async () => apiSuccess({ alive: true, uptime: getUptime() }),
 
   info: async () => apiSuccess(getSystemInfo()),
 

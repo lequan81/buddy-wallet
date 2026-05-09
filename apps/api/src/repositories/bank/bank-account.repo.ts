@@ -2,21 +2,18 @@ import { bankAccounts, eq, and, sql } from '@repo/db';
 import type { BankAccount, DbClient } from '@repo/db';
 import { randomUUIDv7 } from 'bun';
 import { db } from '@/providers/database';
-import { t } from 'elysia';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
+import * as v from 'valibot';
 
-// ── TypeBox Validation Schemas ────────────────────────────────
-const InsertBankAccountSchema = t.Object({
-  userId: t.String({ minLength: 1 }),
-  bankCode: t.String({ minLength: 1 }),
-  bankName: t.String({ minLength: 1 }),
-  bankBin: t.String({ minLength: 1 }),
-  accountNumber: t.String({ minLength: 4 }),
-  accountName: t.Optional(t.Union([t.String(), t.Null()])),
-  isDefault: t.Optional(t.Boolean())
+// ── Valibot Validation Schemas ────────────────────────────────
+const InsertBankAccountSchema = v.object({
+  userId: v.pipe(v.string(), v.minLength(1)),
+  bankCode: v.pipe(v.string(), v.minLength(1)),
+  bankName: v.pipe(v.string(), v.minLength(1)),
+  bankBin: v.pipe(v.string(), v.minLength(1)),
+  accountNumber: v.pipe(v.string(), v.minLength(4)),
+  accountName: v.optional(v.union([v.string(), v.null_()])),
+  isDefault: v.optional(v.boolean())
 });
-
-const insertBankAccountValidator = TypeCompiler.Compile(InsertBankAccountSchema);
 
 /**
  * Bank Account Repository
@@ -66,9 +63,10 @@ export class BankAccountRepository {
   }
 
   async create(data: Omit<BankAccount, 'id' | 'createdAt' | 'updatedAt'>): Promise<BankAccount> {
-    if (!insertBankAccountValidator.Check(data)) {
-      const errors = [...insertBankAccountValidator.Errors(data)];
-      throw new Error(`Bank account validation failed: ${errors[0]?.message ?? 'Invalid data'}`);
+    const parsed = v.safeParse(InsertBankAccountSchema, data);
+    if (!parsed.success) {
+      const firstIssue = parsed.issues[0];
+      throw new Error(`Bank account validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
     }
     const id = randomUUIDv7();
     const [result] = await this.database.insert(bankAccounts).values({

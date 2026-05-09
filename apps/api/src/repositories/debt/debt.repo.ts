@@ -2,8 +2,7 @@ import { eq, and, ne, inArray, count, isNull, or, gte, lte, asc, desc, debts } f
 import type { SQL, Debt, NewDebt, DbClient, DebtStatus } from '@repo/db';
 import type { PaginatedResult } from '@repo/types';
 import { db } from '@/providers/database';
-import { t } from 'elysia';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
+import * as v from 'valibot';
 
 export interface DebtFindManyOptions {
   limit?: number;
@@ -20,25 +19,20 @@ export interface DebtFindManyOptions {
 
 export type DebtCountOptions = Omit<DebtFindManyOptions, 'limit' | 'offset'>;
 
-// ── TypeBox Validation Schemas ────────────────────────────────
-const InsertDebtSchema = t.Object({
-  debtorPhone: t.String({ minLength: 1 }),
-  creditorPhone: t.String({ minLength: 1 }),
-  debtorId: t.Optional(t.Union([t.String(), t.Null()])),
-  creditorId: t.Optional(t.Union([t.String(), t.Null()])),
-  uploadedById: t.String({ minLength: 1 }),
-  amount: t.Number({ minimum: 1 }),
-  currency: t.String({ minLength: 3, maxLength: 3 }),
-  description: t.Optional(t.Union([t.String(), t.Null()])),
-  status: t.Optional(t.Union([
-    t.Literal('pending'), t.Literal('confirmed'),
-    t.Literal('paid'), t.Literal('disputed'), t.Literal('cancelled')
-  ])),
-  expiresAt: t.Optional(t.Union([t.Date(), t.Null()])),
-  needsConfirmation: t.Optional(t.Boolean())
+// ── Valibot Validation Schemas ────────────────────────────────
+const InsertDebtSchema = v.object({
+  debtorPhone: v.pipe(v.string(), v.minLength(1)),
+  creditorPhone: v.pipe(v.string(), v.minLength(1)),
+  debtorId: v.optional(v.union([v.string(), v.null_()])),
+  creditorId: v.optional(v.union([v.string(), v.null_()])),
+  uploadedById: v.pipe(v.string(), v.minLength(1)),
+  amount: v.pipe(v.number(), v.minValue(1)),
+  currency: v.pipe(v.string(), v.minLength(3), v.maxLength(3)),
+  description: v.optional(v.union([v.string(), v.null_()])),
+  status: v.optional(v.picklist(['pending', 'confirmed', 'paid', 'disputed', 'cancelled'])),
+  expiresAt: v.optional(v.union([v.date(), v.null_()])),
+  needsConfirmation: v.optional(v.boolean())
 });
-
-const insertDebtValidator = TypeCompiler.Compile(InsertDebtSchema);
 
 /**
  * Debt Repository
@@ -122,9 +116,10 @@ export class DebtRepository {
   }
 
   async create(data: Omit<NewDebt, 'id' | 'createdAt' | 'updatedAt'>): Promise<Debt> {
-    if (!insertDebtValidator.Check(data)) {
-      const errors = [...insertDebtValidator.Errors(data)];
-      throw new Error(`Debt validation failed: ${errors[0]?.message ?? 'Invalid data'}`);
+    const result = v.safeParse(InsertDebtSchema, data);
+    if (!result.success) {
+      const firstIssue = result.issues[0];
+      throw new Error(`Debt validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
     }
     const now = new Date();
     const [created] = await this.database.insert(debts).values({

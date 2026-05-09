@@ -8,7 +8,8 @@
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
 	import { loginRemote } from '$lib/remotes/auth.remote';
-	import { loginRequestSchema as loginSchema, validateField } from '@repo/schema/dto/auth';
+	import { loginRequestSchema as loginSchema } from '@repo/schema/dto/auth';
+	import { validateField } from '@repo/schema/adapters';
 	let { data } = $props();
 
 	let email = $state('');

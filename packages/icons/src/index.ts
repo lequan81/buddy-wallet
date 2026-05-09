@@ -1,3 +1,5 @@
+/// <reference types="unplugin-icons/types/svelte" />
+
 /**
  * @repo/icons — Single source of truth for all Iconify/Lucide icon re-exports.
  *

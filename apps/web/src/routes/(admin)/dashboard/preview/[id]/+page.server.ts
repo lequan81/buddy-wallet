@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, type HttpError } from '@sveltejs/kit';
 import { FE_ERRORS } from '@repo/errors/frontend';
+import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const { id } = params;
@@ -21,8 +22,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			throw error(500);
 		}
 
-		// The successful logRes is the log object (flattened)
-		const importLog = logRes as unknown as Record<string, unknown> | null;
+		// The successful logRes is the envelope payload
+		const logParsed = extractApiData<Record<string, unknown>>(logRes);
+		const importLog = logParsed.data ?? null;
 
 		// If the import is still pending/processing, also fetch current progress
 		let progress: Record<string, unknown> | null = null;
@@ -36,7 +38,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		) {
 			const { data: progressRes, error: progressErr } = await api.v1.data['import']({ id }).progress.get();
 			if (!progressErr && progressRes) {
-				progress = progressRes as unknown as Record<string, unknown>;
+				const progressParsed = extractApiData<Record<string, unknown>>(progressRes);
+				progress = progressParsed.data ?? null;
 			}
 		}
 
@@ -97,11 +100,12 @@ export const actions: Actions = {
 						const errVal = error.value as { code?: string; message?: string };
 						return fail(typeof error.status === 'number' ? error.status : 500, {
 							code: errVal?.code || 'BE_UNKNOWN',
-							message: errVal?.message || 'Import failed'
+							message: extractApiErrorMessage(error.value, 'Import failed')
 						});
 					}
 
-					const res = (data || {}) as unknown as Record<string, unknown>;
+					const parsed = extractApiData<Record<string, unknown>>(data);
+					const res = parsed.data ?? {};
 					return {
 						success: true,
 						jobId: previewLogId,
@@ -123,11 +127,12 @@ export const actions: Actions = {
 					const errVal = error.value as { code?: string; message?: string };
 					return fail(typeof error.status === 'number' ? error.status : 500, {
 						code: errVal?.code || 'BE_UNKNOWN',
-						message: errVal?.message || 'Import failed'
+						message: extractApiErrorMessage(error.value, 'Import failed')
 					});
 				}
 
-				const d = ((data || {}) as unknown) as Record<string, unknown>;
+				const parsed = extractApiData<Record<string, unknown>>(data);
+				const d = parsed.data ?? {};
 				return {
 					success: true,
 					jobId: typeof d.jobId === 'string' ? d.jobId : undefined,

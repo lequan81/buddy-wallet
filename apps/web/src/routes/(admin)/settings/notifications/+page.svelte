@@ -90,7 +90,9 @@
 	{/if}
 
 	<form
-		{...updateNotifications.enhance(async ({ submit }) => {
+		{...updateNotifications.enhance(async ({ data: formData, submit }) => {
+			formData.emailNotificationsEnabled = emailEnabled ? 'true' : 'false';
+			formData.pushNotificationsEnabled = pushEnabled ? 'true' : 'false';
 			isSubmitting = true;
 			try {
 				await submit();
@@ -163,17 +165,6 @@
 					/>
 				</div>
 
-				<!-- Hidden inputs for form submission -->
-				<input
-					type="hidden"
-					name="emailNotificationsEnabled"
-					value={emailEnabled ? 'true' : 'false'}
-				/>
-				<input
-					type="hidden"
-					name="pushNotificationsEnabled"
-					value={pushEnabled ? 'true' : 'false'}
-				/>
 			</Card.Content>
 
 			<Card.Footer class="border-t pt-6">

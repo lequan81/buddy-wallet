@@ -1,9 +1,8 @@
 ﻿<script lang="ts">
 	import { AlertCircle, AlertTriangle, CheckCircle2 } from '@repo/icons';
 	import { Label } from '@repo/ui/components/ui/label';
+	import * as Select from '@repo/ui/components/ui/select';
 	import { cn } from '$lib/utils';
-
-	import type { HTMLSelectAttributes } from 'svelte/elements';
 
 	let {
 		label,
@@ -18,14 +17,19 @@
 		validationState = 'default',
 		options = [],
 		class: className,
-		...restProps
-	}: HTMLSelectAttributes & {
+	}: {
 		label?: string;
+		name?: string;
+		placeholder?: string;
+		required?: boolean;
+		disabled?: boolean;
+		value?: string;
 		error?: string;
 		success?: string;
 		warning?: string;
 		validationState?: 'default' | 'success' | 'error' | 'warning';
 		options: Array<{ value: string; label: string }>;
+		class?: string;
 	} = $props();
 
 	const stateConfig = $derived.by(() => {
@@ -73,29 +77,24 @@
 	{/if}
 
 	<div class="relative">
-		<select
-			id={name}
-			{name}
-			{required}
-			{disabled}
-			bind:value
-			class={cn(
-				'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
-				'file:border-0 file:bg-transparent file:text-sm file:font-medium',
-				'placeholder:text-muted-foreground',
-				'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none',
-				'disabled:cursor-not-allowed disabled:opacity-50',
-				stateConfig.ringClass,
-				StateIcon ? 'pr-10' : '',
-				className
-			)}
-			{...restProps}
-		>
-			<option value="" disabled>{placeholder}</option>
-			{#each options as option}
-				<option value={option.value}>{option.label}</option>
-			{/each}
-		</select>
+		<Select.Root bind:value {disabled}>
+			<Select.Trigger
+				id={name}
+				class={cn(
+					'w-full',
+					stateConfig.ringClass,
+					StateIcon ? 'pr-10' : '',
+					className
+				)}
+			>
+				<Select.Value {placeholder} />
+			</Select.Trigger>
+			<Select.Content>
+				{#each options as option}
+					<Select.Item value={option.value} label={option.label} />
+				{/each}
+			</Select.Content>
+		</Select.Root>
 
 		{#if StateIcon}
 			<div class="pointer-events-none absolute top-2.5 right-3">

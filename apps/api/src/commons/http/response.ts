@@ -38,7 +38,8 @@ export function apiError(
 export function apiSuccess<T>(
   data: T,
   message?: string,
-  meta?: Record<string, unknown>
+  meta?: Record<string, unknown>,
+  status: number = 200
 ): Response {
   return new Response(
     JSON.stringify({
@@ -47,7 +48,7 @@ export function apiSuccess<T>(
       ...(meta ? { meta } : {})
     }),
     {
-      status: 200,
+      status,
       headers: { 'Content-Type': 'application/json' }
     }
   );

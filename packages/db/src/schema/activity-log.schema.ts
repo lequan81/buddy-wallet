@@ -13,7 +13,7 @@ export const activityLogs = sqliteTable(
     // Who performed the action
     userId: text('user_id', { length: 24 })
       .notNull()
-      .references(() => users.id),
+      .references(() => users.id, { onDelete: 'cascade' }),
 
     // What action was performed
     action: text('action').notNull(), // 'create', 'update', 'delete', 'login', 'logout', 'export', 'import', 'status_change'

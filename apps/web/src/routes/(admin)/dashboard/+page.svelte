@@ -1,11 +1,9 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
+	import type { PageData } from './$types';
 	import { resolve } from '$app/paths';
-	import { batchDeleteDebts, deleteDebt, deleteAllDebts } from '$lib/remotes/debts.remote';
+
 	import { untrack } from 'svelte'; 
-	import { invalidateAll, goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { toast } from 'svelte-sonner';
+	import { invalidateAll } from '$app/navigation';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Button } from '@repo/ui/components/ui/button';
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
@@ -27,7 +25,7 @@
 		Clock
 	} from '@repo/icons';
 
-	let { data, form }: { data: PageData, form: ActionData } = $props();
+	let { data }: { data: PageData } = $props();
 
 	let createDebtModalOpen = $state(false);
 	let modalInitialDescription = $state('');
@@ -41,53 +39,7 @@
 		createDebtModalOpen = true;
 	}
 
-	interface RemoteFormInstance {
-		fields: {
-			allIssues: () => Array<{ message: string; path?: (string | number)[] }>;
-		};
-		result?: {
-			success?: boolean;
-			deleted?: number;
-		};
-	}
 
-	// Toast on form results
-	$effect(() => {
-		if (form && typeof form === 'object') {
-			if ('error' in form && form.error) {
-				const errorMessage = typeof form.error === 'string' 
-					? form.error 
-					: (form.error as { message?: string }).message || 'An error occurred';
-				toast.error(errorMessage);
-			}
-			if ('success' in form && form.success) {
-				const deletedCount = (form as Record<string, unknown>).deleted as number | undefined;
-				toast.success(`${deletedCount || 1} debt(s) deleted successfully`);
-			}
-		}
-	});
-
-	// Toast for deletion redirect
-	$effect(() => {
-		if ($page.url.searchParams.get('deleted')) {
-			toast.success('Debt deleted successfully');
-			goto('/dashboard', { replaceState: true });
-		}
-	});
-
-	// Toast for remote form results
-	$effect(() => {
-		const forms = [batchDeleteDebts, deleteDebt, deleteAllDebts] as RemoteFormInstance[];
-		for (const remoteForm of forms) {
-			const issues = remoteForm.fields.allIssues();
-			if (issues && issues.length > 0) {
-				toast.error(issues[0].message || 'An error occurred');
-			}
-			if (remoteForm.result?.success) {
-				toast.success(`Deleted ${remoteForm.result.deleted || 1} debt(s) successfully`);
-			}
-		}
-	});
 
 	// Use server-computed values
 	let permissions = $derived(data.permissions);

@@ -33,7 +33,7 @@
     }
   },
   "dependencies": {
-    "@sinclair/typebox": "^0.34.8"
+    "valibot": "^1.0.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

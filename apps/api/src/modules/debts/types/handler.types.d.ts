@@ -84,3 +84,12 @@ export type ListDebtsContext = AuthenticatedHandlerContext<unknown, Record<strin
 export type SuggestEditContext = AuthenticatedHandlerContext<SuggestEditBody, DebtIdParams>;
 export type RespondSuggestionContext = AuthenticatedHandlerContext<RespondSuggestionBody, DebtIdParams>;
 export type GenerateQRContext = AuthenticatedHandlerContext<unknown, DebtIdParams>;
+
+export type DebtProofParams = { id: string; proofId: string };
+
+export interface RejectProofBody {
+  reason?: string;
+}
+
+export type ApproveProofContext = AuthenticatedHandlerContext<unknown, DebtProofParams>;
+export type RejectProofContext = AuthenticatedHandlerContext<RejectProofBody, DebtProofParams>;

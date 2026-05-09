@@ -22,7 +22,7 @@ export const addBank = form(
 		const { error } = await locals.api.v1.bank.accounts.post(payload);
 
 		if (error) {
-			invalid(extractApiErrorMessage(error, 'Failed to add account'));
+			invalid(extractApiErrorMessage(error.value, 'Failed to add account'));
 		}
 
 		return {};
@@ -48,7 +48,7 @@ export const editBank = form(
 		const { error } = await locals.api.v1.bank.accounts({ id }).patch(payload);
 
 		if (error) {
-			invalid(extractApiErrorMessage(error, 'Failed to update account'));
+			invalid(extractApiErrorMessage(error.value, 'Failed to update account'));
 		}
 
 		return { success: true };
@@ -65,7 +65,7 @@ export const deleteBank = form(
 		const { error } = await locals.api.v1.bank.accounts({ id }).delete();
 
 		if (error) {
-			invalid(extractApiErrorMessage(error, 'Failed to delete account'));
+			invalid(extractApiErrorMessage(error.value, 'Failed to delete account'));
 		}
 
 		return { success: true };

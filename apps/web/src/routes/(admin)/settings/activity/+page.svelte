@@ -6,6 +6,7 @@
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Separator } from '@repo/ui/components/ui/separator';
+	import * as Select from '@repo/ui/components/ui/select';
 	import { cn } from '$lib/utils';
 
 	let { data } = $props();
@@ -209,16 +210,20 @@
 									pagination.total
 								)} of {pagination.total} entries
 							</span>
-							<select
-								class="ml-2 rounded border bg-background px-2 py-1 text-sm"
-								value={pageSize}
-								onchange={(e) =>
-									navigateWithParams({ pageSize: parseInt(e.currentTarget.value), page: 1 })}
+							<Select.Root
+								value={pageSize.toString()}
+								onValueChange={(v) =>
+									navigateWithParams({ pageSize: parseInt(v), page: 1 })}
 							>
-								<option value={10}>10 per page</option>
-								<option value={20}>20 per page</option>
-								<option value={50}>50 per page</option>
-							</select>
+								<Select.Trigger class="ml-2 h-8 w-auto rounded border px-2 py-1 text-sm">
+									<Select.Value />
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="10" label="10 per page" />
+									<Select.Item value="20" label="20 per page" />
+									<Select.Item value="50" label="50 per page" />
+								</Select.Content>
+							</Select.Root>
 						</div>
 						<div class="flex items-center gap-1">
 							<Button

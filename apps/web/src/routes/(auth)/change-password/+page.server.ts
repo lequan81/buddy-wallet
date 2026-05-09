@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { createTreatyClient } from '$lib/services/api';
+import { extractApiErrorMessage } from '$lib/services/api-envelope';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const required = url.searchParams.get('required') === 'true';
@@ -42,8 +43,7 @@ export const actions: Actions = {
 			});
 
 			if (error) {
-				const errorData = error.value as { error?: { message: string } };
-				const errorMessage = errorData?.error?.message || 'Password change failed';
+				const errorMessage = extractApiErrorMessage(error.value, 'Password change failed');
 				return fail(400, { message: errorMessage });
 			}
 

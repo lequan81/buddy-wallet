@@ -3,8 +3,9 @@
 	import * as Table from '@repo/ui/components/ui/table';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
-	import { 
-		Search, X, Filter, Trash2, CheckSquare, Square, 
+	import * as Select from '@repo/ui/components/ui/select';
+	import {
+		Search, X, Filter, Trash2, CheckSquare, Square,
 		ArrowUp, ArrowDown, ArrowUpDown, Eye, Plus, FileText,
 		ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight
 	} from '@repo/icons';
@@ -13,7 +14,8 @@
 	import type { Debt } from '@repo/types/core/debt';
 	import { resolve } from '$app/paths';
 	import DebtStatusBadge from '$lib/components/DebtStatusBadge.svelte';
-	import { batchDeleteDebts, deleteDebt, deleteAllDebts } from '$lib/remotes/debts.remote';
+	import { api } from '$lib/services/api';
+	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
 
 	interface DashboardState {
@@ -197,28 +199,31 @@
 							</AlertDialog.Header>
 							<AlertDialog.Footer>
 								<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-								<form
-									{...batchDeleteDebts.enhance(async ({ submit }) => {
+								<AlertDialog.Action
+									disabled={dashState.isSubmitting}
+									class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+									onclick={async () => {
 										if (dashState.isSubmitting) return;
 										dashState.isSubmitting = true;
 										try {
-											await submit();
+											const ids = Array.from(dashState.selectedIds);
+											const { error } = await api.v1.debts.batch.delete({ ids });
+											if (error) {
+												toast.error('Failed to delete debts');
+												return;
+											}
+											toast.success(`Deleted ${ids.length} debt(s)`);
+											dashState.clearSelection();
+											await invalidateAll();
+										} catch {
+											toast.error('Failed to delete debts');
 										} finally {
 											dashState.isSubmitting = false;
-											dashState.clearSelection();
-											invalidateAll();
 										}
-									})}
+									}}
 								>
-									<input type="hidden" name="ids" value={Array.from(dashState.selectedIds)} />
-									<AlertDialog.Action
-										type="submit"
-										disabled={dashState.isSubmitting}
-										class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-									>
-										{dashState.isSubmitting ? 'Deleting...' : 'Delete'}
-									</AlertDialog.Action>
-								</form>
+									{dashState.isSubmitting ? 'Deleting...' : 'Delete'}
+								</AlertDialog.Action>
 							</AlertDialog.Footer>
 						</AlertDialog.Content>
 					</AlertDialog.Root>
@@ -244,27 +249,29 @@
 							</AlertDialog.Header>
 							<AlertDialog.Footer>
 								<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-								<form
-									{...deleteAllDebts.enhance(async ({ submit }) => {
+								<AlertDialog.Action
+									disabled={dashState.isSubmitting}
+									class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+									onclick={async () => {
 										if (dashState.isSubmitting) return;
 										dashState.isSubmitting = true;
 										try {
-											await submit();
+											const { error } = await api.v1.debts.all.delete({}, { query: { confirm: 'true' } });
+											if (error) {
+												toast.error('Failed to delete all debts');
+												return;
+											}
+											toast.success('All debts deleted');
+											await invalidateAll();
+										} catch {
+											toast.error('Failed to delete all debts');
 										} finally {
 											dashState.isSubmitting = false;
-											invalidateAll();
 										}
-									})}
+									}}
 								>
-									<input type="hidden" name="confirm" value="true" />
-									<AlertDialog.Action
-										type="submit"
-										disabled={dashState.isSubmitting}
-										class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-									>
-										{dashState.isSubmitting ? 'Deleting...' : 'Delete all'}
-									</AlertDialog.Action>
-								</form>
+									{dashState.isSubmitting ? 'Deleting...' : 'Delete all'}
+								</AlertDialog.Action>
 							</AlertDialog.Footer>
 						</AlertDialog.Content>
 					</AlertDialog.Root>
@@ -438,28 +445,30 @@
 											</AlertDialog.Header>
 											<AlertDialog.Footer>
 												<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-												<form
-													{...deleteDebt.enhance(async ({ submit }) => {
-														if (dashState.isDeleting) return;
-														dashState.isDeleting = true;
-														try {
-															await submit();
-														} finally {
-															dashState.isDeleting = false;
-															dashState.deleteId = '';
-															invalidateAll();
+												<AlertDialog.Action
+												disabled={dashState.isDeleting}
+												class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+												onclick={async () => {
+													if (dashState.isDeleting) return;
+													dashState.isDeleting = true;
+													try {
+														const { error } = await api.v1.debts({ id: debt.id }).delete();
+														if (error) {
+															toast.error('Failed to delete debt');
+															return;
 														}
-													})}
-												>
-													<input type="hidden" name="id" value={debt.id} />
-													<AlertDialog.Action
-														type="submit"
-														disabled={dashState.isDeleting}
-														class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-													>
-														{dashState.isDeleting ? 'Deleting...' : 'Delete'}
-													</AlertDialog.Action>
-												</form>
+														toast.success('Debt deleted');
+														dashState.deleteId = '';
+														await invalidateAll();
+													} catch {
+														toast.error('Failed to delete debt');
+													} finally {
+														dashState.isDeleting = false;
+													}
+												}}
+											>
+												{dashState.isDeleting ? 'Deleting...' : 'Delete'}
+											</AlertDialog.Action>
 											</AlertDialog.Footer>
 										</AlertDialog.Content>
 									</AlertDialog.Root>
@@ -481,17 +490,21 @@
 							pagination.total
 						)} of {pagination.total} debts
 					</span>
-					<select
-						class="ml-2 rounded border bg-background px-2 py-1 text-sm font-medium focus:ring-2 focus:ring-ring focus:outline-none"
-						value={pageSize}
-						onchange={(e) =>
-							dashState.navigateWithParams({ pageSize: parseInt(e.currentTarget.value), page: 1 })}
+					<Select.Root
+						value={pageSize.toString()}
+						onValueChange={(v) =>
+							dashState.navigateWithParams({ pageSize: parseInt(v), page: 1 })}
 					>
-						<option value={5}>5 per page</option>
-						<option value={10}>10 per page</option>
-						<option value={25}>25 per page</option>
-						<option value={50}>50 per page</option>
-					</select>
+						<Select.Trigger class="ml-2 h-8 w-auto rounded border px-2 py-1 text-sm font-medium">
+							<Select.Value />
+						</Select.Trigger>
+						<Select.Content>
+							<Select.Item value="5" label="5 per page" />
+							<Select.Item value="10" label="10 per page" />
+							<Select.Item value="25" label="25 per page" />
+							<Select.Item value="50" label="50 per page" />
+						</Select.Content>
+					</Select.Root>
 				</div>
 				<div class="flex items-center gap-2">
 					<Button

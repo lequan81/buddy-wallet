@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, Landmark, Plus, User } from '@repo/icons';
-	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
 	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
 	import { Badge } from '@repo/ui/components/ui/badge';
+	import * as Select from '@repo/ui/components/ui/select';
 
 	import { toast } from 'svelte-sonner';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
@@ -22,16 +23,15 @@
 		validateField
 	} from '@repo/schema/dto/debt';
 
-	import { type PageData, type ActionData } from './$types';
+	import { createDebtRemote } from '$lib/remotes/debts.remote';
+	import { type PageData } from './$types';
 
-	let { form, data } = $props<{ form: ActionData; data: PageData }>();
+	let { data } = $props<{ data: PageData }>();
 	let isSubmitting = $state(false);
 
 	// Bank account check - only needed for lending money, not for borrowing
 	let hasBankAccount = $derived(data.hasBankAccount ?? true);
 	let canLend = $derived(hasBankAccount);
-	let canBorrow = $derived(true); // Always allow borrowing regardless of bank account
-
 	// Use $derived for direction to react to canLend changes
 	let directionState = $state('LEND');
 	let direction = $derived.by(() => {
@@ -88,17 +88,28 @@
 	let amountResult = $derived(validateField(amountClientSchema, amount));
 	let descriptionResult = $derived(validateField(descriptionSchema, description));
 
+	// Handle remote function result
 	$effect(() => {
-		if (form?.message) {
-			// Handle duplicate warning
-			if (form?.code === 'DUPLICATE_WARNING' && form?.duplicates) {
-				duplicateDebts = form.duplicates;
-				showDuplicateModal = true;
-				isSubmitting = false;
-				return;
-			}
-			toast.error(form.message);
-			console.error('[Frontend] Form Error:', form.message);
+		const result = createDebtRemote.result;
+		if (!result) return;
+
+		if (result.code === 'DUPLICATE_WARNING' && result.duplicates) {
+			duplicateDebts = result.duplicates as Array<{
+				id: string;
+				amount: number;
+				description: string | null;
+				createdAt: string;
+			}>;
+			showDuplicateModal = true;
+			isSubmitting = false;
+			return;
+		}
+
+		if (result.success) {
+			toast.success('Debt created successfully!');
+			goto(resolve('/dashboard', {}));
+		} else if (result.message) {
+			toast.error(result.message as string);
 			isSubmitting = false;
 		}
 	});
@@ -107,10 +118,9 @@
 		confirmDuplicate = true;
 		showDuplicateModal = false;
 		// Submit form again with confirmDuplicate flag
-		const formEl = document.querySelector('form');
-		if (formEl) {
+		if (formElement) {
 			isSubmitting = true;
-			formEl.requestSubmit();
+			formElement.requestSubmit();
 		}
 	}
 
@@ -166,15 +176,16 @@
 	<Card.Root>
 		<Card.Content class="pt-6">
 			<form
-				method="POST"
-				use:enhance={({ formData }) => {
-					formData.set('confirmDuplicate', confirmDuplicate.toString());
+				bind:this={formElement}
+				{...createDebtRemote.enhance(async ({ submit }) => {
 					isSubmitting = true;
-					return async ({ update }) => {
-						await update();
+					try {
+						await submit();
+					} catch {
+						toast.error('Network error. Please try again.');
 						isSubmitting = false;
-					};
-				}}
+					}
+				})}
 				class="space-y-6"
 			>
 				<!-- Phone Number with Autocomplete -->
@@ -324,22 +335,38 @@
 				<!-- Expiry Option -->
 				<div class="space-y-2">
 					<Label class="text-sm">Confirmation Deadline</Label>
-					<select
-						id="expiryOption"
-						name="expiryOption"
-						bind:value={expiryOption}
-						class="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-					>
-						{#each expiryOptions as option}
-							<option value={option.value}>{option.label}</option>
-						{/each}
-					</select>
+					<Select.Root bind:value={expiryOption}>
+						<Select.Trigger class="w-full">
+							<Select.Value />
+						</Select.Trigger>
+						<Select.Content>
+							{#each expiryOptions as option}
+								<Select.Item value={option.value} label={option.label} />
+							{/each}
+						</Select.Content>
+					</Select.Root>
 					<p class="text-xs text-muted-foreground">
 						If the other party doesn't confirm within this period, the debt will be auto-cancelled.
 					</p>
 				</div>
 
-
+				<!-- Confirm Duplicate Checkbox (visible when duplicates detected) -->
+				{#if confirmDuplicate}
+					<div class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
+						<label class="flex items-center gap-2 text-sm">
+							<input
+								type="checkbox"
+								name="confirmDuplicate"
+								value="true"
+								checked={confirmDuplicate}
+								class="h-4 w-4 rounded border-amber-400"
+							/>
+							<span class="font-medium text-amber-800 dark:text-amber-200">
+								I confirm this is not a duplicate — create anyway
+							</span>
+						</label>
+					</div>
+				{/if}
 
 				<div class="flex gap-3">
 					<Button
@@ -430,10 +457,9 @@
 					onclick={() => {
 						showPreviewModal = false;
 						// Submit the form
-						const form = document.querySelector('form');
-						if (form) {
+						if (formElement) {
 							isSubmitting = true;
-							form.requestSubmit();
+							formElement.requestSubmit();
 						}
 					}}
 				>

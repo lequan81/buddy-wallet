@@ -4,6 +4,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { createTreatyClient } from '$lib/services/api';
+import { extractApiData } from '$lib/services/api-envelope';
 import { FRONTEND_CONSTANTS } from '@repo/config/frontend';
 type AuthStatus = 'idle' | 'resolving' | 'authenticated' | 'unauthenticated' | 'offline';
 
@@ -74,9 +75,9 @@ async function tryGetUser(
 
 		clearTimeout(timeout);
 
-		// API returns { data: { ...user } } on success — extract user from envelope
-		const envelope = data as { data?: App.Locals['user'] } | null;
-		const user = !error && envelope?.data ? envelope.data : null;
+		// API returns { data: { ...user } } on success — unwrap once
+		const parsed = extractApiData<App.Locals['user']>(data);
+		const user = !error && parsed.data ? parsed.data : null;
 
 		// Handle locked account — redirect immediately
 		if (user && (user as unknown as { isLocked?: boolean }).isLocked) {
@@ -156,8 +157,10 @@ async function tryRefreshToken(
 
 		// Refresh endpoint returns { data: { accessToken, refreshToken, ... } }
 		// It does NOT return user data. Check for data presence.
-		const envelope = data as { data?: { accessToken?: string } } | null;
-		if (error || !envelope?.data) return { user: null, newSessionToken: undefined, timedOut: false };
+		const parsed = extractApiData<{ accessToken?: string }>(data);
+		if (error || !parsed.data?.accessToken) {
+			return { user: null, newSessionToken: undefined, timedOut: false };
+		}
 
 		// Forward new cookies to the browser and get the new session token
 		const newToken = forwardRefreshCookies(event, response);
@@ -272,12 +275,12 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 			user = result.user;
 
 			if (result.timedOut && !result.user) {
-					authStatus = 'offline';
-				}
-	
-				if (user) {
-					authStatus = 'authenticated';
-				}
+				authStatus = 'offline';
+			}
+
+			if (user) {
+				authStatus = 'authenticated';
+			}
 
 			// Step 2: If /me failed (401), try refresh
 			if (!user && result.status === 401 && shouldAttemptRefresh && refreshToken) {
@@ -285,12 +288,12 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 				user = refreshResult.user;
 
 				if (refreshResult.timedOut && !refreshResult.user) {
-						authStatus = 'offline';
-					}
-	
-					if (user) {
-						authStatus = 'authenticated';
-					}
+					authStatus = 'offline';
+				}
+
+				if (user) {
+					authStatus = 'authenticated';
+				}
 
 				if (refreshResult.newSessionToken) {
 					currentToken = refreshResult.newSessionToken;
@@ -303,12 +306,12 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 			user = refreshResult.user;
 
 			if (refreshResult.timedOut && !refreshResult.user) {
-					authStatus = 'offline';
-				}
-	
-				if (user) {
-					authStatus = 'authenticated';
-				}
+				authStatus = 'offline';
+			}
+
+			if (user) {
+				authStatus = 'authenticated';
+			}
 
 			if (refreshResult.newSessionToken) {
 				currentToken = refreshResult.newSessionToken;

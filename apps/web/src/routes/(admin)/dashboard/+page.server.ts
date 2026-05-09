@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { getAuthHeaders } from '$lib/services/api';
 import { SERVER_API_URL } from '$lib/server/api-url';
+import { extractApiErrorMessage } from '$lib/services/api-envelope';
 
 import { getDashboardDebts, getDashboardUsers, getDashboardSecondaryData, getRecentDebts } from '$lib/remotes/dashboard.remote';
 
@@ -44,7 +45,7 @@ export const actions: Actions = {
 		if (!res.ok) {
 			const data = await res.json().catch(() => ({}));
 			return fail(res.status, {
-				error: (data?.message ?? data?.error) || 'Export failed'
+				error: extractApiErrorMessage(data, 'Export failed')
 			});
 		}
 		const contentType = res.headers.get('Content-Type') ?? 'text/csv; charset=utf-8';

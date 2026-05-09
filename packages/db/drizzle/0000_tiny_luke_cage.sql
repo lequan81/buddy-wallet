@@ -58,9 +58,9 @@ CREATE TABLE `debts` (
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,
 	`deleted_at` integer,
-	FOREIGN KEY (`debtor_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`creditor_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`uploaded_by_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`debtor_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`creditor_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`uploaded_by_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`suggested_by_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -119,7 +119,7 @@ CREATE TABLE `import_logs` (
 	`created_at` integer NOT NULL,
 	`completed_at` integer,
 	`deleted_at` integer,
-	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
 CREATE INDEX `idx_import_logs_user_id` ON `import_logs` (`user_id`);--> statement-breakpoint
@@ -156,7 +156,7 @@ CREATE TABLE `activity_logs` (
 	`user_agent` text,
 	`location` text,
 	`created_at` integer NOT NULL,
-	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE INDEX `idx_activity_logs_user_id` ON `activity_logs` (`user_id`);--> statement-breakpoint
@@ -236,4 +236,60 @@ CREATE TABLE `notifications` (
 --> statement-breakpoint
 CREATE INDEX `idx_notifications_user_id` ON `notifications` (`user_id`);--> statement-breakpoint
 CREATE INDEX `idx_notifications_user_read` ON `notifications` (`user_id`,`is_read`);--> statement-breakpoint
-CREATE INDEX `idx_notifications_user_created_at` ON `notifications` (`user_id`,`created_at`,`id`);
+CREATE INDEX `idx_notifications_user_created_at` ON `notifications` (`user_id`,`created_at`,`id`);--> statement-breakpoint
+CREATE TABLE `payment_proofs` (
+	`id` text(24) PRIMARY KEY NOT NULL,
+	`debt_id` text(24) NOT NULL,
+	`uploaded_by_id` text(24) NOT NULL,
+	`file_key` text NOT NULL,
+	`file_name` text NOT NULL,
+	`file_size` integer,
+	`mime_type` text,
+	`status` text DEFAULT 'pending' NOT NULL,
+	`reviewed_by_id` text(24),
+	`reviewed_at` integer,
+	`rejection_reason` text,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`debt_id`) REFERENCES `debts`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`uploaded_by_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`reviewed_by_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE INDEX `idx_payment_proofs_debt_id` ON `payment_proofs` (`debt_id`);--> statement-breakpoint
+CREATE INDEX `idx_payment_proofs_uploaded_by` ON `payment_proofs` (`uploaded_by_id`);--> statement-breakpoint
+CREATE INDEX `idx_payment_proofs_status` ON `payment_proofs` (`status`);--> statement-breakpoint
+CREATE INDEX `idx_payment_proofs_debt_status` ON `payment_proofs` (`debt_id`,`status`);--> statement-breakpoint
+CREATE TABLE `debt_status_history` (
+	`id` text(24) PRIMARY KEY NOT NULL,
+	`debt_id` text(24) NOT NULL,
+	`changed_by_id` text(24) NOT NULL,
+	`from_status` text,
+	`to_status` text NOT NULL,
+	`reason` text,
+	`metadata` text,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`debt_id`) REFERENCES `debts`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`changed_by_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE INDEX `idx_debt_status_history_debt_id` ON `debt_status_history` (`debt_id`);--> statement-breakpoint
+CREATE INDEX `idx_debt_status_history_debt_created` ON `debt_status_history` (`debt_id`,`created_at`);--> statement-breakpoint
+CREATE TABLE `debt_suggestions` (
+	`id` text(24) PRIMARY KEY NOT NULL,
+	`debt_id` text(24) NOT NULL,
+	`suggested_by_id` text(24) NOT NULL,
+	`amount` integer NOT NULL,
+	`description` text,
+	`status` text DEFAULT 'pending' NOT NULL,
+	`response_note` text,
+	`responded_at` integer,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`debt_id`) REFERENCES `debts`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`suggested_by_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE INDEX `idx_debt_suggestions_debt_id` ON `debt_suggestions` (`debt_id`);--> statement-breakpoint
+CREATE INDEX `idx_debt_suggestions_suggested_by` ON `debt_suggestions` (`suggested_by_id`);--> statement-breakpoint
+CREATE INDEX `idx_debt_suggestions_status` ON `debt_suggestions` (`status`);

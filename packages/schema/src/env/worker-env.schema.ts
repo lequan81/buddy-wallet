@@ -1,11 +1,11 @@
-import { Type, type Static } from '@sinclair/typebox';
+import * as v from 'valibot';
 
-export const workerEnvSchema = Type.Object({
-  NODE_ENV: Type.Union([Type.Literal('development'), Type.Literal('staging'), Type.Literal('production')]),
-  DATABASE_URL: Type.String(),
-  REDIS_URL: Type.Optional(Type.String()),
-  IMPORT_CHUNK_SIZE: Type.Optional(Type.String({ pattern: '^\\d+$' })),
-  IMPORT_MAX_ROWS: Type.Optional(Type.String({ pattern: '^\\d+$' }))
+export const workerEnvSchema = v.object({
+  NODE_ENV: v.union([v.literal('development'), v.literal('staging'), v.literal('production')]),
+  DATABASE_URL: v.string(),
+  REDIS_URL: v.optional(v.string()),
+  IMPORT_CHUNK_SIZE: v.optional(v.pipe(v.string(), v.regex(/^\d+$/))),
+  IMPORT_MAX_ROWS: v.optional(v.pipe(v.string(), v.regex(/^\d+$/))),
 });
 
-export type WorkerEnv = Static<typeof workerEnvSchema>;
+export type WorkerEnv = v.InferOutput<typeof workerEnvSchema>;

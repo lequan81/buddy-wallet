@@ -16,13 +16,13 @@ export const debts = sqliteTable('debts', {
   creditorPhone: text('creditor_phone').notNull(), // Phone of who is owed money
 
   // User ID links (set when users register with matching phone)
-  debtorId: text('debtor_id', { length: 24 }).references(() => users.id),
-  creditorId: text('creditor_id', { length: 24 }).references(() => users.id),
+  debtorId: text('debtor_id', { length: 24 }).references(() => users.id, { onDelete: 'set null' }),
+  creditorId: text('creditor_id', { length: 24 }).references(() => users.id, { onDelete: 'set null' }),
 
   // Who uploaded this debt record
   uploadedById: text('uploaded_by_id', { length: 24 })
     .notNull()
-    .references(() => users.id),
+    .references(() => users.id, { onDelete: 'cascade' }),
 
   // Debt details
   amount: integer('amount').notNull(), // Amount in smallest currency unit

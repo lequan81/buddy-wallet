@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { createTreatyClient } from '$lib/services/api';
+import { extractApiErrorMessage } from '$lib/services/api-envelope';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const token = url.searchParams.get('token');
@@ -37,8 +38,7 @@ export const actions: Actions = {
 			});
 
 			if (error) {
-				const errorData = error.value as { error?: { message: string } };
-				const errorMessage = errorData?.error?.message || 'Invalid or expired reset link';
+				const errorMessage = extractApiErrorMessage(error.value, 'Invalid or expired reset link');
 				return fail(400, { message: errorMessage });
 			}
 		} catch (_err) {

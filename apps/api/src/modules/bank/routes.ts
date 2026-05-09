@@ -3,7 +3,8 @@
  * @logicType http
  */
 
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
+import * as v from 'valibot';
 import {
   CreateBankAccountSchema,
   UpdateBankAccountSchema,
@@ -22,19 +23,19 @@ export const bankRoutes = new Elysia({ prefix: '/bank' })
     detail: { tags: ['bank'], description: 'List user bank accounts' }
   })
   .get('/accounts/:id', requirePermission('bank:view-own', bank.get), {
-    params: t.Object({ id: t.String() }),
+    params: v.object({ id: v.string() }),
     detail: { tags: ['bank'], description: 'Get bank account by ID' }
   })
   .patch('/accounts/:id', requirePermission('bank:update-own', bank.update), {
-    params: t.Object({ id: t.String() }),
+    params: v.object({ id: v.string() }),
     body: UpdateBankAccountSchema,
     detail: { tags: ['bank'], description: 'Update bank account' }
   })
   .delete('/accounts/:id', requirePermission('bank:delete-own', bank.remove), {
-    params: t.Object({ id: t.String() }),
+    params: v.object({ id: v.string() }),
     detail: { tags: ['bank'], description: 'Delete bank account' }
   })
   .post('/accounts/:id/set-default', requirePermission('bank:update-own', bank.setDefault), {
-    params: t.Object({ id: t.String() }),
+    params: v.object({ id: v.string() }),
     detail: { tags: ['bank'], description: 'Set bank account as default' }
   });

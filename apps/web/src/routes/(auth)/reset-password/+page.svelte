@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { Loader2, Lock } from '@repo/icons';
-	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
+	import { resetPasswordRemote } from '$lib/remotes/auth.remote';
 	import { passwordSchema, validateField } from '@repo/schema/dto/auth';
-	let { form, data } = $props();
+
+	// No props needed — token is read from URL by the remote function
 
 	let newPassword = $state('');
 	let confirmPassword = $state('');
@@ -20,9 +21,11 @@
 	const isValidPassword = $derived(passwordValidation.state !== 'error' && newPassword !== '');
 	const canSubmit = $derived(isValidPassword && isMatching && !isSubmitting);
 
+	// Show errors from remote function
 	$effect(() => {
-		if (form?.message) {
-			toast.error(form.message);
+		const issues = resetPasswordRemote.fields.allIssues();
+		if (issues && issues.length > 0) {
+			toast.error(issues[0].message);
 		}
 	});
 </script>
@@ -36,20 +39,16 @@
 
 		<Card.Content>
 			<form
-				method="POST"
-				use:enhance={() => {
+				{...resetPasswordRemote.enhance(async ({ submit }) => {
 					isSubmitting = true;
-					return async ({ update }) => {
+					try {
+						await submit();
+					} finally {
 						isSubmitting = false;
-						await update();
-					};
-				}}
+					}
+				})}
 				class="space-y-4"
 			>
-				<!-- Hidden Context -->
-				<input type="hidden" name="token" value={data.token} />
-				<input type="hidden" name="email" value={data.email} />
-
 				<!-- New Password Field -->
 				<FormInput
 					label="New Password"

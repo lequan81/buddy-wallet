@@ -5,7 +5,8 @@
  * Import routes require admin:import permission.
  */
 
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
+import * as v from 'valibot';
 import { ExportDataQuerySchema, ImportDataSchema } from './schema';
 import { data } from './handlers/data.handler';
 import { dataImport } from './handlers/import.handler';
@@ -19,15 +20,16 @@ export const dataRoutes = new Elysia({ prefix: '/data' })
     detail: { tags: ['data'], description: 'Export data in JSON or CSV format' }
   })
   // Import Preview — accepts file upload, returns preview + suggested mapping
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Elysia handler type incompatibility
   .post('/import/preview', requirePermission('admin:import', importPreview.preview) as any, {
     detail: { tags: ['data'], description: 'Upload Excel/CSV file for import preview' }
   })
   // Start import from preview — uses stored parsed JSON + column mapping
   .post('/import/:id/start', requirePermission('admin:import', importPreview.startFromPreview), {
-    params: t.Object({ id: t.String() }),
-    body: t.Object({
-      columnMapping: t.Record(t.String(), t.String()),
-      startRow: t.Optional(t.Number({ minimum: 1, default: 1 }))
+    params: v.object({ id: v.string() }),
+    body: v.object({
+      columnMapping: v.record(v.string(), v.string()),
+      startRow: v.optional(v.pipe(v.number(), v.minValue(1)))
     }),
     detail: { tags: ['data'], description: 'Start import from preview with column mapping' }
   })
@@ -37,24 +39,24 @@ export const dataRoutes = new Elysia({ prefix: '/data' })
     detail: { tags: ['data'], description: 'Import debts from JSON data (legacy)' }
   })
   .get('/import/logs', requireUser(dataImport.getLogs), {
-    query: t.Object({
-      page: t.Optional(t.Number({ minimum: 1, default: 1 })),
-      limit: t.Optional(t.Number({ minimum: 1, maximum: 100, default: 20 }))
+    query: v.object({
+      page: v.optional(v.pipe(v.number(), v.minValue(1))),
+      limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100)))
     }),
     detail: { tags: ['data'], description: 'List import history logs' }
   })
   .post('/import/progress-poll', requireUser(progressPoll.poll), {
-    body: t.Object({
-      logIds: t.Array(t.String())
+    body: v.object({
+      logIds: v.array(v.string())
     }),
     detail: { tags: ['data'], description: 'Poll import progress for multiple log IDs' }
   })
   .get('/import/:id/progress', requireUser(dataImport.getProgress), {
-    params: t.Object({ id: t.String() }),
+    params: v.object({ id: v.string() }),
     detail: { tags: ['data'], description: 'Get import progress by ID' }
   })
   .post('/import/:id/remap', requirePermission('admin:import', dataImport.remap), {
-    params: t.Object({ id: t.String() }),
-    body: t.Object({ columnMapping: t.Optional(t.Record(t.String(), t.String())) }),
+    params: v.object({ id: v.string() }),
+    body: v.object({ columnMapping: v.optional(v.record(v.string(), v.string())) }),
     detail: { tags: ['data'], description: 'Re-map columns for an existing import' }
   });

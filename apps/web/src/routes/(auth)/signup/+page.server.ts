@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { createTreatyClient } from '$lib/services/api';
+import { extractApiErrorMessage } from '$lib/services/api-envelope';
 import { superValidate, message } from 'sveltekit-superforms';
 import { typebox } from 'sveltekit-superforms/adapters';
 import type { TSchema } from '@sinclair/typebox';
@@ -37,8 +38,7 @@ export const actions: Actions = {
 			});
 
 			if (error) {
-				const errorData = error.value as { error?: { message: string } };
-				let errorMessage = errorData?.error?.message || 'Registration failed';
+				let errorMessage = extractApiErrorMessage(error.value, 'Registration failed');
 
 				// Provide user-friendly messages for common errors
 				if (

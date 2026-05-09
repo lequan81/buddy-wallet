@@ -3,18 +3,15 @@ import { users, eq, and, inArray, ne, sql, type SQL } from '@repo/db';
 import type { User, DbClient } from '@repo/db';
 import type { UserWithNotifications } from '@repo/types';
 import { db } from '@/providers/database';
-import { t } from 'elysia';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
+import * as v from 'valibot';
 
-// ── TypeBox Validation Schemas ────────────────────────────────
-const InsertUserSchema = t.Object({
-  name: t.String({ minLength: 1 }),
-  phoneNumber: t.String({ minLength: 10, maxLength: 20 }),
-  email: t.Optional(t.Union([t.String(), t.Null()])),
-  password: t.String({ minLength: 8 })
+// ── Valibot Validation Schemas ────────────────────────────────
+const InsertUserSchema = v.object({
+  name: v.pipe(v.string(), v.minLength(1)),
+  phoneNumber: v.pipe(v.string(), v.minLength(10), v.maxLength(20)),
+  email: v.optional(v.union([v.string(), v.null_()])),
+  password: v.pipe(v.string(), v.minLength(8))
 });
-
-const insertUserValidator = TypeCompiler.Compile(InsertUserSchema);
 
 /**
  * User Repository
@@ -150,9 +147,10 @@ export class UserRepository {
   }
 
   async create(data: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'isActive' | 'role' | 'failedLoginAttempts' | 'isLocked' | 'sessionVersion' | 'lockoutUntil' | 'lastFailedLoginAt' | 'emailVerified' | 'phoneVerified' | 'lastPasswordChangeAt' | 'emailNotificationsEnabled' | 'pushNotificationsEnabled' | 'temporaryPassword' | 'temporaryPasswordExpires' | 'mustChangePassword' | 'temporaryPasswordUsed'>): Promise<User> {
-    if (!insertUserValidator.Check(data)) {
-      const errors = [...insertUserValidator.Errors(data)];
-      throw new Error(`User validation failed: ${errors[0]?.message ?? 'Invalid data'}`);
+    const result = v.safeParse(InsertUserSchema, data);
+    if (!result.success) {
+      const firstIssue = result.issues[0];
+      throw new Error(`User validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
     }
     const [created] = await this.database
       .insert(users)

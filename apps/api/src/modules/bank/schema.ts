@@ -1,80 +1,52 @@
 /**
  * Bank Module Schema Definitions
  * 
- * TypeBox definitions for validation - Schema is Single Source of Truth
+ * Valibot definitions for validation - Schema is Single Source of Truth
  * Following ElysiaJS schema-first & type-driven development
  */
 
-import { t } from 'elysia';
+import * as v from 'valibot';
 
 // Create bank account schema
-export const CreateBankAccountSchema = t.Object({
-  bankName: t.String({
-    minLength: 2,
-    maxLength: 100,
-    error: 'Bank name must be between 2 and 100 characters'
-  }),
-  accountNumber: t.String({
-    minLength: 8,
-    maxLength: 20,
-    error: 'Account number must be between 8 and 20 characters'
-  }),
-  accountName: t.String({
-    minLength: 2,
-    maxLength: 100,
-    error: 'Account name must be between 2 and 100 characters'
-  }),
-  isDefault: t.Optional(t.Boolean())
+export const CreateBankAccountSchema = v.object({
+  bankName: v.pipe(v.string(), v.minLength(2), v.maxLength(100)),
+  accountNumber: v.pipe(v.string(), v.minLength(8), v.maxLength(20)),
+  accountName: v.pipe(v.string(), v.minLength(2), v.maxLength(100)),
+  isDefault: v.optional(v.boolean())
 });
 
 // Update bank account schema
-export const UpdateBankAccountSchema = t.Object({
-  bankName: t.Optional(t.String({
-    minLength: 2,
-    maxLength: 100
-  })),
-  accountNumber: t.Optional(t.String({
-    minLength: 8,
-    maxLength: 20
-  })),
-  accountName: t.Optional(t.String({
-    minLength: 2,
-    maxLength: 100
-  })),
-  isDefault: t.Optional(t.Boolean())
+export const UpdateBankAccountSchema = v.object({
+  bankName: v.optional(v.pipe(v.string(), v.minLength(2), v.maxLength(100))),
+  accountNumber: v.optional(v.pipe(v.string(), v.minLength(8), v.maxLength(20))),
+  accountName: v.optional(v.pipe(v.string(), v.minLength(2), v.maxLength(100))),
+  isDefault: v.optional(v.boolean())
 });
 
 // List bank accounts query schema
-export const ListBankAccountsQuerySchema = t.Object({
-  page: t.Optional(t.Number({
-    minimum: 1,
-    default: 1
-  })),
-  limit: t.Optional(t.Number({
-    minimum: 1,
-    maximum: 100,
-    default: 20
-  }))
+export const ListBankAccountsQuerySchema = v.object({
+  page: v.optional(v.pipe(v.number(), v.minValue(1))),
+  limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100)))
 });
 
 // Response schemas
-export const BankAccountResponseSchema = t.Object({
-  id: t.String(),
-  userId: t.String(),
-  bankName: t.String(),
-  accountNumber: t.String(),
-  accountName: t.String(),
-  isDefault: t.Boolean(),
-  createdAt: t.Date(),
-  updatedAt: t.Optional(t.Date())
+export const BankAccountResponseSchema = v.object({
+  id: v.string(),
+  userId: v.string(),
+  bankName: v.string(),
+  accountNumber: v.string(),
+  accountName: v.string(),
+  isDefault: v.boolean(),
+  createdAt: v.date(),
+  updatedAt: v.optional(v.date())
 });
 
-export const BankAccountListResponseSchema = t.Object({
-  data: t.Array(BankAccountResponseSchema),
-  meta: t.Object({
-    total: t.Number(),
-    page: t.Number(),
-    limit: t.Number(),
-    totalPages: t.Number()
+export const BankAccountListResponseSchema = v.object({
+  data: v.array(BankAccountResponseSchema),
+  meta: v.object({
+    total: v.number(),
+    page: v.number(),
+    limit: v.number(),
+    totalPages: v.number()
   })
 });

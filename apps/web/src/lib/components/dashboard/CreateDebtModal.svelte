@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import * as Dialog from '@repo/ui/components/ui/dialog';
@@ -22,6 +21,8 @@
 		Landmark,
 		Loader2
 	} from '@repo/icons';
+
+	import { createDebtRemote } from '$lib/remotes/debts.remote';
 
 	// --- Props ---
 	let {
@@ -104,35 +105,28 @@
 			ui.step = 2; // Jump to step 2 if prefilled from quick actions
 		}
 	});
-
-	// --- Form submission handler ---
-	function handleFormSubmit() {
-		ui.isSubmitting = true;
-		return async ({ result, update }: { result: { type: string; data?: Record<string, unknown> }; update: (opts: { reset: boolean }) => Promise<void> }) => {
-			ui.isSubmitting = false;
-
-			switch (result.type) {
-				case 'success':
-				case 'redirect':
-					toast.success('Debt recorded successfully!');
-					open = false;
-					invalidateAll();
-					onSuccess?.();
-					break;
-				case 'failure':
-					toast.error((result.data?.message as string) || 'Failed to create record');
-					break;
-			}
-			await update({ reset: false });
-		};
-	}
 </script>
 
 {#snippet formContent()}
 	<form
-		method="POST"
-		action="/debts/create"
-		use:enhance={handleFormSubmit}
+		{...createDebtRemote.enhance(async ({ submit }) => {
+			ui.isSubmitting = true;
+			try {
+				await submit();
+				const result = createDebtRemote.result;
+				if (result?.success) {
+					toast.success('Debt recorded successfully!');
+					open = false;
+					invalidateAll();
+					onSuccess?.();
+				} else if (result?.message) {
+					toast.error(result.message as string);
+				}
+			} catch {
+				toast.error('Network error. Please try again.');
+			}
+			ui.isSubmitting = false;
+		})}
 		class="space-y-6 flex flex-col pt-4"
 	>
 		{#if ui.step === 1}
@@ -300,12 +294,6 @@
 						</Badge>
 					</div>
 				</div>
-
-				<!-- Hidden fields required by backend API -->
-				<input type="hidden" name="direction" value={direction} />
-				<input type="hidden" name="counterpartyPhone" value={form.phoneNumber} />
-				<input type="hidden" name="expiryOption" value="never" />
-				<input type="hidden" name="confirmDuplicate" value="false" />
 
 				<div class="pt-4 flex items-center justify-between gap-3">
 					<Button type="button" variant="ghost" onclick={() => ui.step = 1}>

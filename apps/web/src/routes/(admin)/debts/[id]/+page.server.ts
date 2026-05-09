@@ -1,7 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { DebtDetails } from '@repo/types/core/debt';
-import type { BankAccount } from '@repo/types/core/bank';
 import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
 
 const extractDebt = (payload: unknown): DebtDetails | null => {
@@ -44,27 +43,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const isDebtor = debt.debtorId === locals.user.id || debt.debtorPhone === locals.user.phoneNumber;
 	const isUploader = debt.uploadedById === locals.user.id;
 
-	// Fetch additional data based on role
-	let creditorBanks: BankAccount[] = [];
-	let pendingProofs: Array<{ id: string; url: string; createdAt: string; status: string }> = [];
-
-	// Backend does not currently provide an endpoint to fetch another user's bank accounts.
-	if (isDebtor && debt.creditorId) {
-		creditorBanks = [];
-	}
-
-	if (isCreditor) {
-		// TODO: pending-proofs endpoint is not yet implemented in backend
-		pendingProofs = [];
-	}
-
 	return {
 		debt,
 		isCreditor,
 		isDebtor,
 		isUploader,
 		currentUser: locals.user,
-		creditorBanks,
-		pendingProofs
+		creditorBanks: [],
+		pendingProofs: []
 	};
 };

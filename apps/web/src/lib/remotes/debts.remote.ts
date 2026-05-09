@@ -22,7 +22,7 @@ const ensureAuthenticated = () => {
 };
 
 const parseApiFailure = (apiError: ApiErrorResult | null | undefined, fallbackMessage: string): never => {
-	invalid(extractApiErrorMessage(apiError, fallbackMessage));
+	invalid(extractApiErrorMessage(apiError?.value, fallbackMessage));
 };
 
 export const batchDeleteDebts = form('unchecked' as const, async (data) => {

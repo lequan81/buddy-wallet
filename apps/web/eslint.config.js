@@ -39,8 +39,7 @@ export default [
 					],
 					patterns: [
 						{
-							group: ['@repo/api/*'],
-							importNamePattern: '^(?!types$).*',
+							group: ['@repo/api/*', '!@repo/api/types'],
 							message: 'Only @repo/api/types is allowed. Use: import type { ... } from "@repo/api/types"'
 						}
 					]

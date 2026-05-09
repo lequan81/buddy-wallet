@@ -11,6 +11,7 @@ import { respondSuggestion } from './respond-suggestion.handler';
 import { qr } from './qr.handler';
 import { batchRemove } from './batch-remove.handler';
 import { removeAll } from './remove-all.handler';
+import { debtProof } from './proof.handler';
 
 export const debt = {
   create,
@@ -25,7 +26,8 @@ export const debt = {
   respondSuggestion,
   qr,
   batchRemove,
-  removeAll
+  removeAll,
+  proof: debtProof
 };
 
-export { create, get, list, update, remove, cancel, confirm, complete, suggest, respondSuggestion, qr, batchRemove, removeAll };
+export { create, get, list, update, remove, cancel, confirm, complete, suggest, respondSuggestion, qr, batchRemove, removeAll, debtProof };

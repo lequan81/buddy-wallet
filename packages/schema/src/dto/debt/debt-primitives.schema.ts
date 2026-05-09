@@ -1,112 +1,107 @@
-import { Type, type Static } from '@sinclair/typebox';
+import * as v from 'valibot';
 import { phoneSchema } from '../auth/auth-primitives.schema';
 
 /**
  * Debt amount schema (number, minimum 1)
  */
-export const amountSchema = Type.Number({ minimum: 1, maximum: 999_999_999_999 });
+export const amountSchema = v.pipe(v.number(), v.minValue(1), v.maxValue(999_999_999_999));
 
 /**
  * Client-side amount schema (string input, validated as formatted number)
  */
-export const amountClientSchema = Type.String({
-  minLength: 1,
-  pattern: '^\\d[\\d,]*(\\.\\d+)?$',
-});
+export const amountClientSchema = v.pipe(
+  v.string(),
+  v.minLength(1),
+  v.regex(/^\d[\d,]*(\.\d+)?$/),
+);
 
 /**
  * Description schema
  */
-export const descriptionSchema = Type.String({ minLength: 1 });
+export const descriptionSchema = v.pipe(v.string(), v.minLength(1));
 
 /**
  * Direction schema
  */
-export const directionSchema = Type.Union([
-  Type.Literal('BORROW'),
-  Type.Literal('LEND'),
-]);
+export const directionSchema = v.union([v.literal('BORROW'), v.literal('LEND')]);
 
 /**
  * Input schema for creating a debt (Server-side)
  */
-export const CreateDebtInputSchema = Type.Object({
+export const CreateDebtInputSchema = v.object({
   counterpartyPhone: phoneSchema,
   amount: amountSchema,
   direction: directionSchema,
-  description: Type.Optional(Type.String()),
-  counterpartyName: Type.Optional(Type.String()),
-  dueDate: Type.Optional(Type.Union([Type.Date(), Type.String()])),
-  status: Type.Optional(
-    Type.Union([
-      Type.Literal('pending'),
-      Type.Literal('confirmed'),
-      Type.Literal('disputed'),
-      Type.Literal('paid'),
-      Type.Literal('cancelled'),
-    ])
+  description: v.optional(v.string()),
+  counterpartyName: v.optional(v.string()),
+  dueDate: v.optional(v.union([v.date(), v.string()])),
+  status: v.optional(
+    v.union([
+      v.literal('pending'),
+      v.literal('confirmed'),
+      v.literal('disputed'),
+      v.literal('paid'),
+      v.literal('cancelled'),
+    ]),
   ),
 });
 
-export type CreateDebtInput = Static<typeof CreateDebtInputSchema>;
+export type CreateDebtInput = v.InferOutput<typeof CreateDebtInputSchema>;
 
 /**
  * Client-side schema for debt creation form
  * Uses string amount for form input
  */
-export const CreateDebtClientSchema = Type.Object({
-  ...CreateDebtInputSchema.properties,
+export const CreateDebtClientSchema = v.object({
+  ...CreateDebtInputSchema.entries,
   amount: amountClientSchema,
 });
 
-export type CreateDebtClientInput = Static<typeof CreateDebtClientSchema>;
+export type CreateDebtClientInput = v.InferOutput<typeof CreateDebtClientSchema>;
 
 /**
  * Debt Status Schema
  */
-export const debtStatusSchema = Type.Union([
-  Type.Literal('pending'),
-  Type.Literal('confirmed'),
-  Type.Literal('disputed'),
-  Type.Literal('paid'),
-  Type.Literal('cancelled'),
+export const debtStatusSchema = v.union([
+  v.literal('pending'),
+  v.literal('confirmed'),
+  v.literal('disputed'),
+  v.literal('paid'),
+  v.literal('cancelled'),
 ]);
 
-export type DebtStatus = Static<typeof debtStatusSchema>;
+export type DebtStatus = v.InferOutput<typeof debtStatusSchema>;
 
 /**
  * Debt Direction Schema
  */
-export const debtDirectionSchema = Type.Union([
-  Type.Literal('LEND'),
-  Type.Literal('BORROW'),
-]);
+export const debtDirectionSchema = v.union([v.literal('LEND'), v.literal('BORROW')]);
 
-export type DebtDirection = Static<typeof debtDirectionSchema>;
+export type DebtDirection = v.InferOutput<typeof debtDirectionSchema>;
 
 /**
  * Debt Query Schema (Pagination & Filtering)
  */
-export const debtQuerySchema = Type.Object({
-  status: Type.Optional(debtStatusSchema),
-  direction: Type.Optional(debtDirectionSchema),
-  page: Type.Optional(Type.Number({ minimum: 1, default: 1 })),
-  limit: Type.Optional(Type.Number({ minimum: 1, maximum: 100, default: 20 })),
+export const debtQuerySchema = v.object({
+  status: v.optional(debtStatusSchema),
+  direction: v.optional(debtDirectionSchema),
+  page: v.optional(v.pipe(v.number(), v.minValue(1))),
+  limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100))),
 });
 
-export type DebtQueryInput = Static<typeof debtQuerySchema>;
+export type DebtQueryInput = v.InferOutput<typeof debtQuerySchema>;
 
 /**
  * Update Debt Status Schema
  */
-export const updateDebtStatusSchema = Type.Object({
-  status: Type.Union([
-    Type.Literal('confirmed'),
-    Type.Literal('disputed'),
-    Type.Literal('paid'),
-    Type.Literal('cancelled'),
+export const updateDebtStatusSchema = v.object({
+  status: v.union([
+    v.literal('confirmed'),
+    v.literal('disputed'),
+    v.literal('paid'),
+    v.literal('cancelled'),
   ]),
-  notes: Type.Optional(Type.String()),
+  notes: v.optional(v.string()),
 });
 
-export type UpdateDebtStatusInput = Static<typeof updateDebtStatusSchema>;
+export type UpdateDebtStatusInput = v.InferOutput<typeof updateDebtStatusSchema>;

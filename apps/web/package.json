@@ -59,10 +59,10 @@
 		"workbox-window": "^7.4.0"
 	},
 	"dependencies": {
-		"@elysiajs/eden": "^1.4.8",
-		"@elysiajs/static": "^1.4.7",
-		"svelte-sonner": "^1.1.0",
-		"@sinclair/typebox": "^0.34.8",
+	  "@elysiajs/eden": "^1.4.8",
+	  "@elysiajs/static": "^1.4.7",
+	  "svelte-sonner": "^1.1.0",
+	  "valibot": "^1.0.0",
 		"@repo/api": "workspace:*",
 		"@repo/config": "workspace:*",
 		"@repo/errors": "workspace:*",

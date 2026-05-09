@@ -1,7 +1,7 @@
 import { form, getRequestEvent } from '$app/server';
 import { invalid, redirect } from '@sveltejs/kit';
 import { createTreatyClient } from '$lib/services/api';
-import { extractApiData } from '$lib/services/api-envelope';
+import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
 import { loginRequestSchema as loginSchema } from '@repo/schema/dto/auth';
 import { toStandardSchema } from '@repo/schema/adapters/standard-schema';
 
@@ -22,9 +22,7 @@ export const loginRemote = form(toStandardSchema(loginSchema), async ({ email, p
 		);
 
 		if (error) {
-			const errorData = error.value as { error?: { message: string } };
-			const errorMessage = errorData?.error?.message || 'Login failed';
-			invalid(errorMessage);
+			invalid(extractApiErrorMessage(error.value, 'Login failed'));
 		}
 
 		if (data && !('error' in data)) {

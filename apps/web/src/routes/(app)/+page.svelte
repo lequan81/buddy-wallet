@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
-	import { enhance } from '$app/forms';
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Skeleton } from '@repo/ui/components/ui/skeleton';
@@ -9,30 +8,30 @@
 	import { cn } from '$lib/utils';
 
 	import { Phone, Loader2, Users, FileCheck, Lock, Zap } from '@repo/icons';
+	import { checkDebtRemote } from '$lib/remotes/auth.remote';
 
-	let { data, form } = $props();
-	let isLoggedIn = $derived(!!data.user);
+	let { data } = $props();
+	let isLoggedIn = $derived(!!data.user || !!data.hasSession);
 
 	let phoneNumber = $state('');
 	let checking = $state(false);
 
-	let result = $derived.by(() => {
-		if (form?.success && form?.result) {
-			return form.result as { hasDebts: boolean; phone: string };
-		}
-		return null;
-	});
-
-	let error = $derived.by(() => {
-		if (form?.error) return form.error as string;
-		return '';
-	});
+	let result: { hasDebts: boolean; phone: string } | null = $state(null);
+	let checkError = $state('');
 
 	type ValidationState = 'default' | 'success' | 'error' | 'warning';
 	let validationState: ValidationState = $derived.by(() => {
-		if (error) return 'error';
+		if (checkError) return 'error';
 		if (result) return 'success';
 		return 'default';
+	});
+
+	// Show errors from remote function
+	$effect(() => {
+		const issues = checkDebtRemote.fields.allIssues();
+		if (issues && issues.length > 0) {
+			checkError = issues[0].message;
+		}
 	});
 </script>
 
@@ -51,15 +50,18 @@
 		</Card.Header>
 		<Card.Content class="space-y-5">
 			<form
-				method="POST"
-				action="?/checkDebt"
-				use:enhance={() => {
+				{...checkDebtRemote.enhance(async ({ submit }) => {
 					checking = true;
-					return async ({ update }) => {
+					checkError = '';
+					result = null;
+					try {
+						await submit();
+					} catch {
+						// Error handled by allIssues effect
+					} finally {
 						checking = false;
-						await update();
-					};
-				}}
+					}
+				})}
 			>
 			<FormInput
 				label="Phone Number"
@@ -68,7 +70,7 @@
 				placeholder="0901234567"
 				bind:value={phoneNumber}
 				{validationState}
-				{error}
+				error={checkError}
 				success={result ? `Checked: ${result.phone}` : undefined}
 				icon={Phone}
 				required

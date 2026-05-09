@@ -7,10 +7,7 @@ import { treaty } from '@elysiajs/eden';
 import type { App } from '@repo/api/types';
 import {
 	API_URL,
-	getDefaultHeaders,
-	getAuthHeaders,
-	getServerHeaders,
-	WEB_URL
+	getDefaultHeaders
 } from './api-config';
 
 export { API_URL, WEB_URL, getDefaultHeaders, getAuthHeaders, getServerHeaders } from './api-config';
@@ -27,7 +24,7 @@ export { API_URL, WEB_URL, getDefaultHeaders, getAuthHeaders, getServerHeaders }
  */
 type FlattenTreaty<T> = T extends (...args: infer Args) => infer R
 	? ((...args: Args) => FlattenTreaty<R>) & {
-		[K in keyof T as K extends keyof Function ? never : K]: FlattenTreaty<T[K]>
+		[K in keyof T as K extends keyof ((...args: unknown[]) => unknown) ? never : K]: FlattenTreaty<T[K]>
 	  }
 	: T extends Promise<infer R>
 	? Promise<FlattenTreaty<R>>
@@ -103,7 +100,18 @@ export const createTreatyClient = (
 	return client as unknown as FlattenTreaty<typeof client>;
 };
 
+let _api: ReturnType<typeof createTreatyClient> | undefined;
+export function getApi() {
+	if (!_api) _api = createTreatyClient();
+	return _api;
+}
+
 /**
- * Unified EdenTreaty API client for client-side usage
+ * Unified EdenTreaty API client for client-side usage.
+ * Uses a Proxy to avoid eager initialization during SSR.
  */
-export const api = createTreatyClient();
+export const api = new Proxy({} as ReturnType<typeof createTreatyClient>, {
+	get(_, prop) {
+		return getApi()[prop as keyof ReturnType<typeof createTreatyClient>];
+	}
+});

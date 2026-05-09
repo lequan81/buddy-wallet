@@ -1,4 +1,5 @@
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
+import * as v from 'valibot';
 import { system } from './handlers/system.handler';
 import { checkDebt } from './handlers/check-debt.handler';
 
@@ -59,7 +60,7 @@ export const systemRoutes = new Elysia()
   })
   // Public API — no auth required
   .get('/check-debt', checkDebt.handler, {
-    query: t.Object({ phone: t.String() }),
+    query: v.object({ phone: v.string() }),
     detail: {
       tags: ['public'],
       description: 'Check if a phone number has active debts (public, no auth required)'

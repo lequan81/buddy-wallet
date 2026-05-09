@@ -1,4 +1,5 @@
 export * from './create-debt.schema';
+export * from './update-debt.schema';
 export * from './debt-primitives.schema';
 
 // Re-exports for frontend convenience

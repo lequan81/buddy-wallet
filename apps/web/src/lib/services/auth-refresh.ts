@@ -37,8 +37,9 @@ export async function refreshAccessToken(
 					...(cookies ? { Cookie: cookies } : {})
 				}
 			});
-			// Extract refresh token from cookies string
-			const refreshToken = cookies?.match(/refresh_token=([^;]+)/)?.[1] || '';
+			// Extract refresh token from cookies string — bail if absent
+			const refreshToken = cookies?.match(/refresh_token=([^;]+)/)?.[1];
+			if (!refreshToken) return false;
 			const { data, error } = await api.v1.auth.refresh.post({ refreshToken });
 			if (error) return false;
 			// Backend returns success response directly (no envelope), just check if we got data

@@ -36,6 +36,7 @@ export interface Debt {
   createdAt: Date | string;
   updatedAt: Date | string;
   deletedAt: Date | string | null;
+  dueDate?: Date | string | null;
   lastSyncAt?: Date | string | null;
 }
 

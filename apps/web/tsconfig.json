@@ -6,7 +6,7 @@
 		"rewriteRelativeImportExtensions": true,
 		"moduleResolution": "bundler",
 		"strict": true,
-		"types": ["unplugin-icons/types/svelte", "../../packages/icons/src/index.d.ts"]
+		"types": ["unplugin-icons/types/svelte"]
 	},
 	"include": [
 		"src/**/*.d.ts",

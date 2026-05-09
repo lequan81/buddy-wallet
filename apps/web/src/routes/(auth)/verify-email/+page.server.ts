@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { createTreatyClient } from '$lib/services/api';
+import { extractApiErrorMessage } from '$lib/services/api-envelope';
 
 export const load: PageServerLoad = async ({ cookies }) => {
 	const email = cookies.get('pending_verification_email');
@@ -39,8 +40,7 @@ export const actions: Actions = {
 			});
 
 			if (error) {
-				const errorData = error.value as { error?: { message: string } };
-				const errorMessage = errorData?.error?.message || 'Verification failed';
+				const errorMessage = extractApiErrorMessage(error.value, 'Verification failed');
 				return fail(400, { message: errorMessage, otp });
 			}
 

@@ -1,13 +1,14 @@
 /**
  * Storage Module Schema Definitions
  * 
- * TypeBox definitions for validation - Schema is Single Source of Truth
+ * Valibot definitions for validation - Schema is Single Source of Truth
  * Following ElysiaJS schema-first & type-driven development
  */
 
 import { t } from 'elysia';
+import * as v from 'valibot';
 
-// Upload file schema
+// Upload file schema — uses Elysia's t.File() (no valibot equivalent for file uploads)
 export const UploadFileSchema = t.Object({
   file: t.File({
     type: 'image/*',
@@ -17,41 +18,32 @@ export const UploadFileSchema = t.Object({
 });
 
 // Delete file schema
-export const DeleteFileSchema = t.Object({
-  key: t.String({
-    error: 'File key is required'
-  })
+export const DeleteFileSchema = v.object({
+  key: v.string()
 });
 
 // List files query schema
-export const ListFilesQuerySchema = t.Object({
-  prefix: t.Optional(t.String()),
-  page: t.Optional(t.Number({
-    minimum: 1,
-    default: 1
-  })),
-  limit: t.Optional(t.Number({
-    minimum: 1,
-    maximum: 100,
-    default: 20
-  }))
+export const ListFilesQuerySchema = v.object({
+  prefix: v.optional(v.string()),
+  page: v.optional(v.pipe(v.number(), v.minValue(1))),
+  limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100)))
 });
 
 // Response schemas
-export const FileResponseSchema = t.Object({
-  key: t.String(),
-  url: t.String(),
-  size: t.Number(),
-  contentType: t.String(),
-  uploadedAt: t.Date()
+export const FileResponseSchema = v.object({
+  key: v.string(),
+  url: v.string(),
+  size: v.number(),
+  contentType: v.string(),
+  uploadedAt: v.date()
 });
 
-export const FileListResponseSchema = t.Object({
-  data: t.Array(FileResponseSchema),
-  meta: t.Object({
-    total: t.Number(),
-    page: t.Number(),
-    limit: t.Number(),
-    totalPages: t.Number()
+export const FileListResponseSchema = v.object({
+  data: v.array(FileResponseSchema),
+  meta: v.object({
+    total: v.number(),
+    page: v.number(),
+    limit: v.number(),
+    totalPages: v.number()
   })
 });

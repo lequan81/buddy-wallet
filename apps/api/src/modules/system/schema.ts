@@ -1,41 +1,41 @@
 /**
  * System Module Schema Definitions
  * 
- * TypeBox definitions for validation - Schema is Single Source of Truth
+ * Valibot definitions for validation - Schema is Single Source of Truth
  * Following ElysiaJS schema-first & type-driven development
  */
 
-import { t } from 'elysia';
+import * as v from 'valibot';
 
 // Health check response schema
-export const HealthResponseSchema = t.Object({
-  status: t.Union([t.Literal('healthy'), t.Literal('unhealthy'), t.Literal('degraded')]),
-  timestamp: t.Date(),
-  uptime: t.Number(),
-  version: t.String(),
-  environment: t.String(),
-  services: t.Object({
-    database: t.Union([t.Literal('up'), t.Literal('down')]),
-    redis: t.Union([t.Literal('up'), t.Literal('down')]),
-    storage: t.Union([t.Literal('up'), t.Literal('down')])
+export const HealthResponseSchema = v.object({
+  status: v.picklist(['healthy', 'unhealthy', 'degraded']),
+  timestamp: v.date(),
+  uptime: v.number(),
+  version: v.string(),
+  environment: v.string(),
+  services: v.object({
+    database: v.picklist(['up', 'down']),
+    redis: v.picklist(['up', 'down']),
+    storage: v.picklist(['up', 'down'])
   })
 });
 
 // System info response schema
-export const SystemInfoResponseSchema = t.Object({
-  version: t.String(),
-  environment: t.String(),
-  nodeVersion: t.String(),
-  platform: t.String(),
-  architecture: t.String(),
-  uptime: t.Number(),
-  memory: t.Object({
-    used: t.Number(),
-    total: t.Number(),
-    percentage: t.Number()
+export const SystemInfoResponseSchema = v.object({
+  version: v.string(),
+  environment: v.string(),
+  nodeVersion: v.string(),
+  platform: v.string(),
+  architecture: v.string(),
+  uptime: v.number(),
+  memory: v.object({
+    used: v.number(),
+    total: v.number(),
+    percentage: v.number()
   }),
-  cpu: t.Object({
-    cores: t.Number(),
-    usage: t.Number()
+  cpu: v.object({
+    cores: v.number(),
+    usage: v.number()
   })
 });

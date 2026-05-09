@@ -8,3 +8,6 @@ export * from './bank-account.schema';
 export * from './email-verification.schema';
 export * from './outbox-event.schema';
 export * from './notification.schema';
+export * from './payment-proof.schema';
+export * from './debt-status-history.schema';
+export * from './debt-suggestion.schema';

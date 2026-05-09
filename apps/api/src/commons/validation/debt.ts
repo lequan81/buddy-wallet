@@ -1,56 +1,48 @@
 /**
- * Debt Validators using TypeBox + TypeCompiler
+ * Debt Validators using Valibot
  */
-import { t } from 'elysia';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
+import * as v from 'valibot';
 import { GEN_ERRORS } from '@repo/errors';
 import { SHARED_CONSTANTS } from '@repo/config';
 import type { Result, CreateDebtInput } from '@repo/types';
 import { PhoneSchema, validatePhone } from './phone';
 
-const AmountSchema = t.Number({
-  minimum: SHARED_CONSTANTS.DEBT.MIN_AMOUNT,
-  maximum: SHARED_CONSTANTS.DEBT.MAX_AMOUNT
-});
+const AmountSchema = v.pipe(
+  v.number(),
+  v.minValue(SHARED_CONSTANTS.DEBT.MIN_AMOUNT),
+  v.maxValue(SHARED_CONSTANTS.DEBT.MAX_AMOUNT)
+);
 
-const DebtDirectionSchema = t.Union([t.Literal('BORROW'), t.Literal('LEND')]);
+const DebtDirectionSchema = v.picklist(['BORROW', 'LEND']);
 
-const DebtStatusSchema = t.Union([
-  t.Literal('pending'),
-  t.Literal('confirmed'),
-  t.Literal('disputed'),
-  t.Literal('paid'),
-  t.Literal('cancelled')
+const DebtStatusSchema = v.picklist([
+  'pending',
+  'confirmed',
+  'disputed',
+  'paid',
+  'cancelled'
 ]);
 
-const CreateDebtInputSchema = t.Object({
+const CreateDebtInputSchema = v.object({
   counterpartyPhone: PhoneSchema,
   amount: AmountSchema,
   direction: DebtDirectionSchema,
-  description: t.Optional(t.String()),
-  counterpartyName: t.Optional(t.String()),
-  dueDate: t.Optional(t.Union([t.Date(), t.String(), t.Null()])),
-  status: t.Optional(DebtStatusSchema)
+  description: v.optional(v.string()),
+  counterpartyName: v.optional(v.string()),
+  dueDate: v.optional(v.union([v.date(), v.string(), v.null_()])),
+  status: v.optional(DebtStatusSchema)
 });
-
-const amountValidator = TypeCompiler.Compile(AmountSchema);
-const createDebtValidator = TypeCompiler.Compile(CreateDebtInputSchema);
-
-function getFirstErrorMessage(errors: Iterable<{ message?: string }>, fallback: string): string {
-  for (const error of errors) {
-    return error.message ?? fallback;
-  }
-  return fallback;
-}
 
 /**
  * Validate debt amount
  */
 export function validateAmount(amount: number): Result<void> {
-  if (!amountValidator.Check(amount)) {
+  const result = v.safeParse(AmountSchema, amount);
+  if (!result.success) {
+    const firstIssue = result.issues[0];
     return {
       code: GEN_ERRORS.INVALID_INPUT.code,
-      error: getFirstErrorMessage(amountValidator.Errors(amount), 'Invalid amount')
+      error: firstIssue?.message ?? 'Invalid amount'
     };
   }
   return { data: undefined };
@@ -60,10 +52,12 @@ export function validateAmount(amount: number): Result<void> {
  * Validate CreateDebtInput
  */
 export function validateCreateDebtInput(input: CreateDebtInput): Result<CreateDebtInput> {
-  if (!createDebtValidator.Check(input)) {
+  const result = v.safeParse(CreateDebtInputSchema, input);
+  if (!result.success) {
+    const firstIssue = result.issues[0];
     return {
       code: GEN_ERRORS.VALIDATION.code,
-      error: getFirstErrorMessage(createDebtValidator.Errors(input), 'Validation failed')
+      error: firstIssue?.message ?? 'Validation failed'
     };
   }
   return { data: input };

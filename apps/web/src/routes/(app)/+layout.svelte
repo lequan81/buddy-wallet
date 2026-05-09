@@ -6,6 +6,8 @@
 
 	let { children } = $props();
 	let user = $derived(page.data.user);
+	/** Cookie-sniff: true when session cookies exist (no API call needed for UI hint) */
+	let isLoggedIn = $derived(!!user || !!page.data.hasSession);
 </script>
 
 <!-- Marketing Header -->
@@ -35,7 +37,7 @@
 		</nav>
 
 		<div class="flex items-center space-x-3">
-			{#if user}
+			{#if isLoggedIn}
 				<a
 					href={resolve(`/dashboard`, {})}
 					data-sveltekit-preload-data="hover"

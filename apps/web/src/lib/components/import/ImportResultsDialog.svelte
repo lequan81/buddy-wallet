@@ -6,6 +6,7 @@
 	import { Badge } from '@repo/ui/components/ui/badge';
 	import { formatDate } from '@repo/utils/format';
 	import type { ImportLog, ImportDetailResult } from '@repo/types/core/import';
+	import { getImportResults } from '$lib/remotes/import.remote';
 
 	let { log } = $props<{ log: ImportLog }>();
 	let showResults = $state(false);
@@ -21,9 +22,9 @@
 		
 		loadingResults = true;
 		try {
-			const response = await fetch(`/dashboard/import/results/${log.previewLogId}`);
-			if (response.ok) {
-				results = await response.json();
+			const data = await getImportResults(log.previewLogId);
+			if (data) {
+				results = data as unknown as ImportDetailResult;
 				showResults = true;
 			}
 		} catch (error) {
@@ -33,7 +34,7 @@
 		}
 	}
 
-	function handleViewDebt(debtId: string) {
+	function handleViewDebt(_debtId: string) {
 		dispatch('viewDebt');
 	}
 

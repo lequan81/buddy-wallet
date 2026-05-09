@@ -7,6 +7,7 @@
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { api } from '$lib/services/api';
+	import { buildPaginationFromMeta, extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
 	import { importProgress } from '$lib/stores/import-progress.svelte';
 	import { importUpload } from '$lib/stores/import-upload.svelte';
 	const ALLOWED_UPLOAD_TRANSITIONS: Record<string, string[]> = {
@@ -143,24 +144,24 @@
 		ui.showConnectionFallback = false;
 
 		try {
-			
+			const pageLimit = 10;
 			const { data: response, error } = await api.v1.data.import.logs.get({
 				query: {
 					page: pageNumber,
-					limit: 10
+					limit: pageLimit
 				}
 			});
 
 			if (error || !response) {
-				throw new Error((error?.value as { message?: string })?.message || 'Failed to load import history.');
+				throw new Error(
+					extractApiErrorMessage(error?.value, 'Failed to load import history.')
+				);
 			}
 
-			// response is PaginatedResult<ImportLog>
-			const res = response as unknown as { items: ImportLog[]; pagination: { total: number; limit: number } };
-			historyLogs = res.items ?? [];
-			if (res.pagination) {
-				historyTotalPages = Math.ceil(res.pagination.total / res.pagination.limit) || 1;
-			}
+			const parsed = extractApiData<ImportLog[]>(response);
+			historyLogs = parsed.data ?? [];
+			const pagination = buildPaginationFromMeta(parsed.meta, pageNumber, pageLimit);
+			historyTotalPages = Math.ceil(pagination.total / pagination.limit) || 1;
 			historyPage = Math.max(1, Math.min(pageNumber, historyTotalPages));
 		} catch (err) {
 			ui.connectionError = err instanceof Error ? err.message : 'Failed to load import history.';
@@ -342,6 +343,14 @@
 						action="?/import"
 						enctype="multipart/form-data"
 						use:enhance={({ formData }) => {
+							formData.set(
+								'config',
+								JSON.stringify({
+									mapping: importForm.columnMapping,
+									startRow: importForm.startRow
+								})
+							);
+							formData.set('previewLogId', importForm.currentJobId);
 							if (uploadState.file) {
 								formData.set('file', uploadState.file);
 							}
@@ -365,12 +374,6 @@
 							};
 						}}
 					>
-						<input type="hidden" name="config" value={JSON.stringify({
-							mapping: importForm.columnMapping,
-							startRow: importForm.startRow
-						})} />
-						<input type="hidden" name="previewLogId" value={importForm.currentJobId} />
-						
 						<ImportPreviewMapping
 							{uploadState}
 							bind:columnMapping={importForm.columnMapping}

@@ -5,6 +5,7 @@
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
 	import * as Table from '@repo/ui/components/ui/table';
+	import * as Select from '@repo/ui/components/ui/select';
 	import type { UploadState } from '$lib/types';
 
 	let {
@@ -78,16 +79,16 @@
 										<span class="text-red-500">*</span>
 									{/if}
 								</Label>
-								<select
-									id={field.key}
-									bind:value={columnMapping[field.key]}
-									class="w-full rounded-md border p-2 text-sm bg-background focus:ring-2 focus:ring-primary focus:outline-none"
-								>
-									<option value="">-- Select --</option>
-									{#each uploadState.columnHeaders as header}
-										<option value={header}>{header}</option>
-									{/each}
-								</select>
+								<Select.Root bind:value={columnMapping[field.key]}>
+										<Select.Trigger class="w-full" id={field.key}>
+											<Select.Value placeholder="-- Select --" />
+										</Select.Trigger>
+										<Select.Content>
+											{#each uploadState.columnHeaders as header}
+												<Select.Item value={header} label={header} />
+											{/each}
+										</Select.Content>
+									</Select.Root>
 							</div>
 						{/each}
 					</div>

@@ -1,6 +1,6 @@
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { SessionsResponse } from '@repo/types/core/user';
-import { fail, redirect } from '@sveltejs/kit';
 import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
 
 type SessionIndexRoute = {
@@ -31,20 +31,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const authApi = locals.api.v1 as unknown as AuthApi;
 	const sessionsRoute = authApi.auth?.sessions?.index;
 
-	if (!sessionsRoute?.get) {
-		return {
-			sessions: [],
-			currentSessionId: '',
-			error: 'Session endpoint is not available'
-		};
+	let sessionsData: SessionsResponse | null = null;
+	let sessionError = null;
+
+	if (sessionsRoute?.get) {
+		const { data, error } = await sessionsRoute.get();
+		sessionsData = extractApiData<SessionsResponse>(data).data;
+		sessionError = error ? extractApiErrorMessage(error.value, 'Failed to load sessions') : null;
 	}
 
-	const { data, error } = await sessionsRoute.get();
-	const sessionData = extractApiData<SessionsResponse>(data).data;
-
 	return {
-		sessions: sessionData?.sessions || [],
-		currentSessionId: sessionData?.currentSessionId || '',
-		error: error ? extractApiErrorMessage(error.value, 'Failed to load sessions') : null
+		sessions: sessionsData?.sessions || [],
+		currentSessionId: sessionsData?.currentSessionId || '',
+		error: sessionError
 	};
 };

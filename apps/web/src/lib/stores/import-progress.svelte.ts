@@ -1,5 +1,6 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { api } from '$lib/services/api';
+import { extractApiData } from '$lib/services/api-envelope';
 import type { ImportProgress } from '@repo/types/core/import';
 import type { ImportJob } from '@repo/types/infrastructure/jobs';
 // Inline workflow state helpers (replaces state machine)
@@ -135,7 +136,8 @@ class ImportProgressStore {
 				this.currentIntervalMs = MIN_INTERVAL_MS;
 
 				// Handle API response: unwrap { data: ... } envelope
-					const result = (data as unknown as Record<string, unknown>)?.data || data;
+				const parsed = extractApiData<Record<string, unknown>>(data);
+				const result = parsed.data ?? {};
 
 				// Extract ImportProgress from ProgressResult union
 				const progressMap: Record<string, ImportProgress> = {};
@@ -154,7 +156,7 @@ class ImportProgressStore {
 				this.applyProgressUpdates(progressMap);
 
 				// Check meta for hasActiveJobs
-					const meta = (data as unknown as Record<string, unknown>)?.meta as Record<string, unknown> | undefined;
+				const meta = parsed.meta as Record<string, unknown> | undefined;
 				if (meta && meta.hasActiveJobs === false && this.getPendingJobIds().length === 0) {
 					this.stopMonitoring();
 					return;

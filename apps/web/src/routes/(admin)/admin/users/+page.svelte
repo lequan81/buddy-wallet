@@ -6,6 +6,7 @@
 	import { page } from '$app/stores';
 	import { useDebounce } from '$lib/hooks/use-debounce.svelte';
 	import { Button } from '@repo/ui/components/ui/button';
+	import * as Select from '@repo/ui/components/ui/select';
 	import { cn } from '$lib/utils';
 
 	import { type PageData } from './$types';
@@ -90,14 +91,16 @@
 				class="w-full rounded-lg border bg-background py-2 pr-4 pl-10 outline-none focus:ring-2 focus:ring-primary/50"
 			/>
 		</div>
-		<select
-			bind:value={filterStatus}
-			class="rounded-lg border bg-background px-4 py-2 outline-none focus:ring-2 focus:ring-primary/50"
-		>
-			<option value="all">All Users</option>
-			<option value="active">Active Only</option>
-			<option value="inactive">Inactive Only</option>
-		</select>
+		<Select.Root bind:value={filterStatus}>
+			<Select.Trigger class="w-auto rounded-lg border px-4 py-2">
+				<Select.Value />
+			</Select.Trigger>
+			<Select.Content>
+				<Select.Item value="all" label="All Users" />
+				<Select.Item value="active" label="Active Only" />
+				<Select.Item value="inactive" label="Inactive Only" />
+			</Select.Content>
+		</Select.Root>
 	</div>
 
 	<!-- Users Table -->
@@ -186,17 +189,21 @@
 						pagination.total
 					)} of {pagination.total} users
 				</span>
-				<select
-					class="ml-2 rounded border bg-background px-2 py-1 text-sm"
-					value={pageSize}
-					onchange={(e) =>
-						navigateWithParams({ pageSize: parseInt(e.currentTarget.value), page: 1 })}
+				<Select.Root
+					value={pageSize.toString()}
+					onValueChange={(v) =>
+						navigateWithParams({ pageSize: parseInt(v), page: 1 })}
 				>
-					<option value={5}>5 per page</option>
-					<option value={10}>10 per page</option>
-					<option value={25}>25 per page</option>
-					<option value={50}>50 per page</option>
-				</select>
+					<Select.Trigger class="ml-2 h-8 w-auto rounded border px-2 py-1 text-sm">
+						<Select.Value />
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="5" label="5 per page" />
+						<Select.Item value="10" label="10 per page" />
+						<Select.Item value="25" label="25 per page" />
+						<Select.Item value="50" label="50 per page" />
+					</Select.Content>
+				</Select.Root>
 			</div>
 			<div class="flex items-center gap-1">
 				<Button

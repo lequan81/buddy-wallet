@@ -1,4 +1,5 @@
 import { api } from '$lib/services/api';
+import { extractApiErrorMessage } from '$lib/services/api-envelope';
 import type { PageData } from './$types';
 import type { BankAccount } from '@repo/types/core/bank';
 import type { DebtDetails, DebtStatus } from '@repo/types/core/debt';
@@ -16,7 +17,7 @@ type StorageRoutes = {
 
 export class DebtDetailState {
 	debt = $state<DebtDetails>();
-	
+
 	private creditorBanks: NonNullable<PageData['creditorBanks']>;
 	private currentUser: NonNullable<PageData['currentUser']>;
 	private isUploader: boolean;
@@ -143,7 +144,7 @@ export class DebtDetailState {
 		this.uploadError = '';
 		this.uploadSuccess = false;
 
-		
+
 		const storageRoutes = api.v1.storage as unknown as StorageRoutes;
 		const paymentProofRoute = storageRoutes['payment-proof']?.({ debtId: this.debt.id });
 
@@ -157,7 +158,7 @@ export class DebtDetailState {
 
 		this.isUploading = false;
 		if (res.error) {
-			this.uploadError = (res.error?.value as { message?: string })?.message || 'Upload failed';
+			this.uploadError = extractApiErrorMessage(res.error?.value, 'Upload failed');
 		} else {
 			this.uploadSuccess = true;
 			this.uploadFile = undefined;

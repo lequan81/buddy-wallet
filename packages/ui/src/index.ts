@@ -13,6 +13,7 @@ export * as Input from './lib/components/ui/input/index.js';
 export * as Label from './lib/components/ui/label/index.js';
 export * as Progress from './lib/components/ui/progress/index.js';
 export * as Separator from './lib/components/ui/separator/index.js';
+export * as Select from './lib/components/ui/select/index.js';
 export * as Sheet from './lib/components/ui/sheet/index.js';
 export * as Table from './lib/components/ui/table/index.js';
 export * as Textarea from './lib/components/ui/textarea/index.js';

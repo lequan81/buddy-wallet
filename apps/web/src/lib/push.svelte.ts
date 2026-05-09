@@ -8,6 +8,7 @@
  */
 
 import { api } from '$lib/services/api';
+import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
 import { getDeviceInfo } from '$lib/utils/device';
 import { getCookie, setCookie, deleteCookie } from '$lib/utils/cookie-utils';
 
@@ -88,17 +89,19 @@ export async function fetchVapidKey(): Promise<string | null> {
 	try {
 		
 		const { data, error } = (await notificationsApi['vapid-key']?.get?.()) || {};
-		interface VapidResponse { data?: { publicKey?: string }; publicKey?: string }
-		const vapidData = (data as VapidResponse)?.data || (data as VapidResponse);
+		const parsed = extractApiData<{ publicKey?: string }>(data);
+		const publicKey = parsed.data?.publicKey;
 
-		if (error || !vapidData?.publicKey) {
-			pushState.error = error ? ((error.value as { error?: { message?: string } })?.error?.message || 'Failed to fetch VAPID key') : 'Failed to fetch VAPID key';
+		if (error || !publicKey) {
+			pushState.error = error
+				? extractApiErrorMessage(error.value, 'Failed to fetch VAPID key')
+				: 'Failed to fetch VAPID key';
 			return null;
 		}
 
-		pushState.vapidPublicKey = vapidData.publicKey;
+		pushState.vapidPublicKey = publicKey;
 		pushState.error = null;
-		return vapidData.publicKey;
+		return publicKey;
 	} catch (err) {
 		const errorMsg = err instanceof Error ? err.message : 'Failed to fetch VAPID key';
 		pushState.error = errorMsg;

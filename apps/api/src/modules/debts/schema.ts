@@ -1,161 +1,95 @@
 /**
  * Debts Module Schema Definitions
  * 
- * TypeBox definitions for validation - Schema is Single Source of Truth
+ * Valibot definitions for validation - Schema is Single Source of Truth
  * Following ElysiaJS schema-first & type-driven development
  */
 
-import { t } from 'elysia';
+import * as v from 'valibot';
 
 // Create debt schema
-export const CreateDebtSchema = t.Object({
-  debtorId: t.String({
-    format: 'uuid',
-    error: 'Invalid debtor ID'
-  }),
-  amount: t.Number({
-    minimum: 1,
-    error: 'Amount must be greater than 0'
-  }),
-  currency: t.String({
-    minLength: 3,
-    maxLength: 3,
-    error: 'Invalid currency code (e.g., USD, VND)'
-  }),
-  description: t.Optional(t.String({
-    minLength: 1,
-    maxLength: 500,
-    error: 'Description must be between 1 and 500 characters'
-  })),
-  dueDate: t.Optional(t.Date())
+export const CreateDebtSchema = v.object({
+  debtorId: v.pipe(v.string(), v.uuid()),
+  amount: v.pipe(v.number(), v.minValue(1)),
+  currency: v.pipe(v.string(), v.minLength(3), v.maxLength(3)),
+  description: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(500))),
+  dueDate: v.optional(v.date())
 });
 
 // Update debt schema
-export const UpdateDebtSchema = t.Object({
-  amount: t.Optional(t.Number({
-    minimum: 1,
-    error: 'Amount must be greater than 0'
-  })),
-  currency: t.Optional(t.String({
-    minLength: 3,
-    maxLength: 3,
-    error: 'Invalid currency code (e.g., USD, VND)'
-  })),
-  description: t.Optional(t.String({
-    minLength: 1,
-    maxLength: 500,
-    error: 'Description must be between 1 and 500 characters'
-  })),
-  dueDate: t.Optional(t.Date())
+export const UpdateDebtSchema = v.object({
+  amount: v.optional(v.pipe(v.number(), v.minValue(1))),
+  currency: v.optional(v.pipe(v.string(), v.minLength(3), v.maxLength(3))),
+  description: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(500))),
+  dueDate: v.optional(v.date())
 });
 
 // Debt status schema
-export const DebtStatusSchema = t.Object({
-  status: t.Union([
-    t.Literal('pending'),
-    t.Literal('confirmed'),
-    t.Literal('cancelled'),
-    t.Literal('paid')
-  ])
+export const DebtStatusSchema = v.object({
+  status: v.picklist(['pending', 'confirmed', 'cancelled', 'paid'])
 });
 
 // Cancel debt schema
-export const CancelDebtSchema = t.Object({
-  reason: t.Optional(t.String({
-    maxLength: 500,
-    error: 'Reason must be less than 500 characters'
-  }))
+export const CancelDebtSchema = v.object({
+  reason: v.optional(v.pipe(v.string(), v.maxLength(500)))
 });
 
 // Confirm debt schema
-export const ConfirmDebtSchema = t.Object({
-  proofImageId: t.Optional(t.String())
+export const ConfirmDebtSchema = v.object({
+  proofImageId: v.optional(v.string())
 });
 
 // Batch delete schema
-export const BatchDeleteSchema = t.Object({
-  ids: t.Array(t.String({ format: 'uuid' }), { minItems: 1 })
+export const BatchDeleteSchema = v.object({
+  ids: v.pipe(v.array(v.pipe(v.string(), v.uuid())), v.minLength(1))
 });
 
 // Delete all schema
-export const DeleteAllQuerySchema = t.Object({
-  confirm: t.Literal('true')
+export const DeleteAllQuerySchema = v.object({
+  confirm: v.literal('true')
 });
 
 // List debts query schema
-export const ListDebtsQuerySchema = t.Object({
-  status: t.Optional(t.Union([
-    t.Literal('pending'),
-    t.Literal('confirmed'),
-    t.Literal('paid'),
-    t.Literal('disputed'),
-    t.Literal('cancelled')
-  ])),
-  direction: t.Optional(t.Union([
-    t.Literal('LEND'),
-    t.Literal('BORROW')
-  ])),
-  sortBy: t.Optional(t.Union([
-    t.Literal('createdAt'),
-    t.Literal('amount'),
-    t.Literal('status'),
-    t.Literal('updatedAt')
-  ])),
-  sortOrder: t.Optional(t.Union([
-    t.Literal('asc'),
-    t.Literal('desc')
-  ])),
-  page: t.Optional(t.Number({
-    minimum: 1,
-    default: 1
-  })),
-  limit: t.Optional(t.Number({
-    minimum: 1,
-    maximum: 100,
-    default: 20
-  }))
+export const ListDebtsQuerySchema = v.object({
+  status: v.optional(v.picklist(['pending', 'confirmed', 'paid', 'disputed', 'cancelled'])),
+  direction: v.optional(v.picklist(['LEND', 'BORROW'])),
+  sortBy: v.optional(v.picklist(['createdAt', 'amount', 'status', 'updatedAt'])),
+  sortOrder: v.optional(v.picklist(['asc', 'desc'])),
+  page: v.optional(v.pipe(v.number(), v.minValue(1))),
+  limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100)))
 });
 
 // Suggest edit schema
-export const SuggestEditSchema = t.Object({
-  amount: t.Optional(t.Number({
-    minimum: 1,
-    error: 'Amount must be greater than 0'
-  })),
-  description: t.Optional(t.String({
-    minLength: 1,
-    maxLength: 500,
-    error: 'Description must be between 1 and 500 characters'
-  }))
+export const SuggestEditSchema = v.object({
+  amount: v.optional(v.pipe(v.number(), v.minValue(1))),
+  description: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(500)))
 });
 
 // Respond to suggestion schema
-export const RespondSuggestionSchema = t.Object({
-  accept: t.Boolean({
-    error: 'Accept must be a boolean'
-  })
+export const RespondSuggestionSchema = v.object({
+  accept: v.boolean()
 });
 
 // Response schemas
-export const DebtResponseSchema = t.Object({
-  id: t.String(),
-  amount: t.Number(),
-  currency: t.String(),
-  debtorId: t.String(),
-  creditorId: t.String(),
-  status: t.String(),
-  description: t.Optional(t.String()),
-  dueDate: t.Optional(t.Date()),
-  createdAt: t.Date(),
-  updatedAt: t.Optional(t.Date())
+export const DebtResponseSchema = v.object({
+  id: v.string(),
+  amount: v.number(),
+  currency: v.string(),
+  debtorId: v.string(),
+  creditorId: v.string(),
+  status: v.string(),
+  description: v.optional(v.string()),
+  dueDate: v.optional(v.date()),
+  createdAt: v.date(),
+  updatedAt: v.optional(v.date())
 });
 
-export const DebtListResponseSchema = t.Object({
-  data: t.Array(DebtResponseSchema),
-  meta: t.Object({
-    total: t.Number(),
-    page: t.Number(),
-    limit: t.Number(),
-    totalPages: t.Number()
+export const DebtListResponseSchema = v.object({
+  data: v.array(DebtResponseSchema),
+  meta: v.object({
+    total: v.number(),
+    page: v.number(),
+    limit: v.number(),
+    totalPages: v.number()
   })
 });

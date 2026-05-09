@@ -20,6 +20,7 @@
 	import { Progress } from '@repo/ui/components/ui/progress';
 	import { Input } from '@repo/ui/components/ui/input';
 	import { Label } from '@repo/ui/components/ui/label';
+	import * as Select from '@repo/ui/components/ui/select';
 	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@repo/ui/components/ui/table';
 	import { formatDate } from '$lib/utils/status';
 	import { IMPORT_DB_FIELDS } from '@repo/config/shared';
@@ -215,15 +216,16 @@
 										{#each dbFields as field}
 											<div class="space-y-1.5">
 												<Label class="text-xs font-bold">{field.label} {field.required ? '*' : ''}</Label>
-												<select
-													class="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none transition-all"
-													bind:value={localMapping[field.key]}
-												>
-													<option value="">-- No Mapping --</option>
-													{#each log.columnHeaders || [] as header}
-														<option value={header}>{header}</option>
-													{/each}
-												</select>
+												<Select.Root bind:value={localMapping[field.key]}>
+													<Select.Trigger class="w-full">
+														<Select.Value placeholder="-- No Mapping --" />
+													</Select.Trigger>
+													<Select.Content>
+														{#each log.columnHeaders || [] as header}
+															<Select.Item value={header} label={header} />
+														{/each}
+													</Select.Content>
+												</Select.Root>
 											</div>
 										{/each}
 									</div>

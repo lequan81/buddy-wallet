@@ -1,28 +1,15 @@
 /**
- * Phone Validators using TypeBox + TypeCompiler
+ * Phone Validators using Valibot
  */
-import { t } from 'elysia';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
+import * as v from 'valibot';
 import { GEN_ERRORS } from '@repo/errors';
 import { normalizePhoneNumber } from '@repo/utils';
 import type { Result } from '@repo/types';
 
-export const PhoneSchema = t.String({
-  minLength: 10,
-  maxLength: 20
-});
-
-const phoneValidator = TypeCompiler.Compile(PhoneSchema);
-
-function getFirstErrorMessage(errors: Iterable<{ message?: string }>, fallback: string): string {
-  for (const error of errors) {
-    return error.message ?? fallback;
-  }
-  return fallback;
-}
+export const PhoneSchema = v.pipe(v.string(), v.minLength(10), v.maxLength(20));
 
 /**
- * Validate phone number using TypeBox schema
+ * Validate phone number using Valibot schema
  * Returns normalized phone on success
  */
 export function validatePhone(phone: string): Result<string> {
@@ -34,10 +21,12 @@ export function validatePhone(phone: string): Result<string> {
     };
   }
 
-  if (!phoneValidator.Check(normalized)) {
+  const result = v.safeParse(PhoneSchema, normalized);
+  if (!result.success) {
+    const firstIssue = result.issues[0];
     return {
       code: GEN_ERRORS.INVALID_INPUT.code,
-      error: getFirstErrorMessage(phoneValidator.Errors(normalized), 'Invalid phone number')
+      error: firstIssue?.message ?? 'Invalid phone number'
     };
   }
 
@@ -70,4 +59,3 @@ export function validatePhonePair(
 
   return { data: { phone1: result1.data!, phone2: result2.data! } };
 }
-

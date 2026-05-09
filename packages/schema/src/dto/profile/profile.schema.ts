@@ -1,23 +1,23 @@
-import { Type, type Static } from '@sinclair/typebox';
+import * as v from 'valibot';
 import { phoneSchema, nameSchema, emailSchema } from '../auth/auth-primitives.schema';
 
 /**
  * Profile schema (used for form validation)
  */
-export const profileSchema = Type.Object({
+export const profileSchema = v.object({
   phoneNumber: phoneSchema,
 });
 
-export type ProfileRequest = Static<typeof profileSchema>;
+export type ProfileRequest = v.InferOutput<typeof profileSchema>;
 
 /**
  * Update Profile Schema
  */
-export const updateProfileSchema = Type.Object({
-  name: Type.Optional(nameSchema),
-  email: Type.Optional(emailSchema),
-  pushNotificationsEnabled: Type.Optional(Type.Boolean()),
-  emailNotificationsEnabled: Type.Optional(Type.Boolean()),
+export const updateProfileSchema = v.object({
+  name: v.optional(nameSchema),
+  email: v.optional(emailSchema),
+  pushNotificationsEnabled: v.optional(v.boolean()),
+  emailNotificationsEnabled: v.optional(v.boolean()),
 });
 
-export type UpdateProfileRequest = Static<typeof updateProfileSchema>;
+export type UpdateProfileRequest = v.InferOutput<typeof updateProfileSchema>;

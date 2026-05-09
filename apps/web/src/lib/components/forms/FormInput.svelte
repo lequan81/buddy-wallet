@@ -37,7 +37,7 @@
 	let showPassword = $state(false);
 	let inputType = $derived(showPasswordToggle && showPassword ? 'text' : (type ?? 'text'));
 
-	const inputProps = restProps as Record<string, unknown>;
+	let inputProps = $derived.by(() => restProps as Record<string, unknown>);
 
 	const stateConfig = $derived.by(() => {
 		const configs = {
