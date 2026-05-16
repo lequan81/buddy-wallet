@@ -18,7 +18,8 @@
 		isSubmitting = proofId;
 		
 		try {
-			const { error } = await api.v1.debts({ id: debt.id }).proofs({ proofId })[action].post({});
+			// Proof routes are at /v1/proof/:id/:action
+			const { error } = await api.v1.proof({ id: proofId })[action].post({});
 			
 			if (error) {
 				toast.error(`Failed to ${action} proof`);

@@ -49,7 +49,7 @@
 	</div>
 
 	<form
-		{...changePassword.enhance(async ({ submit }) => {
+		{...changePassword.enhance(async ({ submit }: { submit: () => Promise<void> }) => {
 			isSubmitting = true;
 			try {
 				await submit();

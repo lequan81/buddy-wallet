@@ -2,20 +2,16 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { getAuthHeaders } from '$lib/services/api';
 import { SERVER_API_URL } from '$lib/server/api-url';
-import { extractApiErrorMessage } from '$lib/services/api-envelope';
 
 import { getDashboardDebts, getDashboardUsers, getDashboardSecondaryData, getRecentDebts } from '$lib/remotes/dashboard.remote';
 
-export const load: PageServerLoad = async ({ locals, parent, url }) => {
-	const statusFilter = url.searchParams.get('status') || 'all';
-	const page = parseInt(url.searchParams.get('page') || '1');
-	const pageSize = parseInt(url.searchParams.get('pageSize') || '10');
-
+export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { permissions } = await parent();
 
 	const usersPromise = getDashboardUsers(permissions.canManageUsers);
-	const debtsPromise = getDashboardDebts({ statusFilter, page, pageSize });
-	
+	// Load all debts client-side for snappy, seamless filtering
+	const debtsPromise = getDashboardDebts({ statusFilter: 'all', page: 1, pageSize: 1000 });
+
 	const { hasBankAccount, recentContacts } = await getDashboardSecondaryData();
 	const recentDebtsPromise = getRecentDebts();
 
@@ -25,9 +21,6 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 			debtsData: debtsPromise,
 			recentDebts: recentDebtsPromise
 		},
-		statusFilter,
-		page,
-		pageSize,
 		currentUser: locals.user,
 		hasBankAccount,
 		recentContacts
@@ -45,7 +38,7 @@ export const actions: Actions = {
 		if (!res.ok) {
 			const data = await res.json().catch(() => ({}));
 			return fail(res.status, {
-				error: extractApiErrorMessage(data, 'Export failed')
+				error: (data?.message || 'Export failed')
 			});
 		}
 		const contentType = res.headers.get('Content-Type') ?? 'text/csv; charset=utf-8';

@@ -25,7 +25,7 @@ export const respondSuggestion = async ({ params, body, user }: RespondSuggestio
 
   if (accept) {
     // Apply suggestion to debt
-    const updateData: DebtUpdateData = {
+    const updateData: Parameters<typeof debtRepo.update>[1] = {
       updatedAt: new Date(),
       suggestedAmount: null,
       suggestedDescription: null,

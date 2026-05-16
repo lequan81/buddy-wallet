@@ -1,9 +1,10 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
+import { redirect, getIntParam } from '$lib/services/navigation';
 import type { Actions, PageServerLoad } from './$types';
 import { FE_ERRORS } from '@repo/errors/frontend';
 import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config/shared';
 import type { ImportLog } from '@repo/types/core/import';
-import { extractApiData, extractApiErrorMessage, buildPaginationFromMeta } from '$lib/services/api-envelope';
+import { unwrapData, unwrapPagination } from '$lib/services/api-helpers';
 
 interface ImportPreviewPayload {
 	previewId: string;
@@ -23,8 +24,7 @@ interface ImportStartPayload {
 export const load: PageServerLoad = async ({ parent, locals, url }) => {
 	const { permissions } = await parent();
 
-	const historyPageRaw = Number(url.searchParams.get('historyPage') || '1');
-	const historyPage = Number.isFinite(historyPageRaw) && historyPageRaw > 0 ? historyPageRaw : 1;
+	const historyPage = getIntParam(url, 'historyPage', 1);
 	const historyLimit = 10;
 
 	if (!permissions.canImportData) {
@@ -38,7 +38,7 @@ export const load: PageServerLoad = async ({ parent, locals, url }) => {
 			};
 		}
 
-		throw redirect(303, '/dashboard');
+		redirect(303, '/dashboard');
 	}
 
 	let logs: ImportLog[] = [];
@@ -49,11 +49,9 @@ export const load: PageServerLoad = async ({ parent, locals, url }) => {
 			query: { page: historyPage, limit: historyLimit }
 		});
 		if (!error) {
-			const parsed = extractApiData<ImportLog[]>(data);
-			logs = parsed.data ?? [];
-
-			const pagination = buildPaginationFromMeta(parsed.meta, historyPage, historyLimit);
-			historyTotalPages = Math.max(1, Math.ceil(pagination.total / pagination.limit));
+			logs = unwrapData<ImportLog[]>(data) ?? [];
+			const pag = unwrapPagination(data, { page: historyPage, limit: historyLimit });
+			historyTotalPages = Math.max(1, pag.totalPages || Math.ceil(pag.total / pag.limit));
 		}
 	} catch (err) {
 		console.error('[Import] Failed to load history:', err);
@@ -96,12 +94,11 @@ export const actions: Actions = {
 				if (error) {
 					return fail(typeof error.status === 'number' ? error.status : 400, {
 						code: FE_ERRORS.IMPORT_PREVIEW_FAILED.code,
-						message: extractApiErrorMessage(error.value, FE_ERRORS.IMPORT_PREVIEW_FAILED.message)
+						message: ((error.value as { message?: string })?.message || FE_ERRORS.IMPORT_PREVIEW_FAILED.message)
 					});
 				}
 
-				const parsed = extractApiData<ImportPreviewPayload>(data);
-				const previewData = parsed.data;
+				const previewData = unwrapData<ImportPreviewPayload>(data);
 				if (!previewData?.previewId) {
 					return fail(500, {
 						code: FE_ERRORS.IMPORT_PREVIEW_FAILED.code,
@@ -110,8 +107,8 @@ export const actions: Actions = {
 				}
 
 				const headers = previewData.headers || [];
-				const previewRows = (previewData.previewRows || []).map((row) =>
-					headers.map((h) => String(row[h] ?? ''))
+				const previewRows = (previewData.previewRows || []).map((row: Record<string, unknown>) =>
+					headers.map((h: string) => String(row[h] ?? ''))
 				);
 
 				return {
@@ -182,12 +179,11 @@ export const actions: Actions = {
 					if (error) {
 						return fail(typeof error.status === 'number' ? error.status : 500, {
 							code: 'BE_UNKNOWN',
-							message: extractApiErrorMessage(error.value, 'Import failed')
+							message: ((error.value as { message?: string })?.message || 'Import failed')
 						});
 					}
 
-					const parsed = extractApiData<ImportStartPayload>(data);
-					const payload = parsed.data ?? {};
+					const payload = unwrapData<ImportStartPayload>(data) ?? {};
 					return {
 						success: true,
 						jobId: payload.importId || previewLogId,
@@ -197,21 +193,21 @@ export const actions: Actions = {
 				}
 
 				const body = {
-						file: safeFile,
-						config: configRaw
-					};
-	
-					// Legacy endpoint body shape differs from typed schema
-					const { data, error } = await locals.api.v1.data.import.post(body as unknown as Parameters<typeof locals.api.v1.data.import.post>[0]);
+					file: safeFile,
+					config: configRaw
+				};
+
+				// Legacy endpoint body shape differs from typed schema
+				const { data, error } = await locals.api.v1.data.import.post(body as unknown as Parameters<typeof locals.api.v1.data.import.post>[0]);
 				if (error) {
 					return fail(typeof error.status === 'number' ? error.status : 500, {
 						code: 'BE_UNKNOWN',
-						message: extractApiErrorMessage(error.value, 'Import failed')
+						message: ((error.value as { message?: string })?.message || 'Import failed')
 					});
 				}
 
-				const parsed = extractApiData<{ importId?: string }>(data);
-				const jobId = parsed.data?.importId || previewLogId;
+				const result = unwrapData<{ importId?: string }>(data) ?? {};
+				const jobId = result.importId || previewLogId;
 				return { success: true, jobId };
 			} catch (err) {
 				console.error('[IMPORT FETCH ERROR]:', err);

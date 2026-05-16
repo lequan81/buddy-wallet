@@ -37,10 +37,12 @@ export async function refreshAccessToken(
 					...(cookies ? { Cookie: cookies } : {})
 				}
 			});
-			// Extract refresh token from cookies string — bail if absent
+			// Extract refresh token from cookies string (server-side SSR), or
+			// send empty body and let the browser auto-send the HttpOnly cookie (client-side)
 			const refreshToken = cookies?.match(/refresh_token=([^;]+)/)?.[1];
-			if (!refreshToken) return false;
-			const { data, error } = await api.v1.auth.refresh.post({ refreshToken });
+			const { data, error } = await api.v1.auth.refresh.post(
+				refreshToken ? { refreshToken } : {}
+			);
 			if (error) return false;
 			// Backend returns success response directly (no envelope), just check if we got data
 			return data != null;

@@ -2,7 +2,7 @@ import { getRequestEvent, query } from '$app/server';
 import type { Debt } from '@repo/types/core/debt';
 import type { UserResponse } from '@repo/types/core/user';
 import type { Pagination } from '@repo/types/api/pagination';
-import { extractApiData, buildPaginationFromMeta } from '$lib/services/api-envelope';
+import { unwrapData, unwrapPagination } from '$lib/services/api-helpers';
 
 interface DashboardDebtsInput {
 	statusFilter: string;
@@ -44,14 +44,18 @@ export const getDashboardDebts = query(
 
 		try {
 			const { data } = await locals.api.v1.debts.get({ query: debtsQuery });
-			const parsed = extractApiData<Debt[]>(data);
-			if (!parsed.data) {
-				return emptyDebtsResult(pageSize);
-			}
+			const debts = unwrapData<Debt[]>(data) ?? [];
+			const pag = unwrapPagination(data, { page, limit: pageSize });
 
 			return {
-				debts: parsed.data,
-				pagination: buildPaginationFromMeta(parsed.meta, page, pageSize)
+				debts,
+				pagination: {
+					total: pag.total,
+					limit: pag.limit,
+					page: pag.page,
+					offset: (pag.page - 1) * pag.limit,
+					hasMore: pag.page < pag.totalPages
+				} satisfies Pagination
 			};
 		} catch {
 			return emptyDebtsResult(pageSize);
@@ -69,8 +73,7 @@ export const getDashboardUsers = query(
 			const { data } = await locals.api.v1.user.admin.users.get({
 					query: { page: 1, limit: 100 }
 				});
-			const parsed = extractApiData<UserResponse[]>(data);
-			return parsed.data ?? [];
+			return unwrapData<UserResponse[]>(data) ?? [];
 		} catch {
 			return [];
 		}
@@ -89,11 +92,10 @@ export const getDashboardSecondaryData = query(async () => {
 			locals.api.v1.debts.get({ query: { limit: 10, page: 1 } })
 		]);
 
-		const bankParsed = extractApiData<unknown[]>(bankRes.data);
-		hasBankAccount = Array.isArray(bankParsed.data) && bankParsed.data.length > 0;
+		const banks = unwrapData<unknown[]>(bankRes.data);
+		hasBankAccount = Array.isArray(banks) && banks.length > 0;
 
-		const contactsParsed = extractApiData<Debt[]>(contactsRes.data);
-		recentContacts = contactsParsed.data ?? [];
+		recentContacts = unwrapData<Debt[]>(contactsRes.data) ?? [];
 	} catch (err) {
 		console.error('[Dashboard] Failed to load bank/contacts:', err);
 	}
@@ -106,8 +108,7 @@ export const getRecentDebts = query(async (): Promise<Debt[]> => {
 
 	try {
 		const { data } = await locals.api.v1.debts.get({ query: { limit: 10, page: 1 } });
-		const parsed = extractApiData<Debt[]>(data);
-		return parsed.data ?? [];
+		return unwrapData<Debt[]>(data) ?? [];
 	} catch {
 		return [];
 	}

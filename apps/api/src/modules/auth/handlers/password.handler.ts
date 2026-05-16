@@ -32,7 +32,7 @@ export const password = {
     const verification = await emailVerificationRepo.findByOtpHash(otpHash);
 
     if (!verification) {
-      return apiError(BE_ERRORS.AUTH_INVALID_CREDENTIALS);
+      return apiError(BE_ERRORS.EMAIL_OTP_INVALID);
     }
 
     if (verification.expiresAt < new Date()) {

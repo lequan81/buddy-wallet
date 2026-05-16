@@ -1,7 +1,7 @@
 import { form, getRequestEvent } from '$app/server';
 import { invalid } from '@sveltejs/kit';
 import type { UserResponse } from '@repo/types/core/user';
-import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
+import { unwrapData } from '$lib/services/api-helpers';
 
 export const toggleUserStatus = form(async () => {
 	const { locals, params } = getRequestEvent();
@@ -17,10 +17,10 @@ export const toggleUserStatus = form(async () => {
 
 	const { data: userData, error: userError } = await locals.api.v1.user.admin.users({ id: userId }).get();
 	if (userError) {
-		invalid(extractApiErrorMessage(userError.value, 'User not found'));
+		invalid((userError.value?.message || 'User not found'));
 	}
 
-	const user = extractApiData<UserResponse>(userData).data;
+	const user = unwrapData<UserResponse>(userData);
 	if (!user) {
 		invalid('User not found');
 	}
@@ -31,7 +31,7 @@ export const toggleUserStatus = form(async () => {
 	});
 
 	if (apiError) {
-		invalid(extractApiErrorMessage(apiError.value, 'Failed to update status'));
+		invalid((apiError.value?.message || 'Failed to update status'));
 	}
 
 	return { success: true, isActive: nextIsActive };

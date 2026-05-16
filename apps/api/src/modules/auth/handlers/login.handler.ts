@@ -4,7 +4,7 @@
  */
 
 import { randomUUIDv7 } from 'bun';
-import { authConfig } from '@/config';
+import { configs, authConfig } from '@/config';
 import { SHARED_CONSTANTS } from '@repo/config';
 import { db } from '@/providers/database';
 import { UserRepository } from '@/repositories/user/user.repo';
@@ -27,7 +27,7 @@ const tokenMeta = getTokenLifetimes();
 const SESSION_META_TTL_SECONDS = SHARED_CONSTANTS.AUTH.REFRESH_TOKEN_MAX_AGE_DAYS * 24 * 60 * 60;
 
 export const session = {
-  login: async ({ body, request, jwt }: LoginContext) => {
+  login: async ({ body, request, jwt, cookie }: LoginContext) => {
     const { identifier, password } = body;
     const userAgent = request.headers.get('user-agent') || 'Unknown';
     const ipAddress = request.headers.get('x-forwarded-for') || '127.0.0.1';
@@ -48,7 +48,7 @@ export const session = {
 
     if (!user) {
       await hashPassword(password);
-      return apiError(BE_ERRORS.AUTH_INVALID_CREDENTIALS);
+      return apiError(BE_ERRORS.USER_NOT_FOUND);
     }
 
     // --- Lockout check: DB field as persistent fallback, Redis for fast rejection ---
@@ -136,6 +136,30 @@ export const session = {
     }
 
     logger.app('User logged in', { userId: user.id, identifier: redactIdentifier(identifier) });
+    
+    // Set HttpOnly cookies for security
+    const isProd = configs.APP.IS_PRODUCTION;
+    
+    // @ts-ignore - cookie is available in Elysia context
+    const { session: sessionCookie, refresh_token: refreshCookie } = cookie;
+
+    sessionCookie.set({
+      value: accessToken,
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: tokenMeta.accessMs / 1000
+    });
+
+    refreshCookie.set({
+      value: refreshToken,
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: tokenMeta.refreshMs / 1000
+    });
 
     return apiSuccess({
       user: toUserResponse(user),
@@ -146,8 +170,12 @@ export const session = {
     }, 'Login successful');
   },
 
-  refresh: async ({ body, jwt }: RefreshContext) => {
-    const refreshToken = body.refreshToken;
+  refresh: async ({ body, jwt, cookie }: RefreshContext) => {
+    // Accept refresh token from body (server-side) or HttpOnly cookie (client-side)
+    const refreshToken = body.refreshToken || String(cookie?.refresh_token?.value || '');
+    if (!refreshToken) {
+      return apiError(BE_ERRORS.AUTH_INVALID_CREDENTIALS, 'Refresh token required');
+    }
     const refreshTokenHash = await hashToken(refreshToken);
 
     const activeSession = await sessionRepo.findActiveByRefreshToken(refreshTokenHash);
@@ -185,6 +213,30 @@ export const session = {
       lastRefreshedAt: new Date()
     });
 
+    // Set HttpOnly cookies for security
+    const isProd = configs.APP.IS_PRODUCTION;
+    
+    // @ts-ignore - cookie is available in Elysia context
+    const { session: sessionCookie, refresh_token: refreshCookie } = cookie;
+
+    sessionCookie.set({
+      value: accessToken,
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: tokenMeta.accessMs / 1000
+    });
+
+    refreshCookie.set({
+      value: nextRefreshToken,
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: tokenMeta.refreshMs / 1000
+    });
+
     return apiSuccess({
       accessToken,
       refreshToken: nextRefreshToken,
@@ -193,7 +245,13 @@ export const session = {
     }, 'Token refreshed');
   },
 
-  logout: async ({ body, user, sessionId }: LogoutContext) => {
+  logout: async ({ body, user, sessionId, cookie }: LogoutContext) => {
+    // Clear cookies regardless of session status
+    // @ts-ignore - cookie is available in Elysia context
+    const { session: sessionCookie, refresh_token: refreshCookie } = cookie;
+    sessionCookie.remove();
+    refreshCookie.remove();
+
     if (!user) {
       return apiSuccess({ loggedOut: true }, 'Logged out');
     }

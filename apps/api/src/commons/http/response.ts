@@ -2,84 +2,63 @@
  * HTTP Response Utilities
  * @logicType http
  *
- * Standardized response envelopes with auto-set HTTP status codes.
- * Handlers no longer need `set.status` before returning.
- *
- * - apiError:   Returns native Response with status from error definition
- * - apiSuccess: Returns 200 Response
- * - apiCreated: Returns 201 Response
- * - apiAccepted: Returns 202 Response
- * - apiNoContent: Returns 204 Response
+ * Standardized response envelopes for ElysiaJS and Eden Treaty.
+ * Handlers use these to preserve end-to-end type safety on the frontend.
  */
 
-type ErrorLike = { code: string; message?: string; error?: string; status?: number };
+import { status as elysiaStatus, ElysiaCustomStatusResponse } from 'elysia';
 
-export function apiError(
-  error: ErrorLike,
+export type ErrorLike = { code: string; message?: string; error?: string; status?: number };
+
+export function apiError<const T extends ErrorLike>(
+  err: T,
   detail?: string
-): Response {
-  const status = error.status || 500;
-  const msg = detail || error.message || error.error || 'An error occurred';
-  return new Response(
-    JSON.stringify({
-      error: {
-        code: error.code,
-        message: msg,
-        ...(detail ? { detail } : {})
-      }
-    }),
-    {
-      status,
-      headers: { 'Content-Type': 'application/json' }
-    }
-  );
+): ElysiaCustomStatusResponse<
+  T['status'] extends number ? T['status'] : 500,
+  {
+    code: T['code'];
+    message: string;
+    detail?: string;
+  }
+> {
+  const statusCode = (err.status || 500) as T['status'] extends number ? T['status'] : 500;
+  const msg = detail || err.message || err.error || 'An error occurred';
+  return elysiaStatus(statusCode as any, {
+    code: err.code as T['code'],
+    message: msg as string,
+    ...(detail ? { detail } : {})
+  }) as any;
 }
 
 export function apiSuccess<T>(
   data: T,
   message?: string,
-  meta?: Record<string, unknown>,
-  status: number = 200
-): Response {
-  return new Response(
-    JSON.stringify({
-      data,
-      ...(message ? { message } : {}),
-      ...(meta ? { meta } : {})
-    }),
-    {
-      status,
-      headers: { 'Content-Type': 'application/json' }
-    }
-  );
+  meta?: Record<string, unknown>
+) {
+  return {
+    data,
+    ...(message ? { message } : {}),
+    ...(meta ? { meta } : {})
+  };
 }
 
-export function apiCreated<T>(data: T, message?: string): Response {
-  return new Response(
-    JSON.stringify({
-      data,
-      ...(message ? { message } : {})
-    }),
-    {
-      status: 201,
-      headers: { 'Content-Type': 'application/json' }
-    }
-  );
+export function apiCreated<T>(data: T, message?: string) {
+  // We use elysiaStatus here not because it's an error, but because it's
+  // Elysia's built-in way to return a specific HTTP status code (201)
+  // while preserving perfect type inference for Eden Treaty.
+  return elysiaStatus(201, {
+    data,
+    ...(message ? { message } : {})
+  });
 }
 
-export function apiAccepted<T>(data: T, message?: string): Response {
-  return new Response(
-    JSON.stringify({
-      data,
-      ...(message ? { message } : {})
-    }),
-    {
-      status: 202,
-      headers: { 'Content-Type': 'application/json' }
-    }
-  );
+export function apiAccepted<T>(data: T, message?: string) {
+  return elysiaStatus(202, {
+    data,
+    ...(message ? { message } : {})
+  });
 }
 
-export function apiNoContent(): Response {
-  return new Response(null, { status: 204 });
+export function apiNoContent() {
+  return elysiaStatus(204, null);
 }

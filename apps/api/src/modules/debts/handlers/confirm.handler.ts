@@ -14,7 +14,7 @@ import { BE_ERRORS } from '@repo/errors';
 import { db } from '@/providers/database';
 import { DebtRepository } from '@/repositories/debt/debt.repo';
 import { validateStatusTransition } from '../services/debt.service';
-import type { ConfirmDebtContext, DebtUpdateData } from '../types/handler.types';
+import type { ConfirmDebtContext } from '../types/handler.types';
 import { apiSuccess, apiError } from '@/commons/http/response';
 import { logActivity } from '@/commons/activity-logger';
 import { onDebtConfirmed } from '@/modules/notification/services/notification-triggers.service';
@@ -57,7 +57,7 @@ export const confirm = async ({ params, user }: ConfirmDebtContext) => {
       const isCreditor = user.id === txDebt.creditorId;
       const isDebtor = user.id === txDebt.debtorId;
 
-      const updateData: DebtUpdateData = {
+      const updateData: Parameters<typeof debtRepo.update>[1] = {
         updatedAt: new Date(),
         confirmedByCreditor: isCreditor ? true : undefined,
         creditorConfirmedAt: isCreditor ? new Date() : undefined,

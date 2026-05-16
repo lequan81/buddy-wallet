@@ -24,19 +24,22 @@ import {
   requestLoggerPlugin,
   redisPlugin,
   telemetry,
-  actor
 } from '@/plugins';
+import { actor } from '@/modules/auth/plugins/actor.plugin';
 import { apiError } from '@/commons/http/response';
 
 // Business Logic Modules
-import { authHandler } from '@/modules/auth';
-import { debtsHandler } from '@/modules/debts';
-import { bankHandler } from '@/modules/bank';
-import { storageHandler } from '@/modules/storage';
-import { userHandler } from '@/modules/user';
-import { dataHandler } from '@/modules/data';
-import { notificationHandler } from '@/modules/notification';
-import { systemHandler } from '@/modules/system';
+import { authRoutes } from '@/modules/auth/routes';
+import { debtRoutes } from '@/modules/debts/routes';
+import { bankRoutes } from '@/modules/bank/routes';
+import { storageRoutes } from '@/modules/storage/routes';
+import { userRoutes } from '@/modules/user/routes';
+import { dataRoutes } from '@/modules/data/routes';
+import { notificationRoutes } from '@/modules/notification/routes';
+import { proofRoutes } from '@/modules/proof/routes';
+import { activityRoutes } from '@/modules/activity/routes';
+import { systemRoutes } from '@/modules/system';
+import { publicRoutes } from '@/modules/public';
 
 const MAX_REQUEST_BYTES = 10 * 1024 * 1024; // 10MB
 const MAX_QUERY_PARAM_LENGTH = 1024; // 1KB
@@ -65,6 +68,7 @@ export function createApp() {
           { name: 'storage', description: 'File storage endpoints' },
           { name: 'data', description: 'Import/Export endpoints' },
           { name: 'notification', description: 'Notification endpoints' },
+          { name: 'activity', description: 'Activity log endpoints' },
           { name: 'system', description: 'System health endpoints' }
         ]
       }
@@ -133,21 +137,22 @@ export function createApp() {
     // --- LAYER 3: AUTH CONTEXT ---
     .use(actor)
 
-    // --- LAYER 4: SYSTEM ROUTES (PUBLIC) ---
-    .use(systemHandler.register())
-
-    // --- LAYER 5: BUSINESS LOGIC & API V1 ---
-    .group('/v1', (api) =>
-      api
+    // --- LAYER 4: API ROUTES ---
+    .group('/v1', (v1) => v1
         // Public routes (no auth required)
-        .use(authHandler.register())
-        // Protected routes enforce auth through requireUser wrappers.
-        .use(userHandler.register())
-        .use(debtsHandler.register())
-        .use(dataHandler.register())
-        .use(bankHandler.register())
-        .use(storageHandler.register())
-        .use(notificationHandler.register())
+        .use(publicRoutes)
+        // System routes
+        .use(systemRoutes)
+        // Business logic routes (protected)
+        .use(authRoutes)
+        .use(userRoutes)
+        .use(debtRoutes)
+        .use(dataRoutes)
+        .use(bankRoutes)
+        .use(storageRoutes)
+        .use(notificationRoutes)
+        .use(proofRoutes)
+        .use(activityRoutes)
     );
 }
 

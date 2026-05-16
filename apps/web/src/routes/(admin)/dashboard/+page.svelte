@@ -14,7 +14,7 @@
 	import type { Debt } from '@repo/types/core/debt';
 	import { DEBT_STATUS } from '@repo/config/shared/status';
 	import CreateDebtModal from '$lib/components/dashboard/CreateDebtModal.svelte';
-	import { createDashboardState } from './dashboard.svelte';
+	import { DashboardState } from '$lib/dashboard/state.svelte';
 	import DashboardStats from '$lib/components/dashboard/DashboardStats.svelte';
 	import DebtsTable from '$lib/components/dashboard/DebtsTable.svelte';
 	
@@ -45,12 +45,7 @@
 	let permissions = $derived(data.permissions);
 	let currentUser = $derived(data.currentUser);
 
-	const dashState = untrack(() => createDashboardState(currentUser?.id || ''));
-
-	// Pagination from server (URL params)
-	let currentPage = $derived(data.page || 1);
-	let pageSize = $derived(data.pageSize || 10);
-	let statusFilter = $derived(data.statusFilter || 'all');
+	const dashState = untrack(() => new DashboardState(currentUser?.id || ''));
 </script>
 
 <PageContainer>
@@ -95,37 +90,20 @@
 			<!-- Table skeleton -->
 			<div class="h-125 animate-pulse rounded-xl bg-muted/50"></div>
 		{:then debtsResult}
-			{@const { debts, pagination } = debtsResult as { 
-				debts: Debt[]; 
-				pagination: { total: number; limit: number; offset: number; hasMore: boolean } 
+			{@const { debts } = debtsResult as {
+				debts: Debt[];
+				pagination: { total: number; limit: number; offset: number; hasMore: boolean }
 			}}
 
 			<!-- Financial Summary -->
+			{@const summary = dashState.getFinancialSummary(debts)}
 			<FinancialSummary
-				totalOwedToYou={debts
-					.filter(
-						(d: Debt) =>
-							d.creditorId === currentUser?.id && d.status !== DEBT_STATUS.PAID && d.status !== DEBT_STATUS.CANCELLED
-					)
-					.reduce((acc: number, d: Debt) => acc + d.amount, 0)}
-				totalYouOwe={debts
-					.filter(
-						(d: Debt) =>
-							d.debtorId === currentUser?.id && d.status !== DEBT_STATUS.PAID && d.status !== DEBT_STATUS.CANCELLED
-					)
-					.reduce((acc: number, d: Debt) => acc + d.amount, 0)}
+				totalOwedToYou={summary.totalOwedToYou}
+				totalYouOwe={summary.totalYouOwe}
 			/>
 
 			<!-- Action Required / Pending Confirmation Alert -->
-			{@const debtsNeedingMyConfirmation = debts.filter((d: Debt) => {
-				if (!d.needsConfirmation) return false;
-				if (d.uploadedById === currentUser?.id) return false;
-				const isCreditor = d.creditorId === currentUser?.id;
-				const isDebtor = d.debtorId === currentUser?.id;
-				if (isCreditor && !d.confirmedByCreditor) return true;
-				if (isDebtor && !d.confirmedByDebtor) return true;
-				return false;
-			})}
+			{@const debtsNeedingMyConfirmation = dashState.getDebtsNeedingConfirmation(debts)}
 
 			{#if debtsNeedingMyConfirmation.length > 0}
 				<Card.Root class="border-warning/50 bg-warning/5">
@@ -183,14 +161,10 @@
 				canManageUsers={permissions.canManageUsers}
 			/>
 
-			<DebtsTable 
-				{debts} 
-				{pagination} 
-				{dashState} 
-				{permissions} 
-				{statusFilter}
-				{pageSize}
-				{currentPage}
+			<DebtsTable
+				{debts}
+				{dashState}
+				{permissions}
 				onOpenCreateModal={() => handleOpenCreateModal()}
 			/>
 		{/await}

@@ -55,7 +55,7 @@
 
 		<Card.Content>
 			<form
-				{...loginRemote.enhance(async ({ submit }) => {
+				{...loginRemote.enhance(async ({ submit, data: _data }) => {
 					isSubmitting = true;
 					try {
 						await submit();

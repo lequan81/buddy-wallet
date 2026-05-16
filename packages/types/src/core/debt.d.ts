@@ -63,6 +63,7 @@ export type DebtResult = Result<DebtResultData>;
 export interface CreateDebtInput {
   counterpartyPhone: string;
   amount: number;
+  currency: string;
   description?: string;
   counterpartyName?: string;
   dueDate?: Date | string | null;

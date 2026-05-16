@@ -2,53 +2,31 @@ import type { AuthenticatedHandlerContext } from '@/types/handler-context';
 import type { EntityIdParams } from '@/types/common-params';
 import type { ListQuery } from '@/types/common-queries';
 
-export type DebtStatus = 'pending' | 'confirmed' | 'paid' | 'disputed' | 'cancelled';
-export type DebtDirection = 'LEND' | 'BORROW';
+export type { DebtStatus, DebtDirection, Debt } from '@repo/types/core/debt';
+import type { Debt } from '@repo/types/core/debt';
+import type { CreateDebtInput } from '@repo/types/core/debt';
 
 /**
- * Debt update data shape for handlers.
- * Handlers should never import @repo/db directly — use this type instead.
- * Repositories are the only consumers of @repo/db.
+ * Debt update data shape for repositories.
  */
-export interface DebtUpdateData {
+export type DebtUpdateData = Partial<Omit<Debt, 'id' | 'createdAt' | 'updatedAt'>> & {
   updatedAt: Date;
-  status?: DebtStatus;
-  amount?: number;
-  currency?: string;
-  description?: string | null;
-  expiresAt?: Date | null;
-  confirmedByCreditor?: boolean;
-  confirmedByDebtor?: boolean;
-  creditorConfirmedAt?: Date | null;
-  debtorConfirmedAt?: Date | null;
-  suggestedAmount?: number | null;
-  suggestedDescription?: string | null;
-  suggestedById?: string | null;
-  suggestedAt?: Date | null;
-  hasPendingProof?: boolean;
-  proofCount?: number;
-  lastProofUploadedAt?: Date | null;
-  deletedAt?: Date | null;
-}
+};
 
 export type DebtIdParams = EntityIdParams;
 
-export interface CreateDebtBody {
+export interface CreateDebtBody extends Omit<CreateDebtInput, 'direction' | 'counterpartyPhone'> {
   debtorId: string;
-  amount: number;
-  currency: string;
-  description?: string;
-  dueDate?: string | Date;
   debtorPhone?: string;
   creditorPhone?: string;
 }
 
-export interface UpdateDebtBody {
+export type UpdateDebtBody = {
   amount?: number;
   currency?: string;
   description?: string;
-  dueDate?: string | Date;
-}
+  dueDate?: string | Date | null;
+};
 
 export interface CancelDebtBody {
   reason?: string;

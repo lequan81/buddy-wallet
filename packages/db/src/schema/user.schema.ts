@@ -34,6 +34,11 @@ export const users = sqliteTable('users', {
   mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(false),
   temporaryPasswordUsed: integer('temporary_password_used', { mode: 'boolean' }).notNull().default(false),
 
+  // Avatar image processing
+  avatarThumbnailKey: text('avatar_thumbnail_key'),
+  avatarMediumKey: text('avatar_medium_key'),
+  avatarUpdatedAt: integer('avatar_updated_at', { mode: 'timestamp' }),
+
   createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
 }, (table) => ({

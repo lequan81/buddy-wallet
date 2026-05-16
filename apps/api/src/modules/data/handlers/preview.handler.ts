@@ -16,7 +16,7 @@ import { BE_ERRORS, GEN_ERRORS } from '@repo/errors';
 import { apiSuccess, apiError, apiAccepted } from '@/commons/http/response';
 import { validateImportUploadFile } from '@/commons/validation/import';
 import { logActivity } from '@/commons/activity-logger';
-import { enqueueJob, createJob } from '@/providers/redis/queue';
+import { enqueueJob, createWorkerJob } from '@/providers/redis/queue';
 import {
   parseSpreadsheetFile,
   suggestColumnMapping,
@@ -168,17 +168,16 @@ export const importPreview = {
       config: JSON.stringify({ s3Key, columnMapping, startRow })
     });
 
-    // Enqueue job for background processing
-    const job = createJob('import-process', {
-      logId: log.id,
+    // Enqueue job for background processing (format expected by apps/worker)
+    const jobPayload = createWorkerJob('import', {
       userId: user.id,
-      s3Key,
-      columnMapping,
-      startRow,
-      totalRows: log.totalRows || 0
+      fileName: `import-${log.id}.json`,
+      storageKey: s3Key,
+      config: { mapping: columnMapping, startRow } as Record<string, unknown>,
+      previewLogId: log.id
     });
 
-    await enqueueJob('imports', job);
+    await enqueueJob('imports', jobPayload as unknown as Record<string, unknown>);
 
     logActivity({
       userId: user.id,

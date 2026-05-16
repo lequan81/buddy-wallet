@@ -1,9 +1,9 @@
-import { api } from '$lib/services/api';
-import { extractApiErrorMessage } from '$lib/services/api-envelope';
-import type { PageData } from './$types';
-import type { BankAccount } from '@repo/types/core/bank';
 import type { DebtDetails, DebtStatus } from '@repo/types/core/debt';
 import { DEBT_STATUS } from '@repo/config/shared/status';
+// NOTE: This class is currently unused. It's kept as a utility for potential future use.
+import { api } from '$lib/services/api';
+
+type CurrentUser = { id: string; name?: string; email?: string; phoneNumber?: string | null; role?: string };
 
 type PaymentProofApi = {
 	'post': (payload: { file: File }) => Promise<{
@@ -15,11 +15,19 @@ type StorageRoutes = {
 	'payment-proof'?: (params: { debtId: string }) => PaymentProofApi;
 };
 
+type BankAccountLike = {
+	id: string;
+	bankBin: string;
+	accountNumber: string;
+	accountName: string | null;
+	isDefault: boolean;
+};
+
 export class DebtDetailState {
 	debt = $state<DebtDetails>();
 
-	private creditorBanks: NonNullable<PageData['creditorBanks']>;
-	private currentUser: NonNullable<PageData['currentUser']>;
+	private creditorBanks: BankAccountLike[];
+	private currentUser: CurrentUser;
 	private isUploader: boolean;
 	private isCreditor: boolean;
 	private isDebtor: boolean;
@@ -44,8 +52,6 @@ export class DebtDetailState {
 	uploadError = $state('');
 	uploadSuccess = $state(false);
 
-	lastApprovedDebtId = $state('');
-
 	// Suggest Edit state
 	suggestAmount = $state('');
 	suggestDescription = $state('');
@@ -53,8 +59,8 @@ export class DebtDetailState {
 
 	constructor(
 		debt: DebtDetails,
-		creditorBanks: NonNullable<PageData['creditorBanks']>,
-		currentUser: NonNullable<PageData['currentUser']>,
+		creditorBanks: BankAccountLike[],
+		currentUser: CurrentUser,
 		isUploader: boolean,
 		isCreditor: boolean,
 		isDebtor: boolean
@@ -70,15 +76,15 @@ export class DebtDetailState {
 		this.editAmount = debt?.amount?.toString() || '';
 
 		if (creditorBanks.length > 0) {
-			const def = creditorBanks.find((b: BankAccount) => b.isDefault);
+			const def = creditorBanks.find((b: BankAccountLike) => b.isDefault);
 			this.selectedBankId = def ? def.id : creditorBanks[0].id;
 		}
 	}
 
-	get selectedBank() {
+	get selectedBank(): BankAccountLike | undefined {
 		return (
-			this.creditorBanks.find((b: BankAccount) => b.id === this.selectedBankId) ||
-			this.creditorBanks.find((b: BankAccount) => b.isDefault) ||
+			this.creditorBanks.find((b: BankAccountLike) => b.id === this.selectedBankId) ||
+			this.creditorBanks.find((b: BankAccountLike) => b.isDefault) ||
 			this.creditorBanks[0]
 		);
 	}
@@ -138,7 +144,8 @@ export class DebtDetailState {
 	}
 
 	handleUpload = async () => {
-		if (!this.uploadFile || !this.uploadFile[0]) return;
+		const file = this.uploadFile?.[0];
+		if (!file) return;
 		if (!this.debt) return;
 		this.isUploading = true;
 		this.uploadError = '';
@@ -154,11 +161,11 @@ export class DebtDetailState {
 			return;
 		}
 
-		const res = await paymentProofRoute.post({ file: this.uploadFile[0] });
+		const res = await paymentProofRoute.post({ file });
 
 		this.isUploading = false;
 		if (res.error) {
-			this.uploadError = extractApiErrorMessage(res.error?.value, 'Upload failed');
+			this.uploadError = ((res.error?.value as { message?: string })?.message || 'Upload failed');
 		} else {
 			this.uploadSuccess = true;
 			this.uploadFile = undefined;

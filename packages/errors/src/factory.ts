@@ -5,24 +5,27 @@
  * consistent shape: { code, message, status, createError() }
  */
 
-export interface ErrorDefinition {
-	code: string;
+export interface ErrorDefinition<S extends number = number, C extends string = string> {
+	code: C;
 	message: string;
-	status: number;
+	status: S;
 }
 
-export interface ErrorEntry extends ErrorDefinition {
+export interface ErrorEntry<S extends number = number, C extends string = string> extends ErrorDefinition<S, C> {
 	createError(detail?: string): {
-		code: string;
+		code: C;
 		message: string;
-		status: number;
+		status: S;
 		detail?: string;
 	};
 }
 
-export function defineErrors<T extends Record<string, ErrorDefinition>>(
+export function defineErrors<T extends Record<string, ErrorDefinition<number, string>>>(
 	definitions: T
-): { [K in keyof T]: ErrorEntry } {
+): { [K in keyof T]: ErrorEntry<
+	T[K] extends ErrorDefinition<infer S, string> ? S : number,
+	T[K] extends ErrorDefinition<number, infer C> ? C : string
+> } {
 	const entries = {} as Record<string, ErrorEntry>;
 
 	for (const [key, def] of Object.entries(definitions)) {
@@ -41,5 +44,5 @@ export function defineErrors<T extends Record<string, ErrorDefinition>>(
 		};
 	}
 
-	return Object.freeze(entries) as { [K in keyof T]: ErrorEntry };
+	return Object.freeze(entries) as any;
 }

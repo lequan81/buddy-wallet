@@ -43,7 +43,7 @@ const config = {
 			'@repo/schema': '../../packages/schema/src',
 			'@repo/schema/*': '../../packages/schema/src/*',
 			'@repo/types': '../../packages/types/src',
-			'@repo/errors': '../../packages/errors'
+			'@repo/errors': '../../packages/errors/src'
 		},
 		paths: {
 			base: '',

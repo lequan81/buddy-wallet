@@ -14,6 +14,8 @@ import { validatePayload, isStorageConfigured } from './utils';
 import { processImportJob } from './jobs/import.job';
 import { dispatchOutboxBatch } from './jobs/outbox-dispatch.job';
 import { processPushJob, type PushJobPayload } from './jobs/push-notification.job';
+import { processImageJob } from './jobs/image-processing.job';
+import type { WorkerJobPayload } from '@repo/types';
 
 // ── Startup & Configuration ────────────────────────────────
 const KILL_TIMEOUT_MS = BACKEND_CONSTANTS.WORKER.KILL_TIMEOUT_MS || 300000;
@@ -23,9 +25,10 @@ let shuttingDown = false;
 let inFlightImportJobs = 0;
 let inFlightOutboxBatches = 0;
 let inFlightPushJobs = 0;
+let inFlightImageJobs = 0;
 
 function getInFlightCount(): number {
-  return inFlightImportJobs + inFlightOutboxBatches + inFlightPushJobs;
+  return inFlightImportJobs + inFlightOutboxBatches + inFlightPushJobs + inFlightImageJobs;
 }
 
 async function waitForDrain(): Promise<void> {
@@ -55,7 +58,8 @@ async function shutdown(signal: string): Promise<void> {
       logger.warn('[Worker] Drain timeout reached, forcing shutdown', {
         inFlightImportJobs,
         inFlightOutboxBatches,
-        inFlightPushJobs
+        inFlightPushJobs,
+        inFlightImageJobs
       });
     }
 
@@ -83,11 +87,10 @@ async function main() {
 
   const redisReady = await initRedis();
   if (!redisReady) {
-    logger.error('[Worker] Fatal: Redis unavailable after retries');
-    process.exit(1);
+    logger.warn('[Worker] Redis unavailable after initial retries — entering degraded mode (will keep retrying)');
   }
 
-  logger.info('[Worker] Listening on queues: bw:queue:imports, bw:queue:push_notifications');
+  logger.info('[Worker] Listening on queues: bw:queue:imports, bw:queue:push_notifications, bw:queue:image_processing');
 
   let consecutiveErrors = 0;
 
@@ -157,6 +160,36 @@ async function main() {
         continue;
       }
 
+      // ── Image Processing Jobs ─────────────────────────────
+      const imageResult = await redis.blpop('bw:queue:image_processing', 5);
+
+      if (imageResult && imageResult.length === 2) {
+        consecutiveErrors = 0;
+        const [, imagePayloadString] = imageResult;
+
+        let imageParsed: WorkerJobPayload;
+        try {
+          imageParsed = JSON.parse(imagePayloadString) as WorkerJobPayload;
+        } catch {
+          logger.error('[Worker] Received invalid image JSON payload', { raw: imagePayloadString.slice(0, 100) });
+          continue;
+        }
+
+        if (!imageParsed.jobId || !imageParsed.imageType) {
+          logger.error('[Worker] Invalid image job payload', { jobId: imageParsed.jobId, imageType: imageParsed.imageType });
+          continue;
+        }
+
+        logger.info(`[Worker] Processing image job: ${imageParsed.jobId} (${imageParsed.imageType})`);
+        inFlightImageJobs++;
+        try {
+          await processImageJob(imageParsed);
+        } finally {
+          inFlightImageJobs = Math.max(0, inFlightImageJobs - 1);
+        }
+        continue;
+      }
+
       // ── Outbox Dispatch (polling fallback) ───────────────
       inFlightOutboxBatches++;
       const outbox = await dispatchOutboxBatch(OUTBOX_BATCH_SIZE).finally(() => {
@@ -178,10 +211,11 @@ async function main() {
         logger.error('[Worker] Redis connection lost, attempting reconnect...');
         const reconnected = await initRedis();
         if (!reconnected) {
-          logger.error('[Worker] Reconnect failed, exiting');
-          process.exit(1);
+          logger.warn('[Worker] Reconnect failed, will retry in 30s');
+          await Bun.sleep(30_000);
+        } else {
+          consecutiveErrors = 0;
         }
-        consecutiveErrors = 0;
         continue;
       }
 

@@ -10,8 +10,18 @@ const InsertUserSchema = v.object({
   name: v.pipe(v.string(), v.minLength(1)),
   phoneNumber: v.pipe(v.string(), v.minLength(10), v.maxLength(20)),
   email: v.optional(v.union([v.string(), v.null_()])),
-  password: v.pipe(v.string(), v.minLength(8))
+  password: v.pipe(v.string(), v.minLength(8)),
+  permissions: v.optional(v.array(v.string())),
+  role: v.optional(v.picklist(['user', 'admin'])),
+  isActive: v.optional(v.boolean()),
+  emailVerified: v.optional(v.boolean()),
+  phoneVerified: v.optional(v.boolean()),
+  emailNotificationsEnabled: v.optional(v.boolean()),
+  pushNotificationsEnabled: v.optional(v.boolean()),
+  mustChangePassword: v.optional(v.boolean())
 });
+
+const UpdateUserSchema = v.partial(InsertUserSchema);
 
 /**
  * User Repository
@@ -147,6 +157,7 @@ export class UserRepository {
   }
 
   async create(data: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'isActive' | 'role' | 'failedLoginAttempts' | 'isLocked' | 'sessionVersion' | 'lockoutUntil' | 'lastFailedLoginAt' | 'emailVerified' | 'phoneVerified' | 'lastPasswordChangeAt' | 'emailNotificationsEnabled' | 'pushNotificationsEnabled' | 'temporaryPassword' | 'temporaryPasswordExpires' | 'mustChangePassword' | 'temporaryPasswordUsed'>): Promise<User> {
+    console.log('[UserRepository:create] data:', { ...data, password: '***' });
     const result = v.safeParse(InsertUserSchema, data);
     if (!result.success) {
       const firstIssue = result.issues[0];
@@ -170,6 +181,12 @@ export class UserRepository {
   }
 
   async update(id: string, data: Partial<User>): Promise<User | null> {
+    const result = v.safeParse(UpdateUserSchema, data);
+    if (!result.success) {
+      const firstIssue = result.issues[0];
+      throw new Error(`User update validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
+    }
+
     const [updated] = await this.database
       .update(users)
       .set({ ...data, updatedAt: new Date() })

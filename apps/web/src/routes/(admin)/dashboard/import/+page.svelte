@@ -7,7 +7,7 @@
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { api } from '$lib/services/api';
-	import { buildPaginationFromMeta, extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
+	import { unwrapData, unwrapPagination } from '$lib/services/api-helpers';
 	import { importProgress } from '$lib/stores/import-progress.svelte';
 	import { importUpload } from '$lib/stores/import-upload.svelte';
 	const ALLOWED_UPLOAD_TRANSITIONS: Record<string, string[]> = {
@@ -154,14 +154,14 @@
 
 			if (error || !response) {
 				throw new Error(
-					extractApiErrorMessage(error?.value, 'Failed to load import history.')
+					(error?.value?.message || 'Failed to load import history.')
 				);
 			}
 
-			const parsed = extractApiData<ImportLog[]>(response);
-			historyLogs = parsed.data ?? [];
-			const pagination = buildPaginationFromMeta(parsed.meta, pageNumber, pageLimit);
-			historyTotalPages = Math.ceil(pagination.total / pagination.limit) || 1;
+			const logs = unwrapData<ImportLog[]>(response) ?? [];
+			historyLogs = logs;
+			const pag = unwrapPagination(response, { page: pageNumber, limit: pageLimit });
+			historyTotalPages = pag.totalPages || Math.ceil(pag.total / pag.limit) || 1;
 			historyPage = Math.max(1, Math.min(pageNumber, historyTotalPages));
 		} catch (err) {
 			ui.connectionError = err instanceof Error ? err.message : 'Failed to load import history.';

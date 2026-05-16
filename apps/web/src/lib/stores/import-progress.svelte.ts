@@ -1,8 +1,9 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { api } from '$lib/services/api';
-import { extractApiData } from '$lib/services/api-envelope';
+import { unwrapData, unwrapMeta } from '$lib/services/api-helpers';
 import type { ImportProgress } from '@repo/types/core/import';
 import type { ImportJob } from '@repo/types/infrastructure/jobs';
+
 // Inline workflow state helpers (replaces state machine)
 const WORKFLOW_TERMINAL_STATES = new Set(['success', 'failed', 'cancelled']);
 
@@ -39,11 +40,6 @@ function canTransition(from: string, to: string): boolean {
  * Uses the `/progress-poll` endpoint to poll for job status.
  * Implements exponential backoff: 1s → 2s → 4s → 8s → max 30s.
  * Uses AbortController for clean cancellation.
- *
- * No SSE/WebSocket — this approach is:
- *  - More scalable (no persistent connections per user)
- *  - More reliable (works across proxies, firewalls, mobile networks)
- *  - Simpler to debug and maintain
  */
 
 const MIN_INTERVAL_MS = 1000;
@@ -125,7 +121,6 @@ class ImportProgressStore {
 		this.abortController = new AbortController();
 
 		try {
-			
 			const { data, error } = await api.v1.data.import['progress-poll'].post(
 				{ logIds: pendingIds },
 				{ fetch: { signal: this.abortController.signal } }
@@ -135,13 +130,13 @@ class ImportProgressStore {
 				// Reset backoff on success
 				this.currentIntervalMs = MIN_INTERVAL_MS;
 
-				// Handle API response: unwrap { data: ... } envelope
-				const parsed = extractApiData<Record<string, unknown>>(data);
-				const result = parsed.data ?? {};
+				// Handle API response
+				const result = unwrapData<Record<string, unknown>>(data) ?? {};
+				const meta = unwrapMeta(data);
 
 				// Extract ImportProgress from ProgressResult union
 				const progressMap: Record<string, ImportProgress> = {};
-				for (const [id, item] of Object.entries(result as Record<string, unknown>)) {
+				for (const [id, item] of Object.entries(result)) {
 					if (item && typeof item === 'object') {
 						const obj = item as Record<string, unknown>;
 						if ('data' in obj) {
@@ -155,8 +150,6 @@ class ImportProgressStore {
 				console.log('[Import] [Poll] Batch update received for', Object.keys(progressMap).length, 'jobs');
 				this.applyProgressUpdates(progressMap);
 
-				// Check meta for hasActiveJobs
-				const meta = parsed.meta as Record<string, unknown> | undefined;
 				if (meta && meta.hasActiveJobs === false && this.getPendingJobIds().length === 0) {
 					this.stopMonitoring();
 					return;
@@ -164,10 +157,8 @@ class ImportProgressStore {
 			}
 		} catch (err: unknown) {
 			if (err instanceof DOMException && err.name === 'AbortError') {
-				// Request was aborted (cancelled), don't backoff
 				return;
 			}
-			// On error, apply exponential backoff
 			this.currentIntervalMs = Math.min(
 				this.currentIntervalMs * BACKOFF_MULTIPLIER,
 				MAX_INTERVAL_MS
@@ -226,10 +217,13 @@ class ImportProgressStore {
 			job.message = result.message;
 
 			if (job.status === 'success' && result.result) {
-				if (result.result && typeof result.result === 'object' && 'data' in result.result) {
-					job.result = result.result as { data: import('@repo/types/core/import').PreviewResultData };
+				const resultData = result.result;
+				if (resultData && typeof resultData === 'object' && 'data' in resultData) {
+					// @ts-expect-error - Mismatched Result vs Data type in shared types package
+					job.result = (resultData as { data: unknown }).data;
 				} else {
-					job.result = { data: result.result } as { data: import('@repo/types/core/import').ImportResultData };
+					// @ts-expect-error - Mismatched Result vs Data type in shared types package
+					job.result = resultData;
 				}
 				// Auto-cleanup preview jobs after 30s
 				if (job.type === 'preview') {

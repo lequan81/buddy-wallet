@@ -39,7 +39,7 @@
 
 		<Card.Content>
 			<form
-				{...resetPasswordRemote.enhance(async ({ submit }) => {
+				{...resetPasswordRemote.enhance(async ({ submit }: { submit: () => Promise<void> }) => {
 					isSubmitting = true;
 					try {
 						await submit();

@@ -31,7 +31,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			};
 		}
 
-		throw redirect(303, `/login?redirect=${encodeURIComponent(url.pathname)}`);
+		throw redirect(303, '/login');
 	}
 
 	const { user } = locals;

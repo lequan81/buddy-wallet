@@ -33,10 +33,9 @@ export const dataRoutes = new Elysia({ prefix: '/data' })
     }),
     detail: { tags: ['data'], description: 'Start import from preview with column mapping' }
   })
-  // Legacy: Import from JSON data directly
   .post('/import', requirePermission('admin:import', dataImport.importData), {
     body: ImportDataSchema,
-    detail: { tags: ['data'], description: 'Import debts from JSON data (legacy)' }
+    detail: { tags: ['data'], description: 'Import debts from JSON data' }
   })
   .get('/import/logs', requireUser(dataImport.getLogs), {
     query: v.object({

@@ -1,14 +1,14 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { createTreatyClient } from '$lib/services/api';
-import { extractApiErrorMessage } from '$lib/services/api-envelope';
+import { redirect, getBoolParam } from '$lib/services/navigation';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
-	const required = url.searchParams.get('required') === 'true';
+	const required = getBoolParam(url, 'required');
 
 	// If not required change and not logged in, redirect to login
 	if (!required && !locals.user) {
-		throw redirect(303, '/login');
+		redirect(303, '/login');
 	}
 
 	return {
@@ -43,7 +43,7 @@ export const actions: Actions = {
 			});
 
 			if (error) {
-				const errorMessage = extractApiErrorMessage(error.value, 'Password change failed');
+				const errorMessage = (error.value?.message || 'Password change failed');
 				return fail(400, { message: errorMessage });
 			}
 

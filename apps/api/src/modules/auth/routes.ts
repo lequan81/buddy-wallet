@@ -22,11 +22,16 @@ import {
 import { register } from './handlers/register.handler';
 import { session } from './handlers/login.handler';
 import { password } from './handlers/password.handler';
+import { jwtAuth, jwtRefreshAuth } from './plugins/jwt.plugin';
+import { sessionsHandler } from './handlers/sessions.handler';
+import { requireUser } from '@/commons/http/require-user';
 
 export const authRoutes = new Elysia({ prefix: '/auth' })
   .group('', (auth) =>
     auth
       .use(authIdentifierRateLimiter)
+      .use(jwtAuth)
+      .use(jwtRefreshAuth)
       .post('/register', register.handler, {
         body: RegisterSchema,
         detail: { tags: ['auth'], description: 'Register a new user' }
@@ -43,6 +48,12 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
   .post('/logout', session.logout, {
     body: LogoutSchema,
     detail: { tags: ['auth'], description: 'Logout from current or all devices' }
+  })
+  .get('/sessions', requireUser(sessionsHandler.list), {
+    detail: { tags: ['auth'], description: 'List active sessions for current user' }
+  })
+  .delete('/sessions/:id', requireUser(sessionsHandler.revoke), {
+    detail: { tags: ['auth'], description: 'Revoke a specific session' }
   })
   .group('', (auth) =>
     auth

@@ -10,6 +10,8 @@ import * as v from 'valibot';
 // Create bank account schema
 export const CreateBankAccountSchema = v.object({
   bankName: v.pipe(v.string(), v.minLength(2), v.maxLength(100)),
+  bankCode: v.pipe(v.string(), v.minLength(1)),
+  bankBin: v.pipe(v.string(), v.minLength(1)),
   accountNumber: v.pipe(v.string(), v.minLength(8), v.maxLength(20)),
   accountName: v.pipe(v.string(), v.minLength(2), v.maxLength(100)),
   isDefault: v.optional(v.boolean())
@@ -18,6 +20,8 @@ export const CreateBankAccountSchema = v.object({
 // Update bank account schema
 export const UpdateBankAccountSchema = v.object({
   bankName: v.optional(v.pipe(v.string(), v.minLength(2), v.maxLength(100))),
+  bankCode: v.optional(v.pipe(v.string(), v.minLength(1))),
+  bankBin: v.optional(v.pipe(v.string(), v.minLength(1))),
   accountNumber: v.optional(v.pipe(v.string(), v.minLength(8), v.maxLength(20))),
   accountName: v.optional(v.pipe(v.string(), v.minLength(2), v.maxLength(100))),
   isDefault: v.optional(v.boolean())

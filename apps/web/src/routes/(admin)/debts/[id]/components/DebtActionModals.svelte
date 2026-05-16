@@ -97,7 +97,7 @@
 			<Dialog.Description>Modify the debt amount or description.</Dialog.Description>
 		</Dialog.Header>
 		<form
-			{...updateDebt.enhance(async ({ submit }) => {
+			{...updateDebt.enhance(async ({ submit }: { submit: () => Promise<void> }) => {
 				isSubmitting = true;
 				try {
 					await submit();
@@ -140,7 +140,7 @@
 			<Dialog.Description>Propose a different amount or description to the creditor.</Dialog.Description>
 		</Dialog.Header>
 		<form
-			{...suggestEdit.enhance(async ({ submit }) => {
+			{...suggestEdit.enhance(async ({ submit }: { submit: () => Promise<void> }) => {
 				isSubmitting = true;
 				try {
 					await submit();

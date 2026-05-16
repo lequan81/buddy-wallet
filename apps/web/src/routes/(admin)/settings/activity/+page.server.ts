@@ -1,7 +1,8 @@
+import { getIntParam } from '$lib/services/navigation';
 import type { PageServerLoad } from './$types';
 import type { ActivityLog } from '@repo/types/core/activity';
 import type { Pagination } from '@repo/types/api/pagination';
-import { extractApiData, extractApiErrorMessage, buildPaginationFromMeta } from '$lib/services/api-envelope';
+import { unwrapData, unwrapPagination } from '$lib/services/api-helpers';
 
 type ActivityRoute = {
 	get: (args: {
@@ -14,8 +15,8 @@ type ActivityApi = {
 };
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	const page = parseInt(url.searchParams.get('page') || '1');
-	const pageSize = parseInt(url.searchParams.get('pageSize') || '20');
+	const page = getIntParam(url, 'page', 1);
+	const pageSize = getIntParam(url, 'pageSize', 20);
 
 	const { api } = locals;
 	const activityApi = api.v1 as unknown as ActivityApi;
@@ -38,7 +39,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	if (error || !data) {
 		const message = error
-			? extractApiErrorMessage(error.value, 'Failed to fetch activity logs')
+			? ((error.value as { message?: string })?.message || 'Failed to fetch activity logs')
 			: 'Failed to fetch activity logs';
 		console.error('[Activity] Failed to fetch logs:', Object.assign({}, error || {}));
 		return {
@@ -50,13 +51,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		};
 	}
 
-	const parsed = extractApiData<ActivityLog[]>(data);
-	const logs = Array.isArray(parsed.data) ? parsed.data : [];
-	const pagination = buildPaginationFromMeta(parsed.meta, page, pageSize);
+	const logs = unwrapData<ActivityLog[]>(data) ?? [];
+	const paginationData = unwrapPagination(data, { page, limit: pageSize });
 
 	return {
 		logs,
-		pagination,
+		pagination: {
+			total: paginationData.total,
+			limit: paginationData.limit,
+			page: paginationData.page,
+			offset: (paginationData.page - 1) * paginationData.limit,
+			hasMore: paginationData.page < paginationData.totalPages
+		} satisfies Pagination,
 		page,
 		pageSize
 	};

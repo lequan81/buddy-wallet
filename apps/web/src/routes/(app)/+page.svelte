@@ -50,7 +50,7 @@
 		</Card.Header>
 		<Card.Content class="space-y-5">
 			<form
-				{...checkDebtRemote.enhance(async ({ submit }) => {
+				{...checkDebtRemote.enhance(async ({ submit }: { submit: () => Promise<void> }) => {
 					checking = true;
 					checkError = '';
 					result = null;

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import * as Dialog from '@repo/ui/components/ui/dialog';
 	import * as Drawer from '@repo/ui/components/ui/drawer';
 	import { Button } from '@repo/ui/components/ui/button';
@@ -9,8 +9,7 @@
 	import { toast } from 'svelte-sonner';
 	import { cn } from '$lib/utils';
 	import { Badge } from '@repo/ui/components/ui/badge';
-	import { phoneSchema, amountClientSchema, descriptionSchema, validateField } from '@repo/schema/dto/debt';
-
+	
 	import {
 		Phone,
 		User as UserIcon,
@@ -23,8 +22,19 @@
 	} from '@repo/icons';
 
 	import { createDebtRemote } from '$lib/remotes/debts.remote';
+	import { CreateDebtModalState } from './create-debt-modal-state.svelte';
 
 	// --- Props ---
+	interface Props {
+		open: boolean;
+		readonly initialDescription?: string;
+		readonly initialAmount?: string;
+		readonly initialPhone?: string;
+		readonly hasBankAccount?: boolean;
+		readonly recentContacts?: string[];
+		readonly onSuccess?: () => void;
+	}
+
 	let {
 		open = $bindable(false),
 		initialDescription = '',
@@ -33,54 +43,18 @@
 		hasBankAccount = true,
 		recentContacts = [],
 		onSuccess
-	} = $props<{
-		open: boolean;
-		initialDescription?: string;
-		initialAmount?: string;
-		initialPhone?: string;
-		hasBankAccount?: boolean;
-		recentContacts?: string[];
-		onSuccess?: () => void;
-	}>();
+	}: Props = $props();
 
-	// --- Consolidated form state ---
-	let form = $state({
-		phoneNumber: '',
-		amount: '',
-		description: '',
-		direction: 'LEND' as 'LEND' | 'BORROW'
-	});
+	// --- State Manager ---
+	const ms = untrack(() => new CreateDebtModalState({
+		hasBankAccount,
+		recentContacts,
+		initialPhone,
+		initialAmount,
+		initialDescription
+	}));
 
-	// --- UI state ---
-	let ui = $state({
-		step: 1,
-		isDesktop: true,
-		isSubmitting: false,
-		showAutocomplete: false
-	});
-
-	// --- Valibot-driven validation (replaces hardcoded if-else chains) ---
-	let phoneResult = $derived(validateField(phoneSchema, form.phoneNumber));
-	let amountResult = $derived(validateField(amountClientSchema, form.amount));
-	let descriptionResult = $derived(validateField(descriptionSchema, form.description));
-
-	// --- Derived values ---
-	let canLend = $derived(hasBankAccount);
-	let direction = $derived(
-		!hasBankAccount && form.direction === 'LEND' ? 'BORROW' : form.direction
-	);
-
-	let autocompleteContacts = $derived.by(() => {
-		if (!form.phoneNumber || form.phoneNumber.length < 2) return recentContacts.slice(0, 5);
-		return (recentContacts as string[]).filter((contact: string) => contact.includes(form.phoneNumber)).slice(0, 5);
-	});
-
-	let isStep1Valid = $derived(phoneResult.state === 'success');
-	let isStep2Valid = $derived(
-		amountResult.state === 'success' && descriptionResult.state === 'success'
-	);
-
-	// --- Step description (replaces repeated if/else in template) ---
+	// --- Step description ---
 	const stepDescriptions = {
 		desktop: ['Who was this transaction with and what was the direction?', 'Enter the financial details for this ledger entry.'],
 		mobile: ['Who was this with?', 'Financial details']
@@ -88,8 +62,8 @@
 
 	// --- Lifecycle ---
 	onMount(() => {
-		ui.isDesktop = window.innerWidth >= 768;
-		const handleResize = () => (ui.isDesktop = window.innerWidth >= 768);
+		ms.isDesktop = window.innerWidth >= 768;
+		const handleResize = () => (ms.isDesktop = window.innerWidth >= 768);
 		window.addEventListener('resize', handleResize);
 		return () => window.removeEventListener('resize', handleResize);
 	});
@@ -98,19 +72,18 @@
 	$effect(() => {
 		if (!open) {
 			setTimeout(() => {
-				form = { phoneNumber: initialPhone, amount: initialAmount, description: initialDescription, direction: 'LEND' };
-				ui.step = 1;
+				ms.reset(initialPhone, initialAmount, initialDescription);
 			}, 300);
 		} else if (initialAmount || initialDescription) {
-			ui.step = 2; // Jump to step 2 if prefilled from quick actions
+			ms.step = 2; // Jump to step 2 if prefilled from quick actions
 		}
 	});
 </script>
 
 {#snippet formContent()}
 	<form
-		{...createDebtRemote.enhance(async ({ submit }) => {
-			ui.isSubmitting = true;
+		{...createDebtRemote.enhance(async ({ submit }: { submit: () => Promise<void> }) => {
+			ms.isSubmitting = true;
 			try {
 				await submit();
 				const result = createDebtRemote.result;
@@ -125,11 +98,11 @@
 			} catch {
 				toast.error('Network error. Please try again.');
 			}
-			ui.isSubmitting = false;
+			ms.isSubmitting = false;
 		})}
 		class="space-y-6 flex flex-col pt-4"
 	>
-		{#if ui.step === 1}
+		{#if ms.step === 1}
 			<div class="space-y-6 animate-in fade-in slide-in-from-right-4">
 				{#if !hasBankAccount}
 					<div class="rounded-lg border border-destructive/20 bg-destructive/5 p-4 flex gap-3">
@@ -148,27 +121,27 @@
 						name="counterpartyPhone"
 						type="tel"
 						placeholder="0901234567"
-						bind:value={form.phoneNumber}
-						validationState={phoneResult.state}
-						error={phoneResult.state === 'error' ? phoneResult.message : undefined}
-						warning={phoneResult.state === 'warning' ? phoneResult.message : undefined}
-						onfocus={() => (ui.showAutocomplete = true)}
-						onblur={() => setTimeout(() => (ui.showAutocomplete = false), 200)}
+						bind:value={ms.phoneNumber}
+						validationState={ms.phoneResult.state}
+						error={ms.phoneResult.state === 'error' ? ms.phoneResult.message : undefined}
+						warning={ms.phoneResult.state === 'warning' ? ms.phoneResult.message : undefined}
+						onfocus={() => (ms.showAutocomplete = true)}
+						onblur={() => setTimeout(() => (ms.showAutocomplete = false), 200)}
 						icon={Phone}
 						required
 					/>
 
-					{#if ui.showAutocomplete && autocompleteContacts.length > 0}
+					{#if ms.showAutocomplete && ms.autocompleteContacts.length > 0}
 						<div class="absolute w-full mt-1 z-50 rounded-md border border-border/50 bg-popover shadow-md overflow-hidden">
 							<div class="py-1">
 								<p class="px-3 py-1.5 text-xs font-semibold uppercase text-muted-foreground opacity-70">Recent Contacts</p>
-								{#each autocompleteContacts as contact}
+								{#each ms.autocompleteContacts as contact}
 									<button
 										type="button"
 										class="flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-muted"
 										onmousedown={() => {
-											form.phoneNumber = contact;
-											ui.showAutocomplete = false;
+											ms.phoneNumber = contact;
+											ms.showAutocomplete = false;
 										}}
 									>
 										<div class="bg-primary/10 p-1.5 rounded-md">
@@ -192,23 +165,23 @@
 								value="LEND"
 								id="drawerLend"
 								class="peer sr-only"
-								checked={direction === 'LEND'}
-								onchange={() => (form.direction = 'LEND')}
-								disabled={!canLend}
+								checked={ms.actualDirection === 'LEND'}
+								onchange={() => (ms.direction = 'LEND')}
+								disabled={!ms.canLend}
 							/>
 							<Label
 								for="drawerLend"
 								class={cn(
 									'flex cursor-pointer flex-col p-4 border border-border/50 rounded-xl transition-all',
-									!canLend && 'opacity-50 cursor-not-allowed bg-muted/20',
-									direction === 'LEND' && canLend
+									!ms.canLend && 'opacity-50 cursor-not-allowed bg-muted/20',
+									ms.actualDirection === 'LEND' && ms.canLend
 										? 'border-emerald-500/50 bg-emerald-500/5 ring-1 ring-emerald-500/50'
 										: 'hover:bg-muted/30'
 								)}
 							>
 								<div class="flex items-center gap-2 mb-1.5">
-									<ArrowUp class={cn('h-4 w-4', direction === 'LEND' ? 'text-emerald-500' : 'text-muted-foreground')} />
-									<span class={cn('font-semibold', direction === 'LEND' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground')}>I Lent</span>
+									<ArrowUp class={cn('h-4 w-4', ms.actualDirection === 'LEND' ? 'text-emerald-500' : 'text-muted-foreground')} />
+									<span class={cn('font-semibold', ms.actualDirection === 'LEND' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground')}>I Lent</span>
 								</div>
 								<span class="text-xs text-muted-foreground">They owe me money</span>
 							</Label>
@@ -221,21 +194,21 @@
 								value="BORROW"
 								id="drawerBorrow"
 								class="peer sr-only"
-								checked={direction === 'BORROW'}
-								onchange={() => (form.direction = 'BORROW')}
+								checked={ms.actualDirection === 'BORROW'}
+								onchange={() => (ms.direction = 'BORROW')}
 							/>
 							<Label
 								for="drawerBorrow"
 								class={cn(
 									'flex cursor-pointer flex-col p-4 border border-border/50 rounded-xl transition-all',
-									direction === 'BORROW'
+									ms.actualDirection === 'BORROW'
 										? 'border-destructive/50 bg-destructive/5 ring-1 ring-destructive/50'
 										: 'hover:bg-muted/30'
 								)}
 							>
 								<div class="flex items-center gap-2 mb-1.5">
-									<ArrowDown class={cn('h-4 w-4', direction === 'BORROW' ? 'text-destructive' : 'text-muted-foreground')} />
-									<span class={cn('font-semibold', direction === 'BORROW' ? 'text-destructive' : 'text-foreground')}>I Borrowed</span>
+									<ArrowDown class={cn('h-4 w-4', ms.actualDirection === 'BORROW' ? 'text-destructive' : 'text-muted-foreground')} />
+									<span class={cn('font-semibold', ms.actualDirection === 'BORROW' ? 'text-destructive' : 'text-foreground')}>I Borrowed</span>
 								</div>
 								<span class="text-xs text-muted-foreground">I owe them money</span>
 							</Label>
@@ -246,15 +219,15 @@
 				<div class="pt-2 flex justify-end">
 					<Button
 						type="button"
-						onclick={() => ui.step = 2}
-						disabled={!isStep1Valid}
+						onclick={() => ms.nextStep()}
+						disabled={!ms.isStep1Valid}
 						class="w-full sm:w-auto mt-2"
 					>
 						Next Details <ArrowRight class="ml-2 h-4 w-4" />
 					</Button>
 				</div>
 			</div>
-		{:else if ui.step === 2}
+		{:else if ms.step === 2}
 			<div class="space-y-6 animate-in fade-in slide-in-from-right-4">
 				<div class="space-y-4">
 					<FormInput
@@ -262,9 +235,9 @@
 						name="amount"
 						type="number"
 						placeholder="150000"
-						bind:value={form.amount}
-						validationState={amountResult.state}
-						error={amountResult.state === 'error' ? amountResult.message : undefined}
+						bind:value={ms.amount}
+						validationState={ms.amountResult.state}
+						error={ms.amountResult.state === 'error' ? ms.amountResult.message : undefined}
 						min="1000"
 						step="1000"
 						required
@@ -275,9 +248,9 @@
 						name="description"
 						type="text"
 						placeholder="Dinner, Tickets, etc..."
-						bind:value={form.description}
-						validationState={descriptionResult.state}
-						error={descriptionResult.state === 'error' ? descriptionResult.message : undefined}
+						bind:value={ms.description}
+						validationState={ms.descriptionResult.state}
+						error={ms.descriptionResult.state === 'error' ? ms.descriptionResult.message : undefined}
 						required
 					/>
 				</div>
@@ -285,26 +258,26 @@
 				<div class="rounded-lg border border-border/50 bg-muted/20 p-4 space-y-2 mt-4">
 					<div class="flex items-center justify-between text-sm">
 						<span class="text-muted-foreground">Counterparty:</span>
-						<span class="font-medium">{form.phoneNumber || 'Not set'}</span>
+						<span class="font-medium">{ms.phoneNumber || 'Not set'}</span>
 					</div>
 					<div class="flex items-center justify-between text-sm">
 						<span class="text-muted-foreground">Type:</span>
-						<Badge variant={direction === 'LEND' ? 'default' : 'destructive'} class="text-xs">
-							{direction === 'LEND' ? 'They Owe You' : 'You Owe Them'}
+						<Badge variant={ms.actualDirection === 'LEND' ? 'default' : 'destructive'} class="text-xs">
+							{ms.actualDirection === 'LEND' ? 'They Owe You' : 'You Owe Them'}
 						</Badge>
 					</div>
 				</div>
 
 				<div class="pt-4 flex items-center justify-between gap-3">
-					<Button type="button" variant="ghost" onclick={() => ui.step = 1}>
+					<Button type="button" variant="ghost" onclick={() => ms.prevStep()}>
 						<ArrowLeft class="mr-2 h-4 w-4" /> Back
 					</Button>
 					<Button
 						type="submit"
-						disabled={ui.isSubmitting || !isStep2Valid}
+						disabled={ms.isSubmitting || !ms.isStep2Valid}
 						class="flex-1"
 					>
-						{#if ui.isSubmitting}
+						{#if ms.isSubmitting}
 							<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 							Recording...
 						{:else}
@@ -317,12 +290,12 @@
 	</form>
 {/snippet}
 
-{#if ui.isDesktop}
+{#if ms.isDesktop}
 	<Dialog.Root bind:open>
 		<Dialog.Content class="sm:max-w-md">
 			<Dialog.Header>
 				<Dialog.Title class="text-xl">Record Transaction</Dialog.Title>
-				<Dialog.Description>{stepDescriptions.desktop[ui.step - 1]}</Dialog.Description>
+				<Dialog.Description>{stepDescriptions.desktop[ms.step - 1]}</Dialog.Description>
 			</Dialog.Header>
 			<div class="px-1 text-left">
 				{@render formContent()}
@@ -334,7 +307,7 @@
 		<Drawer.Content class="px-5 pb-8 pt-2">
 			<Drawer.Header class="text-left px-0 pb-2">
 				<Drawer.Title class="text-xl">Record Transaction</Drawer.Title>
-				<Drawer.Description>{stepDescriptions.mobile[ui.step - 1]}</Drawer.Description>
+				<Drawer.Description>{stepDescriptions.mobile[ms.step - 1]}</Drawer.Description>
 			</Drawer.Header>
 			{@render formContent()}
 		</Drawer.Content>

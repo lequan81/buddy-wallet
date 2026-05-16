@@ -5,6 +5,7 @@
     "declaration": true,
     "declarationMap": true,
     "moduleResolution": "Bundler",
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true
   }
 }

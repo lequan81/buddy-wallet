@@ -4,10 +4,11 @@
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui/components/ui/card';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { AlertTriangle, Clock, Mail } from '@repo/icons';
+	import { getParam } from '$lib/services/navigation';
 	import { formatDate } from '@repo/utils/format';
 
-	const lockoutUntil = $derived(page.url.searchParams.get('until'));
-	const email = $derived(page.url.searchParams.get('email'));
+	const lockoutUntil = $derived(getParam(page.url, 'until'));
+	const email = $derived(getParam(page.url, 'email'));
 
 	const isTemporary = $derived(lockoutUntil && new Date(lockoutUntil) > new Date());
 

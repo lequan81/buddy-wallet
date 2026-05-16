@@ -10,6 +10,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@repo/api": "workspace:*",
     "@repo/config": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/logger": "workspace:*",
@@ -21,7 +22,7 @@
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/web-push": "^3.6.4",
-    "bun-types": "1.3.11",
+    "bun-types": "1.3.14",
     "typescript": "^6.0.0"
   }
 }

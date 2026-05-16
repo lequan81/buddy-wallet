@@ -17,6 +17,9 @@ import { apiSuccess, apiError, apiCreated } from '@/commons/http/response';
 import { logActivity } from '@/commons/activity-logger';
 import type { UploadProofContext, ApproveProofContext, RejectProofContext } from '../types/handler.types';
 import { logger } from '@repo/logger';
+import { enqueueJob } from '@/providers/redis/queue';
+import { randomUUIDv7 } from 'bun';
+import type { WorkerJobPayload } from '@repo/types';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -43,11 +46,23 @@ export const proof = {
     const sizeV = validateFileSize(file.size, MAX_FILE_SIZE);
     if ('code' in sizeV) { return apiError(BE_ERRORS.FILE_TOO_LARGE, sizeV.error); }
 
-    // Upload file to storage
+    // Upload original (will be kept)
     const key = generateFileKey(user.id, `proof-${debtId}-${file.name}`);
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     await uploadStorage.save(key, buffer);
+
+    // Enqueue image: WorkerJobPayload processing job for proof
+    const jobPayload = {
+      type: 'image_processing' as const,
+      jobId: randomUUIDv7(),
+      userId: user.id,
+      fileName: file.name,
+      storageKey: key,
+      imageType: 'proof' as const,
+      config: { proof: { maxWidth: 1920, maxHeight: 1080, displayQuality: 80, downloadQuality: 100 } }
+    };
+    await enqueueJob('image_processing', jobPayload as unknown as Record<string, unknown>);
 
     // Update debt proof tracking
     try {
@@ -63,15 +78,13 @@ export const proof = {
         action: 'upload',
         resource: 'file',
         resourceId: debtId,
-        metadata: { debtId, type: 'payment_proof', storagePath: key }
+        metadata: { debtId, type: 'payment_proof', storagePath: key, jobId: jobPayload.jobId }
       });
 
       return apiCreated({
-        key,
-        url: uploadStorage.resolvePath(key),
-        size: file.size,
-        contentType: file.type,
-        uploadedAt: new Date()
+        jobId: jobPayload.jobId,
+        status: 'processing',
+        message: 'Proof uploaded and processing started'
       }, 'Payment proof uploaded');
     } catch (txErr) {
       logger.error('Failed to update debt proof tracking', { debtId, userId: user.id, error: String(txErr) });

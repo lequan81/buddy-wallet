@@ -2,25 +2,20 @@ import type { AuthenticatedHandlerContext } from '@/types/handler-context';
 import type { EntityIdParams } from '@/types/common-params';
 import type { ListQuery } from '@/types/common-queries';
 
+
+
 export type BankAccountIdParams = EntityIdParams;
 
-export interface CreateBankAccountBody {
+export type CreateBankAccountBody = {
   bankName: string;
+  bankCode: string;
+  bankBin: string;
   accountNumber: string;
   accountName: string;
-  bankCode?: string;
-  bankBin?: string;
   isDefault?: boolean;
-}
+};
 
-export interface UpdateBankAccountBody {
-  bankName?: string;
-  accountNumber?: string;
-  accountName?: string;
-  bankCode?: string;
-  bankBin?: string;
-  isDefault?: boolean;
-}
+export type UpdateBankAccountBody = Partial<CreateBankAccountBody>;
 
 export type ListBankAccountsQuery = ListQuery;
 

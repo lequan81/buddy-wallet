@@ -41,6 +41,8 @@ export const debts = sqliteTable('debts', {
   hasPendingProof: integer('has_pending_proof', { mode: 'boolean' }).notNull().default(false),
   proofCount: integer('proof_count').notNull().default(0),
   lastProofUploadedAt: integer('last_proof_uploaded_at', { mode: 'timestamp' }),
+  proofDisplayKey: text('proof_display_key'),
+  proofDownloadKey: text('proof_download_key'),
 
   // Expiry for unconfirmed debts (null = never expires)
   expiresAt: integer('expires_at', { mode: 'timestamp' }),

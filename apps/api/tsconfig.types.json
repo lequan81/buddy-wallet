@@ -2,11 +2,11 @@
   "extends": "@repo/typescript-config/app.json",
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@repo/db": ["../../packages/db/src/index.ts"]
     },
     "types": ["bun-types"],
     "skipLibCheck": true,
-    "rootDir": "./src",
     "declaration": true,
     "emitDeclarationOnly": true,
     "declarationDir": "./dist/types-out",

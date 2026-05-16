@@ -29,6 +29,7 @@ export interface BaseHandlerContext<TBody = unknown, TParams = Record<string, st
   params: TParams;
   query: TQuery;
   set: ResponseSetter;
+  cookie: any;
   user?: AuthenticatedUser | null;
   sessionId?: string | null;
   jwt?: JwtSigner;

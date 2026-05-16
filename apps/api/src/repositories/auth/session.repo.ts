@@ -1,6 +1,18 @@
 import { eq, and, ne, sessions } from '@repo/db';
 import type { RevokedReason, Session as DBSession, DbClient } from '@repo/db';
 import { db } from '@/providers/database';
+import * as v from 'valibot';
+
+// ── Valibot Validation Schemas ────────────────────────────────
+const UpdateSessionSchema = v.object({
+  status: v.optional(v.picklist(['active', 'revoked'])),
+  accessTokenExpiresAt: v.optional(v.union([v.date(), v.null_()])),
+  refreshTokenExpiresAt: v.optional(v.union([v.date(), v.null_()])),
+  lastActiveAt: v.optional(v.union([v.date(), v.null_()])),
+  lastRefreshedAt: v.optional(v.union([v.date(), v.null_()])),
+  revokedAt: v.optional(v.union([v.date(), v.null_()])),
+  revokedReason: v.optional(v.union([v.string(), v.null_()]))
+});
 
 /**
  * Session Repository
@@ -45,7 +57,12 @@ export class SessionRepository {
       .from(sessions)
       .where(and(eq(sessions.userId, userId), eq(sessions.status, 'active')))
       .all()) as DBSession[];
-  }
+  }const result = v.safeParse(UpdateSessionSchema, data);
+    if (!result.success) {
+      const firstIssue = result.issues[0];
+      throw new Error(`Session update validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
+    }
+    
 
   async findActiveByIdAndUser(id: string, userId: string): Promise<DBSession | null> {
     const session = await this.database

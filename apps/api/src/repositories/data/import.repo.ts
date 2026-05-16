@@ -3,6 +3,25 @@ import type { ImportLog, User, NewDebt, DbClient } from '@repo/db';
 import type { PaginatedResult } from '@repo/types';
 import { db } from '@/providers/database';
 
+import * as v from 'valibot';
+
+const InsertImportLogSchema = v.object({
+  id: v.pipe(v.string(), v.minLength(1)),
+  userId: v.pipe(v.string(), v.minLength(1)),
+  fileName: v.pipe(v.string(), v.minLength(1)),
+  fileSize: v.pipe(v.number(), v.minValue(0)),
+  status: v.picklist(['pending', 'queued', 'processing', 'success', 'failed', 'cancelled', 'preview']),
+  previewLogId: v.optional(v.union([v.string(), v.null_()])),
+  totalRows: v.optional(v.union([v.number(), v.null_()])),
+  importedCount: v.optional(v.union([v.number(), v.null_()])),
+  errorCount: v.optional(v.union([v.number(), v.null_()])),
+  errors: v.optional(v.union([v.string(), v.null_()])),
+  config: v.optional(v.union([v.string(), v.null_()])),
+  completedAt: v.optional(v.union([v.date(), v.null_()]))
+});
+
+const UpdateImportLogSchema = v.partial(InsertImportLogSchema);
+
 /**
  * Import Repository
  * Data access layer for import operations
@@ -11,24 +30,21 @@ import { db } from '@/providers/database';
 export class ImportRepository {
   constructor(private readonly database: DbClient = db) {}
 
-  async createLog(data: {
-    id: string;
-    userId: string;
-    fileName: string;
-    fileSize: number;
-    status: 'pending' | 'queued' | 'processing' | 'success' | 'failed' | 'cancelled' | 'preview';
-    previewLogId: string | null;
-    totalRows: number | null;
-    importedCount: number | null;
-    errorCount: number | null;
-    errors: string | null;
-    config: string | null;
-    completedAt: Date | null;
-  }): Promise<void> {
+  async createLog(data: v.InferInput<typeof InsertImportLogSchema>): Promise<void> {
+    const result = v.safeParse(InsertImportLogSchema, data);
+    if (!result.success) {
+      const firstIssue = result.issues[0];
+      throw new Error(`Import log validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
+    }
     await this.database.insert(importLogs).values(data);
   }
 
   async updateLog(id: string, data: Partial<ImportLog>): Promise<void> {
+    const result = v.safeParse(UpdateImportLogSchema, data);
+    if (!result.success) {
+      const firstIssue = result.issues[0];
+      throw new Error(`Import log update validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
+    }
     await this.database.update(importLogs).set(data).where(eq(importLogs.id, id));
   }
 

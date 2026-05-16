@@ -1,8 +1,12 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect, getIntParam } from '$lib/services/navigation';
 import type { PageServerLoad } from './$types';
 import type { UserResponse } from '@repo/types/core/user';
 import type { Pagination } from '@repo/types/api/pagination';
-import { extractApiData, buildPaginationFromMeta } from '$lib/services/api-envelope';
+import { unwrapData, unwrapPagination } from '$lib/services/api-helpers';
+
+const fallbackPagination = (page: number, pageSize: number): Pagination => ({
+	total: 0, limit: pageSize, page, offset: (page - 1) * pageSize, hasMore: false
+});
 
 export const load: PageServerLoad = async ({ locals, parent, url }) => {
 	const { permissions } = await parent();
@@ -18,11 +22,11 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 			};
 		}
 
-		throw redirect(302, '/dashboard');
+		redirect(302, '/dashboard');
 	}
 
-	const page = Number.parseInt(url.searchParams.get('page') || '1', 10);
-	const pageSize = Number.parseInt(url.searchParams.get('pageSize') || '10', 10);
+	const page = getIntParam(url, 'page', 1);
+	const pageSize = getIntParam(url, 'pageSize', 10);
 
 	try {
 		const { data, error } = await locals.api.v1.user.admin.users.get({
@@ -35,24 +39,31 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		if (error) {
 			return {
 				users: [] as UserResponse[],
-				pagination: buildPaginationFromMeta(undefined, page, pageSize),
+				pagination: fallbackPagination(page, pageSize),
 				page,
 				pageSize,
 				error: 'Failed to fetch users'
 			};
 		}
 
-		const parsed = extractApiData<UserResponse[]>(data);
+		const users = unwrapData<UserResponse[]>(data) ?? [];
+		const pag = unwrapPagination(data, { page, limit: pageSize });
 		return {
-			users: parsed.data ?? [],
-			pagination: buildPaginationFromMeta(parsed.meta, page, pageSize),
+			users,
+			pagination: {
+				total: pag.total,
+				limit: pag.limit,
+				page: pag.page,
+				offset: (pag.page - 1) * pag.limit,
+				hasMore: pag.page < pag.totalPages
+			} satisfies Pagination,
 			page,
 			pageSize
 		};
 	} catch {
 		return {
 			users: [] as UserResponse[],
-			pagination: buildPaginationFromMeta(undefined, page, pageSize),
+			pagination: fallbackPagination(page, pageSize),
 			page,
 			pageSize,
 			error: 'Failed to fetch users'

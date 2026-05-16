@@ -17,6 +17,7 @@ import type { UserEntity } from '@repo/types';
 import { jwtAuth } from './jwt.plugin';
 import { logger } from '@repo/logger';
 import { hashToken } from '@/commons/security/password';
+import { DEFAULT_USER_PERMISSIONS } from '@/commons/security/permissions';
 import { logJWTTampered, logSessionHijack, logSecurityEvent } from '@/commons/security/logger';
 import { cache, isRedisAvailable, sessionCache, jwtBlacklist } from '@/providers/redis';
 import { UserRepository } from '@/repositories/user/user.repo';
@@ -110,6 +111,7 @@ export const sessionAuth = new Elysia({ name: 'Session_Auth' })
     const session = await sessionRepo.findActiveByAccessTokenHash(payload.id as string, tokenHash);
 
     if (!session) {
+      console.log(`[AUTH] Session not found/revoked for user ${payload.id}`);
       logger.auth(`Session invalid or revoked`, { userId: payload.id });
       return { user: null, sessionId: null };
     }
@@ -118,12 +120,14 @@ export const sessionAuth = new Elysia({ name: 'Session_Auth' })
     const user = await userRepo.findById(payload.id as string);
 
     if (!user) {
+      console.log(`[AUTH] User not found in DB: ${payload.id}`);
       logger.auth(`User not found`, { userId: payload.id });
       return { user: null, sessionId: session.id };
     }
 
     // SECURITY: Validate sessionVersion for instant token invalidation
     if (payload.sessionVersion !== (user.sessionVersion || 1)) {
+      console.log(`[AUTH] Session version mismatch for user ${user.id}. JWT: ${payload.sessionVersion}, DB: ${user.sessionVersion}`);
       logger.security(`Stale sessionVersion - token invalidated`, {
         userId: user.id,
         jwtVersion: payload.sessionVersion,
@@ -176,6 +180,13 @@ export const sessionAuth = new Elysia({ name: 'Session_Auth' })
       }
     }
 
+    // Convert DB User to UserEntity (handle nullable/empty permissions by falling back to defaults)
+    const userPermissions = (user.permissions && user.permissions.length > 0) 
+      ? user.permissions 
+      : DEFAULT_USER_PERMISSIONS as string[];
+    
+    console.log(`[AUTH] User authenticated successfully: ${user.id}, Permissions: ${userPermissions.length}`);
+
     // 6. Cache session data in Redis (reduces future DB queries)
     if (isRedisAvailable()) {
       await sessionCache.set(tokenHash, {
@@ -183,7 +194,7 @@ export const sessionAuth = new Elysia({ name: 'Session_Auth' })
         sessionId: session.id,
         role: user.role,
         isActive: user.isActive,
-        permissions: user.permissions || []
+        permissions: userPermissions // Use the resolved permissions (with fallback)
       });
     }
 
@@ -193,10 +204,9 @@ export const sessionAuth = new Elysia({ name: 'Session_Auth' })
       source: tokenSource
     });
 
-    // Convert DB User to UserEntity (handle nullable permissions)
     const userEntity: UserEntity = {
       ...user,
-      permissions: user.permissions || []
+      permissions: userPermissions
     };
 
     return { user: userEntity, sessionId: session.id };
@@ -204,22 +214,18 @@ export const sessionAuth = new Elysia({ name: 'Session_Auth' })
 
 /**
  * Get fresh user data from database (bypassing cache)
- *
- * USE THIS FOR CRITICAL OPERATIONS:
- * - Debt creation/modification
- * - Payment processing
- * - Authorization decisions that use phoneNumber
- *
- * SECURITY: Ensures phoneNumber is from authoritative database source,
- * not from potentially compromised cache.
  */
 export async function getUserWithFreshData(userId: string): Promise<UserEntity | null> {
   const user = await userRepo.findById(userId);
   if (!user) return null;
-  // Convert DB User to UserEntity (handle nullable permissions)
+
+  const userPermissions = (user.permissions && user.permissions.length > 0)
+    ? user.permissions
+    : DEFAULT_USER_PERMISSIONS as string[];
+
   return {
     ...user,
-    permissions: user.permissions || []
+    permissions: userPermissions
   };
 }
 

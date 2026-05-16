@@ -1,9 +1,10 @@
 import { form, getRequestEvent } from '$app/server';
-import { invalid, redirect } from '@sveltejs/kit';
+import { invalid } from '@sveltejs/kit';
+import { redirect } from '$lib/services/navigation';
 import * as v from 'valibot';
 import { changePasswordSchema } from '@repo/schema/dto/auth';
 import { toStandardSchema } from '@repo/schema/adapters/standard-schema';
-import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
+import { unwrapData } from '$lib/services/api-helpers';
 
 export const revokeSession = form(
 	toStandardSchema(
@@ -25,13 +26,13 @@ export const logoutAll = form(toStandardSchema(v.object({})), async () => {
 
 	const { error } = await locals.api.v1.auth.logout.post({ allDevices: true });
 	if (error) {
-		invalid(extractApiErrorMessage(error.value, 'Failed to logout all devices'));
+		invalid(((error.value as { message?: string })?.message || 'Failed to logout all devices'));
 	}
 
 	cookies.delete('session', { path: '/' });
 	cookies.delete('refresh_token', { path: '/' });
 
-	throw redirect(303, '/login?reason=logout_all');
+	redirect(303, '/login', { reason: 'logout_all' });
 });
 
 export const changePassword = form(
@@ -46,13 +47,13 @@ export const changePassword = form(
 		});
 
 		if (error) {
-			invalid(extractApiErrorMessage(error.value, 'Failed to change password'));
+			invalid(((error.value as { message?: string })?.message || 'Failed to change password'));
 		}
 
-		const parsed = extractApiData<{ message?: string }>(data);
+		const resData = unwrapData<{ message?: string }>(data);
 		return {
 			success: true,
-			message: parsed.message || parsed.data?.message || 'Password changed successfully'
+			message: resData?.message || 'Password changed successfully'
 		};
 	}
 );

@@ -1,5 +1,5 @@
 import { getRequestEvent, query } from '$app/server';
-import { extractApiData } from '$lib/services/api-envelope';
+import { unwrapData } from '$lib/services/api-helpers';
 
 export const getImportResults = query(
 	'unchecked' as const,
@@ -11,8 +11,7 @@ export const getImportResults = query(
 			const { data, error } = await locals.api.v1.data.import({ id: logId }).progress.get();
 			if (error) return null;
 
-			const parsed = extractApiData<Record<string, unknown>>(data);
-			return parsed.data ?? {};
+			return unwrapData<Record<string, unknown>>(data);
 		} catch {
 			return null;
 		}
@@ -29,8 +28,7 @@ export const getImportExport = query(
 			const { data, error } = await locals.api.v1.data.import({ id: logId }).progress.get();
 			if (error) return null;
 
-			const parsed = extractApiData<Record<string, unknown>>(data);
-			return parsed.data ?? {};
+			return unwrapData<Record<string, unknown>>(data);
 		} catch {
 			return null;
 		}

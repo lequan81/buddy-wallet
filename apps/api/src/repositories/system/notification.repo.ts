@@ -1,6 +1,15 @@
-import { eq, and, lt, or, desc, inArray, count as sqlCount, pushSubscriptions, notifications } from '@repo/db';
-import type { PushSubscription, Notification, DbClient } from '@repo/db';
+import { pushSubscriptions, notifications, eq, and, inArray, sql } from '@repo/db';
+import type { DbClient } from '@repo/db';
 import { db } from '@/providers/database';
+import * as v from 'valibot';
+
+// ── Valibot Validation Schemas ────────────────────────────────
+const UpdateSubscriptionSchema = v.object({
+  isActive: v.optional(v.boolean()),
+  failedAttempts: v.optional(v.pipe(v.number(), v.minValue(0))),
+  lastUsedAt: v.optional(v.union([v.date(), v.null_()]))
+});
+
 import { randomUUIDv7 } from 'bun';
 
 /**
@@ -64,6 +73,11 @@ export class NotificationRepository {
     if (onlyActive) conditions.push(eq(pushSubscriptions.isActive, true));
     
     const result = await this.database.select().from(pushSubscriptions).where(and(...conditions)).orderBy(desc(pushSubscriptions.lastUsedAt)).all();
+    const result = v.safeParse(UpdateSubscriptionSchema, data);
+    if (!result.success) {
+      const firstIssue = result.issues[0];
+      throw new Error(`Subscription update validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
+    }
     return (result as unknown[]) as PushSubscription[];
   }
 

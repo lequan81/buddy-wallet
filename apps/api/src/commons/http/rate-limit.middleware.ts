@@ -157,7 +157,7 @@ export const authRateLimiter = createRateLimiter(configs.RATE_LIMITS.AUTH);
 // Auth (identifier-aware): limits by email/phone when present in request payload.
 export const authIdentifierRateLimiter = createRateLimiter({
   ...configs.RATE_LIMITS.AUTH,
-  keyGenerator: identifierKeyGenerator('email', 'phoneNumber')
+  keyGenerator: identifierKeyGenerator('identifier', 'email', 'phoneNumber')
 });
 
 // Password recovery request limiter (identifier-aware by email/phone).

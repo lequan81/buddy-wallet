@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, type HttpError } from '@sveltejs/kit';
 import { FE_ERRORS } from '@repo/errors/frontend';
-import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
+import { unwrapData } from '$lib/services/api-helpers';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const { id } = params;
@@ -23,8 +23,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		}
 
 		// The successful logRes is the envelope payload
-		const logParsed = extractApiData<Record<string, unknown>>(logRes);
-		const importLog = logParsed.data ?? null;
+		const importLog = unwrapData<Record<string, unknown>>(logRes);
 
 		// If the import is still pending/processing, also fetch current progress
 		let progress: Record<string, unknown> | null = null;
@@ -38,8 +37,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		) {
 			const { data: progressRes, error: progressErr } = await api.v1.data['import']({ id }).progress.get();
 			if (!progressErr && progressRes) {
-				const progressParsed = extractApiData<Record<string, unknown>>(progressRes);
-				progress = progressParsed.data ?? null;
+				progress = unwrapData<Record<string, unknown>>(progressRes);
 			}
 		}
 
@@ -100,12 +98,11 @@ export const actions: Actions = {
 						const errVal = error.value as { code?: string; message?: string };
 						return fail(typeof error.status === 'number' ? error.status : 500, {
 							code: errVal?.code || 'BE_UNKNOWN',
-							message: extractApiErrorMessage(error.value, 'Import failed')
+							message: errVal?.message || 'Import failed'
 						});
 					}
 
-					const parsed = extractApiData<Record<string, unknown>>(data);
-					const res = parsed.data ?? {};
+					const res = unwrapData<Record<string, unknown>>(data) ?? {};
 					return {
 						success: true,
 						jobId: previewLogId,
@@ -115,24 +112,23 @@ export const actions: Actions = {
 				}
 
 				// Fallback: legacy JSON import
-						const body = {
-							file: safeFile,
-							config: configRaw
-						};
-		
-						// Legacy endpoint body shape differs from typed schema
-						const { data, error } = await locals.api.v1.data.import.post(body as unknown as Parameters<typeof locals.api.v1.data.import.post>[0]);
+					const body = {
+						file: safeFile,
+						config: configRaw
+					};
+	
+					// Legacy endpoint body shape differs from typed schema
+					const { data, error } = await locals.api.v1.data.import.post(body as unknown as Parameters<typeof locals.api.v1.data.import.post>[0]);
 
 				if (error) {
 					const errVal = error.value as { code?: string; message?: string };
 					return fail(typeof error.status === 'number' ? error.status : 500, {
 						code: errVal?.code || 'BE_UNKNOWN',
-						message: extractApiErrorMessage(error.value, 'Import failed')
+						message: errVal?.message || 'Import failed'
 					});
 				}
 
-				const parsed = extractApiData<Record<string, unknown>>(data);
-				const d = parsed.data ?? {};
+				const d = unwrapData<Record<string, unknown>>(data) ?? {};
 				return {
 					success: true,
 					jobId: typeof d.jobId === 'string' ? d.jobId : undefined,

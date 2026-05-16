@@ -1,15 +1,15 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { createTreatyClient } from '$lib/services/api';
-import { extractApiErrorMessage } from '$lib/services/api-envelope';
+import { redirect, getParam } from '$lib/services/navigation';
 
 export const load: PageServerLoad = async ({ url }) => {
-	const token = url.searchParams.get('token');
-	const email = url.searchParams.get('email');
+	const token = getParam(url, 'token');
+	const email = getParam(url, 'email');
 
 	if (!token || !email) {
 		// If they access directly without a token, send them to forgot password
-		throw redirect(303, '/forgot-password');
+		redirect(303, '/forgot-password');
 	}
 
 	return {
@@ -38,7 +38,7 @@ export const actions: Actions = {
 			});
 
 			if (error) {
-				const errorMessage = extractApiErrorMessage(error.value, 'Invalid or expired reset link');
+				const errorMessage = (error.value?.message || 'Invalid or expired reset link');
 				return fail(400, { message: errorMessage });
 			}
 		} catch (_err) {
@@ -46,6 +46,6 @@ export const actions: Actions = {
 		}
 
 		// On successful password reset, push back to login with a special hint query
-		throw redirect(303, '/login?reset=success');
+		redirect(303, '/login', { reset: 'success' });
 	}
 };

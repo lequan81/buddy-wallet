@@ -8,7 +8,7 @@
  * Queue: `push_notifications`
  */
 import { log } from '@repo/logger';
-import { enqueueJob, createJob } from '@/providers/redis/queue';
+import { enqueueJob, createWorkerJob } from '@/providers/redis/queue';
 import { isRedisAvailable } from '@/providers/redis/connection';
 
 export interface PushPayload {
@@ -29,13 +29,16 @@ export async function enqueuePush(userId: string, payload: PushPayload): Promise
   }
 
   try {
-    const job = createJob('push-notification', {
+    const jobPayload = createWorkerJob('notification', {
       userId,
-      payload
+      fileName: '', // Not applicable for push notifications
+      storageKey: '',
+      config: payload as Record<string, unknown>,
+      previewLogId: undefined
     });
 
-    await enqueueJob('push_notifications', job);
-    log.debug('PUSH', 'Push job enqueued', { userId, jobId: job.id });
+    await enqueueJob('push_notifications', jobPayload as unknown as Record<string, unknown>);
+    log.debug('PUSH', 'Push job enqueued', { userId, jobId: jobPayload.jobId });
     return true;
   } catch (err) {
     log.error('PUSH', 'Failed to enqueue push job', { userId, error: String(err) });

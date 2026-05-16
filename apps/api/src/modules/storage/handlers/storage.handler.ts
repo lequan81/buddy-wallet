@@ -16,6 +16,9 @@ import {
 import type { GetFileUrlContext, ListFilesContext, RemoveFileContext, UploadFileContext } from '../types/handler.types';
 import { apiSuccess, apiError, apiCreated } from '@/commons/http/response';
 import { logActivity } from '@/commons/activity-logger';
+import { enqueueJob } from '@/providers/redis/queue';
+import { randomUUIDv7 } from 'bun';
+import type { WorkerJobPayload } from '@repo/types';
 
 const MAX_FILE_SIZE = SHARED_CONSTANTS.IMPORT.MAX_FILE_SIZE;
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -47,24 +50,33 @@ export const storage = {
       return apiError(BE_ERRORS.FILE_CONTENT_MISMATCH, signatureV.error);
     }
 
+    // Upload original temporarily
     await uploadStorage.save(key, buffer);
 
-    const url = uploadStorage.resolvePath(key);
+    // Enqueue image: WorkerJobPayload processing job for avatar
+    const jobPayload = {
+      type: 'image_processing' as const,
+      jobId: randomUUIDv7(),
+      userId: user.id,
+      fileName: file.name,
+      storageKey: key,
+      imageType: 'avatar' as const,
+      config: { avatar: { sizes: { thumbnail: { width: 64, height: 64 }, medium: { width: 400, height: 400 } } } }
+    };
+    await enqueueJob('image_processing', jobPayload as unknown as Record<string, unknown>);
 
     logActivity({
       userId: user.id,
       action: 'upload',
       resource: 'file',
       resourceId: key,
-      metadata: { fileName: file.name, size: file.size, contentType: file.type }
+      metadata: { fileName: file.name, size: file.size, contentType: file.type, jobId: jobPayload.jobId }
     });
 
     return apiCreated({
-      key,
-      url,
-      size: file.size,
-      contentType: file.type,
-      uploadedAt: new Date()
+      jobId: jobPayload.jobId,
+      status: 'processing',
+      message: 'Image uploaded and processing started'
     }, 'File uploaded successfully');
   },
 

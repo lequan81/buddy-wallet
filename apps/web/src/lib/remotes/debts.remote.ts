@@ -1,16 +1,11 @@
 import { form, getRequestEvent } from '$app/server';
 import { invalid, error } from '@sveltejs/kit';
-import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
 import { normalizeDebtIdList } from '$lib/services/debt-batch';
+import { unwrapData } from '$lib/services/api-helpers';
 
 type ApiErrorResult = {
 	value?: unknown;
 	status?: number;
-};
-
-type DebtDeletePayload = {
-	deleted?: string[];
-	notFound?: string[];
 };
 
 const ensureAuthenticated = () => {
@@ -22,8 +17,72 @@ const ensureAuthenticated = () => {
 };
 
 const parseApiFailure = (apiError: ApiErrorResult | null | undefined, fallbackMessage: string): never => {
-	invalid(extractApiErrorMessage(apiError?.value, fallbackMessage));
+	const message = (apiError?.value as { message?: string })?.message || fallbackMessage;
+	invalid(message);
 };
+
+// ─── Debt CRUD ───────────────────────────────────────────────────────────────
+
+export const createDebtRemote = form('unchecked' as const, async (data) => {
+	const locals = ensureAuthenticated();
+
+	const counterpartyPhone = typeof data.counterpartyPhone === 'string' ? data.counterpartyPhone : '';
+	const amount = typeof data.amount === 'string' ? Number(data.amount) : typeof data.amount === 'number' ? data.amount : 0;
+	const description = typeof data.description === 'string' ? data.description : '';
+	const direction = typeof data.direction === 'string' ? data.direction : '';
+	const expiryOption = typeof data.expiryOption === 'string' ? data.expiryOption : undefined;
+	const confirmDuplicate = data.confirmDuplicate === 'true' || data.confirmDuplicate === true;
+
+	if (!counterpartyPhone || amount <= 0 || !description || !direction) {
+		invalid('Missing required fields');
+		return;
+	}
+
+	// Resolve expiry to a date
+	let dueDate: Date | undefined;
+	if (expiryOption && expiryOption !== 'never') {
+		const days = parseInt(expiryOption);
+		if (!isNaN(days)) {
+			dueDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+		}
+	}
+
+	// The API handler resolves debtorPhone/creditorPhone and determines roles based on direction.
+	// We send phone-based fields; the handler looks up users server-side.
+	// ensureAuthenticated() guarantees locals.user is non-null.
+	const userPhone = locals.user!.phoneNumber ?? '';
+	const isLend = direction === 'LEND';
+	const body = {
+		amount,
+		currency: 'VND',
+		description,
+		dueDate,
+		// When LENDING: current user is creditor, counterparty is debtor
+		// When BORROWING: current user is debtor, counterparty is creditor
+		debtorPhone: isLend ? counterpartyPhone : userPhone,
+		creditorPhone: isLend ? userPhone : counterpartyPhone,
+		// Pass a placeholder debtorId to satisfy the Elysia schema; the handler resolves by phone
+		debtorId: '00000000-0000-0000-0000-000000000000'
+	};
+
+	const { data: responseData, error: apiError } = await locals.api.v1.debts.post(body);
+
+	if (apiError) {
+		parseApiFailure(apiError, 'Failed to create debt');
+	}
+
+	const resData = unwrapData<{ duplicates?: unknown[]; id?: string }>(responseData);
+
+	if (resData?.duplicates && resData.duplicates.length > 0 && !confirmDuplicate) {
+		return {
+			code: 'DUPLICATE_WARNING',
+			duplicates: resData.duplicates,
+			success: false
+		};
+	}
+
+	return { success: true, id: resData?.id, message: 'Debt created successfully' };
+});
 
 export const batchDeleteDebts = form('unchecked' as const, async (data) => {
 	const locals = ensureAuthenticated();
@@ -38,8 +97,8 @@ export const batchDeleteDebts = form('unchecked' as const, async (data) => {
 		parseApiFailure(apiError, 'Failed to delete debts');
 	}
 
-	const parsed = extractApiData<DebtDeletePayload>(responseData);
-	const deletedCount = parsed.data?.deleted?.length ?? ids.length;
+	const resData = unwrapData<{ deleted?: string[] }>(responseData);
+	const deletedCount = resData?.deleted?.length ?? ids.length;
 	return { success: true, deleted: deletedCount };
 });
 
@@ -65,9 +124,11 @@ export const deleteAllDebts = form(async () => {
 		parseApiFailure(apiError, 'Failed to delete all debts');
 	}
 
-	const parsed = extractApiData<{ deleted?: number }>(responseData);
-	return { success: true, deleted: parsed.data?.deleted ?? 0 };
+	const resData = unwrapData<{ deleted?: number }>(responseData);
+	return { success: true, deleted: resData?.deleted ?? 0 };
 });
+
+// ─── Debt Status Transitions ─────────────────────────────────────────────────
 
 export const updateDebtStatus = form('unchecked' as const, async (data) => {
 	const locals = ensureAuthenticated();
@@ -132,31 +193,7 @@ export const confirmDebt = form(async () => {
 	return { success: true, message: 'Debt confirmed' };
 });
 
-export const approveProof = form('unchecked' as const, async (data) => {
-	const locals = ensureAuthenticated();
-
-	const proofId = typeof data.proofId === 'string' ? data.proofId : '';
-	const { data: responseData, error: apiError } = await locals.api.v1.storage.proof({ id: proofId }).approve.post();
-	if (apiError) {
-		parseApiFailure(apiError, 'Failed to approve proof');
-	}
-
-	const parsed = extractApiData<unknown>(responseData);
-	return { success: true, approved: true, data: parsed.data };
-});
-
-export const rejectProof = form('unchecked' as const, async (data) => {
-	const locals = ensureAuthenticated();
-
-	const proofId = typeof data.proofId === 'string' ? data.proofId : '';
-	const reason = typeof data.reason === 'string' ? data.reason : undefined;
-	const { error: apiError } = await locals.api.v1.storage.proof({ id: proofId }).reject.post({ reason });
-	if (apiError) {
-		parseApiFailure(apiError, 'Failed to reject proof');
-	}
-
-	return { success: true, rejected: true };
-});
+// ─── Suggestion Operations ───────────────────────────────────────────────────
 
 export const suggestEdit = form('unchecked' as const, async (data) => {
 	const locals = ensureAuthenticated();
@@ -192,20 +229,4 @@ export const respondSuggestion = form('unchecked' as const, async (data) => {
 	}
 
 	return { success: true, accepted: accept === 'true' };
-});
-
-export const uploadProof = form('unchecked' as const, async (data) => {
-	const locals = ensureAuthenticated();
-	const { params } = getRequestEvent();
-
-	const proof = data.proof as File;
-	const debtId = params.id;
-	if (!debtId) error(400, { code: 'BAD_REQUEST', message: 'Debt ID not found in URL' });
-
-	const { error: apiError } = await locals.api.v1.storage['payment-proof']({ debtId }).post({ file: proof });
-	if (apiError) {
-		parseApiFailure(apiError, 'Failed to upload proof');
-	}
-
-	return { success: true, message: 'Proof uploaded successfully' };
 });

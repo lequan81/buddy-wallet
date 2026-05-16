@@ -2,27 +2,21 @@ import type { AuthenticatedHandlerContext } from '@/types/handler-context';
 import type { EntityIdParams } from '@/types/common-params';
 import type { ListQuery } from '@/types/common-queries';
 
-export interface UpdateProfileBody {
+import type { UserEntity as User } from '@repo/types/core/user';
+import type { ChangePasswordRequest } from '@repo/types/core/user';
+
+export type UpdateProfileBody = {
   name?: string;
   email?: string;
-  avatar?: string;
-}
+};
 
-export interface ChangePasswordBody {
-  currentPassword: string;
-  newPassword: string;
-}
+export type ChangePasswordBody = ChangePasswordRequest;
 
 export type ListUsersQuery = ListQuery;
 
 export type UserIdParams = EntityIdParams;
 
-export interface AdminUpdateUserBody {
-  name?: string;
-  email?: string;
-  role?: string;
-  isActive?: boolean;
-}
+export type AdminUpdateUserBody = Partial<Pick<User, 'name' | 'email' | 'role' | 'isActive'>>;
 
 export type ProfileGetContext = AuthenticatedHandlerContext;
 export type ProfileUpdateContext = AuthenticatedHandlerContext<UpdateProfileBody>;

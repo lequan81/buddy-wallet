@@ -15,7 +15,7 @@ import { apiError } from '@/commons/http/response';
  * Checks file size, type, and content format
  * Returns a native Response on failure, null on success
  */
-export async function validateImportUploadFile(file: File): Promise<Response | null> {
+export async function validateImportUploadFile(file: File): Promise<any | null> {
   if (file.size > MAX_IMPORT_FILE_SIZE) {
     return apiError(
       GEN_ERRORS.INVALID_INPUT,

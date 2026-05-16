@@ -1,0 +1,8 @@
+# Bun configuration for the worker
+
+[run]
+# Silence file watcher warnings for monorepo packages
+silent = true
+
+[run.watch]
+silent = true

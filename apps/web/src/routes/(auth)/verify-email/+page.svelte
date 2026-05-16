@@ -4,8 +4,7 @@
 	import { Button } from '@repo/ui/components/ui/button';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { createTreatyClient } from '$lib/services/api';
-	import { extractApiErrorMessage } from '$lib/services/api-envelope';
-	import { goto } from '$app/navigation';
+		import { goto } from '$app/navigation';
 
 	let { data } = $props();
 
@@ -61,10 +60,10 @@
 			const { error } = await api.v1.auth['verify-email'].post({ token: otp });
 
 			if (error) {
-				toast.error(extractApiErrorMessage(error.value, 'Verification failed'));
+				toast.error((error.value?.message || 'Verification failed'));
 			} else {
 				toast.success('Email verified!');
-				await goto('/login?verified=true');
+				await goto('/');
 			}
 		} catch {
 			toast.error('Unable to connect to server. Please try again.');

@@ -169,8 +169,14 @@ export default defineConfig({
 	resolve: {
 		dedupe: ['svelte'],
 		alias: {
-			'@repo/ui/lib/utils.js': path.resolve(__dirname, '../../packages/ui/src/lib/utils.ts')
-		}
+			'@repo/ui/lib/utils.js': path.resolve(__dirname, '../../packages/ui/src/lib/utils.ts'),
+			'@repo/errors': path.resolve(__dirname, '../../packages/errors/src'),
+			'@repo/schema': path.resolve(__dirname, '../../packages/schema/src'),
+			'@repo/utils': path.resolve(__dirname, '../../packages/utils/src'),
+			'@repo/types': path.resolve(__dirname, '../../packages/types/src'),
+			'@repo/config': path.resolve(__dirname, '../../packages/config/src')
+		},
+		extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.svelte']
 	},
 	cacheDir: '.vite',
 	server: {

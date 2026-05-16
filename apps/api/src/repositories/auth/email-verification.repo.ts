@@ -1,6 +1,16 @@
 import { eq, and, count, desc, emailVerifications } from '@repo/db';
 import type { EmailVerification, DbClient } from '@repo/db';
 import { db } from '@/providers/database';
+import * as v from 'valibot';
+
+// ── Valibot Validation Schemas ────────────────────────────────
+const UpdateAttemptsSchema = v.object({
+  attempts: v.pipe(v.number(), v.minValue(0))
+});
+
+const UpdateVerifiedSchema = v.object({
+  verified: v.boolean()
+});
 
 /**
  * Email Verification Repository
@@ -43,6 +53,12 @@ export class EmailVerificationRepository {
   }
 
   async updateAttempts(id: string, attempts: number): Promise<void> {
+    const result = v.safeParse(UpdateAttemptsSchema, { attempts });
+    if (!result.success) {
+      const firstIssue = result.issues[0];
+      throw new Error(`Email verification attempts update validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
+    }
+
     await this.database
       .update(emailVerifications)
       .set({ attempts })
@@ -50,6 +66,12 @@ export class EmailVerificationRepository {
   }
 
   async markVerified(id: string): Promise<void> {
+    const result = v.safeParse(UpdateVerifiedSchema, { verified: true });
+    if (!result.success) {
+      const firstIssue = result.issues[0];
+      throw new Error(`Email verification mark verified validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
+    }
+
     await this.database
       .update(emailVerifications)
       .set({ verified: true })
@@ -102,18 +124,4 @@ export class EmailVerificationRepository {
       .set({ verified: true })
       .where(and(eq(emailVerifications.userId, userId), eq(emailVerifications.email, email), eq(emailVerifications.verified, false)));
   }
-
-  async getPendingCount(userId: string): Promise<number> {
-    const result = await this.database
-      .select({ count: count() })
-      .from(emailVerifications)
-      .where(and(eq(emailVerifications.userId, userId), eq(emailVerifications.verified, false)))
-      .get();
-    return Number(result?.count ?? 0);
-  }
-
-  async delete(id: string): Promise<void> {
-    await this.database.delete(emailVerifications).where(eq(emailVerifications.id, id));
-  }
 }
-

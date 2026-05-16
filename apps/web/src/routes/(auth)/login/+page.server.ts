@@ -1,8 +1,11 @@
 import type { PageServerLoad } from './$types';
+import { getParam, getBoolParam } from '$lib/services/navigation';
+
 export const load: PageServerLoad = async ({ url }) => {
-	const redirectTo = url.searchParams.get('redirectTo') || '/';
-	const registered = url.searchParams.get('registered') === 'true';
-	const verified = url.searchParams.get('verified') === 'true';
+	const redirectTo = getParam(url, 'redirectTo', '/');
+	const registered = getBoolParam(url, 'registered');
+	const verified = getBoolParam(url, 'verified');
+	
 	return {
 		layout: 'guest',
 		redirectTo,

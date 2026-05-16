@@ -40,9 +40,7 @@ export async function signAccessToken(
   const signed = await jwt.sign({
     id: user.id,
     phoneNumber: user.phoneNumber,
-    sessionVersion: user.sessionVersion || 1,
-    iss: 'buddy-wallet-api',
-    aud: 'buddy-wallet-web'
+    sessionVersion: user.sessionVersion || 1
   });
 
   if (!signed || typeof signed !== 'string') {

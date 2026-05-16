@@ -1,10 +1,12 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import type { BankAccount } from '@repo/types/core/bank';
 import type { DebtDetails } from '@repo/types/core/debt';
-import { extractApiData, extractApiErrorMessage } from '$lib/services/api-envelope';
 
 const extractDebt = (payload: unknown): DebtDetails | null => {
-	return extractApiData<DebtDetails>(payload).data;
+	if (!payload || typeof payload !== 'object') return null;
+	const p = payload as Record<string, unknown>;
+	return (p.data as DebtDetails) ?? null;
 };
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -17,8 +19,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				isDebtor: false,
 				isUploader: false,
 				currentUser: null,
-				creditorBanks: [],
-				pendingProofs: []
+				creditorBanks: [] as BankAccount[],
+				pendingProofs: [] as Array<unknown>
 			};
 		}
 
@@ -33,7 +35,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const debt = extractDebt(debtData);
 
 	if (debtError || !debt) {
-		const finalMsg = extractApiErrorMessage(debtError?.value, 'Debt not found');
+		const finalMsg = (debtError?.value as { message?: string })?.message || 'Debt not found';
 		return { debt: null, error: finalMsg };
 	}
 
@@ -49,7 +51,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		isDebtor,
 		isUploader,
 		currentUser: locals.user,
-		creditorBanks: [],
-		pendingProofs: []
+		creditorBanks: [] as BankAccount[],
+		pendingProofs: [] as Array<unknown>
 	};
 };

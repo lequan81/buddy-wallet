@@ -2,7 +2,7 @@ import { fail } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { BankAccount, VietQRBank } from '@repo/types/core/bank';
 import { fetchBanks } from '$lib/services/vietqr';
-import { extractApiData } from '$lib/services/api-envelope';
+import { unwrapData } from '$lib/services/api-helpers';
 
 export const load: PageServerLoad = async ({
 	locals
@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({
 	if (!locals.user) return fail(401);
 
 	const { data: accountEnvelope } = await locals.api.v1.bank.accounts.get();
-	const accounts = extractApiData<BankAccount[]>(accountEnvelope).data ?? [];
+	const accounts = unwrapData<BankAccount[]>(accountEnvelope) ?? [];
 	const banks = await fetchBanks();
 	const mappedBanks: VietQRBank[] = banks.map((bank) => ({
 		id: bank.id,

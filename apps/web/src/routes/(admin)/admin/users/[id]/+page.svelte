@@ -63,7 +63,7 @@
 
 			<!-- Status Toggle -->
 			<form
-				{...toggleUserStatus.enhance(async ({ submit }) => {
+				{...toggleUserStatus.enhance(async ({ submit }: { submit: () => Promise<void> }) => {
 					isSubmitting = true;
 					try {
 						await submit();

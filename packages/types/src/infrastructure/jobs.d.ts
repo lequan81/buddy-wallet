@@ -1,7 +1,7 @@
 import type { JobState } from './workflow';
 
 export type JobStatus = JobState;
-export type JobType = 'import' | 'preview' | 'export' | 'notification' | 'cleanup' | 'sync';
+export type JobType = 'import' | 'preview' | 'export' | 'notification' | 'cleanup' | 'sync' | 'image_processing';
 export type ImportJobType = 'import' | 'preview';
 
 export interface JobPayload {
@@ -20,6 +20,7 @@ export interface WorkerJobPayload {
   config?: { mapping: import('../core/import').ColumnMapping; startRow: number };
   previewLogId?: string;
   storageKey?: string;
+  imageType?: 'avatar' | 'proof';
 }
 
 export interface BaseJob {

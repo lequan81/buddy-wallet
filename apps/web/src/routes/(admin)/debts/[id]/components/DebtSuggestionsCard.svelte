@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Check, X, Clock, MessageSquare } from '@repo/icons';
+	import { Check, X, Clock } from '@repo/icons';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Badge } from '@repo/ui/components/ui/badge';

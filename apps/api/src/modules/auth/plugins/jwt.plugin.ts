@@ -21,11 +21,7 @@ import { logger } from '@repo/logger';
 export const jwtPayloadSchema = t.Object({
   id: t.String({ description: 'User unique identifier from Database' }),
   phoneNumber: t.String({ description: 'User phone number (tamper-proof)' }),
-  sessionVersion: t.Number({ description: 'Session version for instant invalidation' }),
-  iss: t.Optional(t.String()), // Issuer
-  aud: t.Optional(t.String()), // Audience
-  iat: t.Optional(t.Number()), // Issued at
-  exp: t.Optional(t.Number()) // Expiration time
+  sessionVersion: t.Number({ description: 'Session version for instant invalidation' })
 });
 
 export type JWTPayload = Static<typeof jwtPayloadSchema>;

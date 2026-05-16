@@ -67,7 +67,7 @@ export const createTreatyClient = (
 			if (refreshSuccess) {
 				response = await originalFetcher(input, init);
 			} else if (typeof window !== 'undefined') {
-				window.location.href = `/login?redirectTo=${encodeURIComponent(window.location.pathname)}`;
+				window.location.href = '/login';
 			}
 		}
 
@@ -83,7 +83,6 @@ export const createTreatyClient = (
 	};
 
 	const activeFetcher = customFetcher;
-
 	const client = treaty<App>(API_URL, {
 		fetcher: activeFetcher as typeof fetch,
 		fetch: {

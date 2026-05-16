@@ -2,7 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import type { UserResponse } from '@repo/types/core/user';
 import type { Debt } from '@repo/types/core/debt';
-import { extractApiData } from '$lib/services/api-envelope';
+import { unwrapData } from '$lib/services/api-helpers';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) {
@@ -22,16 +22,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		return { targetUser: null, debts: [] as Debt[], error: 'User not found' };
 	}
 
-	const userParsed = extractApiData<UserResponse>(userData);
-	const user = userParsed.data;
+	const user = unwrapData<UserResponse>(userData);
 
 	let debts: Debt[] = [];
 	try {
 		const { data: debtsData } = await locals.api.v1.debts.get({
 			query: { page: 1, limit: 100 }
 		});
-		const debtsParsed = extractApiData<Debt[]>(debtsData);
-		debts = debtsParsed.data ?? [];
+		debts = unwrapData<Debt[]>(debtsData) ?? [];
 	} catch {
 		debts = [];
 	}

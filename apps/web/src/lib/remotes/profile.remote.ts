@@ -2,7 +2,6 @@ import { form, getRequestEvent } from '$app/server';
 import { error, invalid } from '@sveltejs/kit';
 import { profileSchema } from '@repo/schema/dto/profile';
 import { toStandardSchema } from '@repo/schema/adapters/standard-schema';
-import { extractApiErrorMessage } from '$lib/services/api-envelope';
 
 export const updateProfile = form(toStandardSchema(profileSchema), async (data) => {
 	const event = getRequestEvent();
@@ -15,7 +14,7 @@ export const updateProfile = form(toStandardSchema(profileSchema), async (data) 
 	} as Record<string, unknown>);
 
 	if (apiError) {
-		invalid(extractApiErrorMessage(apiError.value, 'Failed to update profile'));
+		invalid((apiError.value?.message || 'Failed to update profile'));
 	}
 
 	return { success: true };

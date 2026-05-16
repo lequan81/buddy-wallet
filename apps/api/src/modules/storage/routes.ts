@@ -27,18 +27,9 @@ export const storageRoutes = new Elysia({ prefix: '/storage' })
     query: ListFilesQuerySchema,
     detail: { tags: ['storage'], description: 'List user files' }
   })
-  // Payment Proof routes
+  // Payment Proof routes — now handled by dedicated /v1/proof module
   .post('/payment-proof/:debtId', requirePermission('proof:upload', proof.upload), {
     params: v.object({ debtId: v.string() }),
     body: t.Object({ file: t.File() }),
     detail: { tags: ['storage', 'proofs'], description: 'Upload payment proof for a debt' }
-  })
-  .post('/proof/:id/approve', requirePermission('proof:approve', proof.approve), {
-    params: v.object({ id: v.string() }),
-    detail: { tags: ['storage', 'proofs'], description: 'Approve a payment proof' }
-  })
-  .post('/proof/:id/reject', requirePermission('proof:reject', proof.reject), {
-    params: v.object({ id: v.string() }),
-    body: v.object({ reason: v.optional(v.string()) }),
-    detail: { tags: ['storage', 'proofs'], description: 'Reject a payment proof' }
   });

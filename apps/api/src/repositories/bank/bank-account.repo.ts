@@ -12,8 +12,11 @@ const InsertBankAccountSchema = v.object({
   bankBin: v.pipe(v.string(), v.minLength(1)),
   accountNumber: v.pipe(v.string(), v.minLength(4)),
   accountName: v.optional(v.union([v.string(), v.null_()])),
-  isDefault: v.optional(v.boolean())
+  isDefault: v.optional(v.boolean()),
+  isActive: v.optional(v.boolean())
 });
+
+const UpdateBankAccountSchema = v.partial(InsertBankAccountSchema);
 
 /**
  * Bank Account Repository
@@ -79,6 +82,12 @@ export class BankAccountRepository {
   }
 
   async update(id: string, data: Partial<BankAccount>): Promise<BankAccount | null> {
+    const parsed = v.safeParse(UpdateBankAccountSchema, data);
+    if (!parsed.success) {
+      const firstIssue = parsed.issues[0];
+      throw new Error(`Bank account update validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
+    }
+
     const [result] = await this.database.update(bankAccounts)
       .set({ ...data, updatedAt: new Date() })
       .where(eq(bankAccounts.id, id))

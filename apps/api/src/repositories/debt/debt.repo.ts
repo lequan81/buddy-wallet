@@ -31,8 +31,16 @@ const InsertDebtSchema = v.object({
   description: v.optional(v.union([v.string(), v.null_()])),
   status: v.optional(v.picklist(['pending', 'confirmed', 'paid', 'disputed', 'cancelled'])),
   expiresAt: v.optional(v.union([v.date(), v.null_()])),
-  needsConfirmation: v.optional(v.boolean())
+  needsConfirmation: v.optional(v.boolean()),
+  confirmedByCreditor: v.optional(v.boolean()),
+  confirmedByDebtor: v.optional(v.boolean()),
+  suggestedAmount: v.optional(v.union([v.number(), v.null_()])),
+  suggestedDescription: v.optional(v.union([v.string(), v.null_()])),
+  suggestedById: v.optional(v.union([v.string(), v.null_()])),
+  hasPendingProof: v.optional(v.boolean())
 });
+
+const UpdateDebtSchema = v.partial(InsertDebtSchema);
 
 /**
  * Debt Repository
@@ -64,7 +72,7 @@ export class DebtRepository {
 
   async findMany(options: DebtFindManyOptions): Promise<PaginatedResult<Debt>> {
     const { limit = 20, offset = 0, status, debtorId, creditorId, uploadedById, involvedUserId, includeDeleted = false, sortBy = 'createdAt', sortOrder = 'desc' } = options;
-    
+
     const conditions: SQL[] = [];
     if (!includeDeleted) conditions.push(isNull(debts.deletedAt));
     if (status && status !== 'all') conditions.push(eq(debts.status, status as DebtStatus));
@@ -74,7 +82,7 @@ export class DebtRepository {
     if (involvedUserId) {
       conditions.push(or(eq(debts.debtorId, involvedUserId), eq(debts.creditorId, involvedUserId)) as SQL);
     }
-  
+
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
     const sortColumn = debts[sortBy] || debts.createdAt;
@@ -132,6 +140,12 @@ export class DebtRepository {
   }
 
   async update(id: string, data: Partial<Debt> & { updatedAt: Date }): Promise<Debt | null> {
+    const result = v.safeParse(UpdateDebtSchema, data);
+    if (!result.success) {
+      const firstIssue = result.issues[0];
+      throw new Error(`Debt update validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
+    }
+
     const [updated] = await this.database
       .update(debts)
       .set(data)

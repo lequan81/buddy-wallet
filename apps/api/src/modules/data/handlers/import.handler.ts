@@ -13,7 +13,7 @@ import { ImportRepository } from '@/repositories/data/import.repo';
 import { BE_ERRORS, GEN_ERRORS } from '@repo/errors';
 import { apiSuccess, apiError, apiAccepted } from '@/commons/http/response';
 import { logActivity } from '@/commons/activity-logger';
-import { enqueueJob, createJob, getJobStatus } from '@/providers/redis/queue';
+import { enqueueJob, createWorkerJob, getJobStatus } from '@/providers/redis/queue';
 import type { ImportDataContext, ImportLogsContext, ImportProgressContext, ImportRemapContext } from '../types/handler.types';
 import { logger } from '@repo/logger';
 
@@ -57,16 +57,22 @@ export const dataImport = {
       completedAt: null
     });
 
-    // Enqueue job for background processing
-    const job = createJob('import-process', {
-      logId,
+    // Enqueue job for background processing (format expected by apps/worker)
+    const jobPayload = createWorkerJob('import', {
       userId: user.id,
-      directData: importData,
-      totalRows: importData.length
+      fileName: `import-${Date.now()}.json`,
+      config: undefined, // Direct data mode doesn't use column mapping
+      previewLogId: undefined
     });
 
-    await enqueueJob('imports', job);
+    // Store direct data in Redis for worker to pick up
+    const { getClient } = await import('@/providers/redis/connection');
+    const client = getClient();
+    if (client) {
+      await client.setex(`import_data:${logId}`, 3600, JSON.stringify(importData));
+    }
 
+    await enqueueJob('imports', jobPayload as unknown as Record<string, unknown>);
     logActivity({
       userId: user.id,
       action: 'import',

@@ -21,9 +21,9 @@ export const RegisterSchema = v.object({
   fullName: v.pipe(v.string(), v.minLength(2))
 });
 
-// Refresh token schema
+// Refresh token schema — optional so client can send cookie-only refresh
 export const RefreshTokenSchema = v.object({
-  refreshToken: v.pipe(v.string(), v.minLength(1))
+  refreshToken: v.optional(v.pipe(v.string(), v.minLength(1)))
 });
 
 // Logout schema

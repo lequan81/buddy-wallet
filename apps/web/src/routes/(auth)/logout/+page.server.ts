@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect } from '$lib/services/navigation';
 import type { Actions } from './$types';
 
 export const actions: Actions = {
@@ -16,6 +16,6 @@ export const actions: Actions = {
 		cookies.delete('session', { path: '/' });
 		cookies.delete('refresh_token', { path: '/' });
 
-		redirect(303, '/login?reason=logout');
+		redirect(303, '/login', { reason: 'logout' });
 	}
 };

@@ -1,10 +1,11 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect, getParam } from '$lib/services/navigation';
 import type { PageServerLoad } from './$types';
 import type { Debt } from '@repo/types/core/debt';
-import { extractApiData } from '$lib/services/api-envelope';
+import { unwrapData, getErrorMessage } from '$lib/services/api-helpers';
+
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
-	const status = url.searchParams.get('status') || 'confirmed';
+	const status = getParam(url, 'status', 'confirmed');
 
 	if (!locals.user) {
 		if (locals.apiOffline) {
@@ -18,7 +19,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 			};
 		}
 
-		throw redirect(302, '/login');
+		redirect(302, '/login');
 	}
 
 	// Fetch all debts and find the one with matching ID
@@ -28,7 +29,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 		return { debt: null, error: 'Unable to fetch debt', status };
 	}
 
-	const debts = extractApiData<Debt[]>(data).data ?? [];
+	const debts = unwrapData<Debt[]>(data) ?? [];
 	const debt = debts.find((d) => d.id === params.id);
 
 	if (!debt) {

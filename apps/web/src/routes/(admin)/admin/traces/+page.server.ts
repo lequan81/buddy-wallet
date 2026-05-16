@@ -1,11 +1,11 @@
 import type { PageServerLoad } from './$types';
-import { extractApiData } from '$lib/services/api-envelope';
+import { unwrapData } from '$lib/services/api-helpers';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
 		const debugApi = locals.api as unknown as Record<string, { get?: () => Promise<{ data?: unknown; error?: unknown }> }>;
 		const { data, error } = (await debugApi['debug/traces/json']?.get?.()) || {};
-		const parsed = extractApiData<{ traces?: unknown[] }>(data);
+		const tracesData = unwrapData<{ traces?: unknown[] }>(data);
 
 		if (error) {
 			return {
@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 
 		return {
-			traces: Array.isArray(parsed.data?.traces) ? parsed.data.traces : []
+			traces: Array.isArray(tracesData?.traces) ? tracesData.traces : []
 		};
 	} catch (_) {
 		return {

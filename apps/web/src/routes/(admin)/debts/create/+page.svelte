@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, Landmark, Plus, User } from '@repo/icons';
 	import { goto } from '$app/navigation';
-	import { untrack } from 'svelte';
+
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Label } from '@repo/ui/components/ui/label';
 	import * as Card from '@repo/ui/components/ui/card';
@@ -16,77 +16,18 @@
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import { cn } from '$lib/utils';
 	import { formatDate } from '@repo/utils/format';
-	import {
-		phoneSchema,
-		amountClientSchema,
-		descriptionSchema,
-		validateField
-	} from '@repo/schema/dto/debt';
-
 	import { createDebtRemote } from '$lib/remotes/debts.remote';
 	import { type PageData } from './$types';
+	import { CreateDebtState } from './create-debt.svelte';
 
 	let { data } = $props<{ data: PageData }>();
-	let isSubmitting = $state(false);
-
-	// Bank account check - only needed for lending money, not for borrowing
-	let hasBankAccount = $derived(data.hasBankAccount ?? true);
-	let canLend = $derived(hasBankAccount);
-	// Use $derived for direction to react to canLend changes
-	let directionState = $state('LEND');
-	let direction = $derived.by(() => {
-		// If can't lend and currently on LEND, switch to BORROW
-		if (!hasBankAccount && directionState === 'LEND') {
-			return 'BORROW';
-		}
-		return directionState;
+	const pageState = new CreateDebtState({
+		get prefill() { return data.prefill; },
+		get hasBankAccount() { return data.hasBankAccount; },
+		get recentContacts() { return data.recentContacts; }
 	});
 
-	// Recent contacts
-	let recentContacts = $derived(data.recentContacts || []);
-
-	// Form state
-	const prefill = untrack(() => data.prefill);
-	let phoneNumber = $state(prefill?.phone || '');
-	let amount = $state(prefill?.amount || '');
-	let description = $state(prefill?.description || '');
-
-	let expiryOption = $state('never');
-	let confirmDuplicate = $state(false);
-
-	// Autocomplete state
-	let showAutocomplete = $state(false);
-	let autocompleteContacts = $derived.by(() => {
-		if (!phoneNumber || phoneNumber.length < 2) return recentContacts.slice(0, 5);
-		return recentContacts.filter((c: string) => c.includes(phoneNumber)).slice(0, 5);
-	});
-
-	// Preview modal state
-	let showPreviewModal = $state(false);
 	let formElement: HTMLFormElement | undefined = $state(undefined);
-
-	// Duplicate modal state
-	let showDuplicateModal = $state(false);
-	let duplicateDebts = $state<
-		Array<{ id: string; amount: number; description: string | null; createdAt: string }>
-	>([]);
-
-	// Expiry options
-	const expiryOptions = [
-		{
-			value: 'never',
-			label: 'No expiry (forever)',
-			description: 'Debt stays until manually resolved'
-		},
-		{ value: '7d', label: '7 days', description: 'Auto-cancel if not confirmed in 1 week' },
-		{ value: '30d', label: '30 days', description: 'Auto-cancel if not confirmed in 1 month' },
-		{ value: '90d', label: '90 days', description: 'Auto-cancel if not confirmed in 3 months' }
-	];
-
-	// Validation states driven by shared schemas
-	let phoneResult = $derived(validateField(phoneSchema, phoneNumber));
-	let amountResult = $derived(validateField(amountClientSchema, amount));
-	let descriptionResult = $derived(validateField(descriptionSchema, description));
 
 	// Handle remote function result
 	$effect(() => {
@@ -94,14 +35,9 @@
 		if (!result) return;
 
 		if (result.code === 'DUPLICATE_WARNING' && result.duplicates) {
-			duplicateDebts = result.duplicates as Array<{
-				id: string;
-				amount: number;
-				description: string | null;
-				createdAt: string;
-			}>;
-			showDuplicateModal = true;
-			isSubmitting = false;
+			pageState.duplicateDebts = result.duplicates as unknown as Array<{ id: string; amount: number; description: string | null; createdAt: string }>;
+			pageState.showDuplicateModal = true;
+			pageState.isSubmitting = false;
 			return;
 		}
 
@@ -110,16 +46,16 @@
 			goto(resolve('/dashboard', {}));
 		} else if (result.message) {
 			toast.error(result.message as string);
-			isSubmitting = false;
+			pageState.isSubmitting = false;
 		}
 	});
 
 	function handleConfirmDuplicate() {
-		confirmDuplicate = true;
-		showDuplicateModal = false;
+		pageState.confirmDuplicate = true;
+		pageState.showDuplicateModal = false;
 		// Submit form again with confirmDuplicate flag
 		if (formElement) {
-			isSubmitting = true;
+			pageState.isSubmitting = true;
 			formElement.requestSubmit();
 		}
 	}
@@ -149,7 +85,7 @@
 	<PageHeader title="Add New Debt" description="Record a transaction with a friend" />
 
 	<!-- Bank Account Warning -->
-	{#if !hasBankAccount}
+	{#if !pageState.canLend}
 		<Card.Root class="mb-6 border-destructive bg-destructive/5">
 			<Card.Content class="py-6 text-center">
 				<div
@@ -177,13 +113,13 @@
 		<Card.Content class="pt-6">
 			<form
 				bind:this={formElement}
-				{...createDebtRemote.enhance(async ({ submit }) => {
-					isSubmitting = true;
+				{...createDebtRemote.enhance(async ({ submit }: { submit: () => Promise<void> }) => {
+					pageState.isSubmitting = true;
 					try {
 						await submit();
 					} catch {
 						toast.error('Network error. Please try again.');
-						isSubmitting = false;
+						pageState.isSubmitting = false;
 					}
 				})}
 				class="space-y-6"
@@ -197,31 +133,31 @@
 							id="counterpartyPhone"
 							name="counterpartyPhone"
 							placeholder="0901234567"
-							bind:value={phoneNumber}
-							onfocus={() => (showAutocomplete = true)}
-							onblur={() => setTimeout(() => (showAutocomplete = false), 200)}
+							bind:value={pageState.phoneNumber}
+							onfocus={() => (pageState.showAutocomplete = true)}
+							onblur={() => setTimeout(() => (pageState.showAutocomplete = false), 200)}
 							required
 							class={cn(
 								'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-								phoneResult.state === 'error' &&
+								pageState.phoneResult.state === 'error' &&
 									'ring-2 ring-destructive focus-visible:ring-destructive',
-								phoneResult.state === 'success' && 'ring-2 ring-success focus-visible:ring-success',
-								phoneResult.state === 'warning' && 'ring-2 ring-warning focus-visible:ring-warning'
+								pageState.phoneResult.state === 'success' && 'ring-2 ring-success focus-visible:ring-success',
+								pageState.phoneResult.state === 'warning' && 'ring-2 ring-warning focus-visible:ring-warning'
 							)}
 						/>
 
 						<!-- Recent contacts autocomplete -->
-						{#if showAutocomplete && autocompleteContacts.length > 0}
+						{#if pageState.showAutocomplete && pageState.autocompleteContacts.length > 0}
 							<div class="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md">
 								<div class="py-1">
 									<p class="px-3 py-1 text-xs text-muted-foreground">Recent contacts</p>
-									{#each autocompleteContacts as contact}
+									{#each pageState.autocompleteContacts as contact}
 										<button
 											type="button"
 											class="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-muted"
 											onmousedown={() => {
-												phoneNumber = contact;
-												showAutocomplete = false;
+												pageState.phoneNumber = contact;
+												pageState.showAutocomplete = false;
 											}}
 										>
 											<User class="h-4 w-4 text-muted-foreground" />
@@ -232,9 +168,9 @@
 							</div>
 						{/if}
 					</div>
-					{#if phoneResult.state !== 'default'}
-						<p class={cn("text-xs", phoneResult.state === 'error' ? "text-destructive" : phoneResult.state === 'success' ? "text-success" : "text-warning")}>
-							{phoneResult.message}
+					{#if pageState.phoneResult.state !== 'default'}
+						<p class={cn("text-xs", pageState.phoneResult.state === 'error' ? "text-destructive" : pageState.phoneResult.state === 'success' ? "text-success" : "text-warning")}>
+							{pageState.phoneResult.message}
 						</p>
 					{/if}
 				</div>
@@ -253,26 +189,26 @@
 								value="LEND"
 								id="lend"
 								class="peer sr-only"
-								checked={direction === 'LEND'}
-								onchange={() => (directionState = 'LEND')}
-								disabled={!canLend}
+								checked={pageState.direction === 'LEND'}
+								onchange={() => (pageState.direction = 'LEND')}
+								disabled={!pageState.canLend}
 							/>
 							<Label
 								for="lend"
 								class={cn(
 									'flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors',
-									!canLend && 'cursor-not-allowed opacity-50',
-									direction === 'LEND' && canLend
+									!pageState.canLend && 'cursor-not-allowed opacity-50',
+									pageState.direction === 'LEND' && pageState.canLend
 										? 'border-success bg-success/5'
 										: 'border-muted hover:bg-muted/50'
 								)}
 							>
 								<ArrowUp
-									class={cn('h-6 w-6', canLend ? 'text-success' : 'text-muted-foreground')}
+									class={cn('h-6 w-6', pageState.canLend ? 'text-success' : 'text-muted-foreground')}
 								/>
 								<span class="text-sm font-semibold">I Lent</span>
 								<span class="text-xs text-muted-foreground">They owe me</span>
-								{#if !canLend}
+								{#if !pageState.canLend}
 									<Badge variant="destructive" class="mt-1 text-xs">Requires bank account</Badge>
 								{/if}
 							</Label>
@@ -285,14 +221,14 @@
 								value="BORROW"
 								id="borrow"
 								class="peer sr-only"
-								checked={direction === 'BORROW'}
-								onchange={() => (directionState = 'BORROW')}
+								checked={pageState.direction === 'BORROW'}
+								onchange={() => (pageState.direction = 'BORROW')}
 							/>
 							<Label
 								for="borrow"
 								class={cn(
 									'flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors',
-									direction === 'BORROW'
+									pageState.direction === 'BORROW'
 										? 'border-destructive bg-destructive/5'
 										: 'border-muted hover:bg-muted/50'
 								)}
@@ -310,11 +246,11 @@
 					name="amount"
 					type="number"
 					placeholder="100000"
-					bind:value={amount}
-					validationState={amountResult.state}
-					success={amountResult.state === 'success' ? amountResult.message : undefined}
-					error={amountResult.state === 'error' ? amountResult.message : undefined}
-					warning={amountResult.state === 'warning' ? amountResult.message : undefined}
+					bind:value={pageState.amount}
+					validationState={pageState.amountResult.state}
+					success={pageState.amountResult.state === 'success' ? pageState.amountResult.message : undefined}
+					error={pageState.amountResult.state === 'error' ? pageState.amountResult.message : undefined}
+					warning={pageState.amountResult.state === 'warning' ? pageState.amountResult.message : undefined}
 					min="1000"
 					step="1000"
 					required
@@ -325,22 +261,22 @@
 					name="description"
 					type="text"
 					placeholder="Lunch, movie tickets, etc."
-					bind:value={description}
-					validationState={descriptionResult.state}
-					success={descriptionResult.state === 'success' ? descriptionResult.message : undefined}
-					error={descriptionResult.state === 'error' ? descriptionResult.message : undefined}
+					bind:value={pageState.description}
+					validationState={pageState.descriptionResult.state}
+					success={pageState.descriptionResult.state === 'success' ? pageState.descriptionResult.message : undefined}
+					error={pageState.descriptionResult.state === 'error' ? pageState.descriptionResult.message : undefined}
 					required
 				/>
 
 				<!-- Expiry Option -->
 				<div class="space-y-2">
 					<Label class="text-sm">Confirmation Deadline</Label>
-					<Select.Root bind:value={expiryOption}>
+					<Select.Root bind:value={pageState.expiryOption}>
 						<Select.Trigger class="w-full">
 							<Select.Value />
 						</Select.Trigger>
 						<Select.Content>
-							{#each expiryOptions as option}
+							{#each pageState.expiryOptions as option}
 								<Select.Item value={option.value} label={option.label} />
 							{/each}
 						</Select.Content>
@@ -351,14 +287,14 @@
 				</div>
 
 				<!-- Confirm Duplicate Checkbox (visible when duplicates detected) -->
-				{#if confirmDuplicate}
+				{#if pageState.confirmDuplicate}
 					<div class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
 						<label class="flex items-center gap-2 text-sm">
 							<input
 								type="checkbox"
 								name="confirmDuplicate"
 								value="true"
-								checked={confirmDuplicate}
+								checked={pageState.confirmDuplicate}
 								class="h-4 w-4 rounded border-amber-400"
 							/>
 							<span class="font-medium text-amber-800 dark:text-amber-200">
@@ -373,26 +309,20 @@
 						type="button"
 						variant="outline"
 						class="flex-1"
-						disabled={isSubmitting ||
-							phoneResult.state === 'error' ||
-							amountResult.state === 'error' ||
-							descriptionResult.state === 'error' ||
-							!phoneNumber ||
-							!amount ||
-							!description}
-						onclick={() => (showPreviewModal = true)}
+						disabled={pageState.isSubmitting || !pageState.isValid}
+						onclick={() => (pageState.showPreviewModal = true)}
 					>
 						Preview
 					</Button>
 					<Button
 						type="submit"
 						class="flex-1"
-						disabled={isSubmitting ||
-							phoneResult.state === 'error' ||
-							amountResult.state === 'error' ||
-							descriptionResult.state === 'error'}
+						disabled={pageState.isSubmitting ||
+							pageState.phoneResult.state === 'error' ||
+							pageState.amountResult.state === 'error' ||
+							pageState.descriptionResult.state === 'error'}
 					>
-						{isSubmitting ? 'Creating...' : 'Create Debt'}
+						{pageState.isSubmitting ? 'Creating...' : 'Create Debt'}
 					</Button>
 				</div>
 			</form>
@@ -400,7 +330,7 @@
 	</Card.Root>
 
 	<!-- Preview Modal -->
-	<AlertDialog.Root bind:open={showPreviewModal}>
+	<AlertDialog.Root bind:open={pageState.showPreviewModal}>
 		<AlertDialog.Content>
 			<AlertDialog.Header>
 				<AlertDialog.Title>Confirm Debt Details</AlertDialog.Title>
@@ -413,8 +343,8 @@
 				<div class="space-y-3 rounded-lg border bg-muted/50 p-4">
 					<div class="flex items-center justify-between">
 						<span class="text-sm text-muted-foreground">Direction</span>
-						<Badge variant={direction === 'LEND' ? 'default' : 'secondary'}>
-							{#if direction === 'LEND'}
+						<Badge variant={pageState.direction === 'LEND' ? 'default' : 'secondary'}>
+							{#if pageState.direction === 'LEND'}
 								<ArrowUp class="mr-1 h-3 w-3" />
 								They Owe You
 							{:else}
@@ -426,22 +356,22 @@
 
 					<div class="flex items-center justify-between">
 						<span class="text-sm text-muted-foreground">Counterparty</span>
-						<span class="font-medium">{phoneNumber}</span>
+						<span class="font-medium">{pageState.phoneNumber}</span>
 					</div>
 
 					<div class="flex items-center justify-between">
 						<span class="text-sm text-muted-foreground">Amount</span>
-						<span class="text-lg font-bold">{formatCurrency(parseFloat(amount) || 0)}</span>
+						<span class="text-lg font-bold">{formatCurrency(parseFloat(pageState.amount) || 0)}</span>
 					</div>
 
 					<div class="flex items-start justify-between">
 						<span class="text-sm text-muted-foreground">Description</span>
-						<span class="max-w-50 text-right font-medium">{description}</span>
+						<span class="max-w-50 text-right font-medium">{pageState.description}</span>
 					</div>
 
 					<div class="flex items-center justify-between">
 						<span class="text-sm text-muted-foreground">Expiry</span>
-						<span class="text-sm">{expiryOptions.find((o) => o.value === expiryOption)?.label}</span
+						<span class="text-sm">{pageState.expiryOptions.find((o) => o.value === pageState.expiryOption)?.label}</span
 						>
 					</div>
 				</div>
@@ -452,13 +382,13 @@
 			</div>
 
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel onclick={() => (showPreviewModal = false)}>Edit</AlertDialog.Cancel>
+				<AlertDialog.Cancel onclick={() => (pageState.showPreviewModal = false)}>Edit</AlertDialog.Cancel>
 				<AlertDialog.Action
 					onclick={() => {
-						showPreviewModal = false;
+						pageState.showPreviewModal = false;
 						// Submit the form
 						if (formElement) {
-							isSubmitting = true;
+							pageState.isSubmitting = true;
 							formElement.requestSubmit();
 						}
 					}}
@@ -470,7 +400,7 @@
 	</AlertDialog.Root>
 
 	<!-- Duplicate Warning Modal -->
-	<AlertDialog.Root bind:open={showDuplicateModal}>
+	<AlertDialog.Root bind:open={pageState.showDuplicateModal}>
 		<AlertDialog.Content>
 			<AlertDialog.Header>
 				<AlertDialog.Title class="flex items-center gap-2">
@@ -484,7 +414,7 @@
 			</AlertDialog.Header>
 
 			<div class="my-4 space-y-2">
-				{#each duplicateDebts as debt}
+				{#each pageState.duplicateDebts as debt}
 					<div class="rounded-lg border bg-muted/50 p-3 text-sm">
 						<div class="flex items-center justify-between">
 							<span class="font-semibold">{formatCurrency(debt.amount)}</span>
@@ -498,9 +428,10 @@
 			</div>
 
 			<AlertDialog.Footer>
-				<AlertDialog.Cancel onclick={() => (showDuplicateModal = false)}>Cancel</AlertDialog.Cancel>
+				<AlertDialog.Cancel onclick={() => (pageState.showDuplicateModal = false)}>Cancel</AlertDialog.Cancel>
 				<AlertDialog.Action onclick={handleConfirmDuplicate}>Create Anyway</AlertDialog.Action>
 			</AlertDialog.Footer>
 		</AlertDialog.Content>
 	</AlertDialog.Root>
 </PageContainer>
+

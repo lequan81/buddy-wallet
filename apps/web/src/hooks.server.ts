@@ -1,10 +1,10 @@
 import { dev } from '$app/environment';
 import type { Handle, HandleServerError, RequestEvent } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
-import { redirect } from '@sveltejs/kit';
+import { redirect } from '$lib/services/navigation';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { createTreatyClient } from '$lib/services/api';
-import { extractApiData } from '$lib/services/api-envelope';
+import { unwrapData } from '$lib/services/api-helpers';
 import { FRONTEND_CONSTANTS } from '@repo/config/frontend';
 type AuthStatus = 'idle' | 'resolving' | 'authenticated' | 'unauthenticated' | 'offline';
 
@@ -24,6 +24,7 @@ function isPublicRoute(pathname: string): boolean {
 		/^\/[a-z]{2}\/?$/.test(pathname) ||
 		pathname.includes('/login') ||
 		pathname.includes('/signup') ||
+		pathname.includes('/verify-email') ||
 		pathname.includes('/forgot-password') ||
 		pathname.includes('/reset-password') ||
 		pathname.includes('/check-debt') ||
@@ -75,9 +76,12 @@ async function tryGetUser(
 
 		clearTimeout(timeout);
 
-		// API returns { data: { ...user } } on success — unwrap once
-		const parsed = extractApiData<App.Locals['user']>(data);
-		const user = !error && parsed.data ? parsed.data : null;
+		// API returns { data: { ...user } } on success
+		const user = unwrapData<App.Locals['user']>(data);
+
+		if (!user && dev) {
+			console.log(`[HOOKS:tryGetUser] Failed to get profile. Status: ${status}, Error:`, error?.value || 'Unknown');
+		}
 
 		// Handle locked account — redirect immediately
 		if (user && (user as unknown as { isLocked?: boolean }).isLocked) {
@@ -104,25 +108,12 @@ function handleLockedAccount(
 	event: RequestEvent,
 	userData: App.Locals['user']
 ): never {
-	if (!userData) throw redirect(303, `/account-locked`);
+	if (!userData) redirect(303, `/account-locked`);
 
 	const lockoutUntil = (userData as unknown as { lockoutUntil?: string }).lockoutUntil;
-	const isTemporaryLock = lockoutUntil && new Date(lockoutUntil) > new Date();
+	const email = userData.email || '';
 
-	if (isTemporaryLock || !lockoutUntil) {
-		event.cookies.delete('session', { path: '/' });
-		event.cookies.delete('refresh_token', { path: '/' });
-
-		const params = new URLSearchParams();
-		if (lockoutUntil) params.set('until', lockoutUntil);
-		params.set('email', userData.email || '');
-
-		throw redirect(303, `/account-locked?${params.toString()}`);
-	}
-
-	// If lockoutUntil is in the past, the account is no longer locked — continue
-	// This edge shouldn't happen, but TypeScript requires a `never` path here.
-	throw redirect(303, `/account-locked`);
+	redirect(303, `/account-locked`, { until: lockoutUntil, email });
 }
 
 /**
@@ -157,8 +148,8 @@ async function tryRefreshToken(
 
 		// Refresh endpoint returns { data: { accessToken, refreshToken, ... } }
 		// It does NOT return user data. Check for data presence.
-		const parsed = extractApiData<{ accessToken?: string }>(data);
-		if (error || !parsed.data?.accessToken) {
+		const refreshData = unwrapData<{ accessToken?: string }>(data);
+		if (error || !refreshData?.accessToken) {
 			return { user: null, newSessionToken: undefined, timedOut: false };
 		}
 
@@ -251,6 +242,9 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	const refreshToken = event.cookies.get('refresh_token');
 	const pathname = event.url.pathname;
 	const isPublic = isPublicRoute(pathname);
+	if (dev && (pathname.includes('verify-email') || pathname.startsWith('/dashboard') || pathname === '/')) {
+		console.log(`[DEBUG:AUTH] Path: ${pathname}, hasSession: ${Boolean(currentToken)}, hasRefresh: ${Boolean(refreshToken)}`);
+	}
 	let authStatus: AuthStatus = 'idle';
 
 	// ── Determine whether to attempt auth ────────────────────────────────
@@ -349,21 +343,19 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 
 	// Guard 1: Protected route without auth → login
 	if (!isPublic && !user && !apiOffline) {
-		const redirectTo = encodeURIComponent(pathname);
-		throw redirect(303, `/login?redirectTo=${redirectTo}`);
+		redirect(303, '/login');
 	}
 
-	// Guard 2: Authenticated user on login/signup → dashboard
+	// Guard 2: Authenticated user on login/signup → home
 	if (user && (pathname.includes('/login') || pathname.includes('/signup'))) {
-		const redirectTo = event.url.searchParams.get('redirectTo');
-		throw redirect(303, redirectTo ? decodeURIComponent(redirectTo) : '/dashboard');
+		redirect(303, '/');
 	}
 
 	// Guard 3: Non-admin on admin routes → home
 	if (pathname.startsWith('/admin/') && user) {
 		const hasAdminPermission = user?.permissions?.includes('admin:view');
 		if (!hasAdminPermission) {
-			throw redirect(303, '/');
+			redirect(303, '/');
 		}
 	}
 

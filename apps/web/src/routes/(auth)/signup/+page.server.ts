@@ -1,7 +1,7 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { createTreatyClient } from '$lib/services/api';
-import { extractApiErrorMessage } from '$lib/services/api-envelope';
+import { redirect } from '$lib/services/navigation';
 import { superValidate, message } from 'sveltekit-superforms';
 import { typebox } from 'sveltekit-superforms/adapters';
 import type { TSchema } from '@sinclair/typebox';
@@ -38,7 +38,7 @@ export const actions: Actions = {
 			});
 
 			if (error) {
-				let errorMessage = extractApiErrorMessage(error.value, 'Registration failed');
+				let errorMessage = (error.value?.message || 'Registration failed');
 
 				// Provide user-friendly messages for common errors
 				if (
@@ -71,10 +71,10 @@ export const actions: Actions = {
 				httpOnly: true,
 				maxAge: 600 // 10 minutes
 			});
-			throw redirect(303, '/verify-email');
+			redirect(303, '/verify-email');
 		}
 
 		// No email (phone-only signup) — go straight to login
-		throw redirect(303, '/login');
+		redirect(303, '/login');
 	}
 };

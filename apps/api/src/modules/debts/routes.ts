@@ -77,15 +77,6 @@ export const debtRoutes = new Elysia({ prefix: '/debts' })
     params: v.object({ id: v.string() }),
     detail: { tags: ['debts'], description: 'Generate VietQR payment URL for a debt' }
   })
-  .post('/:id/proofs/:proofId/approve', requirePermission('proof:approve', debt.proof.approve), {
-    params: v.object({ id: v.string(), proofId: v.string() }),
-    detail: { tags: ['debts', 'proofs'], description: 'Approve a payment proof for a debt' }
-  })
-  .post('/:id/proofs/:proofId/reject', requirePermission('proof:reject', debt.proof.reject), {
-    params: v.object({ id: v.string(), proofId: v.string() }),
-    body: v.object({ reason: v.optional(v.string()) }),
-    detail: { tags: ['debts', 'proofs'], description: 'Reject a payment proof for a debt' }
-  })
   .delete('/:id', requirePermission('debt:delete-own', debt.remove), {
     params: v.object({ id: v.string() }),
     detail: { tags: ['debts'], description: 'Delete a cancelled debt' }

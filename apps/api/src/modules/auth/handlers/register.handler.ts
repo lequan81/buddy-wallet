@@ -7,6 +7,7 @@
  */
 
 import { randomUUIDv7 } from 'bun';
+import { configs } from '@/config';
 import { SHARED_CONSTANTS } from '@repo/config';
 import { db } from '@/providers/database';
 import { UserRepository } from '@/repositories/user/user.repo';
@@ -14,6 +15,7 @@ import { SessionRepository } from '@/repositories/auth/session.repo';
 import { EmailVerificationRepository } from '@/repositories/auth/email-verification.repo';
 import { DebtRepository } from '@/repositories/debt/debt.repo';
 import { toUserResponse, hashPassword, hashToken } from '@/commons/security/password';
+import { DEFAULT_USER_PERMISSIONS } from '@/commons/security/permissions';
 import { normalizePhoneNumber } from '@repo/utils';
 import { BE_ERRORS } from '@repo/errors';
 import { apiCreated, apiError } from '@/commons/http/response';
@@ -38,7 +40,8 @@ const tokenMeta = getTokenLifetimes();
 const SESSION_META_TTL_SECONDS = SHARED_CONSTANTS.AUTH.REFRESH_TOKEN_MAX_AGE_DAYS * 24 * 60 * 60;
 
 export const register = {
-  handler: async ({ body, request, jwt }: RegisterContext) => {
+  handler: async ({ body, request, jwt, cookie }: RegisterContext) => {
+    console.log('[register:handler] body:', { ...body, password: '***' });
     const { email, phone, password, fullName } = body;
 
     const passwordValidation = validateUserPassword(password);
@@ -83,12 +86,13 @@ export const register = {
       const txSessionRepo = new SessionRepository(tx);
 
       // 1. Create user
+      console.log('[register:handler] creating user with permissions:', DEFAULT_USER_PERMISSIONS);
       const newUser = await txUserRepo.create({
         name: fullName,
         email: email || null,
         phoneNumber: normalizedPhone,
         password: hashedPassword,
-        permissions: [] as string[]
+        permissions: DEFAULT_USER_PERMISSIONS as string[]
       });
 
       // 2. Link pre-existing debts to new user
@@ -163,6 +167,30 @@ export const register = {
         location
       }, SESSION_META_TTL_SECONDS);
     }
+
+    // Set HttpOnly cookies for security
+    const isProd = configs.APP.IS_PRODUCTION;
+    
+    // @ts-ignore - cookie is available in Elysia context
+    const { session: sessionCookie, refresh_token: refreshCookie } = cookie;
+
+    sessionCookie.set({
+      value: result.accessToken,
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: tokenMeta.accessMs / 1000
+    });
+
+    refreshCookie.set({
+      value: result.refreshToken,
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: tokenMeta.refreshMs / 1000
+    });
 
     return apiCreated({
       user: toUserResponse(result.user),

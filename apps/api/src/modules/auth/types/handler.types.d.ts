@@ -17,7 +17,7 @@ export interface RequestPasswordResetBody {
 }
 
 export interface RefreshTokenBody {
-  refreshToken: string;
+  refreshToken?: string;
 }
 
 export interface ResetPasswordBody {

@@ -1,6 +1,5 @@
 import { form, getRequestEvent } from '$app/server';
 import { error, invalid } from '@sveltejs/kit';
-import { extractApiErrorMessage } from '$lib/services/api-envelope';
 
 export const updateNotifications = form('unchecked' as const, async (data) => {
 	const event = getRequestEvent();
@@ -20,7 +19,7 @@ export const updateNotifications = form('unchecked' as const, async (data) => {
 	const { error: apiError } = await api.v1.user.profile.patch(notificationPayload);
 
 	if (apiError) {
-		invalid(extractApiErrorMessage(apiError.value, 'Failed to update notification preferences'));
+		invalid((apiError.value?.message || 'Failed to update notification preferences'));
 	}
 
 	return { success: true };

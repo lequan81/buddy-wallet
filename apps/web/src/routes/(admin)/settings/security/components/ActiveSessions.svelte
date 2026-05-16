@@ -89,7 +89,7 @@
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<form
-			{...logoutAll.enhance(async ({ submit }) => {
+			{...logoutAll.enhance(async ({ submit }: { submit: () => Promise<void> }) => {
 				isLoggingOutAll = true;
 				try {
 					await submit();

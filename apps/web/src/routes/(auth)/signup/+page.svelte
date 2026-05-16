@@ -71,7 +71,7 @@
 
 		<Card.Content>
 			<form
-				{...registerRemote.enhance(async ({ submit }) => {
+				{...registerRemote.enhance(async ({ submit }: { submit: () => Promise<void> }) => {
 					isSubmitting = true;
 					try {
 						await submit();
