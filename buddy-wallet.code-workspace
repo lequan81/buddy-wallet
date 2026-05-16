@@ -67,6 +67,7 @@
       "**/node_modules": true,
       "**/.active_tasks": true
     },
-    "ts.tsdk.path": "node_modules/typescript/lib"
+    "ts.tsdk.path": "node_modules/typescript/lib",
+    "js/ts.tsdk.path": "buddy wallet\\node_modules\\typescript\\lib"
   }
 }
