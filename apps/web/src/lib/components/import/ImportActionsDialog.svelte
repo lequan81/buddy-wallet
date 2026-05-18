@@ -5,7 +5,7 @@
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Badge } from '@repo/ui/components/ui/badge';
 	import { formatDate } from '@repo/utils/format';
-	import type { ImportLog } from '@repo/types/core/import';
+	import type { ImportLog } from '@repo/types/shared/import';
 	import { getImportExport } from '$lib/remotes/import.remote';
 
 	let { log } = $props<{ log: ImportLog }>();
@@ -148,3 +148,4 @@
 		text-transform: capitalize;
 	}
 </style>
+

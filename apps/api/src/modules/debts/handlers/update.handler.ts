@@ -1,11 +1,17 @@
 import { BE_ERRORS } from '@repo/errors';
 import { validateDebtAmount, validateCurrency } from '../services/debt.service';
-import { debtRepo } from './_deps';
+import { db } from '@/providers/database';
+import { DebtRepository } from '@/repositories/debt/debt.repo';
 import type { UpdateDebtContext } from '../types/handler.types';
 import { apiSuccess, apiError } from '@/commons/http/response';
 import { logActivity } from '@/commons/activity-logger';
 
-export const update = async ({ params, body, user }: UpdateDebtContext) => {
+export const update = async ({
+  params,
+  body,
+  user,
+  debtRepo = new DebtRepository(db)
+}: UpdateDebtContext) => {
   const { amount, currency, description, dueDate } = body;
   const debt = await debtRepo.findById(params.id);
 

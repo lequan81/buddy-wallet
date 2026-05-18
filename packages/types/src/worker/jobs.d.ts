@@ -1,14 +1,25 @@
-import type { JobState } from './workflow';
+import type { JobState } from '../shared/workflow';
+import type { ColumnMapping, ImportResult, PreviewResult } from '../shared/import';
 
 export type JobStatus = JobState;
-export type JobType = 'import' | 'preview' | 'export' | 'notification' | 'cleanup' | 'sync' | 'image_processing';
+export type JobType =
+  | 'import'
+  | 'preview'
+  | 'export'
+  | 'notification'
+  | 'cleanup'
+  | 'sync'
+  | 'image_processing';
 export type ImportJobType = 'import' | 'preview';
 
 export interface JobPayload {
   userId: string | { id: string };
   file?: File;
   fileName?: string;
-  config?: { mapping: import('../core/import').ColumnMapping; startRow: number };
+  config?: {
+    mapping: ColumnMapping;
+    startRow: number;
+  };
   previewLogId?: string;
 }
 
@@ -17,7 +28,11 @@ export interface WorkerJobPayload {
   jobId: string;
   userId: string | { id: string };
   fileName: string;
-  config?: { mapping: import('../core/import').ColumnMapping; startRow: number };
+  config?: {
+    mapping?: ColumnMapping;
+    startRow?: number;
+    [key: string]: unknown;
+  };
   previewLogId?: string;
   storageKey?: string;
   imageType?: 'avatar' | 'proof';
@@ -32,7 +47,7 @@ export interface BaseJob {
   userId: string;
   fileName?: string; // Add fileName to top level for easy access
   metadata?: Record<string, unknown> | null;
-  result?: import('../core/import').PreviewResult | import('../core/import').ImportResult;
+  result?: PreviewResult | ImportResult;
   error?: string | null;
   message?: string;
   createdAt: string | Date;

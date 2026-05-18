@@ -11,7 +11,9 @@ import * as v from 'valibot';
 export const UpdateProfileSchema = v.object({
   name: v.optional(v.pipe(v.string(), v.minLength(2), v.maxLength(100))),
   email: v.optional(v.pipe(v.string(), v.email())),
-  avatar: v.optional(v.string())
+  avatar: v.optional(v.string()),
+  pushNotificationsEnabled: v.optional(v.boolean()),
+  emailNotificationsEnabled: v.optional(v.boolean())
 });
 
 // Change password schema

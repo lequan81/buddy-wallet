@@ -11,7 +11,7 @@
 	import QuickActions from '$lib/components/dashboard/QuickActions.svelte';
 	import FinancialSummary from '$lib/components/dashboard/FinancialSummary.svelte';
 	import { formatCurrency, formatDate } from '@repo/utils/format';
-	import type { Debt } from '@repo/types/core/debt';
+	import type { Debt } from '@repo/types/shared/debt';
 	import { DEBT_STATUS } from '@repo/config/shared/status';
 	import CreateDebtModal from '$lib/components/dashboard/CreateDebtModal.svelte';
 	import { DashboardState } from '$lib/dashboard/state.svelte';
@@ -178,3 +178,4 @@
 	initialPhone={modalInitialPhone}
 	onSuccess={invalidateAll}
 />
+

@@ -1,6 +1,9 @@
 /**
  * Image Processing Service - Pure Functions
  * @logicType backend
+ * @deprecated Moved to apps/worker/src/services/image-processing.service.ts
+ *             to eliminate worker→API dependency. This file is kept for
+ *             backward compatibility but should not be imported by new code.
  *
  * Uses Bun.Image for native image processing with EXIF removal.
  * All processed images have EXIF metadata stripped after orientation correction.

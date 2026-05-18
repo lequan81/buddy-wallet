@@ -1,4 +1,4 @@
-import type { DebtDetails, DebtStatus } from '@repo/types/core/debt';
+import type { DebtDetails, DebtStatus } from '@repo/types/shared/debt';
 import { DEBT_STATUS } from '@repo/config/shared/status';
 // NOTE: This class is currently unused. It's kept as a utility for potential future use.
 import { api } from '$lib/services/api';

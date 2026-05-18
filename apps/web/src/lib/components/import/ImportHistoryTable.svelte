@@ -8,8 +8,8 @@
 	import ConnectionFallback from '$lib/components/shared/ConnectionFallback.svelte';
 	import { cn } from '$lib/utils';
 	import { getImportStatusColor, formatDate } from '$lib/utils/status';
-	import type { ImportLog } from '@repo/types/core/import';
-	import type { ImportJob } from '@repo/types/infrastructure/jobs';
+	import type { ImportLog } from '@repo/types/shared/import';
+	import type { ImportJob } from '@repo/types/worker/jobs';
 
 	interface ImportProgressStoreLike {
 		getJob: (id: string) => ImportJob | null | undefined;
@@ -286,3 +286,4 @@
 		</div>
 	</div>
 {/if}
+

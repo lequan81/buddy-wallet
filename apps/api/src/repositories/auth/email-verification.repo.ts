@@ -124,4 +124,10 @@ export class EmailVerificationRepository {
       .set({ verified: true })
       .where(and(eq(emailVerifications.userId, userId), eq(emailVerifications.email, email), eq(emailVerifications.verified, false)));
   }
+
+  async delete(id: string): Promise<void> {
+    await this.database
+      .delete(emailVerifications)
+      .where(eq(emailVerifications.id, id));
+  }
 }

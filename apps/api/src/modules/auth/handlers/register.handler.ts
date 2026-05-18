@@ -9,6 +9,7 @@
 import { randomUUIDv7 } from 'bun';
 import { configs } from '@/config';
 import { SHARED_CONSTANTS } from '@repo/config';
+import { log } from '@repo/logger';
 import { db } from '@/providers/database';
 import { UserRepository } from '@/repositories/user/user.repo';
 import { SessionRepository } from '@/repositories/auth/session.repo';
@@ -41,7 +42,7 @@ const SESSION_META_TTL_SECONDS = SHARED_CONSTANTS.AUTH.REFRESH_TOKEN_MAX_AGE_DAY
 
 export const register = {
   handler: async ({ body, request, jwt, cookie }: RegisterContext) => {
-    console.log('[register:handler] body:', { ...body, password: '***' });
+    log.debug('REGISTER', 'Processing registration', { ...body, password: '***' });
     const { email, phone, password, fullName } = body;
 
     const passwordValidation = validateUserPassword(password);
@@ -86,7 +87,7 @@ export const register = {
       const txSessionRepo = new SessionRepository(tx);
 
       // 1. Create user
-      console.log('[register:handler] creating user with permissions:', DEFAULT_USER_PERMISSIONS);
+      log.debug('REGISTER', 'Creating user with permissions', { permissions: DEFAULT_USER_PERMISSIONS });
       const newUser = await txUserRepo.create({
         name: fullName,
         email: email || null,

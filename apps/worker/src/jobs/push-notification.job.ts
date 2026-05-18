@@ -13,9 +13,9 @@ import { db, pushSubscriptions, eq, and } from '@repo/db';
 import { env } from '@repo/config';
 
 // ── VAPID Initialization ────────────────────────────────────
-const VAPID_PUBLIC_KEY = env.string('VAPID_PUBLIC_KEY', Bun.env.VAPID_PUBLIC_KEY || '');
-const VAPID_PRIVATE_KEY = env.string('VAPID_PRIVATE_KEY', Bun.env.VAPID_PRIVATE_KEY || '');
-const VAPID_SUBJECT = env.string('VAPID_SUBJECT', Bun.env.VAPID_SUBJECT || 'mailto:admin@buddywallet.com');
+const VAPID_PUBLIC_KEY = env.string('VAPID_PUBLIC_KEY', '');
+const VAPID_PRIVATE_KEY = env.string('VAPID_PRIVATE_KEY', '');
+const VAPID_SUBJECT = env.string('VAPID_SUBJECT', 'mailto:admin@buddywallet.com');
 
 let vapidConfigured = false;
 

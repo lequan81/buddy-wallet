@@ -2,7 +2,7 @@
 	import { Circle, CheckCircle2, XCircle, Clock } from '@repo/icons';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { formatDate } from '@repo/utils/format';
-	import type { DebtDetails } from '@repo/types/core/debt';
+	import type { DebtDetails } from '@repo/types/shared/debt';
 
 	let { debt } = $props<{ debt: DebtDetails }>();
 

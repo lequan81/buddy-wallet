@@ -1,6 +1,6 @@
 import { redirect, getParam } from '$lib/services/navigation';
 import type { PageServerLoad } from './$types';
-import type { Debt } from '@repo/types/core/debt';
+import type { Debt } from '@repo/types/shared/debt';
 import { unwrapData } from '$lib/services/api-helpers';
 
 const hasAccounts = (accounts: unknown[] | null): boolean => Array.isArray(accounts) && accounts.length > 0;
@@ -63,4 +63,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		}
 	};
 };
+
 

@@ -48,6 +48,7 @@
         "@opentelemetry/api": "^1.9.1",
         "@repo/eslint-config": "workspace:*",
         "@repo/typescript-config": "workspace:*",
+        "@sinclair/typebox": "^0.34.15",
         "@types/web-push": "^3.6.4",
         "eslint": "^9.39.4",
         "typescript": "^6.0.3",
@@ -117,7 +118,6 @@
       "name": "@repo/worker",
       "version": "1.0.0",
       "dependencies": {
-        "@repo/api": "workspace:*",
         "@repo/config": "workspace:*",
         "@repo/db": "workspace:*",
         "@repo/logger": "workspace:*",

@@ -1,4 +1,4 @@
-import type { VietQRBank } from '@repo/types/core/bank';
+import type { VietQRBank } from '@repo/types/shared/bank';
 import { FRONTEND_CONSTANTS } from '@repo/config/frontend';
 
 /**
@@ -34,3 +34,4 @@ export async function fetchBanks(
 
 	return [];
 }
+

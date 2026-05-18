@@ -5,6 +5,7 @@
  */
 
 import { start, bootstrap } from './bootstrap';
+import { logger } from '@repo/logger';
 
 // Re-export types for Eden Treaty clients
 export type { createApp } from './bootstrap';
@@ -15,7 +16,7 @@ export const app = await bootstrap();
 
 if (import.meta.main) {
   start().catch((error) => {
-    console.error('Failed to start application:', error);
+    logger.error('Failed to start application', { error: String(error) });
     process.exit(1);
   });
 }

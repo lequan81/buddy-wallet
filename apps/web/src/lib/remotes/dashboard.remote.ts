@@ -1,6 +1,6 @@
 import { getRequestEvent, query } from '$app/server';
-import type { Debt } from '@repo/types/core/debt';
-import type { UserResponse } from '@repo/types/core/user';
+import type { Debt } from '@repo/types/shared/debt';
+import type { UserResponse } from '@repo/types/shared/user';
 import type { Pagination } from '@repo/types/api/pagination';
 import { unwrapData, unwrapPagination } from '$lib/services/api-helpers';
 
@@ -113,3 +113,4 @@ export const getRecentDebts = query(async (): Promise<Debt[]> => {
 		return [];
 	}
 });
+

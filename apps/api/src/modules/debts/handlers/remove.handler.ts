@@ -1,10 +1,15 @@
 import { BE_ERRORS } from '@repo/errors';
-import { debtRepo } from './_deps';
+import { db } from '@/providers/database';
+import { DebtRepository } from '@/repositories/debt/debt.repo';
 import type { RemoveDebtContext } from '../types/handler.types';
 import { apiSuccess, apiError } from '@/commons/http/response';
 import { logActivity } from '@/commons/activity-logger';
 
-export const remove = async ({ params, user }: RemoveDebtContext) => {
+export const remove = async ({
+  params,
+  user,
+  debtRepo = new DebtRepository(db)
+}: RemoveDebtContext) => {
   const debt = await debtRepo.findById(params.id);
 
   if (!debt) {

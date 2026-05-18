@@ -1,6 +1,6 @@
 import { getIntParam } from '$lib/services/navigation';
 import type { PageServerLoad } from './$types';
-import type { ActivityLog } from '@repo/types/core/activity';
+import type { ActivityLog } from '@repo/types/shared/activity';
 import type { Pagination } from '@repo/types/api/pagination';
 import { unwrapData, unwrapPagination } from '$lib/services/api-helpers';
 
@@ -67,3 +67,4 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		pageSize
 	};
 };
+

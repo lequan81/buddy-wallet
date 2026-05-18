@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import type { UserWithNotifications } from '@repo/types/core/user';
+import type { UserWithNotifications } from '@repo/types/shared/user';
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { user } = (await parent()) as { user: UserWithNotifications | null };
@@ -12,4 +12,5 @@ export const load: PageServerLoad = async ({ parent }) => {
 		}
 	};
 };
+
 

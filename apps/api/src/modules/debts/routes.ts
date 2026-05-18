@@ -20,8 +20,13 @@ import {
 } from './schema';
 import { debt } from './handlers';
 import { requireUser, requirePermission } from '@/commons/http/require-user';
+import { db } from '@/providers/database';
+import { DebtRepository } from '@/repositories/debt/debt.repo';
+import { UserRepository } from '@/repositories/user/user.repo';
 
 export const debtRoutes = new Elysia({ prefix: '/debts' })
+  .decorate('debtRepo', new DebtRepository(db))
+  .decorate('userRepo', new UserRepository(db))
   .post('/', requirePermission('debt:create', debt.create), {
     body: CreateDebtSchema,
     detail: { tags: ['debts'], description: 'Create a new debt' }

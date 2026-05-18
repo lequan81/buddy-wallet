@@ -33,7 +33,7 @@ export async function enqueuePush(userId: string, payload: PushPayload): Promise
       userId,
       fileName: '', // Not applicable for push notifications
       storageKey: '',
-      config: payload as Record<string, unknown>,
+      config: payload as unknown as Record<string, unknown>,
       previewLogId: undefined
     });
 

@@ -11,7 +11,7 @@
  * @logicType backend
  */
 
-import type { Permission } from '@repo/types/infrastructure/permissions';
+import type { Permission } from '@repo/types/shared/permissions';
 
 export type { Permission };
 

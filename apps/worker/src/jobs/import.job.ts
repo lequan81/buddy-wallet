@@ -2,32 +2,12 @@ import { logger } from '@repo/logger';
 import { db, debts, users, importLogs, eq, or, inArray } from '@repo/db';
 import type { NewDebt } from '@repo/db';
 import { randomUUIDv7 } from 'bun';
-import { colLetterToIndex, toOptional } from '@repo/utils';
-import { SHARED_CONSTANTS, STORAGE_CONFIG, buildS3Endpoint } from '@repo/config';
-import type { WorkerJobPayload } from '@repo/types';
+import { colLetterToIndex } from '@repo/utils';
+import { SHARED_CONSTANTS } from '@repo/config';
+import type { WorkerJobPayload, ColumnMapping } from '@repo/types';
 import { setProgress, clearProgressCache, getRedis } from '../redis';
 import { parseFile, validateRowCount } from '../parser';
-
-interface AutoColumnMapping {
-  name: string;
-  amount: string;
-  phone: string;
-  email: string;
-  description: string;
-  dueDate: string;
-}
-
-// Build endpoint with auto-protocol detection
-const resolvedEndpoint = buildS3Endpoint(STORAGE_CONFIG.ENDPOINT, STORAGE_CONFIG.SSL);
-
-const s3Client = new Bun.S3Client({
-  endpoint: toOptional(resolvedEndpoint),
-  region: toOptional(STORAGE_CONFIG.REGION),
-  bucket: toOptional(STORAGE_CONFIG.BUCKET),
-  accessKeyId: toOptional(STORAGE_CONFIG.ACCESS_KEY),
-  secretAccessKey: toOptional(STORAGE_CONFIG.SECRET_KEY),
-  virtualHostedStyle: !STORAGE_CONFIG.FORCE_PATH_STYLE
-});
+import { s3Client } from '../s3';
 
 /**
  * Process a single import or preview job.
@@ -96,7 +76,7 @@ export async function processImportJob(payload: WorkerJobPayload) {
         columnHeaders.push(headerName ? `${letter}:${headerName}` : letter);
       }
 
-      const autoMapping: AutoColumnMapping = { name: '', amount: '', phone: '', email: '', description: '', dueDate: '' };
+      const autoMapping: ColumnMapping = { name: '', amount: '', phone: '', email: '', description: '', dueDate: '' };
       const headerRow = allRows[0] || [];
       headerRow.forEach((header, i) => {
         const h = String(header).toLowerCase().trim();
@@ -172,9 +152,9 @@ export async function processImportJob(payload: WorkerJobPayload) {
     const uniqueIdentifiers = new Set<string>();
     for (let i = dataStartIndex; i < allRows.length; i++) {
       const row = allRows[i];
-      const name = getRowValue(row, config?.mapping.name);
-      const phone = getRowValue(row, config?.mapping.phone);
-      const email = getRowValue(row, config?.mapping.email);
+      const name = getRowValue(row, config?.mapping?.name);
+      const phone = getRowValue(row, config?.mapping?.phone);
+      const email = getRowValue(row, config?.mapping?.email);
       if (phone) uniqueIdentifiers.add(phone);
       if (email) uniqueIdentifiers.add(email);
       if (name && !phone && !email) uniqueIdentifiers.add(name);
@@ -236,8 +216,8 @@ export async function processImportJob(payload: WorkerJobPayload) {
 
       if (rowCount > (SHARED_CONSTANTS.IMPORT.MAX_ROWS || 10000) || consecutiveEmpty > (SHARED_CONSTANTS.IMPORT.MAX_EMPTY_ROWS || 20)) break;
 
-      const name = getRowValue(row, config?.mapping.name);
-      const amountRaw = getRowValue(row, config?.mapping.amount);
+      const name = getRowValue(row, config?.mapping?.name);
+      const amountRaw = getRowValue(row, config?.mapping?.amount);
 
       if (!name && !amountRaw) {
         consecutiveEmpty++;
@@ -256,9 +236,9 @@ export async function processImportJob(payload: WorkerJobPayload) {
         continue;
       }
 
-      const phone = getRowValue(row, config?.mapping.phone);
-      const email = getRowValue(row, config?.mapping.email);
-      const description = getRowValue(row, config?.mapping.description);
+      const phone = getRowValue(row, config?.mapping?.phone);
+      const email = getRowValue(row, config?.mapping?.email);
+      const description = getRowValue(row, config?.mapping?.description);
 
       const identifier = String(phone || email || name).trim();
       const debtorData = userCache.get(identifier);

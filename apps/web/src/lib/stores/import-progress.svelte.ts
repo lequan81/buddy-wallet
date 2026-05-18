@@ -1,8 +1,8 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { api } from '$lib/services/api';
 import { unwrapData, unwrapMeta } from '$lib/services/api-helpers';
-import type { ImportProgress } from '@repo/types/core/import';
-import type { ImportJob } from '@repo/types/infrastructure/jobs';
+import type { ImportProgress } from '@repo/types/shared/import';
+import type { ImportJob } from '@repo/types/worker/jobs';
 
 // Inline workflow state helpers (replaces state machine)
 const WORKFLOW_TERMINAL_STATES = new Set(['success', 'failed', 'cancelled']);
@@ -252,3 +252,4 @@ class ImportProgressStore {
 }
 
 export const importProgress = new ImportProgressStore();
+

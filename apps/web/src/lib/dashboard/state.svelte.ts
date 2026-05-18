@@ -1,6 +1,6 @@
 import { SvelteSet } from 'svelte/reactivity';
 import { DEBT_STATUS } from '@repo/config/shared/status';
-import type { Debt } from '@repo/types/core/debt';
+import type { Debt } from '@repo/types/shared/debt';
 
 type SortField = 'description' | 'status' | 'amount' | 'date';
 type SortDirection = 'asc' | 'desc';
@@ -139,3 +139,4 @@ export class DashboardState {
 		});
 	}
 }
+

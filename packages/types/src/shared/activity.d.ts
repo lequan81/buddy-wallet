@@ -44,22 +44,22 @@ export type ActivityResource =
 	| string;
 
 export interface ActivityLog {
-	id: string;
-	userId: string;
-	action: ActivityAction;
-	resource: ActivityResource;
-	resourceId: string | null;
-	changes:
+	readonly id: string;
+	readonly userId: string;
+	readonly action: ActivityAction;
+	readonly resource: ActivityResource;
+	readonly resourceId: string | null;
+	readonly changes:
 		| {
-				before?: Record<string, unknown>;
-				after?: Record<string, unknown>;
+				readonly before?: Readonly<Record<string, unknown>>;
+				readonly after?: Readonly<Record<string, unknown>>;
 			}
 		| null;
-	metadata: Record<string, unknown> | null;
-	ipAddress: string | null;
-	userAgent: string | null;
-	location: string | null;
-	createdAt: Date | string;
+	readonly metadata: Readonly<Record<string, unknown>> | null;
+	readonly ipAddress: string | null;
+	readonly userAgent: string | null;
+	readonly location: string | null;
+	readonly createdAt: Date | string;
 }
 
 /**

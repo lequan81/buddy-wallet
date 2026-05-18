@@ -1,6 +1,6 @@
 import { redirect, getIntParam } from '$lib/services/navigation';
 import type { PageServerLoad } from './$types';
-import type { UserResponse } from '@repo/types/core/user';
+import type { UserResponse } from '@repo/types/shared/user';
 import type { Pagination } from '@repo/types/api/pagination';
 import { unwrapData, unwrapPagination } from '$lib/services/api-helpers';
 
@@ -70,3 +70,4 @@ export const load: PageServerLoad = async ({ locals, parent, url }) => {
 		};
 	}
 };
+

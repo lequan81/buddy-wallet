@@ -1,6 +1,6 @@
 import { form, getRequestEvent } from '$app/server';
 import { invalid } from '@sveltejs/kit';
-import type { UserResponse } from '@repo/types/core/user';
+import type { UserResponse } from '@repo/types/shared/user';
 import { unwrapData } from '$lib/services/api-helpers';
 
 export const toggleUserStatus = form(async () => {
@@ -36,4 +36,5 @@ export const toggleUserStatus = form(async () => {
 
 	return { success: true, isActive: nextIsActive };
 });
+
 

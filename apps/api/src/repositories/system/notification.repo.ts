@@ -1,5 +1,5 @@
-import { pushSubscriptions, notifications, eq, and, inArray, sql } from '@repo/db';
-import type { DbClient } from '@repo/db';
+import { pushSubscriptions, notifications, eq, and, or, lt, inArray, sql, count, desc } from '@repo/db';
+import type { DbClient, Notification, PushSubscription } from '@repo/db';
 import { db } from '@/providers/database';
 import * as v from 'valibot';
 
@@ -72,13 +72,13 @@ export class NotificationRepository {
     const conditions = [eq(pushSubscriptions.userId, userId)];
     if (onlyActive) conditions.push(eq(pushSubscriptions.isActive, true));
     
-    const result = await this.database.select().from(pushSubscriptions).where(and(...conditions)).orderBy(desc(pushSubscriptions.lastUsedAt)).all();
-    const result = v.safeParse(UpdateSubscriptionSchema, data);
-    if (!result.success) {
-      const firstIssue = result.issues[0];
-      throw new Error(`Subscription update validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
-    }
-    return (result as unknown[]) as PushSubscription[];
+    const result = await this.database
+      .select()
+      .from(pushSubscriptions)
+      .where(and(...conditions))
+      .orderBy(desc(pushSubscriptions.lastUsedAt))
+      .all();
+    return result as unknown as PushSubscription[];
   }
 
   async getAllActiveSubscriptions(): Promise<PushSubscription[]> {
@@ -133,11 +133,11 @@ export class NotificationRepository {
         .offset(offset)
         .orderBy(desc(notifications.createdAt))
         .all(),
-      this.database.select({ count: sqlCount() })
+      this.database.select({ count: count() })
         .from(notifications)
         .where(and(...conditions))
         .get(),
-      this.database.select({ count: sqlCount() })
+      this.database.select({ count: count() })
         .from(notifications)
         .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)))
         .get()
@@ -175,7 +175,7 @@ export class NotificationRepository {
   }
 
   async getUnreadCount(userId: string): Promise<number> {
-    const result = await this.database.select({ count: sqlCount() })
+    const result = await this.database.select({ count: count() })
       .from(notifications)
       .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)))
       .get();

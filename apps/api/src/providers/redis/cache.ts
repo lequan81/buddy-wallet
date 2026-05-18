@@ -5,11 +5,12 @@
  * Uses native Bun RedisClient for Redis access.
  */
 import { log } from '@repo/logger';
+import { env } from '@repo/config';
 import { getClient, isRedisAvailable } from './connection';
 import { circuitBreaker } from './circuit-breaker';
 
-const DEFAULT_CACHE_TTL = parseInt(Bun.env.REDIS_CACHE_TTL || '600');
-const RATE_LIMIT_TTL = parseInt(Bun.env.REDIS_RATE_LIMIT_TTL || '60');
+const DEFAULT_CACHE_TTL = env.int('REDIS_CACHE_TTL', 600);
+const RATE_LIMIT_TTL = env.int('REDIS_RATE_LIMIT_TTL', 60);
 
 /**
  * Validate and namespace cache key

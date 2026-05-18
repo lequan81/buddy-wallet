@@ -5,6 +5,7 @@
 
 import * as crypto from 'node:crypto';
 import { authConfig } from '@/config';
+import { env } from '@repo/config';
 import { validatePasswordComplexity, isCommonPassword } from '@/commons/security/password';
 import { BE_ERRORS } from '@repo/errors';
 import type { Result } from '@repo/types';
@@ -106,6 +107,6 @@ export function calculateResetTokenExpiry(): Date {
 }
 
 export function buildResetUrl(token: string): string {
-  const baseUrl = Bun.env.FRONTEND_URL || 'http://localhost:5173';
+  const baseUrl = env.string('FRONTEND_URL', 'http://localhost:5173');
   return `${baseUrl}/auth/reset-password?token=${encodeURIComponent(token)}`;
 }

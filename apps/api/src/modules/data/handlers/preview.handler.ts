@@ -173,7 +173,7 @@ export const importPreview = {
       userId: user.id,
       fileName: `import-${log.id}.json`,
       storageKey: s3Key,
-      config: { mapping: columnMapping, startRow } as Record<string, unknown>,
+      config: { mapping: columnMapping as any, startRow },
       previewLogId: log.id
     });
 

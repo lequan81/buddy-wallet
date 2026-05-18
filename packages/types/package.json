@@ -15,13 +15,13 @@
       "types": "./src/index.d.ts",
       "default": "./src/index.d.ts"
     },
-    "./core": {
-      "types": "./src/core/index.d.ts",
-      "default": "./src/core/index.d.ts"
+    "./shared": {
+      "types": "./src/shared/index.d.ts",
+      "default": "./src/shared/index.d.ts"
     },
-    "./core/*": {
-      "types": "./src/core/*.d.ts",
-      "default": "./src/core/*.d.ts"
+    "./shared/*": {
+      "types": "./src/shared/*.d.ts",
+      "default": "./src/shared/*.d.ts"
     },
     "./api": {
       "types": "./src/api/index.d.ts",
@@ -31,29 +31,21 @@
       "types": "./src/api/*.d.ts",
       "default": "./src/api/*.d.ts"
     },
-    "./infrastructure": {
-      "types": "./src/infrastructure/index.d.ts",
-      "default": "./src/infrastructure/index.d.ts"
+    "./worker": {
+      "types": "./src/worker/index.d.ts",
+      "default": "./src/worker/index.d.ts"
     },
-    "./infrastructure/*": {
-      "types": "./src/infrastructure/*.d.ts",
-      "default": "./src/infrastructure/*.d.ts"
+    "./worker/*": {
+      "types": "./src/worker/*.d.ts",
+      "default": "./src/worker/*.d.ts"
     },
-    "./notifications": {
-      "types": "./src/notifications/index.d.ts",
-      "default": "./src/notifications/index.d.ts"
+    "./web": {
+      "types": "./src/web/index.d.ts",
+      "default": "./src/web/index.d.ts"
     },
-    "./notifications/*": {
-      "types": "./src/notifications/*.d.ts",
-      "default": "./src/notifications/*.d.ts"
-    },
-    "./services": {
-      "types": "./src/services/index.d.ts",
-      "default": "./src/services/index.d.ts"
-    },
-    "./services/*": {
-      "types": "./src/services/*.d.ts",
-      "default": "./src/services/*.d.ts"
+    "./web/*": {
+      "types": "./src/web/*.d.ts",
+      "default": "./src/web/*.d.ts"
     }
   },
   "devDependencies": {

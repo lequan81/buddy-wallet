@@ -23,10 +23,11 @@ import { BatchSpanProcessor, SimpleSpanProcessor } from '@opentelemetry/sdk-trac
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import type { SpanExporter } from '@opentelemetry/sdk-trace-base';
 import { logger } from '@repo/logger';
+import { env } from '@repo/config';
 import { MinimalSpanExporter } from './exporters/minimal';
 
-const isDev = Bun.env.NODE_ENV !== 'production';
-const serviceName = Bun.env.OTEL_SERVICE_NAME || 'buddy-wallet-api';
+const isDev = env.string('NODE_ENV', 'development') !== 'production';
+const serviceName = env.string('OTEL_SERVICE_NAME', 'buddy-wallet-api');
 
 /**
  * Configure exporter based on environment
@@ -48,8 +49,8 @@ function createExporter(): SpanExporter | null {
       return new OTLPTraceExporter({
         url: endpoint,
         headers: {
-          Authorization: `Bearer ${Bun.env.AXIOM_TOKEN}`,
-          'X-Axiom-Dataset': Bun.env.AXIOM_DATASET || 'buddy-wallet'
+          Authorization: `Bearer ${env.string('AXIOM_TOKEN', '')}`,
+          'X-Axiom-Dataset': env.string('AXIOM_DATASET', 'buddy-wallet')
         }
       });
     }

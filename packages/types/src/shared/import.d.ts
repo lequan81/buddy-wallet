@@ -1,5 +1,6 @@
 import type { Result } from '../api/base';
-import type { ImportState } from '../infrastructure/workflow';
+import type { ImportState } from './workflow';
+import type { JobStatus } from '../worker/jobs';
 
 /**
  * CSV/Spreadsheet Column Mapping
@@ -59,7 +60,7 @@ export interface ImportDetailResult {
 }
 
 export interface ImportProgress {
-  status: import('../infrastructure/jobs').JobStatus;
+  status: JobStatus;
   current: number;
   total: number;
   percentage: number;

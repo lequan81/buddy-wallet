@@ -7,7 +7,7 @@
 	import { api } from '$lib/services/api';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
-	import type { DebtDetails } from '@repo/types/core/debt';
+	import type { DebtDetails } from '@repo/types/shared/debt';
 
 	let { debt, isCreditor, isDebtor } = $props<{ 
 		debt: DebtDetails;

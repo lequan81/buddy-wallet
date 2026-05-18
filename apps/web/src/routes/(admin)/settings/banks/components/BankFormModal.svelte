@@ -5,7 +5,7 @@
 	import * as Select from '@repo/ui/components/ui/select';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 	import { api } from '$lib/services/api';
-	import type { VietQRBank } from '@repo/types/core/bank';
+	import type { VietQRBank } from '@repo/types/shared/bank';
 	import type { BankAccountRequest } from '@repo/schema/dto/bank';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
@@ -189,3 +189,4 @@
 		</form>
 	</Dialog.Content>
 </Dialog.Root>
+

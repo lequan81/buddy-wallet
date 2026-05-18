@@ -111,7 +111,6 @@ export const sessionAuth = new Elysia({ name: 'Session_Auth' })
     const session = await sessionRepo.findActiveByAccessTokenHash(payload.id as string, tokenHash);
 
     if (!session) {
-      console.log(`[AUTH] Session not found/revoked for user ${payload.id}`);
       logger.auth(`Session invalid or revoked`, { userId: payload.id });
       return { user: null, sessionId: null };
     }
@@ -120,14 +119,12 @@ export const sessionAuth = new Elysia({ name: 'Session_Auth' })
     const user = await userRepo.findById(payload.id as string);
 
     if (!user) {
-      console.log(`[AUTH] User not found in DB: ${payload.id}`);
       logger.auth(`User not found`, { userId: payload.id });
       return { user: null, sessionId: session.id };
     }
 
     // SECURITY: Validate sessionVersion for instant token invalidation
     if (payload.sessionVersion !== (user.sessionVersion || 1)) {
-      console.log(`[AUTH] Session version mismatch for user ${user.id}. JWT: ${payload.sessionVersion}, DB: ${user.sessionVersion}`);
       logger.security(`Stale sessionVersion - token invalidated`, {
         userId: user.id,
         jwtVersion: payload.sessionVersion,
@@ -185,7 +182,7 @@ export const sessionAuth = new Elysia({ name: 'Session_Auth' })
       ? user.permissions 
       : DEFAULT_USER_PERMISSIONS as string[];
     
-    console.log(`[AUTH] User authenticated successfully: ${user.id}, Permissions: ${userPermissions.length}`);
+    logger.auth('User authenticated successfully', { userId: user.id, permissionCount: userPermissions.length });
 
     // 6. Cache session data in Redis (reduces future DB queries)
     if (isRedisAvailable()) {

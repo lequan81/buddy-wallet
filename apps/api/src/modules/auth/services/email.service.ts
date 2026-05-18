@@ -6,6 +6,7 @@
  */
 
 import { logger } from '@repo/logger';
+import { env } from '@repo/config';
 import { file } from 'bun';
 import { createMessage } from '@upyo/core';
 import { SmtpTransport } from '@upyo/smtp';
@@ -32,12 +33,12 @@ const HEADER_CONTROL_CHARS_REGEX = /[\r\n\x00-\x1F\x7F]/g;
 function getTransport(): SmtpTransport {
   if (!transport) {
     transport = new SmtpTransport({
-      host: Bun.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(Bun.env.SMTP_PORT || '587', 10),
-      secure: Bun.env.SMTP_SECURE === 'true',
+      host: env.string('SMTP_HOST', 'smtp.gmail.com'),
+      port: env.int('SMTP_PORT', 587),
+      secure: env.bool('SMTP_SECURE'),
       auth: {
-        user: Bun.env.SMTP_USER || '',
-        pass: Bun.env.SMTP_PASS || '',
+        user: env.string('SMTP_USER', ''),
+        pass: env.string('SMTP_PASS', ''),
       },
     });
   }
@@ -97,7 +98,7 @@ export async function sendEmail(message: EmailMessage): Promise<SendResult> {
     });
 
     const email = createMessage({
-      from: sanitizeHeaderValue(Bun.env.SMTP_FROM_NOREPLY || Bun.env.SMTP_USER || 'noreply@example.com'),
+      from: sanitizeHeaderValue(env.string('SMTP_FROM_NOREPLY', env.string('SMTP_USER', 'noreply@example.com'))),
       to: safeTo,
       subject: safeSubject,
       ...(safeReplyTo ? { replyTo: safeReplyTo } : {}),

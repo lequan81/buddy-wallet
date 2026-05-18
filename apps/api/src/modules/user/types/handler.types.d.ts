@@ -2,12 +2,14 @@ import type { AuthenticatedHandlerContext } from '@/types/handler-context';
 import type { EntityIdParams } from '@/types/common-params';
 import type { ListQuery } from '@/types/common-queries';
 
-import type { UserEntity as User } from '@repo/types/core/user';
-import type { ChangePasswordRequest } from '@repo/types/core/user';
+import type { UserEntity as User } from '@repo/types/shared/user';
+import type { ChangePasswordRequest } from '@repo/types/shared/user';
 
 export type UpdateProfileBody = {
   name?: string;
   email?: string;
+  pushNotificationsEnabled?: boolean;
+  emailNotificationsEnabled?: boolean;
 };
 
 export type ChangePasswordBody = ChangePasswordRequest;
@@ -25,3 +27,4 @@ export type AdminListContext = AuthenticatedHandlerContext<unknown, Record<strin
 export type AdminGetContext = AuthenticatedHandlerContext<unknown, UserIdParams>;
 export type AdminUpdateContext = AuthenticatedHandlerContext<AdminUpdateUserBody, UserIdParams>;
 export type AdminDeleteContext = AuthenticatedHandlerContext<unknown, UserIdParams>;
+

@@ -8,9 +8,10 @@
 // TODO: Implement mailer provider based on your email service
 // This is a placeholder - implement based on your actual email service (Resend, SendGrid, etc.)
 
+import { log } from '@repo/logger';
+
 export const mailer = {
   send: async (options: { to: string; subject: string; html: string }) => {
-    // Implement email sending logic
-    console.log('Sending email to:', options.to);
+    log.info('MAILER', 'Sending email', { to: options.to });
   }
 };

@@ -1,11 +1,18 @@
 import { calculatePagination } from '@/commons/pagination';
 import { getDebtDirection, isDebtOverdue } from '../services/debt.service';
-import { debtRepo, userRepo } from './_deps';
+import { db } from '@/providers/database';
+import { DebtRepository } from '@/repositories/debt/debt.repo';
+import { UserRepository } from '@/repositories/user/user.repo';
 import type { ListDebtsContext } from '../types/handler.types';
 import type { DebtFindManyOptions } from '@/repositories/debt/debt.repo';
 import { apiSuccess } from '@/commons/http/response';
 
-export const list = async ({ query, user }: ListDebtsContext) => {
+export const list = async ({
+  query,
+  user,
+  debtRepo = new DebtRepository(db),
+  userRepo = new UserRepository(db)
+}: ListDebtsContext) => {
   const { status, direction, sortBy, sortOrder, page = 1, limit = 20 } = query;
 
   const filterOptions: DebtFindManyOptions = {

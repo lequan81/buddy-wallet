@@ -1,11 +1,17 @@
 import { BE_ERRORS } from '@repo/errors';
-import { debtRepo } from './_deps';
+import { db } from '@/providers/database';
+import { DebtRepository } from '@/repositories/debt/debt.repo';
 import { apiSuccess, apiError } from '@/commons/http/response';
 import { logActivity } from '@/commons/activity-logger';
 import type { SuggestEditContext } from '../types/handler.types';
 import { onSuggestionReceived } from '@/modules/notification/services/notification-triggers.service';
 
-export const suggest = async ({ params, body, user }: SuggestEditContext) => {
+export const suggest = async ({
+  params,
+  body,
+  user,
+  debtRepo = new DebtRepository(db)
+}: SuggestEditContext) => {
   const debt = await debtRepo.findById(params.id);
   if (!debt) {
     return apiError(BE_ERRORS.DEBT_NOT_FOUND);

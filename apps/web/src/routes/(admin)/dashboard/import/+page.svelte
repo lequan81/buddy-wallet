@@ -21,7 +21,7 @@
 	import { IMPORT_DB_FIELDS } from '@repo/config/shared';
 	import * as m from '$lib/paraglide/messages';
 	import type { UploadState } from '$lib/types';
-	import type { ImportLog } from '@repo/types/core/import';
+	import type { ImportLog } from '@repo/types/shared/import';
 
 	// Components
 	import ImportSkeleton from '$lib/components/import/ImportSkeleton.svelte';
@@ -422,3 +422,4 @@
 	bind:selectedLog
 	bind:showDetails={ui.showDetails}
 />
+

@@ -1,6 +1,6 @@
 import { env } from '@repo/config';
 
-const nodeEnv = Bun.env.NODE_ENV || 'development';
+const nodeEnv = env.string('NODE_ENV', 'development');
 
 export const appConfig = {
   NODE_ENV: nodeEnv,

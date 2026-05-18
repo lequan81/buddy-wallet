@@ -10,17 +10,22 @@ export const updateNotifications = form('unchecked' as const, async (data) => {
 	const emailNotificationsEnabled = data.emailNotificationsEnabled === 'true';
 	const pushNotificationsEnabled = data.pushNotificationsEnabled === 'true';
 
-	// TODO: Replace with dedicated notification preferences endpoint when available
-	const notificationPayload = {
-		emailNotificationsEnabled,
-		pushNotificationsEnabled
-	} as Record<string, unknown>;
+	try {
+		const { error: apiError } = await api.v1.user.profile.patch({
+			emailNotificationsEnabled,
+			pushNotificationsEnabled
+		});
 
-	const { error: apiError } = await api.v1.user.profile.patch(notificationPayload);
+		if (apiError) {
+			invalid(apiError.value?.message || 'Failed to update notification preferences');
+		}
 
-	if (apiError) {
-		invalid((apiError.value?.message || 'Failed to update notification preferences'));
+		return { success: true };
+	} catch (err) {
+		if (err && typeof err === 'object' && ('status' in err || 'location' in err || 'issues' in err)) {
+			throw err;
+		}
+		console.error('[notifications.remote:updateNotifications] Unexpected Error:', err);
+		invalid(`Unable to update notifications: ${err instanceof Error ? err.message : 'Unknown error'}`);
 	}
-
-	return { success: true };
 });

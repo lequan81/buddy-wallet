@@ -3,7 +3,7 @@ import { redirect, getIntParam } from '$lib/services/navigation';
 import type { Actions, PageServerLoad } from './$types';
 import { FE_ERRORS } from '@repo/errors/frontend';
 import { isValidImportFile, ACCEPTED_IMPORT_EXTENSIONS } from '@repo/config/shared';
-import type { ImportLog } from '@repo/types/core/import';
+import type { ImportLog } from '@repo/types/shared/import';
 import { unwrapData, unwrapPagination } from '$lib/services/api-helpers';
 
 interface ImportPreviewPayload {
@@ -225,3 +225,4 @@ export const actions: Actions = {
 		}
 	}
 };
+

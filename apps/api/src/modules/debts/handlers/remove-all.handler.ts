@@ -1,13 +1,18 @@
-import { BE_ERRORS } from '@repo/errors';
-import { debtRepo } from './_deps';
+import { db } from '@/providers/database';
+import { DebtRepository } from '@/repositories/debt/debt.repo';
 import type { AuthenticatedHandlerContext } from '@/types/handler-context';
+import type { DebtDeps } from '../types/handler.types';
 import { apiSuccess, apiError } from '@/commons/http/response';
 import { logActivity } from '@/commons/activity-logger';
 
-export interface RemoveAllDebtContext extends AuthenticatedHandlerContext<never, never, { confirm: 'true' }> {}
+export type RemoveAllDebtContext = AuthenticatedHandlerContext<never, never, { confirm: 'true' }, DebtDeps>;
 const REMOVE_ALL_FETCH_LIMIT = 1000;
 
-export const removeAll = async ({ query, user }: RemoveAllDebtContext) => {
+export const removeAll = async ({
+  query,
+  user,
+  debtRepo = new DebtRepository(db)
+}: RemoveAllDebtContext) => {
   if (query.confirm !== 'true') {
     return apiError({ code: 'BAD_REQUEST', message: 'Must confirm deletion', status: 400 });
   }

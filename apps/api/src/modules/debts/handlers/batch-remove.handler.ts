@@ -1,13 +1,19 @@
 import { BE_ERRORS } from '@repo/errors';
 import { SHARED_CONSTANTS } from '@repo/config';
-import { debtRepo } from './_deps';
+import { db } from '@/providers/database';
+import { DebtRepository } from '@/repositories/debt/debt.repo';
 import type { AuthenticatedHandlerContext } from '@/types/handler-context';
+import type { DebtDeps } from '../types/handler.types';
 import { apiSuccess, apiError } from '@/commons/http/response';
 import { logActivity } from '@/commons/activity-logger';
 
-export interface BatchRemoveDebtContext extends AuthenticatedHandlerContext<{ ids: string[] }, never, never> {}
+export type BatchRemoveDebtContext = AuthenticatedHandlerContext<{ ids: string[] }, never, never, DebtDeps>;
 
-export const batchRemove = async ({ body, user }: BatchRemoveDebtContext) => {
+export const batchRemove = async ({
+  body,
+  user,
+  debtRepo = new DebtRepository(db)
+}: BatchRemoveDebtContext) => {
   const { ids } = body;
   
   // Validate maximum batch size

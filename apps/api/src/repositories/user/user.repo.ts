@@ -3,6 +3,7 @@ import { users, eq, and, inArray, ne, sql, type SQL } from '@repo/db';
 import type { User, DbClient } from '@repo/db';
 import type { UserWithNotifications } from '@repo/types';
 import { db } from '@/providers/database';
+import { log } from '@repo/logger';
 import * as v from 'valibot';
 
 // ── Valibot Validation Schemas ────────────────────────────────
@@ -156,8 +157,8 @@ export class UserRepository {
       .where(eq(users.id, id));
   }
 
-  async create(data: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'isActive' | 'role' | 'failedLoginAttempts' | 'isLocked' | 'sessionVersion' | 'lockoutUntil' | 'lastFailedLoginAt' | 'emailVerified' | 'phoneVerified' | 'lastPasswordChangeAt' | 'emailNotificationsEnabled' | 'pushNotificationsEnabled' | 'temporaryPassword' | 'temporaryPasswordExpires' | 'mustChangePassword' | 'temporaryPasswordUsed'>): Promise<User> {
-    console.log('[UserRepository:create] data:', { ...data, password: '***' });
+  async create(data: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'isActive' | 'role' | 'failedLoginAttempts' | 'isLocked' | 'sessionVersion' | 'lockoutUntil' | 'lastFailedLoginAt' | 'emailVerified' | 'phoneVerified' | 'lastPasswordChangeAt' | 'emailNotificationsEnabled' | 'pushNotificationsEnabled' | 'temporaryPassword' | 'temporaryPasswordExpires' | 'mustChangePassword' | 'temporaryPasswordUsed' | 'avatarThumbnailKey' | 'avatarMediumKey' | 'avatarUpdatedAt'>): Promise<User> {
+    log.debug('USER_REPO', 'Creating user', { ...data, password: '***' });
     const result = v.safeParse(InsertUserSchema, data);
     if (!result.success) {
       const firstIssue = result.issues[0];

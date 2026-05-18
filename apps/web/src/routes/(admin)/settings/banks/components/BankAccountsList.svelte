@@ -5,7 +5,7 @@
 	import { Button } from '@repo/ui/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
-	import type { BankAccount } from '@repo/types/core/bank';
+	import type { BankAccount } from '@repo/types/shared/bank';
 	import { api } from '$lib/services/api';
 
 	let { accounts, onEdit }: { accounts: BankAccount[], onEdit: (account: BankAccount) => void } = $props();
@@ -121,3 +121,4 @@
 		{/each}
 	{/if}
 </div>
+

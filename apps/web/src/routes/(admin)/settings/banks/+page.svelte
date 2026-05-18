@@ -4,7 +4,7 @@
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import type { PageData } from './$types';
-	import type { BankAccount, VietQRBank } from '@repo/types/core/bank';
+	import type { BankAccount, VietQRBank } from '@repo/types/shared/bank';
 	import type { BankAccountRequest } from '@repo/schema/dto/bank';
 	
 	// Sub-components
@@ -86,3 +86,4 @@
 		{isEditing} 
 	/>
 </PageContainer>
+

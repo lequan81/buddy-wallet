@@ -5,10 +5,11 @@
  * after repeated failures.
  */
 import { log } from '@repo/logger';
+import { env } from '@repo/config';
 
-const MAX_FAILURES = parseInt(Bun.env.REDIS_MAX_FAILURES || '3');
-const CIRCUIT_RESET_MS = parseInt(Bun.env.REDIS_CIRCUIT_RESET_MS || '60000');
-const DAILY_COMMAND_LIMIT = parseInt(Bun.env.REDIS_DAILY_COMMAND_LIMIT || '9500');
+const MAX_FAILURES = env.int('REDIS_MAX_FAILURES', 3);
+const CIRCUIT_RESET_MS = env.int('REDIS_CIRCUIT_RESET_MS', 60000);
+const DAILY_COMMAND_LIMIT = env.int('REDIS_DAILY_COMMAND_LIMIT', 9500);
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 let failureCount = 0;

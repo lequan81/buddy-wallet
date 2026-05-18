@@ -3,7 +3,7 @@
 	import * as Table from '@repo/ui/components/ui/table';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { Plus, FileText } from '@repo/icons';
-	import type { Debt } from '@repo/types/core/debt';
+	import type { Debt } from '@repo/types/shared/debt';
 	import DebtsTableToolbar from './DebtsTableToolbar.svelte';
 	import DebtsTableHeader from './DebtsTableHeader.svelte';
 	import DebtsTableRow from './DebtsTableRow.svelte';
@@ -157,3 +157,4 @@
 		/>
 	{/if}
 </Card.Root>
+

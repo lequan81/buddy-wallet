@@ -3,7 +3,7 @@
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { formatCurrency, formatDate } from '@repo/utils/format';
-	import type { DebtDetails } from '@repo/types/core/debt';
+	import type { DebtDetails } from '@repo/types/shared/debt';
 
 	let { debt, isCreditor, onEdit }: {
 		debt: DebtDetails,

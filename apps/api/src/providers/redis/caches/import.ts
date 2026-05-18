@@ -2,8 +2,9 @@
  * Import Progress Cache Module
  */
 import { cache } from '../cache';
+import { env } from '@repo/config';
 
-const IMPORT_PROGRESS_TTL = parseInt(Bun.env.REDIS_IMPORT_TTL || '3600');
+const IMPORT_PROGRESS_TTL = env.int('REDIS_IMPORT_TTL', 3600);
 
 export interface ImportProgress {
   current: number;

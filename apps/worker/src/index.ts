@@ -8,7 +8,7 @@
  *   - Outbox event dispatch (polling)
  */
 import { logger } from '@repo/logger';
-import { BACKEND_CONSTANTS } from '@repo/config';
+import { BACKEND_CONSTANTS, env } from '@repo/config';
 import { initRedis, getRedis, closeRedis } from './redis';
 import { validatePayload, isStorageConfigured } from './utils';
 import { processImportJob } from './jobs/import.job';
@@ -19,8 +19,8 @@ import type { WorkerJobPayload } from '@repo/types';
 
 // ── Startup & Configuration ────────────────────────────────
 const KILL_TIMEOUT_MS = BACKEND_CONSTANTS.WORKER.KILL_TIMEOUT_MS || 300000;
-const OUTBOX_BATCH_SIZE = Number.parseInt(Bun.env.OUTBOX_BATCH_SIZE ?? '25', 10);
-const DRAIN_TIMEOUT_MS = Number.parseInt(Bun.env.WORKER_DRAIN_TIMEOUT_MS ?? '10000', 10);
+const OUTBOX_BATCH_SIZE = env.int('OUTBOX_BATCH_SIZE', 25);
+const DRAIN_TIMEOUT_MS = env.int('WORKER_DRAIN_TIMEOUT_MS', 10000);
 let shuttingDown = false;
 let inFlightImportJobs = 0;
 let inFlightOutboxBatches = 0;

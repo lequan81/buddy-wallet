@@ -57,12 +57,7 @@ export class SessionRepository {
       .from(sessions)
       .where(and(eq(sessions.userId, userId), eq(sessions.status, 'active')))
       .all()) as DBSession[];
-  }const result = v.safeParse(UpdateSessionSchema, data);
-    if (!result.success) {
-      const firstIssue = result.issues[0];
-      throw new Error(`Session update validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
-    }
-    
+  }
 
   async findActiveByIdAndUser(id: string, userId: string): Promise<DBSession | null> {
     const session = await this.database
@@ -74,6 +69,11 @@ export class SessionRepository {
   }
 
   async update(id: string, data: Partial<DBSession>): Promise<void> {
+    const result = v.safeParse(UpdateSessionSchema, data);
+    if (!result.success) {
+      const firstIssue = result.issues[0];
+      throw new Error(`Session update validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
+    }
     await this.database.update(sessions).set(data).where(eq(sessions.id, id));
   }
 

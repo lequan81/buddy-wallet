@@ -14,13 +14,16 @@ import { apiSuccess, apiError } from '@/commons/http/response';
 import type { GenerateQRContext } from '../types/handler.types';
 
 const bankAccountRepo = new BankAccountRepository(db);
-const debtRepo = new DebtRepository(db);
 
 const VIETQR_BASE = 'https://img.vietqr.io/image';
 
 export const qr = {
   /** GET /debts/:id/qr — Generate VietQR payment URL for a debt */
-  generate: async ({ params, user }: GenerateQRContext) => {
+  generate: async ({
+    params,
+    user,
+    debtRepo = new DebtRepository(db)
+  }: GenerateQRContext) => {
     const debt = await debtRepo.findById(params.id);
     if (!debt) {
       return apiError(BE_ERRORS.DEBT_NOT_FOUND);

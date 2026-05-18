@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import type { SessionsResponse } from '@repo/types/core/user';
+import type { SessionsResponse } from '@repo/types/shared/user';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {
@@ -33,3 +33,4 @@ export const load: PageServerLoad = async ({ locals }) => {
 		error: sessionError
 	};
 };
+

@@ -1,7 +1,9 @@
 import { BE_ERRORS } from '@repo/errors';
 import { SHARED_CONSTANTS } from '@repo/config';
 import { validateDebtAmount, validateCurrency } from '../services/debt.service';
-import { debtRepo, userRepo } from './_deps';
+import { db } from '@/providers/database';
+import { DebtRepository } from '@/repositories/debt/debt.repo';
+import { UserRepository } from '@/repositories/user/user.repo';
 import type { CreateDebtContext } from '../types/handler.types';
 import { apiCreated, apiError } from '@/commons/http/response';
 import { logActivity } from '@/commons/activity-logger';
@@ -10,7 +12,12 @@ import { onDebtCreated } from '@/modules/notification/services/notification-trig
 const { MAX_PENDING_DEBTS } = SHARED_CONSTANTS.USER;
 const { DUPLICATE_TOLERANCE: DUPLICATE_AMOUNT_TOLERANCE, DUPLICATE_CHECK_DAYS: DUPLICATE_DAYS_BACK } = SHARED_CONSTANTS.DEBT;
 
-export const create = async ({ body, user }: CreateDebtContext) => {
+export const create = async ({
+  body,
+  user,
+  debtRepo = new DebtRepository(db),
+  userRepo = new UserRepository(db)
+}: CreateDebtContext) => {
   const { debtorId, amount, currency, description, dueDate, debtorPhone, creditorPhone } = body;
 
   const amountValidation = validateDebtAmount(amount);

@@ -1,4 +1,4 @@
-import type { CurrentUser } from '@repo/types/core/user';
+import type { CurrentUser } from '@repo/types/shared/user';
 import { DEBT_STATUS } from '@repo/config/shared/status';
 
 interface DebtLike {
@@ -30,3 +30,4 @@ export function useDebtPermissions(debt: DebtLike, user: CurrentUser) {
 		canConfirm: $derived(!isUploader && (isCreditor || isDebtor) && status === DEBT_STATUS.PENDING)
 	};
 }
+

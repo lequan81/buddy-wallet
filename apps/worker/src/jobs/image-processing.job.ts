@@ -7,23 +7,10 @@
  */
 
 import { logger } from '@repo/logger';
-import { STORAGE_CONFIG, buildS3Endpoint } from '@repo/config';
-import { toOptional } from '@repo/utils';
 import type { WorkerJobPayload } from '@repo/types';
-import { setProgress, clearProgressCache, getRedis } from '../redis';
-import { processAvatar, processProof } from '@repo/api/modules/storage/services/image-processing.service';
-
-// Build endpoint with auto-protocol detection
-const resolvedEndpoint = buildS3Endpoint(STORAGE_CONFIG.ENDPOINT, STORAGE_CONFIG.SSL);
-
-const s3Client = new Bun.S3Client({
-  endpoint: toOptional(resolvedEndpoint),
-  region: toOptional(STORAGE_CONFIG.REGION),
-  bucket: toOptional(STORAGE_CONFIG.BUCKET),
-  accessKeyId: toOptional(STORAGE_CONFIG.ACCESS_KEY),
-  secretAccessKey: toOptional(STORAGE_CONFIG.SECRET_KEY),
-  virtualHostedStyle: !STORAGE_CONFIG.FORCE_PATH_STYLE
-});
+import { setProgress, clearProgressCache } from '../redis';
+import { processAvatar, processProof } from '../services/image-processing.service';
+import { s3Client } from '../s3';
 
 export async function processImageJob(payload: WorkerJobPayload) {
   const { jobId, storageKey, imageType, userId } = payload;

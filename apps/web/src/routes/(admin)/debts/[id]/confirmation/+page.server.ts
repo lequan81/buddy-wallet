@@ -1,6 +1,6 @@
 import { redirect, getParam } from '$lib/services/navigation';
 import type { PageServerLoad } from './$types';
-import type { Debt } from '@repo/types/core/debt';
+import type { Debt } from '@repo/types/shared/debt';
 import { unwrapData, getErrorMessage } from '$lib/services/api-helpers';
 
 

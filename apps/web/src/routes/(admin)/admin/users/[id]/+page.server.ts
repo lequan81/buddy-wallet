@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import type { UserResponse } from '@repo/types/core/user';
-import type { Debt } from '@repo/types/core/debt';
+import type { UserResponse } from '@repo/types/shared/user';
+import type { Debt } from '@repo/types/shared/debt';
 import { unwrapData } from '$lib/services/api-helpers';
 
 export const load: PageServerLoad = async ({ locals, params }) => {

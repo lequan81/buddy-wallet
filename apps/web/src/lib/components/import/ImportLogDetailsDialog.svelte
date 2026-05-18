@@ -2,7 +2,7 @@
 	import * as Dialog from '@repo/ui/components/ui/dialog';
 	import { Button } from '@repo/ui/components/ui/button';
 	import { FileSpreadsheet, Settings2, Eye } from '@repo/icons';
-	import type { ImportLog } from '@repo/types/core/import';
+	import type { ImportLog } from '@repo/types/shared/import';
 	import { formatDate } from '$lib/utils/status';
 	import { goto } from '$app/navigation';
 
@@ -138,3 +138,4 @@
 		{/if}
 	</Dialog.Content>
 </Dialog.Root>
+

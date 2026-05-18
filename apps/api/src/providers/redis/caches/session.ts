@@ -2,8 +2,9 @@
  * Session Cache Module
  */
 import { cache } from '../cache';
+import { env } from '@repo/config';
 
-const SESSION_CACHE_TTL = parseInt(Bun.env.REDIS_SESSION_TTL || '1800');
+const SESSION_CACHE_TTL = env.int('REDIS_SESSION_TTL', 1800);
 
 export const sessionCache = {
   /**

@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import type { BankAccount, VietQRBank } from '@repo/types/core/bank';
+import type { BankAccount, VietQRBank } from '@repo/types/shared/bank';
 import { fetchBanks } from '$lib/services/vietqr';
 import { unwrapData } from '$lib/services/api-helpers';
 
@@ -29,3 +29,4 @@ export const load: PageServerLoad = async ({
 		accounts
 	};
 };
+

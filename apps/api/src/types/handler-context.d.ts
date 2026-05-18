@@ -35,18 +35,20 @@ export interface BaseHandlerContext<TBody = unknown, TParams = Record<string, st
   jwt?: JwtSigner;
 }
 
-export interface AuthenticatedHandlerContext<
+export type AuthenticatedHandlerContext<
   TBody = unknown,
   TParams = Record<string, string>,
-  TQuery = Record<string, unknown>
-> extends BaseHandlerContext<TBody, TParams, TQuery> {
+  TQuery = Record<string, unknown>,
+  TExtra = {}
+> = BaseHandlerContext<TBody, TParams, TQuery> & TExtra & {
   user: AuthenticatedUser;
-}
+};
 
-export interface RequestContext<
+export type RequestContext<
   TBody = unknown,
   TParams = Record<string, string>,
-  TQuery = Record<string, unknown>
-> extends BaseHandlerContext<TBody, TParams, TQuery> {
+  TQuery = Record<string, unknown>,
+  TExtra = {}
+> = BaseHandlerContext<TBody, TParams, TQuery> & TExtra & {
   request: Request;
-}
+};

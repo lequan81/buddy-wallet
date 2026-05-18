@@ -26,7 +26,7 @@ export const profile = {
 
   /** PUT /users/me */
   update: async ({ body, user }: ProfileUpdateContext) => {
-    const { name, email } = body;
+    const { name, email, pushNotificationsEnabled, emailNotificationsEnabled } = body;
 
     const validation = validateProfileData({ name, email });
     if ('code' in validation) {
@@ -40,10 +40,19 @@ export const profile = {
       }
     }
 
-    const updatedUser = await userRepo.update(user.id, {
+    const updateData: Record<string, unknown> = {
       name: name ?? user.name,
       email: email ?? user.email
-    });
+    };
+
+    if (pushNotificationsEnabled !== undefined) {
+      updateData.pushNotificationsEnabled = pushNotificationsEnabled;
+    }
+    if (emailNotificationsEnabled !== undefined) {
+      updateData.emailNotificationsEnabled = emailNotificationsEnabled;
+    }
+
+    const updatedUser = await userRepo.update(user.id, updateData);
 
     return apiSuccess(toUserResponse(updatedUser), 'Profile updated successfully');
   },

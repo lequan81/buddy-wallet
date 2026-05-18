@@ -2,8 +2,9 @@
  * Permission Cache Module
  */
 import { cache } from '../cache';
+import { env } from '@repo/config';
 
-const PERMISSION_CACHE_TTL = parseInt(Bun.env.REDIS_PERMISSION_TTL || '600');
+const PERMISSION_CACHE_TTL = env.int('REDIS_PERMISSION_TTL', 600);
 
 export const permissionCache = {
   async set(userId: string, permissions: string[], ttlSeconds: number = PERMISSION_CACHE_TTL) {

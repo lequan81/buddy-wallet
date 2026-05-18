@@ -2,8 +2,9 @@
  * User Cache Module
  */
 import { cache } from '../cache';
+import { env } from '@repo/config';
 
-const USER_CACHE_TTL = parseInt(Bun.env.REDIS_USER_TTL || '300');
+const USER_CACHE_TTL = env.int('REDIS_USER_TTL', 300);
 
 export const userCache = {
   async set(userId: string, data: Record<string, unknown>, ttlSeconds: number = USER_CACHE_TTL) {

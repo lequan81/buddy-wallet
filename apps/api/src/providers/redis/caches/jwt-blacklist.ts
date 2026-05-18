@@ -2,8 +2,9 @@
  * JWT Blacklist Cache Module
  */
 import { cache } from '../cache';
+import { env } from '@repo/config';
 
-const JWT_BLACKLIST_TTL = parseInt(Bun.env.REDIS_JWT_BLACKLIST_TTL || '604800');
+const JWT_BLACKLIST_TTL = env.int('REDIS_JWT_BLACKLIST_TTL', 604800);
 
 export const jwtBlacklist = {
   async add(tokenHash: string, expiresInSeconds: number = JWT_BLACKLIST_TTL) {
