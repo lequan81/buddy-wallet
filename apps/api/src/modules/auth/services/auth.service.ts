@@ -14,14 +14,7 @@ import type { JWTPayload } from '../plugins/jwt.plugin';
 const { OTP } = authConfig;
 
 export function generateOtp(): string {
-  const min = 100000;
-  const max = 1000000;
-  const range = max - min;
-  
-  const buf = randomUUIDv7('buffer');
-  const val = buf.readUInt32BE(12);
-  
-  return (min + (val % range)).toString();
+  return (100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000)).toString();
 }
 
 export function generateResetToken(): string {
