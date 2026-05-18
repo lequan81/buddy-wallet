@@ -24,7 +24,7 @@ type BankAccountLike = {
 };
 
 export class DebtDetailState {
-	debt = $state<DebtDetails>();
+	debt = $state.raw<DebtDetails>();
 
 	private creditorBanks: BankAccountLike[];
 	private currentUser: CurrentUser;

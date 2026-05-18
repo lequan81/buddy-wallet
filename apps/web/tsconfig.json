@@ -1,6 +1,6 @@
 {
 	"extends": ["@repo/typescript-config/svelte.json", "./.svelte-kit/tsconfig.json"],
-	"exclude": ["node_modules", "dist", ".svelte-kit", "build", "package.json", "../api"],
+	"exclude": ["node_modules", "dist", ".svelte-kit", "build", "package.json", "../api", "src/tests"],
 	"compilerOptions": {
 		"lib": ["esnext", "DOM", "DOM.Iterable"],
 		"rewriteRelativeImportExtensions": true,

@@ -19,11 +19,11 @@ export class CreateDebtState {
 	showAutocomplete = $state(false);
 	showPreviewModal = $state(false);
 	showDuplicateModal = $state(false);
-	duplicateDebts = $state<Array<{ id: string; amount: number; description: string | null; createdAt: string }>>([]);
+	duplicateDebts = $state.raw<Array<{ id: string; amount: number; description: string | null; createdAt: string }>>([]);
 
 	// Data from props
 	private hasBankAccount = $state(true);
-	private recentContacts = $state<string[]>([]);
+	private recentContacts = $state.raw<string[]>([]);
 
 	// Expiry options
 	readonly expiryOptions = [

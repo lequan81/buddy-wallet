@@ -29,14 +29,16 @@ function getRaw(key: string): string | undefined {
     }
 
     // 2. Bun (Bun.env)
-    if (typeof Bun !== 'undefined' && Bun.env) {
-      const val = Bun.env[key];
+    const globalBun = (globalThis as any).Bun;
+    if (globalBun && globalBun.env) {
+      const val = globalBun.env[key];
       if (val !== undefined) return val;
     }
 
     // 3. Node (process.env)
-    if (typeof process !== 'undefined' && process.env) {
-      const val = process.env[key];
+    const globalProcess = (globalThis as any).process;
+    if (globalProcess && globalProcess.env) {
+      const val = globalProcess.env[key];
       if (val !== undefined) return val;
     }
   } catch (e) {
@@ -220,11 +222,14 @@ export const env = {
  * Validate all environment variables against schema
  */
 export const loadAndValidateEnv = (): void => {
+  const globalBun = (globalThis as any).Bun;
+  const globalProcess = (globalThis as any).process;
+
   const envObj =
-    typeof Bun !== 'undefined'
-      ? Bun.env
-      : typeof process !== 'undefined'
-        ? process.env
+    globalBun && globalBun.env
+      ? globalBun.env
+      : globalProcess && globalProcess.env
+        ? globalProcess.env
         : {};
 
   const result = validateEnv(envObj as Record<string, unknown>);
