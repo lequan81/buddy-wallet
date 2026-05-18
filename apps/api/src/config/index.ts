@@ -11,7 +11,7 @@ import { databaseConfig } from './database';
 import { cacheConfig } from './cache';
 import { servicesConfig } from './services';
 
-const nodeEnv = Bun.env.NODE_ENV || 'development';
+const nodeEnv = env.string('NODE_ENV', 'development');
 let envValidated = false;
 
 /**

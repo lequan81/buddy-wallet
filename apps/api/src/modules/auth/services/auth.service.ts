@@ -3,7 +3,7 @@
  * @logicType backend
  */
 
-import * as crypto from 'node:crypto';
+import { randomUUIDv7 } from 'bun';
 import { authConfig } from '@/config';
 import { env } from '@repo/config';
 import { validatePasswordComplexity, isCommonPassword } from '@/commons/security/password';
@@ -14,15 +14,22 @@ import type { JWTPayload } from '../plugins/jwt.plugin';
 const { OTP } = authConfig;
 
 export function generateOtp(): string {
-  return crypto.randomInt(100000, 1000000).toString();
+  const min = 100000;
+  const max = 1000000;
+  const range = max - min;
+  
+  const buf = randomUUIDv7('buffer');
+  const val = buf.readUInt32BE(12);
+  
+  return (min + (val % range)).toString();
 }
 
 export function generateResetToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+  return randomUUIDv7('hex');
 }
 
 export function generateRefreshToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+  return randomUUIDv7('hex');
 }
 
 export function getTokenLifetimes(): { accessMs: number; refreshMs: number } {

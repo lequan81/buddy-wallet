@@ -35,7 +35,7 @@ const serviceName = env.string('OTEL_SERVICE_NAME', 'buddy-wallet-api');
 function createExporter(): SpanExporter | null {
   // PRODUCTION: Full OpenTelemetry with OTLP export
   if (!isDev) {
-    const endpoint = Bun.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    const endpoint = env.string('OTEL_EXPORTER_OTLP_ENDPOINT', '');
 
     if (!endpoint) {
       logger.app(`OpenTelemetry disabled in production (no OTEL_EXPORTER_OTLP_ENDPOINT)`);

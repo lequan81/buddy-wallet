@@ -1,9 +1,8 @@
-import { eq, and, ne, inArray, count, isNull, or, gte, lte, asc, desc, debts } from '@repo/db';
+import { eq, and, ne, inArray, count, isNull, or, gte, lte, asc, desc, sql, debts } from '@repo/db';
 import type { SQL, Debt, NewDebt, DbClient, DebtStatus } from '@repo/db';
 import type { PaginatedResult } from '@repo/types';
 import { db } from '@/providers/database';
-import * as v from 'valibot';
-
+import { randomUUIDv7 } from 'bun';
 export interface DebtFindManyOptions {
   limit?: number;
   offset?: number;
@@ -19,42 +18,41 @@ export interface DebtFindManyOptions {
 
 export type DebtCountOptions = Omit<DebtFindManyOptions, 'limit' | 'offset'>;
 
-// ── Valibot Validation Schemas ────────────────────────────────
-const InsertDebtSchema = v.object({
-  debtorPhone: v.pipe(v.string(), v.minLength(1)),
-  creditorPhone: v.pipe(v.string(), v.minLength(1)),
-  debtorId: v.optional(v.union([v.string(), v.null_()])),
-  creditorId: v.optional(v.union([v.string(), v.null_()])),
-  uploadedById: v.pipe(v.string(), v.minLength(1)),
-  amount: v.pipe(v.number(), v.minValue(1)),
-  currency: v.pipe(v.string(), v.minLength(3), v.maxLength(3)),
-  description: v.optional(v.union([v.string(), v.null_()])),
-  status: v.optional(v.picklist(['pending', 'confirmed', 'paid', 'disputed', 'cancelled'])),
-  expiresAt: v.optional(v.union([v.date(), v.null_()])),
-  needsConfirmation: v.optional(v.boolean()),
-  confirmedByCreditor: v.optional(v.boolean()),
-  confirmedByDebtor: v.optional(v.boolean()),
-  suggestedAmount: v.optional(v.union([v.number(), v.null_()])),
-  suggestedDescription: v.optional(v.union([v.string(), v.null_()])),
-  suggestedById: v.optional(v.union([v.string(), v.null_()])),
-  hasPendingProof: v.optional(v.boolean())
-});
-
-const UpdateDebtSchema = v.partial(InsertDebtSchema);
-
 /**
  * Debt Repository
  * Data access layer for debt operations
  * No DI container - uses direct db instance
  */
 export class DebtRepository {
+  private preparedFindByIds = new Map<
+    DbClient,
+    {
+      withDeleted: { get: (params: { id: string }) => Debt | undefined };
+      activeOnly: { get: (params: { id: string }) => Debt | undefined };
+    }
+  >();
+
   constructor(private readonly database: DbClient = db) {}
 
   async findById(id: string, includeDeleted = false): Promise<Debt | null> {
-    const conditions: SQL[] = [eq(debts.id, id)];
-    if (!includeDeleted) conditions.push(isNull(debts.deletedAt));
-    
-    const result = await this.database.select().from(debts).where(and(...conditions)).get();
+    let prepared = this.preparedFindByIds.get(this.database);
+    if (!prepared) {
+      prepared = {
+        withDeleted: this.database
+          .select()
+          .from(debts)
+          .where(eq(debts.id, sql.placeholder('id')))
+          .prepare(),
+        activeOnly: this.database
+          .select()
+          .from(debts)
+          .where(and(eq(debts.id, sql.placeholder('id')), isNull(debts.deletedAt)))
+          .prepare()
+      };
+      this.preparedFindByIds.set(this.database, prepared);
+    }
+    const query = includeDeleted ? prepared.withDeleted : prepared.activeOnly;
+    const result = query.get({ id });
     return result || null;
   }
 
@@ -62,7 +60,7 @@ export class DebtRepository {
     if (ids.length === 0) return [];
     const conditions: SQL[] = [inArray(debts.id, ids)];
     if (!includeDeleted) conditions.push(isNull(debts.deletedAt));
-  
+
     return await this.database
       .select()
       .from(debts)
@@ -71,7 +69,18 @@ export class DebtRepository {
   }
 
   async findMany(options: DebtFindManyOptions): Promise<PaginatedResult<Debt>> {
-    const { limit = 20, offset = 0, status, debtorId, creditorId, uploadedById, involvedUserId, includeDeleted = false, sortBy = 'createdAt', sortOrder = 'desc' } = options;
+    const {
+      limit = 20,
+      offset = 0,
+      status,
+      debtorId,
+      creditorId,
+      uploadedById,
+      involvedUserId,
+      includeDeleted = false,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = options;
 
     const conditions: SQL[] = [];
     if (!includeDeleted) conditions.push(isNull(debts.deletedAt));
@@ -80,7 +89,9 @@ export class DebtRepository {
     if (creditorId) conditions.push(eq(debts.creditorId, creditorId));
     if (uploadedById) conditions.push(eq(debts.uploadedById, uploadedById));
     if (involvedUserId) {
-      conditions.push(or(eq(debts.debtorId, involvedUserId), eq(debts.creditorId, involvedUserId)) as SQL);
+      conditions.push(
+        or(eq(debts.debtorId, involvedUserId), eq(debts.creditorId, involvedUserId)) as SQL
+      );
     }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -89,12 +100,37 @@ export class DebtRepository {
     const orderFn = sortOrder === 'asc' ? asc : desc;
 
     const countPromise = this.database.select({ count: count() }).from(debts).where(where).get();
-    const dataPromise = this.database.select().from(debts).where(where).orderBy(orderFn(sortColumn)).limit(limit).offset(offset).all();
+    const dataPromise = this.database
+      .select({
+        id: debts.id,
+        debtorPhone: debts.debtorPhone,
+        creditorPhone: debts.creditorPhone,
+        debtorId: debts.debtorId,
+        creditorId: debts.creditorId,
+        uploadedById: debts.uploadedById,
+        amount: debts.amount,
+        currency: debts.currency,
+        description: debts.description,
+        status: debts.status,
+        confirmedByCreditor: debts.confirmedByCreditor,
+        confirmedByDebtor: debts.confirmedByDebtor,
+        needsConfirmation: debts.needsConfirmation,
+        hasPendingProof: debts.hasPendingProof,
+        expiresAt: debts.expiresAt,
+        createdAt: debts.createdAt,
+        updatedAt: debts.updatedAt
+      })
+      .from(debts)
+      .where(where)
+      .orderBy(orderFn(sortColumn))
+      .limit(limit)
+      .offset(offset)
+      .all();
 
     const [countRes, dataRes] = await Promise.all([countPromise, dataPromise]);
 
     return {
-      items: dataRes,
+      items: dataRes as Debt[],
       pagination: {
         total: countRes?.count ?? 0,
         limit,
@@ -105,8 +141,15 @@ export class DebtRepository {
   }
 
   async count(options: DebtCountOptions): Promise<number> {
-    const { status, debtorId, creditorId, uploadedById, involvedUserId, includeDeleted = false } = options;
-    
+    const {
+      status,
+      debtorId,
+      creditorId,
+      uploadedById,
+      involvedUserId,
+      includeDeleted = false
+    } = options;
+
     const conditions: SQL[] = [];
     if (!includeDeleted) conditions.push(isNull(debts.deletedAt));
     if (status && status !== 'all') conditions.push(eq(debts.status, status as DebtStatus));
@@ -114,38 +157,32 @@ export class DebtRepository {
     if (creditorId) conditions.push(eq(debts.creditorId, creditorId));
     if (uploadedById) conditions.push(eq(debts.uploadedById, uploadedById));
     if (involvedUserId) {
-      conditions.push(or(eq(debts.debtorId, involvedUserId), eq(debts.creditorId, involvedUserId)) as SQL);
+      conditions.push(
+        or(eq(debts.debtorId, involvedUserId), eq(debts.creditorId, involvedUserId)) as SQL
+      );
     }
-  
+
     const where = conditions.length > 0 ? and(...conditions) : undefined;
-  
+
     const result = await this.database.select({ count: count() }).from(debts).where(where).get();
     return result?.count ?? 0;
   }
 
   async create(data: Omit<NewDebt, 'id' | 'createdAt' | 'updatedAt'>): Promise<Debt> {
-    const result = v.safeParse(InsertDebtSchema, data);
-    if (!result.success) {
-      const firstIssue = result.issues[0];
-      throw new Error(`Debt validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
-    }
     const now = new Date();
-    const [created] = await this.database.insert(debts).values({
-      ...data,
-      id: crypto.randomUUID(),
-      createdAt: now,
-      updatedAt: now
-    }).returning();
+    const [created] = await this.database
+      .insert(debts)
+      .values({
+        ...data,
+        id: randomUUIDv7(),
+        createdAt: now,
+        updatedAt: now
+      })
+      .returning();
     return created;
   }
 
   async update(id: string, data: Partial<Debt> & { updatedAt: Date }): Promise<Debt | null> {
-    const result = v.safeParse(UpdateDebtSchema, data);
-    if (!result.success) {
-      const firstIssue = result.issues[0];
-      throw new Error(`Debt update validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
-    }
-
     const [updated] = await this.database
       .update(debts)
       .set(data)
@@ -172,7 +209,7 @@ export class DebtRepository {
   ): Promise<{ id: string; amount: number; description: string | null; createdAt: Date }[]> {
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - daysBack);
-    
+
     const minAmount = amount - amountTolerance;
     const maxAmount = amount + amountTolerance;
 
@@ -195,8 +232,8 @@ export class DebtRepository {
         )
       )
       .all();
-    
-    return results.map(r => ({
+
+    return results.map((r) => ({
       id: r.id,
       amount: r.amount,
       description: r.description,
@@ -206,15 +243,15 @@ export class DebtRepository {
 
   async getRecentContacts(userId: string, limit: number): Promise<string[]> {
     const results = await this.database
-      .select({ 
-        debtorPhone: debts.debtorPhone, 
-        creditorPhone: debts.creditorPhone 
+      .select({
+        debtorPhone: debts.debtorPhone,
+        creditorPhone: debts.creditorPhone
       })
       .from(debts)
       .where(or(eq(debts.debtorId, userId), eq(debts.creditorId, userId)))
       .limit(limit)
       .all();
-    
+
     const phones = new Set<string>();
     results.forEach((r: { debtorPhone: string; creditorPhone: string }) => {
       phones.add(r.debtorPhone);
@@ -248,16 +285,19 @@ export class DebtRepository {
     return result?.count ?? 0;
   }
 
-  async batchSoftDelete(ids: string[], deletedAt: Date): Promise<{ deleted: string[]; notFound: string[] }> {
+  async batchSoftDelete(
+    ids: string[],
+    deletedAt: Date
+  ): Promise<{ deleted: string[]; notFound: string[] }> {
     const updated = await this.database
       .update(debts)
       .set({ deletedAt, updatedAt: new Date() })
       .where(inArray(debts.id, ids))
       .returning({ id: debts.id });
-    
-    const deletedIds = updated.map(r => r.id);
-    const notFound = ids.filter(id => !deletedIds.includes(id));
-    
+
+    const deletedIds = updated.map((r) => r.id);
+    const notFound = ids.filter((id) => !deletedIds.includes(id));
+
     return { deleted: deletedIds, notFound };
   }
 
@@ -301,19 +341,18 @@ export class DebtRepository {
     return Boolean(result);
   }
 
-  async countByUserId(userId: string): Promise<{ total: number; pending: number; completed: number }> {
+  async countByUserId(
+    userId: string
+  ): Promise<{ total: number; pending: number; completed: number }> {
     const results = await this.database
       .select({ status: debts.status, count: count() })
       .from(debts)
       .where(
-        and(
-          or(eq(debts.debtorId, userId), eq(debts.creditorId, userId)),
-          isNull(debts.deletedAt)
-        )
+        and(or(eq(debts.debtorId, userId), eq(debts.creditorId, userId)), isNull(debts.deletedAt))
       )
       .groupBy(debts.status)
       .all();
-    
+
     let total = 0;
     let pending = 0;
     let completed = 0;

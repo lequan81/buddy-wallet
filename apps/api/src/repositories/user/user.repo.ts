@@ -4,25 +4,7 @@ import type { User, DbClient } from '@repo/db';
 import type { UserWithNotifications } from '@repo/types';
 import { db } from '@/providers/database';
 import { log } from '@repo/logger';
-import * as v from 'valibot';
 
-// ── Valibot Validation Schemas ────────────────────────────────
-const InsertUserSchema = v.object({
-  name: v.pipe(v.string(), v.minLength(1)),
-  phoneNumber: v.pipe(v.string(), v.minLength(10), v.maxLength(20)),
-  email: v.optional(v.union([v.string(), v.null_()])),
-  password: v.pipe(v.string(), v.minLength(8)),
-  permissions: v.optional(v.array(v.string())),
-  role: v.optional(v.picklist(['user', 'admin'])),
-  isActive: v.optional(v.boolean()),
-  emailVerified: v.optional(v.boolean()),
-  phoneVerified: v.optional(v.boolean()),
-  emailNotificationsEnabled: v.optional(v.boolean()),
-  pushNotificationsEnabled: v.optional(v.boolean()),
-  mustChangePassword: v.optional(v.boolean())
-});
-
-const UpdateUserSchema = v.partial(InsertUserSchema);
 
 /**
  * User Repository
@@ -30,6 +12,11 @@ const UpdateUserSchema = v.partial(InsertUserSchema);
  * No DI container - uses direct db instance
  */
 export class UserRepository {
+  private preparedFindByIds = new Map<
+    DbClient,
+    { get: (params: { id: string }) => User | undefined }
+  >();
+
   constructor(private readonly database: DbClient = db) {}
 
   async findMany(limit: number, offset: number): Promise<{ data: User[]; total: number }> {
@@ -63,8 +50,17 @@ export class UserRepository {
   }
 
   async findById(id: string): Promise<User | null> {
-    const user = await this.database.select().from(users).where(and(eq(users.id, id), eq(users.isActive, true))).get();
-    return user || null;
+    let prepared = this.preparedFindByIds.get(this.database);
+    if (!prepared) {
+      prepared = this.database
+        .select()
+        .from(users)
+        .where(and(eq(users.id, sql.placeholder('id')), eq(users.isActive, true)))
+        .prepare();
+      this.preparedFindByIds.set(this.database, prepared);
+    }
+    const result = prepared.get({ id });
+    return result || null;
   }
 
   async findByPhone(phone: string, excludeId?: string): Promise<User | null> {
@@ -159,11 +155,6 @@ export class UserRepository {
 
   async create(data: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'isActive' | 'role' | 'failedLoginAttempts' | 'isLocked' | 'sessionVersion' | 'lockoutUntil' | 'lastFailedLoginAt' | 'emailVerified' | 'phoneVerified' | 'lastPasswordChangeAt' | 'emailNotificationsEnabled' | 'pushNotificationsEnabled' | 'temporaryPassword' | 'temporaryPasswordExpires' | 'mustChangePassword' | 'temporaryPasswordUsed' | 'avatarThumbnailKey' | 'avatarMediumKey' | 'avatarUpdatedAt'>): Promise<User> {
     log.debug('USER_REPO', 'Creating user', { ...data, password: '***' });
-    const result = v.safeParse(InsertUserSchema, data);
-    if (!result.success) {
-      const firstIssue = result.issues[0];
-      throw new Error(`User validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
-    }
     const [created] = await this.database
       .insert(users)
       .values({
@@ -182,12 +173,6 @@ export class UserRepository {
   }
 
   async update(id: string, data: Partial<User>): Promise<User | null> {
-    const result = v.safeParse(UpdateUserSchema, data);
-    if (!result.success) {
-      const firstIssue = result.issues[0];
-      throw new Error(`User update validation failed: ${firstIssue?.message ?? 'Invalid data'}`);
-    }
-
     const [updated] = await this.database
       .update(users)
       .set({ ...data, updatedAt: new Date() })
