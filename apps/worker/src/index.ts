@@ -9,8 +9,8 @@
  */
 import { logger } from '@repo/logger';
 import { BACKEND_CONSTANTS, env } from '@repo/config';
-import { initRedis, getRedis, closeRedis } from './redis';
-import { validatePayload, isStorageConfigured } from './utils';
+import { initRedis, getRedis, closeRedis } from './providers/redis';
+import { validatePayload, isStorageConfigured } from './utils/validation';
 import { processImportJob } from './jobs/import.job';
 import { dispatchOutboxBatch } from './jobs/outbox-dispatch.job';
 import { processPushJob, type PushJobPayload } from './jobs/push-notification.job';

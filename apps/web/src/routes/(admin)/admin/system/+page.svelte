@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { AlertCircle, CheckCircle2, Clock, Cpu, Users } from '@repo/icons';
 	import { invalidateAll } from '$app/navigation';
 	import { onDestroy, onMount } from 'svelte';
@@ -8,7 +8,7 @@
 
 	let { data } = $props();
 
-	let interval: Timer;
+	let interval: ReturnType<typeof setInterval>;
 
 	onMount(() => {
 		// Auto refresh every 30s

@@ -8,9 +8,9 @@
 
 import { logger } from '@repo/logger';
 import type { WorkerJobPayload } from '@repo/types';
-import { setProgress, clearProgressCache } from '../redis';
+import { setProgress, clearProgressCache } from '../providers/redis';
 import { processAvatar, processProof } from '../services/image-processing.service';
-import { s3Client } from '../s3';
+import { s3Client } from '../providers/storage';
 
 export async function processImageJob(payload: WorkerJobPayload) {
   const { jobId, storageKey, imageType, userId } = payload;

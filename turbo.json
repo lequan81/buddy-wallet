@@ -8,7 +8,7 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env*", "bun.lock"],
       "outputs": [".svelte-kit/**", "dist/**", "build/**"],
-      "env": ["VITE_API_URL", "VITE_WEB_URL", "PORT"],
+      "env": ["VITE_API_URL", "VITE_WEB_URL", "PORT", "JWT_SECRET", "REDIS_HOST", "REDIS_PORT", "DATABASE_URL"],
       "cache": true
     },
     "dev": {

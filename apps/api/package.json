@@ -44,6 +44,7 @@
     "@opentelemetry/api": "^1.9.1",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "@types/node": "^25.9.0",
     "@types/web-push": "^3.6.4",
     "eslint": "^9.39.4",
     "typescript": "^6.0.3"

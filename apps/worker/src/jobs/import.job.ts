@@ -5,9 +5,9 @@ import { randomUUIDv7 } from 'bun';
 import { colLetterToIndex } from '@repo/utils';
 import { SHARED_CONSTANTS } from '@repo/config';
 import type { WorkerJobPayload, ColumnMapping } from '@repo/types';
-import { setProgress, clearProgressCache, getRedis } from '../redis';
-import { parseFile, validateRowCount } from '../parser';
-import { s3Client } from '../s3';
+import { setProgress, clearProgressCache, getRedis } from '../providers/redis';
+import { parseFile, validateRowCount } from '../utils/parser';
+import { s3Client } from '../providers/storage';
 
 /**
  * Process a single import or preview job.
