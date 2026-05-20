@@ -3,17 +3,19 @@
  */
 
 import { BE_ERRORS } from '@repo/errors';
+import type { Debt } from '@repo/db';
 import type { DebtRepository } from '@/repositories/debt/debt.repo';
-import { logActivity } from '@/commons/activity-logger';
+import { logActivity } from '@/commons/logging/activity-logger';
+import type { AuthenticatedUser } from '@repo/types/api/handler-context';
 import { onDebtPaid } from '@/modules/notification/services/notification-triggers.service';
 import { validateStatusTransition } from './validation.service';
 import type { ServiceResult } from './debt.service';
 
 export async function completeDebt(
   debtId: string,
-  user: any,
+  user: AuthenticatedUser,
   debtRepo: DebtRepository
-): Promise<ServiceResult<any>> {
+): Promise<ServiceResult<Debt | null>> {
   const debt = await debtRepo.findById(debtId);
   if (!debt) {
     return { error: BE_ERRORS.DEBT_NOT_FOUND };
@@ -52,3 +54,4 @@ export async function completeDebt(
 
   return { data: updated };
 }
+

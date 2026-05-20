@@ -97,24 +97,44 @@ export async function processImportJob(payload: WorkerJobPayload) {
       });
 
       const previewData = allRows.map((row: string[]) => columnHeaders.map((_, i) => String(row[i] ?? '')));
+      const previewJson = JSON.stringify({
+        columnHeaders,
+        previewRows: previewData.slice(0, 10),
+        previewData,
+        autoMapping,
+        totalRows: allRows.length,
+        fileName: payload.fileName
+      });
 
-      // Push to Redis with 3 hour TTL
-      const redis = getRedis();
-      await redis.setex(
-        `preview_data:${jobId}`,
-        10800, // 3 hours in seconds
-        JSON.stringify({ columnHeaders, previewData, autoMapping, totalRows: allRows.length })
-      );
+      // 1. Durable Fallback: Save parsed JSON to S3 bucket under imports/json/${jobId}.json
+      try {
+        const s3Key = `imports/json/${jobId}.json`;
+        await s3Client.file(s3Key).write(previewJson);
+        logger.info(`[Job:${jobId}] Parsed preview JSON saved to S3 successfully`, { s3Key });
+      } catch (s3Err) {
+        logger.error(`[Job:${jobId}] Failed to save preview JSON to S3`, { error: String(s3Err) });
+      }
 
+      // 2. Fast Path: Push to Redis with namespaced key 'bw:preview_data:${jobId}' and 3-hour TTL
+      try {
+        const redis = getRedis();
+        await redis.send('SET', [`bw:preview_data:${jobId}`, previewJson, 'EX', '10800']);
+        logger.info(`[Job:${jobId}] Parsed preview data cached in Redis successfully`);
+      } catch (redisErr) {
+        logger.warn(`[Job:${jobId}] Redis cache write failed, relying on S3 fallback`, { error: String(redisErr) });
+      }
+
+      // 3. Update SQLite database log status to 'preview'
       await db
         .update(importLogs)
         .set({
-          status: 'success',
+          status: 'preview',
           totalRows: allRows.length,
           completedAt: new Date()
         })
         .where(eq(importLogs.id, previewLogId || jobId));
 
+      // 4. Update progress hash to success
       setProgress(jobId, {
         current: allRows.length,
         total: allRows.length,

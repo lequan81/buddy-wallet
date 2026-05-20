@@ -3,6 +3,14 @@
  * Canonical debt entities/contracts live in @repo/types.
  */
 
+import type { ErrorLike } from '@repo/types/api';
+
+/**
+ * Standard service result discriminated union.
+ * All debt micro-services return this shape.
+ */
+export type ServiceResult<T> = { data: T } | { error: ErrorLike };
+
 // ── Service Interfaces (from debt.interfaces.d.ts) ───────────────────
 
 /** Push notification payload for debt events */

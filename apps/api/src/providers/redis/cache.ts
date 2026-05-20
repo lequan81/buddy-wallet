@@ -157,6 +157,62 @@ export const cache = {
   },
 
   /**
+   * Sliding window rate limiting using Redis Sorted Sets (ZSET)
+   */
+  async rateLimit(
+    key: string,
+    maxRequests: number,
+    windowSeconds: number
+  ): Promise<{ allowed: boolean; current: number; retryAfter: number }> {
+    if (!isRedisAvailable()) return { allowed: true, current: 0, retryAfter: 0 };
+    try {
+      const client = getClient();
+      if (!client) return { allowed: true, current: 0, retryAfter: 0 };
+
+      const namespacedKey = validateCacheKey(key);
+      const now = Date.now();
+      const uuid = crypto.randomUUID();
+      const member = `${now}:${uuid}`;
+      const minScore = now - windowSeconds * 1000;
+
+      // Remove expired requests
+      await client.send('ZREMRANGEBYSCORE', [namespacedKey, '-inf', String(minScore)]);
+      // Add current request
+      await client.send('ZADD', [namespacedKey, String(now), member]);
+      // Count total requests in window
+      const countResult = await client.send('ZCARD', [namespacedKey]);
+      const current = Number(countResult);
+      // Extend TTL of key so it cleans up when idle
+      await client.send('EXPIRE', [namespacedKey, String(windowSeconds)]);
+
+      circuitBreaker.trackCommand(true);
+
+      const allowed = current <= maxRequests;
+      let retryAfter = 0;
+
+      if (!allowed) {
+        // Query the oldest element to calculate precisely when a slot opens up
+        const oldest = await client.send('ZRANGE', [namespacedKey, '0', '0', 'WITHSCORES']);
+        circuitBreaker.trackCommand(true);
+
+        if (Array.isArray(oldest) && oldest.length >= 2) {
+          const oldestTimestamp = Number(oldest[1]);
+          const retryAfterMs = oldestTimestamp + windowSeconds * 1000 - now;
+          retryAfter = Math.max(1, Math.ceil(retryAfterMs / 1000));
+        } else {
+          retryAfter = windowSeconds;
+        }
+      }
+
+      return { allowed, current, retryAfter };
+    } catch (err) {
+      log.debug('REDIS', 'Cache rateLimit failed', { key, error: String(err) });
+      circuitBreaker.trackCommand(false);
+      return { allowed: true, current: 0, retryAfter: 0 };
+    }
+  },
+
+  /**
    * Get TTL of key
    */
   async ttl(key: string): Promise<number> {

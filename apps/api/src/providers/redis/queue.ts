@@ -3,17 +3,18 @@
  * @logicType infrastructure
  *
  * Simple job queue using Redis lists (LPUSH/BRPOP) and hashes.
- * No external dependencies — uses native Bun RedisClient.
+ * No external dependencies - uses native Bun RedisClient.
  *
  * Key patterns:
- *   bw:queue:{name}       — Redis list for job payloads (direct JSON)
- *   bw:job:{jobId}        — Redis hash for job progress tracking
+ *   bw:queue:{name}       - Redis list for job payloads (direct JSON)
+ *   bw:job:{jobId}        - Redis hash for job progress tracking
  *
  * NOTE: This sends jobs in the format expected by apps/worker (WorkerJobPayload)
  * to enable consolidation and eliminate duplication.
  */
 import { log } from '@repo/logger';
 import type { WorkerJobPayload } from '@repo/types';
+import { withRetry } from '@repo/utils';
 import { getClient, isRedisAvailable } from './connection';
 import { circuitBreaker } from './circuit-breaker';
 import { randomUUIDv7 } from 'bun';
@@ -22,36 +23,63 @@ const JOB_HASH_TTL = 3600; // 1 hour
 
 /**
  * Enqueue a job: push payload directly to list (format expected by apps/worker)
- * This matches the WorkerJobPayload interface from @repo/types
+ * This matches the WorkerJobPayload interface from @repo/types.
+ *
+ * Returns true when enqueued to Redis, false when Redis is unavailable or enqueue fails.
  */
-export async function enqueueJob(queueName: string, payload: Record<string, unknown>): Promise<void> {
-  if (!isRedisAvailable()) throw new Error('Redis not available');
+export async function enqueueJob(queueName: string, payload: Record<string, unknown>): Promise<boolean> {
+  if (!isRedisAvailable()) {
+    log.warn('REDIS_QUEUE', 'Redis not available, queue enqueue deferred', { queueName });
+    return false;
+  }
+
   const client = getClient();
-  if (!client) throw new Error('Redis client not available');
+  if (!client) {
+    log.warn('REDIS_QUEUE', 'Redis client not available, queue enqueue deferred', { queueName });
+    return false;
+  }
 
   const queueKey = `bw:queue:${queueName}`;
   const jobId = payload.jobId as string;
 
   try {
-    // Initialize job hash for progress tracking
-    if (jobId) {
-      await client.send('HSET', [
-        `bw:job:${jobId}`,
-        'status', 'queued',
-        'progress', '{}'
-      ]);
-      await client.send('EXPIRE', [`bw:job:${jobId}`, String(JOB_HASH_TTL)]);
-    }
+    await withRetry(
+      async () => {
+        // Initialize job hash for progress tracking
+        if (jobId) {
+          await client.send('HSET', [
+            `bw:job:${jobId}`,
+            'status', 'queued',
+            'progress', '{}'
+          ]);
+          await client.send('EXPIRE', [`bw:job:${jobId}`, String(JOB_HASH_TTL)]);
+        }
 
-    // Push payload directly to queue (apps/worker expects flat JSON object)
-    await client.send('LPUSH', [queueKey, JSON.stringify(payload)]);
+        // Push payload directly to queue (apps/worker expects flat JSON object)
+        await client.send('LPUSH', [queueKey, JSON.stringify(payload)]);
+      },
+      {
+        maxAttempts: 3,
+        baseDelayMs: 150,
+        maxDelayMs: 1000,
+        onRetry: (error, attempt) => {
+          log.warn('REDIS_QUEUE', 'Retrying enqueue operation', {
+            queueName,
+            jobId,
+            attempt,
+            error: String(error)
+          });
+        }
+      }
+    );
 
     circuitBreaker.trackCommand(true);
-    log.info('REDIS_QUEUE', `Job enqueued: ${jobId} → ${queueName}`);
+    log.info('REDIS_QUEUE', `Job enqueued: ${jobId} -> ${queueName}`);
+    return true;
   } catch (err) {
     circuitBreaker.trackCommand(false);
-    log.error('REDIS_QUEUE', 'Failed to enqueue job', { error: String(err), jobId });
-    throw err;
+    log.error('REDIS_QUEUE', 'Failed to enqueue job', { error: String(err), jobId, queueName });
+    return false;
   }
 }
 

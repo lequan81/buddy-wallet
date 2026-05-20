@@ -4,13 +4,17 @@
 
 import type { Result } from '@repo/types';
 import { BE_ERRORS } from '@repo/errors';
+import { SHARED_CONSTANTS } from '@repo/config';
+
+/** Supported currencies — kept in sync with frontend currency picker */
+const VALID_CURRENCIES = ['USD', 'VND', 'EUR', 'GBP', 'JPY', 'CNY'] as const;
 
 /**
  * Validate debt amount
  */
 export function validateDebtAmount(amount: number): Result<void> {
-  if (amount <= 0) return { code: BE_ERRORS.AMOUNT_INVALID.code };
-  if (amount > 999999999999) return { code: BE_ERRORS.AMOUNT_INVALID.code };
+  if (amount < SHARED_CONSTANTS.DEBT.MIN_AMOUNT) return { code: BE_ERRORS.AMOUNT_INVALID.code };
+  if (amount > SHARED_CONSTANTS.DEBT.MAX_AMOUNT) return { code: BE_ERRORS.AMOUNT_INVALID.code };
   return { data: undefined };
 }
 
@@ -18,8 +22,7 @@ export function validateDebtAmount(amount: number): Result<void> {
  * Validate currency code
  */
 export function validateCurrency(currency: string): Result<void> {
-  const validCurrencies = ['USD', 'VND', 'EUR', 'GBP', 'JPY', 'CNY'];
-  if (!validCurrencies.includes(currency.toUpperCase())) {
+  if (!VALID_CURRENCIES.includes(currency.toUpperCase() as typeof VALID_CURRENCIES[number])) {
     return { code: BE_ERRORS.CURRENCY_INVALID.code };
   }
   return { data: undefined };

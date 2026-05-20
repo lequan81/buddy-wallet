@@ -1,24 +1,12 @@
 import { Elysia, type Context } from 'elysia';
+import type { Server } from 'bun';
 import { logger } from '@repo/logger';
 import { getClientIP } from '@/commons/security/ip/extract';
 import { configs } from '@/config';
 import { BE_ERRORS } from '@repo/errors';
 import { apiError } from '@/commons/http/response';
 import { cache } from '@/providers/redis';
-import type { Server } from 'bun';
-
-interface RateLimitContext {
-  user?: { id: string };
-  server?: Server<any>;
-}
-
-interface RateLimitConfig {
-  windowMs: number;
-  maxRequests: number;
-  keyGenerator?: (request: Request, ctx?: RateLimitContext) => string | Promise<string>;
-  skip?: (request: Request, ctx?: RateLimitContext) => boolean;
-  message?: string;
-}
+import type { RateLimitConfig, RateLimitContext } from '@repo/types/api';
 
 /**
  * Get User-Agent fingerprint for additional rate limiting factor
@@ -116,23 +104,18 @@ export function createRateLimiter(config: RateLimitConfig) {
       const now = Date.now();
       const windowSeconds = Math.ceil(windowMs / 1000);
 
-      // Atomic increment to avoid race conditions under concurrent requests.
-      const count = await cache.incr(key, windowSeconds);
-      if (count < 0) {
-        return;
-      }
-      const ttlSeconds = await cache.ttl(key);
-      const retryAfter = ttlSeconds > 0 ? ttlSeconds : windowSeconds;
-      const resetAt = now + retryAfter * 1000;
+      // Sliding window rate limit using Redis Sorted Sets
+      const { allowed, current, retryAfter } = await cache.rateLimit(key, maxRequests, windowSeconds);
+      const resetAt = now + (retryAfter || windowSeconds) * 1000;
 
       // Set rate limit headers
       set.headers['X-RateLimit-Limit'] = String(maxRequests);
-      set.headers['X-RateLimit-Remaining'] = String(Math.max(0, maxRequests - count));
+      set.headers['X-RateLimit-Remaining'] = String(Math.max(0, maxRequests - current));
       set.headers['X-RateLimit-Reset'] = String(Math.ceil(resetAt / 1000));
 
       // Check if limit exceeded
-      if (count > maxRequests) {
-        logger.rateLimit(`Exceeded: ${key} (${count}/${maxRequests})`);
+      if (!allowed) {
+        logger.rateLimit(`Exceeded: ${key} (${current}/${maxRequests})`);
         set.status = 429;
         set.headers['Retry-After'] = String(retryAfter);
         return apiError(

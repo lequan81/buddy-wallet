@@ -13,39 +13,13 @@
 
 import ExcelJS from 'exceljs';
 import { normalizePhoneNumber } from '@repo/utils';
-
-// === Types ===
-
-export interface ParsedSpreadsheet {
-  headers: string[];
-  rows: Record<string, unknown>[];
-  totalRows: number;
-  fileName: string;
-}
-
-export interface PreviewResult {
-  previewId: string;
-  headers: string[];
-  previewRows: Record<string, unknown>[];
-  totalRows: number;
-  suggestedMapping: Record<string, string>;
-  fileName: string;
-}
-
-export interface ValidationResult {
-  valid: boolean;
-  errors: string[];
-  validRowCount: number;
-  totalRowCount: number;
-}
-
-export interface ColumnMapping {
-  [dbField: string]: string; // dbField -> spreadsheet header
-}
-
-export type ParseResult =
-  | { kind: 'success'; data: ParsedSpreadsheet }
-  | { kind: 'error'; code: string; message: string };
+import type {
+  ParsedSpreadsheet,
+  PreviewResult,
+  ValidationResult,
+  ColumnMapping,
+  ParseResult
+} from '../types/handler.types';
 
 // === Column Mapping Aliases ===
 

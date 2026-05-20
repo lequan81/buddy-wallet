@@ -6,7 +6,7 @@
 import { db } from '@/providers/database';
 import { NotificationRepository } from '@/repositories/system/notification.repo';
 import { BE_ERRORS } from '@repo/errors';
-import { calculatePagination } from '@/commons/pagination';
+import { calculatePagination } from '@/commons/http/pagination';
 import { canAccessNotification, formatNotification } from '../services/notification.service';
 import { apiSuccess, apiError } from '@/commons/http/response';
 import type {

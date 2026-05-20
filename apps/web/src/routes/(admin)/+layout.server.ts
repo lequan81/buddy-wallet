@@ -12,7 +12,7 @@ interface AdminPermissions {
 	canExportData: boolean;
 }
 
-export const load: LayoutServerLoad = async ({ locals, url }) => {
+export const load: LayoutServerLoad = async ({ locals }) => {
 	const emptyPermissions: AdminPermissions = {
 		isAdmin: false,
 		canManageUsers: false,
@@ -23,14 +23,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	// Redirect to login if not authenticated
 	if (!locals.user) {
-		if (locals.apiOffline) {
-			return {
-				user: null,
-				permissions: emptyPermissions,
-				apiOffline: true
-			};
-		}
-
 		throw redirect(303, '/login');
 	}
 

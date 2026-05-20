@@ -10,7 +10,7 @@ import { db } from '@/providers/database';
 import { UserRepository } from '@/repositories/user/user.repo';
 import { toUserResponse } from '@/commons/security/password';
 import { BE_ERRORS } from '@repo/errors';
-import { calculatePagination } from '@/commons/pagination';
+import { calculatePagination } from '@/commons/http/pagination';
 import type { AdminDeleteContext, AdminGetContext, AdminListContext, AdminUpdateContext } from '../types/handler.types';
 import { apiSuccess, apiError } from '@/commons/http/response';
 

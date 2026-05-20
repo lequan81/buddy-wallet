@@ -1,12 +1,8 @@
 import { db } from '@/providers/database';
 import { DebtRepository } from '@/repositories/debt/debt.repo';
-import type { AuthenticatedHandlerContext } from '@/types/handler-context';
-import type { DebtDeps } from '../types/handler.types';
+import type { RemoveAllDebtContext } from '../types/handler.types';
 import { apiSuccess, apiError } from '@/commons/http/response';
 import { removeAllDebts } from '../services/debt.service';
-
-export type RemoveAllDebtContext = AuthenticatedHandlerContext<never, never, { confirm: 'true' }, DebtDeps>;
-
 export const removeAll = async ({
   query,
   user,

@@ -10,13 +10,7 @@
 import { log } from '@repo/logger';
 import { enqueueJob, createWorkerJob } from '@/providers/redis/queue';
 import { isRedisAvailable } from '@/providers/redis/connection';
-
-export interface PushPayload {
-  title: string;
-  body: string;
-  url?: string;
-  icon?: string;
-}
+import type { PushPayload } from '../types/push';
 
 /**
  * Enqueue a push notification job for a specific user.
@@ -37,7 +31,11 @@ export async function enqueuePush(userId: string, payload: PushPayload): Promise
       previewLogId: undefined
     });
 
-    await enqueueJob('push_notifications', jobPayload as unknown as Record<string, unknown>);
+    const queued = await enqueueJob('push_notifications', jobPayload as unknown as Record<string, unknown>);
+    if (!queued) {
+      log.warn('PUSH', 'Queue unavailable, push enqueue deferred', { userId });
+      return false;
+    }
     log.debug('PUSH', 'Push job enqueued', { userId, jobId: jobPayload.jobId });
     return true;
   } catch (err) {

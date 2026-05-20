@@ -1,6 +1,6 @@
-import type { AuthenticatedHandlerContext } from '@/types/handler-context';
-import type { EntityIdParams, ResourceIdParams, IdParams } from '@/types/common-params';
-import type { ListQuery } from '@/types/common-queries';
+import type { AuthenticatedHandlerContext } from '@repo/types/api/handler-context';
+import type { EntityIdParams, ResourceIdParams, IdParams } from '@repo/types/api/common-params';
+import type { ListQuery } from '@repo/types/api/common-queries';
 
 export interface UploadFileBody {
   file: File;
@@ -31,3 +31,4 @@ export type ListFilesContext = AuthenticatedHandlerContext<unknown, Record<strin
 export type UploadProofContext = AuthenticatedHandlerContext<UploadFileBody, DebtIdParams>;
 export type ApproveProofContext = AuthenticatedHandlerContext<unknown, ProofIdParams>;
 export type RejectProofContext = AuthenticatedHandlerContext<RejectProofBody, ProofIdParams>;
+

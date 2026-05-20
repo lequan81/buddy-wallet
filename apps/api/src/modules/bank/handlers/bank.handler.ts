@@ -6,7 +6,7 @@
 import { db } from '@/providers/database';
 import { BankAccountRepository } from '@/repositories/bank/bank-account.repo';
 import { BE_ERRORS } from '@repo/errors';
-import { calculatePagination } from '@/commons/pagination';
+import { calculatePagination } from '@/commons/http/pagination';
 import { validateBankAccountData, maskAccountNumber } from '../services/bank.service';
 import { apiSuccess, apiError, apiCreated } from '@/commons/http/response';
 import type {

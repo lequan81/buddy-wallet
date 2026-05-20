@@ -4,13 +4,7 @@ import { apiError } from '@/commons/http/response';
 import { logger } from '@repo/logger';
 import { actor } from '@/plugins/auth';
 import { DebtRepository } from '@/repositories/debt/debt.repo';
-import type { UserResponse } from '@repo/types';
-
-interface AccessControlContext {
-  actor: UserResponse | null;
-  params: Record<string, string>;
-  set: { status: number };
-}
+import type { AccessControlContext } from '@repo/types/api';
 
 /**
  * Access Control Plugin

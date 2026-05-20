@@ -3,8 +3,10 @@
  */
 
 import { BE_ERRORS } from '@repo/errors';
+import type { Debt } from '@repo/db';
 import type { DebtRepository } from '@/repositories/debt/debt.repo';
-import { logActivity } from '@/commons/activity-logger';
+import { logActivity } from '@/commons/logging/activity-logger';
+import type { AuthenticatedUser } from '@repo/types/api/handler-context';
 import { SHARED_CONSTANTS } from '@repo/config';
 import type { ServiceResult } from './debt.service';
 
@@ -13,9 +15,9 @@ import type { ServiceResult } from './debt.service';
  */
 export async function removeDebt(
   debtId: string,
-  user: any,
+  user: AuthenticatedUser,
   debtRepo: DebtRepository
-): Promise<ServiceResult<any>> {
+): Promise<ServiceResult<{ deleted: boolean }>> {
   const debt = await debtRepo.findById(debtId);
 
   if (!debt) {
@@ -47,9 +49,9 @@ export async function removeDebt(
  */
 export async function batchRemoveDebts(
   ids: string[],
-  user: any,
+  user: AuthenticatedUser,
   debtRepo: DebtRepository
-): Promise<ServiceResult<any>> {
+): Promise<ServiceResult<{ deleted: string[]; notFound: string[] }>> {
   if (ids.length > SHARED_CONSTANTS.DEBT.MAX_BATCH_DELETE) {
     return {
       error: {
@@ -94,9 +96,9 @@ export async function batchRemoveDebts(
  */
 export async function removeAllDebts(
   confirm: string | undefined,
-  user: any,
+  user: AuthenticatedUser,
   debtRepo: DebtRepository
-): Promise<ServiceResult<any>> {
+): Promise<ServiceResult<{ deleted: number }>> {
   if (confirm !== 'true') {
     return { error: { code: 'BAD_REQUEST', message: 'Must confirm deletion', status: 400 } };
   }
@@ -123,3 +125,4 @@ export async function removeAllDebts(
 
   return { data: { deleted: deleted.length } };
 }
+

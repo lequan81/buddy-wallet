@@ -17,33 +17,62 @@ function isAbortError(err: unknown): boolean {
 	);
 }
 
+function normalizePathname(pathname: string): string {
+	if (!pathname) return '/';
+	if (pathname === '/') return '/';
+	return pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+}
+
+function stripLocalePrefix(pathname: string): string {
+	const normalized = normalizePathname(pathname);
+	const segments = normalized.split('/').filter(Boolean);
+	if (segments.length === 0) return '/';
+
+	if (/^[a-z]{2}$/i.test(segments[0])) {
+		const remaining = segments.slice(1);
+		return remaining.length ? `/${remaining.join('/')}` : '/';
+	}
+
+	return normalized;
+}
+
+function matchesExactOrPrefix(pathname: string, base: string): boolean {
+	return pathname === base || pathname.startsWith(`${base}/`);
+}
+
 /** Classify a pathname as public (no auth required) or protected. */
 function isPublicRoute(pathname: string): boolean {
+	const routePath = stripLocalePrefix(pathname);
 	return (
-		pathname === '/' ||
-		/^\/[a-z]{2}\/?$/.test(pathname) ||
-		pathname.includes('/login') ||
-		pathname.includes('/signup') ||
-		pathname.includes('/verify-email') ||
-		pathname.includes('/forgot-password') ||
-		pathname.includes('/reset-password') ||
-		pathname.includes('/check-debt') ||
-		pathname.includes('/public') ||
-		pathname.includes('/about') ||
-		pathname.includes('/faq') ||
-		pathname.includes('/privacy') ||
-		pathname.includes('/terms')
+		routePath === '/' ||
+		matchesExactOrPrefix(routePath, '/login') ||
+		matchesExactOrPrefix(routePath, '/signup') ||
+		matchesExactOrPrefix(routePath, '/verify-email') ||
+		matchesExactOrPrefix(routePath, '/forgot-password') ||
+		matchesExactOrPrefix(routePath, '/reset-password') ||
+		matchesExactOrPrefix(routePath, '/check-debt') ||
+		matchesExactOrPrefix(routePath, '/public') ||
+		routePath === '/about' ||
+		routePath === '/faq' ||
+		routePath === '/privacy' ||
+		routePath === '/terms'
 	);
+}
+
+function isAdminRoute(pathname: string): boolean {
+	const routePath = stripLocalePrefix(pathname);
+	return routePath === '/admin' || routePath.startsWith('/admin/');
 }
 
 /** Routes where we should attempt /me + refresh even though they're "public". */
 function isAuthAwarePublicRoute(pathname: string): boolean {
+	const routePath = stripLocalePrefix(pathname);
 	return (
-		pathname === '/' ||
-		pathname.includes('/login') ||
-		pathname.includes('/signup') ||
-		pathname.includes('/forgot-password') ||
-		pathname.includes('/reset-password')
+		routePath === '/' ||
+		matchesExactOrPrefix(routePath, '/login') ||
+		matchesExactOrPrefix(routePath, '/signup') ||
+		matchesExactOrPrefix(routePath, '/forgot-password') ||
+		matchesExactOrPrefix(routePath, '/reset-password')
 	);
 }
 
@@ -241,7 +270,11 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	let currentToken = event.cookies.get('session');
 	const refreshToken = event.cookies.get('refresh_token');
 	const pathname = event.url.pathname;
+	const routePath = stripLocalePrefix(pathname);
 	const isPublic = isPublicRoute(pathname);
+	const isAdmin = isAdminRoute(pathname);
+	const hasSession = Boolean(currentToken || refreshToken);
+	event.locals.hasSession = hasSession;
 	if (dev && (pathname.includes('verify-email') || pathname.startsWith('/dashboard') || pathname === '/')) {
 		console.log(`[DEBUG:AUTH] Path: ${pathname}, hasSession: ${Boolean(currentToken)}, hasRefresh: ${Boolean(refreshToken)}`);
 	}
@@ -327,6 +360,7 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	// ── Populate locals ──────────────────────────────────────────────────
 	event.locals.user = user;
 	event.locals.apiOffline = apiOffline;
+	event.locals.hasSession = Boolean(currentToken || refreshToken);
 	event.locals.accessToken = currentToken;
 	event.locals.api = createTreatyClient(
 		event.fetch,
@@ -342,24 +376,33 @@ export const handleAuth: Handle = async ({ event, resolve }) => {
 	// ── Redirect guards (flat, early-return) ─────────────────────────────
 
 	// Guard 1: Protected route without auth → login
+	if (isAdmin && !user) {
+		redirect(303, '/login');
+	}
+
 	if (!isPublic && !user && !apiOffline) {
 		redirect(303, '/login');
 	}
 
 	// Guard 2: Authenticated user on login/signup → home
-	if (user && (pathname.includes('/login') || pathname.includes('/signup'))) {
+	if (user && (matchesExactOrPrefix(routePath, '/login') || matchesExactOrPrefix(routePath, '/signup'))) {
 		redirect(303, '/');
 	}
 
 	// Guard 3: Non-admin on admin routes → home
-	if (pathname.startsWith('/admin/') && user) {
+	if (isAdmin && user) {
 		const hasAdminPermission = user?.permissions?.includes('admin:view');
 		if (!hasAdminPermission) {
 			redirect(303, '/');
 		}
 	}
 
-	return resolve(event);
+	const response = await resolve(event);
+	if (!isPublic && event.request.headers.get('sec-fetch-dest') === 'document') {
+		response.headers.set('Cache-Control', 'no-store, max-age=0');
+		response.headers.set('Pragma', 'no-cache');
+	}
+	return response;
 };
 
 export const handleDevtoolsJson: Handle = ({ event, resolve }) => {

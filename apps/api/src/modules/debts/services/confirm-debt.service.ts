@@ -3,18 +3,20 @@
  */
 
 import { BE_ERRORS } from '@repo/errors';
+import type { Debt, DbClient } from '@repo/db';
 import { DebtRepository } from '@/repositories/debt/debt.repo';
-import { logActivity } from '@/commons/activity-logger';
+import { logActivity } from '@/commons/logging/activity-logger';
+import type { AuthenticatedUser } from '@repo/types/api/handler-context';
 import { onDebtConfirmed } from '@/modules/notification/services/notification-triggers.service';
 import { validateStatusTransition } from './validation.service';
 import type { ServiceResult } from './debt.service';
 
 export async function confirmDebt(
   debtId: string,
-  user: any,
-  txDb: any,
+  user: AuthenticatedUser,
+  txDb: DbClient,
   debtRepo: DebtRepository
-): Promise<ServiceResult<any>> {
+): Promise<ServiceResult<Debt>> {
   const debt = await debtRepo.findById(debtId);
   if (!debt) {
     return { error: BE_ERRORS.DEBT_NOT_FOUND };
@@ -35,9 +37,9 @@ export async function confirmDebt(
     return { error: BE_ERRORS.DEBT_INVALID_STATUS };
   }
 
-  let updated;
+  let updated: Debt;
   try {
-    updated = await txDb.transaction(async (tx: any) => {
+    updated = await (txDb as typeof txDb & { transaction: (fn: (tx: DbClient) => Promise<Debt>) => Promise<Debt> }).transaction(async (tx: DbClient) => {
       const txDebtRepo = new DebtRepository(tx);
 
       const txDebt = await txDebtRepo.findById(debtId);
@@ -49,7 +51,7 @@ export async function confirmDebt(
       const isCreditor = user.id === txDebt.creditorId;
       const isDebtor = user.id === txDebt.debtorId;
 
-      const updateData: any = {
+      const updateData: Partial<Debt> & { updatedAt: Date } = {
         updatedAt: new Date(),
         confirmedByCreditor: isCreditor ? true : undefined,
         creditorConfirmedAt: isCreditor ? new Date() : undefined,
@@ -94,3 +96,4 @@ export async function confirmDebt(
 
   return { data: updated };
 }
+

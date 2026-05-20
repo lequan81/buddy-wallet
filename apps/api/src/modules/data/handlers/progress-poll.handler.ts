@@ -11,8 +11,10 @@ import { ImportRepository } from '@/repositories/data/import.repo';
 import { db } from '@/providers/database';
 import { apiSuccess, apiError } from '@/commons/http/response';
 import { GEN_ERRORS } from '@repo/errors';
-import type { AuthenticatedHandlerContext } from '@/types/handler-context';
+import type { AuthenticatedHandlerContext } from '@repo/types/api/handler-context';
 import { logger } from '@repo/logger';
+import { cache } from '@/providers/redis';
+import { importStorage } from '@/providers/storage/storage';
 
 const importRepo = new ImportRepository(db);
 
@@ -42,6 +44,40 @@ export const progressPoll = {
       const redisStatus = await getJobStatus(logId);
       if (redisStatus?.progress) {
         const progress = redisStatus.progress as Record<string, unknown>;
+
+        // If the progress is successful and this is a preview job, we load the preview data!
+        if (progress.status === 'success') {
+          // Check if this is a preview log in DB
+          const log = await importRepo.getLogById(logId, user.id);
+          if (log && log.status === 'preview') {
+            let previewDetails: any = null;
+            try {
+              previewDetails = await cache.get(`preview_data:${logId}`);
+            } catch {}
+
+            if (!previewDetails) {
+              try {
+                const s3Data = await importStorage.read(`${logId}.json`);
+                if (s3Data) {
+                  previewDetails = JSON.parse(s3Data.toString('utf-8'));
+                }
+              } catch {}
+            }
+
+            if (previewDetails) {
+              progress.result = {
+                data: {
+                  columnHeaders: previewDetails.columnHeaders,
+                  previewData: previewDetails.previewRows || previewDetails.previewData?.slice(0, 10) || [],
+                  autoMapping: previewDetails.autoMapping,
+                  totalRows: previewDetails.totalRows,
+                  fileName: previewDetails.fileName
+                }
+              };
+            }
+          }
+        }
+
         results[logId] = progress;
         if (progress.status !== 'success' && progress.status !== 'failed' && progress.status !== 'cancelled') {
           hasActiveJobs = true;
@@ -62,15 +98,35 @@ export const progressPoll = {
           }
         }
 
+        let result: any = undefined;
+        if (log.status === 'preview') {
+          try {
+            const s3Data = await importStorage.read(`${logId}.json`);
+            if (s3Data) {
+              const previewDetails = JSON.parse(s3Data.toString('utf-8'));
+              result = {
+                data: {
+                  columnHeaders: previewDetails.columnHeaders,
+                  previewData: previewDetails.previewRows || previewDetails.previewData?.slice(0, 10) || [],
+                  autoMapping: previewDetails.autoMapping,
+                  totalRows: previewDetails.totalRows,
+                  fileName: previewDetails.fileName
+                }
+              };
+            }
+          } catch {}
+        }
+
         results[logId] = {
-          status: log.status,
+          status: log.status === 'preview' ? 'success' : log.status,
           current: log.importedCount || 0,
           total: log.totalRows || 0,
-          percentage: log.status === 'success' ? 100 : 0,
+          percentage: log.status === 'success' || log.status === 'preview' ? 100 : 0,
           errors,
-          completedAt: log.completedAt
+          completedAt: log.completedAt,
+          result
         };
-        if (log.status !== 'success' && log.status !== 'failed' && log.status !== 'cancelled') {
+        if (log.status !== 'success' && log.status !== 'failed' && log.status !== 'cancelled' && log.status !== 'preview') {
           hasActiveJobs = true;
         }
       }
@@ -82,3 +138,4 @@ export const progressPoll = {
     });
   }
 };
+

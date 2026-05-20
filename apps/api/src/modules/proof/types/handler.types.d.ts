@@ -1,5 +1,5 @@
-import type { AuthenticatedHandlerContext } from '@/types/handler-context';
-import type { EntityIdParams } from '@/types/common-params';
+import type { AuthenticatedHandlerContext } from '@repo/types/api/handler-context';
+import type { EntityIdParams } from '@repo/types/api/common-params';
 
 export interface RejectProofBody {
   reason?: string;
@@ -14,3 +14,4 @@ export type UploadProofContext = AuthenticatedHandlerContext<{ file: File }, Ent
 export type ApproveProofContext = AuthenticatedHandlerContext<unknown, EntityIdParams>;
 export type RejectProofContext = AuthenticatedHandlerContext<RejectProofBody, EntityIdParams>;
 export type ListProofsContext = AuthenticatedHandlerContext<unknown, EntityIdParams>;
+

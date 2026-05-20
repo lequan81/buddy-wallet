@@ -6,7 +6,7 @@
  * These are used in route definitions as middleware wrappers.
  */
 
-import type { AuthenticatedHandlerContext, BaseHandlerContext } from '@/types/handler-context';
+import type { AuthenticatedHandlerContext, BaseHandlerContext } from '@repo/types/api/handler-context';
 import { BE_ERRORS } from '@repo/errors';
 import { apiError } from '@/commons/http/response';
 import { hasPermission, hasAnyPermission } from '@/commons/security/permissions';
@@ -58,3 +58,4 @@ export function requirePermission<TBody = unknown, TParams = Record<string, stri
     return handler(ctx as AuthenticatedHandlerContext<TBody, TParams, TQuery>);
   };
 }
+

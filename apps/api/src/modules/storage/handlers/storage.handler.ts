@@ -5,7 +5,7 @@
 
 import { uploadStorage } from '@/providers/storage';
 import { BE_ERRORS } from '@repo/errors';
-import { calculatePagination } from '@/commons/pagination';
+import { calculatePagination } from '@/commons/http/pagination';
 import { SHARED_CONSTANTS } from '@repo/config';
 import {
   validateFileType,
@@ -15,7 +15,7 @@ import {
 } from '../services/storage.service';
 import type { GetFileUrlContext, ListFilesContext, RemoveFileContext, UploadFileContext } from '../types/handler.types';
 import { apiSuccess, apiError, apiCreated } from '@/commons/http/response';
-import { logActivity } from '@/commons/activity-logger';
+import { logActivity } from '@/commons/logging/activity-logger';
 import { enqueueJob } from '@/providers/redis/queue';
 import { randomUUIDv7 } from 'bun';
 import type { WorkerJobPayload } from '@repo/types';
@@ -63,7 +63,11 @@ export const storage = {
       imageType: 'avatar' as const,
       config: { avatar: { sizes: { thumbnail: { width: 64, height: 64 }, medium: { width: 400, height: 400 } } } }
     };
-    await enqueueJob('image_processing', jobPayload as unknown as Record<string, unknown>);
+    const queued = await enqueueJob('image_processing', jobPayload as unknown as Record<string, unknown>);
+    if (!queued) {
+      await uploadStorage.delete(key).catch(() => undefined);
+      return apiError(BE_ERRORS.QUEUE_UNAVAILABLE, 'Image processing queue is currently unavailable');
+    }
 
     logActivity({
       userId: user.id,

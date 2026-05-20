@@ -3,8 +3,10 @@
  */
 
 import { BE_ERRORS } from '@repo/errors';
+import type { Debt } from '@repo/db';
 import type { DebtRepository } from '@/repositories/debt/debt.repo';
-import { logActivity } from '@/commons/activity-logger';
+import { logActivity } from '@/commons/logging/activity-logger';
+import type { AuthenticatedUser } from '@repo/types/api/handler-context';
 import type { UpdateDebtBody } from '../types/handler.types';
 import { validateDebtAmount, validateCurrency } from './validation.service';
 import type { ServiceResult } from './debt.service';
@@ -12,9 +14,9 @@ import type { ServiceResult } from './debt.service';
 export async function updateDebt(
   debtId: string,
   body: UpdateDebtBody,
-  user: any,
+  user: AuthenticatedUser,
   debtRepo: DebtRepository
-): Promise<ServiceResult<any>> {
+): Promise<ServiceResult<Debt | null>> {
   const { amount, currency, description, dueDate } = body;
   const debt = await debtRepo.findById(debtId);
 
@@ -65,3 +67,4 @@ export async function updateDebt(
 
   return { data: updated };
 }
+

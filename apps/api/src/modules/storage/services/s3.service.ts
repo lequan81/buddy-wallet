@@ -9,10 +9,14 @@
  */
 
 import { logger } from '@repo/logger';
+import { withRetry } from '@repo/utils';
 
 const PATH_CONTROL_CHARS_REGEX = /[\0\x00-\x1F\x7F]/g;
 const MULTI_SLASH_REGEX = /\/{2,}/g;
 const PATH_TRAVERSAL_SEGMENT = '..';
+const STORAGE_RETRY_ATTEMPTS = 3;
+const STORAGE_RETRY_BASE_DELAY_MS = 200;
+const STORAGE_RETRY_MAX_DELAY_MS = 1500;
 
 const safeDecodeURIComponent = (value: string): string => {
   try {
@@ -67,7 +71,22 @@ export function createStorageService(
      */
     async save(relativePath: string, buffer: Buffer | Blob): Promise<string> {
       const key = toKey(relativePath);
-      await s3Client.write(key, buffer);
+      await withRetry(
+        async () => {
+          await s3Client.write(key, buffer);
+        },
+        {
+          maxAttempts: STORAGE_RETRY_ATTEMPTS,
+          baseDelayMs: STORAGE_RETRY_BASE_DELAY_MS,
+          maxDelayMs: STORAGE_RETRY_MAX_DELAY_MS,
+          onRetry: (error, attempt) => {
+            logger.warn(`Retrying S3 write for s3://${bucket}/${key}`, {
+              attempt,
+              error: String(error)
+            });
+          }
+        }
+      );
       return key;
     },
 
@@ -81,7 +100,22 @@ export function createStorageService(
         throw new Error(`File not found: ${key}`);
       }
 
-      return Buffer.from(await file.arrayBuffer());
+      const arrayBuffer = await withRetry(
+        async () => file.arrayBuffer(),
+        {
+          maxAttempts: STORAGE_RETRY_ATTEMPTS,
+          baseDelayMs: STORAGE_RETRY_BASE_DELAY_MS,
+          maxDelayMs: STORAGE_RETRY_MAX_DELAY_MS,
+          onRetry: (error, attempt) => {
+            logger.warn(`Retrying S3 read for s3://${bucket}/${key}`, {
+              attempt,
+              error: String(error)
+            });
+          }
+        }
+      );
+
+      return Buffer.from(arrayBuffer);
     },
 
     /**
@@ -90,7 +124,22 @@ export function createStorageService(
     async delete(relativePath: string): Promise<{ success: boolean; error?: string }> {
       const key = toKey(relativePath);
       try {
-        await s3Client.delete(key);
+        await withRetry(
+          async () => {
+            await s3Client.delete(key);
+          },
+          {
+            maxAttempts: STORAGE_RETRY_ATTEMPTS,
+            baseDelayMs: STORAGE_RETRY_BASE_DELAY_MS,
+            maxDelayMs: STORAGE_RETRY_MAX_DELAY_MS,
+            onRetry: (err, attempt) => {
+              logger.warn(`Retrying S3 delete for s3://${bucket}/${key}`, {
+                attempt,
+                error: String(err)
+              });
+            }
+          }
+        );
         return { success: true };
       } catch (error) {
         logger.error(`Failed to delete file s3://${bucket}/${key}`, {

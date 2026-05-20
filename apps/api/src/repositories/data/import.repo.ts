@@ -70,6 +70,7 @@ export class ImportRepository {
     const [data, countResult] = await Promise.all([
       this.database.query.importLogs.findMany({
         where: (logs, { eq }) => eq(logs.userId, userId),
+        orderBy: (logs, { desc }) => [desc(logs.createdAt), desc(logs.id)],
         limit,
         offset
       }),

@@ -7,8 +7,7 @@
  */
 
 import { status as elysiaStatus, ElysiaCustomStatusResponse } from 'elysia';
-
-export type ErrorLike = { code: string; message?: string; error?: string; status?: number };
+import type { ErrorLike } from '@repo/types/api';
 
 export function apiError<const T extends ErrorLike>(
   err: T,

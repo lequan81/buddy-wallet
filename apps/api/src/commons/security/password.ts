@@ -4,11 +4,7 @@
  * SECURITY: Password complexity requirements to prevent weak passwords
  */
 import { SHARED_CONSTANTS } from '@repo/config';
-
-export interface PasswordValidationResult {
-  isValid: boolean;
-  errors: string[];
-}
+import type { PasswordValidationResult } from '@repo/types/api';
 
 /**
  * Common passwords set - imported from shared config

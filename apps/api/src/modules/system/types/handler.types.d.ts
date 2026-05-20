@@ -1,3 +1,4 @@
-import type { BaseHandlerContext } from '@/types/handler-context';
+import type { BaseHandlerContext } from '@repo/types/api/handler-context';
 
 export type SystemContext = BaseHandlerContext;
+

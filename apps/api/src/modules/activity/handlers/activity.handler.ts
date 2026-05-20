@@ -7,8 +7,8 @@
 
 import { ActivityRepository } from '@/repositories/system/activity.repo';
 import { apiSuccess } from '@/commons/http/response';
-import type { AuthenticatedHandlerContext } from '@/types/handler-context';
-import type { PaginationQuery } from '@/types/common-queries';
+import type { AuthenticatedHandlerContext } from '@repo/types/api/handler-context';
+import type { PaginationQuery } from '@repo/types/api/common-queries';
 
 const activityRepo = new ActivityRepository();
 
@@ -31,3 +31,4 @@ export const activity = {
     });
   }
 };
+

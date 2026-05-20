@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { calculatePagination } from '@/commons/pagination';
+import { calculatePagination } from '@/commons/http/pagination';
 
 describe('Pagination Helper', () => {
   test('calculates metadata for first page', () => {

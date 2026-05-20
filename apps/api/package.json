@@ -59,7 +59,6 @@
     },
     "./types": {
       "types": "./dist/index.d.ts"
-    },
-    "./modules/storage/services/image-processing.service": "./src/modules/storage/services/image-processing.service.ts"
+    }
   }
 }

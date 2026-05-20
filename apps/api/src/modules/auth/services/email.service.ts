@@ -10,20 +10,7 @@ import { env } from '@repo/config';
 import { file } from 'bun';
 import { createMessage } from '@upyo/core';
 import { SmtpTransport } from '@upyo/smtp';
-
-export interface EmailMessage {
-  to: string;
-  subject: string;
-  html: string;
-  text?: string;
-  replyTo?: string;
-}
-
-export interface SendResult {
-  success: boolean;
-  messageId?: string;
-  error?: string;
-}
+import type { EmailMessage, SendResult } from '../types/handler.types';
 
 // ── Singleton Transport ─────────────────────────────────
 

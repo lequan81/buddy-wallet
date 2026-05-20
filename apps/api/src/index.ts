@@ -15,8 +15,25 @@ export type App = ReturnType<typeof import('./bootstrap').createApp>;
 export const app = await bootstrap();
 
 if (import.meta.main) {
-  start().catch((error) => {
-    logger.error('Failed to start application', { error: String(error) });
-    process.exit(1);
-  });
+  const startWithRetry = async () => {
+    let attempt = 0;
+
+    while (true) {
+      try {
+        await start();
+        return;
+      } catch (error) {
+        attempt++;
+        const delayMs = Math.min(1000 * Math.pow(2, Math.min(attempt - 1, 5)), 30000);
+        logger.error('Failed to start application, retrying', {
+          attempt,
+          delayMs,
+          error: String(error)
+        });
+        await Bun.sleep(delayMs);
+      }
+    }
+  };
+
+  void startWithRetry();
 }

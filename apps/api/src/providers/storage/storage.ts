@@ -49,3 +49,16 @@ export const importStorage = createStorageService(
   STORAGE_CONFIG.BUCKET!,
   toOptional(STORAGE_CONFIG.PUBLIC_BASE_URL)
 );
+
+/**
+ * Raw Import storage — stores uploaded Excel/CSV files for asynchronous
+ * processing by the worker.
+ *
+ * Key pattern: imports/raw/{previewId}.xlsx
+ */
+export const rawImportStorage = createStorageService(
+  globalS3Client,
+  'imports/raw',
+  STORAGE_CONFIG.BUCKET!,
+  toOptional(STORAGE_CONFIG.PUBLIC_BASE_URL)
+);

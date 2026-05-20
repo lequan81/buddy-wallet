@@ -1,6 +1,6 @@
-import type { AuthenticatedHandlerContext } from '@/types/handler-context';
-import type { EntityIdParams } from '@/types/common-params';
-import type { ListQuery } from '@/types/common-queries';
+import type { AuthenticatedHandlerContext } from '@repo/types/api/handler-context';
+import type { EntityIdParams } from '@repo/types/api/common-params';
+import type { ListQuery } from '@repo/types/api/common-queries';
 
 export type { DebtStatus, DebtDirection, Debt } from '@repo/types/shared/debt';
 import type { Debt } from '@repo/types/shared/debt';
@@ -79,4 +79,8 @@ export interface RejectProofBody {
 
 export type ApproveProofContext = AuthenticatedHandlerContext<unknown, DebtProofParams, Record<string, unknown>, DebtDeps>;
 export type RejectProofContext = AuthenticatedHandlerContext<RejectProofBody, DebtProofParams, Record<string, unknown>, DebtDeps>;
+
+export type BatchRemoveDebtContext = AuthenticatedHandlerContext<{ ids: string[] }, never, never, DebtDeps>;
+export type RemoveAllDebtContext = AuthenticatedHandlerContext<never, never, { confirm: 'true' }, DebtDeps>;
+
 

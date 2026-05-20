@@ -14,7 +14,7 @@ import { DebtRepository } from '@/repositories/debt/debt.repo';
 import { BE_ERRORS } from '@repo/errors';
 import { validateFileType, validateFileSize, generateFileKey } from '../services/storage.service';
 import { apiSuccess, apiError, apiCreated } from '@/commons/http/response';
-import { logActivity } from '@/commons/activity-logger';
+import { logActivity } from '@/commons/logging/activity-logger';
 import type { UploadProofContext, ApproveProofContext, RejectProofContext } from '../types/handler.types';
 import { logger } from '@repo/logger';
 import { enqueueJob } from '@/providers/redis/queue';
@@ -62,7 +62,11 @@ export const proof = {
       imageType: 'proof' as const,
       config: { proof: { maxWidth: 1920, maxHeight: 1080, displayQuality: 80, downloadQuality: 100 } }
     };
-    await enqueueJob('image_processing', jobPayload as unknown as Record<string, unknown>);
+    const queued = await enqueueJob('image_processing', jobPayload as unknown as Record<string, unknown>);
+    if (!queued) {
+      await uploadStorage.delete(key).catch(() => undefined);
+      return apiError(BE_ERRORS.QUEUE_UNAVAILABLE, 'Image processing queue is currently unavailable');
+    }
 
     // Update debt proof tracking
     try {

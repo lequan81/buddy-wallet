@@ -34,7 +34,10 @@ export const importLogs = sqliteTable(
   },
   (table) => [
     index('idx_import_logs_user_id').on(table.userId),
-    index('idx_import_logs_user_created_at_id').on(table.userId, table.createdAt, table.id)
+    index('idx_import_logs_user_created_at_id').on(table.userId, table.createdAt, table.id),
+    index('idx_import_logs_user_status_created_at_id').on(table.userId, table.status, table.createdAt, table.id),
+    index('idx_import_logs_status_created_at_id').on(table.status, table.createdAt, table.id),
+    index('idx_import_logs_preview_log_id').on(table.previewLogId)
   ]
 );
 

@@ -1,6 +1,6 @@
-import type { AuthenticatedHandlerContext } from '@/types/handler-context';
-import type { EntityIdParams } from '@/types/common-params';
-import type { ListQuery } from '@/types/common-queries';
+import type { AuthenticatedHandlerContext } from '@repo/types/api/handler-context';
+import type { EntityIdParams } from '@repo/types/api/common-params';
+import type { ListQuery } from '@repo/types/api/common-queries';
 
 import type { UserEntity as User } from '@repo/types/shared/user';
 import type { ChangePasswordRequest } from '@repo/types/shared/user';
@@ -27,4 +27,5 @@ export type AdminListContext = AuthenticatedHandlerContext<unknown, Record<strin
 export type AdminGetContext = AuthenticatedHandlerContext<unknown, UserIdParams>;
 export type AdminUpdateContext = AuthenticatedHandlerContext<AdminUpdateUserBody, UserIdParams>;
 export type AdminDeleteContext = AuthenticatedHandlerContext<unknown, UserIdParams>;
+
 

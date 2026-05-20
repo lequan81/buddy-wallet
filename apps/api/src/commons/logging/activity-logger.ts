@@ -11,35 +11,9 @@
 
 import { ActivityRepository } from '@/repositories/system/activity.repo';
 import { logger } from '@repo/logger';
+import type { ActivityAction, ActivityResource, LogActivityParams } from '@repo/types/api';
 
 const activityRepo = new ActivityRepository();
-
-/** Activity action types — mirrors @repo/db ActivityAction without importing it */
-export type ActivityAction =
-  | 'create' | 'update' | 'delete'
-  | 'login' | 'logout' | 'login_failed'
-  | 'export' | 'import' | 'import_preview' | 'status_change'
-  | 'password_change' | 'logout_all' | 'delete_all'
-  | 'register' | 'verify_email' | 'revoke_session'
-  | 'confirm' | 'suggest_edit' | 'accept_suggestion' | 'reject_suggestion'
-  | 'upload' | 'approve' | 'reject'
-  | 'subscribe' | 'unsubscribe' | 'broadcast';
-
-/** Activity resource types — mirrors @repo/db ActivityResource without importing it */
-export type ActivityResource =
-  | 'debt' | 'user' | 'session' | 'import' | 'export'
-  | 'bank_account' | 'file' | 'push_subscription';
-
-interface LogActivityParams {
-  userId: string;
-  action: ActivityAction;
-  resource: ActivityResource;
-  resourceId?: string;
-  changes?: { before?: Record<string, unknown>; after?: Record<string, unknown> };
-  metadata?: Record<string, unknown>;
-  ipAddress?: string;
-  userAgent?: string;
-}
 
 /**
  * Log an activity in the background (non-blocking).

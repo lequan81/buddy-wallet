@@ -1,4 +1,4 @@
-import { calculatePagination } from '@/commons/pagination';
+import { calculatePagination } from '@/commons/http/pagination';
 import { getDebtDirection, isDebtOverdue } from '../services/debt.service';
 import { db } from '@/providers/database';
 import { DebtRepository } from '@/repositories/debt/debt.repo';

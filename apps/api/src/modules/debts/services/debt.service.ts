@@ -3,9 +3,8 @@
  * @logicType backend
  */
 
-import type { ErrorLike } from '@/commons/http/response';
-
-export type ServiceResult<T> = { data: T } | { error: ErrorLike };
+// Re-export the canonical ServiceResult type from the types layer
+export type { ServiceResult } from '../types';
 
 export * from './validation.service';
 export * from './create-debt.service';

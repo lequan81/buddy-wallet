@@ -33,6 +33,11 @@ export const dataRoutes = new Elysia({ prefix: '/data' })
     }),
     detail: { tags: ['data'], description: 'Start import from preview with column mapping' }
   })
+  // Retrieve parsed Excel/CSV preview data by import ID
+  .get('/import/:id/preview-data', requirePermission('admin:import', importPreview.getPreviewData), {
+    params: v.object({ id: v.string() }),
+    detail: { tags: ['data'], description: 'Retrieve parsed Excel/CSV preview data by import ID' }
+  })
   .post('/import', requirePermission('admin:import', dataImport.importData), {
     body: ImportDataSchema,
     detail: { tags: ['data'], description: 'Import debts from JSON data' }

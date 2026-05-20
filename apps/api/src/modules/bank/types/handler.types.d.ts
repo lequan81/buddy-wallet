@@ -1,6 +1,6 @@
-import type { AuthenticatedHandlerContext } from '@/types/handler-context';
-import type { EntityIdParams } from '@/types/common-params';
-import type { ListQuery } from '@/types/common-queries';
+import type { AuthenticatedHandlerContext } from '@repo/types/api/handler-context';
+import type { EntityIdParams } from '@repo/types/api/common-params';
+import type { ListQuery } from '@repo/types/api/common-queries';
 
 
 
@@ -25,3 +25,4 @@ export type ListBankAccountsContext = AuthenticatedHandlerContext<unknown, Recor
 export type UpdateBankAccountContext = AuthenticatedHandlerContext<UpdateBankAccountBody, BankAccountIdParams>;
 export type RemoveBankAccountContext = AuthenticatedHandlerContext<unknown, BankAccountIdParams>;
 export type SetDefaultBankAccountContext = AuthenticatedHandlerContext<unknown, BankAccountIdParams>;
+

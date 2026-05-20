@@ -1,6 +1,6 @@
-import type { AuthenticatedHandlerContext } from '@/types/handler-context';
-import type { EntityIdParams } from '@/types/common-params';
-import type { ListQuery } from '@/types/common-queries';
+import type { AuthenticatedHandlerContext } from '@repo/types/api/handler-context';
+import type { EntityIdParams } from '@repo/types/api/common-params';
+import type { ListQuery } from '@repo/types/api/common-queries';
 
 export type NotificationIdParams = EntityIdParams;
 
@@ -18,3 +18,4 @@ export type MarkAsReadContext = AuthenticatedHandlerContext<MarkAsReadBody>;
 export type MarkAllAsReadContext = AuthenticatedHandlerContext;
 export type RemoveNotificationContext = AuthenticatedHandlerContext<unknown, NotificationIdParams>;
 export type UnreadCountContext = AuthenticatedHandlerContext;
+

@@ -12,7 +12,7 @@ import { db } from '@/providers/database';
 import { ImportRepository } from '@/repositories/data/import.repo';
 import { BE_ERRORS, GEN_ERRORS } from '@repo/errors';
 import { apiSuccess, apiError, apiAccepted } from '@/commons/http/response';
-import { logActivity } from '@/commons/activity-logger';
+import { logActivity } from '@/commons/logging/activity-logger';
 import { enqueueJob, createWorkerJob, getJobStatus } from '@/providers/redis/queue';
 import type { ImportDataContext, ImportLogsContext, ImportProgressContext, ImportRemapContext } from '../types/handler.types';
 import { logger } from '@repo/logger';
@@ -72,7 +72,15 @@ export const dataImport = {
       await client.setex(`import_data:${logId}`, 3600, JSON.stringify(importData));
     }
 
-    await enqueueJob('imports', jobPayload as unknown as Record<string, unknown>);
+    const queued = await enqueueJob('imports', jobPayload as unknown as Record<string, unknown>);
+    if (!queued) {
+      await importRepo.updateLog(logId, {
+        status: 'failed',
+        errors: JSON.stringify(['Queue unavailable. Please retry import later.']),
+        completedAt: new Date()
+      });
+      return apiError(BE_ERRORS.QUEUE_UNAVAILABLE, 'Queue unavailable. Please retry import later.');
+    }
     logActivity({
       userId: user.id,
       action: 'import',

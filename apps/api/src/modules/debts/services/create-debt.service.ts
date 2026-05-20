@@ -3,9 +3,11 @@
  */
 
 import { BE_ERRORS } from '@repo/errors';
+import type { Debt } from '@repo/db';
 import type { DebtRepository } from '@/repositories/debt/debt.repo';
 import type { UserRepository } from '@/repositories/user/user.repo';
-import { logActivity } from '@/commons/activity-logger';
+import { logActivity } from '@/commons/logging/activity-logger';
+import type { AuthenticatedUser } from '@repo/types/api/handler-context';
 import { onDebtCreated } from '@/modules/notification/services/notification-triggers.service';
 import { SHARED_CONSTANTS } from '@repo/config';
 import type { CreateDebtBody } from '../types/handler.types';
@@ -14,10 +16,10 @@ import type { ServiceResult } from './debt.service';
 
 export async function createDebt(
   body: CreateDebtBody,
-  user: any,
+  user: AuthenticatedUser,
   debtRepo: DebtRepository,
   userRepo: UserRepository
-): Promise<ServiceResult<any>> {
+): Promise<ServiceResult<Debt & { duplicateWarning?: { count: number; message: string } }>> {
   const { debtorId, amount, currency, description, dueDate, debtorPhone, creditorPhone } = body;
 
   const amountValidation = validateDebtAmount(amount);
@@ -87,3 +89,4 @@ export async function createDebt(
     }
   };
 }
+

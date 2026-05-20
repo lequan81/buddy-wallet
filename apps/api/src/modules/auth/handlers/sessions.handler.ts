@@ -9,7 +9,7 @@ import { SessionRepository } from '@/repositories/auth/session.repo';
 import { apiSuccess, apiError } from '@/commons/http/response';
 import { GEN_ERRORS } from '@repo/errors';
 import { isRedisAvailable, sessionCache, sessionMetaCache } from '@/providers/redis';
-import type { AuthenticatedHandlerContext } from '@/types/handler-context';
+import type { AuthenticatedHandlerContext } from '@repo/types/api/handler-context';
 
 const sessionRepo = new SessionRepository();
 
@@ -70,3 +70,4 @@ export const sessionsHandler = {
     return apiSuccess({ revoked: true });
   }
 };
+

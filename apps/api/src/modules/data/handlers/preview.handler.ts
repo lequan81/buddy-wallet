@@ -11,19 +11,16 @@ import { randomUUIDv7 } from 'bun';
 import { SHARED_CONSTANTS } from '@repo/config';
 import { db } from '@/providers/database';
 import { ImportRepository } from '@/repositories/data/import.repo';
-import { importStorage } from '@/providers/storage/storage';
+import { importStorage, rawImportStorage } from '@/providers/storage/storage';
 import { BE_ERRORS, GEN_ERRORS } from '@repo/errors';
 import { apiSuccess, apiError, apiAccepted } from '@/commons/http/response';
 import { validateImportUploadFile } from '@/commons/validation/import';
-import { logActivity } from '@/commons/activity-logger';
+import { logActivity } from '@/commons/logging/activity-logger';
 import { enqueueJob, createWorkerJob } from '@/providers/redis/queue';
-import {
-  parseSpreadsheetFile,
-  suggestColumnMapping,
-  generatePreviewRows
-} from '../services/import-preview.service';
-import type { PreviewHandlerContext, ImportFromPreviewContext } from '../types/handler.types';
+import type { PreviewHandlerContext, ImportFromPreviewContext, ImportPreviewData } from '../types/handler.types';
 import { logger } from '@repo/logger';
+import { cache } from '@/providers/redis';
+import type { AuthenticatedHandlerContext } from '@repo/types/api/handler-context';
 
 const importRepo = new ImportRepository(db);
 
@@ -31,7 +28,7 @@ export const importPreview = {
   /**
    * POST /data/import/preview
    * Accepts multipart/form-data with Excel/CSV file.
-   * Returns preview data with suggested column mapping.
+   * Uploads file to S3 raw area, inserts queued database log, and enqueues background preview job.
    */
   preview: async ({ body, user }: PreviewHandlerContext) => {
     const file = (body as { file?: File })?.file;
@@ -46,54 +43,34 @@ export const importPreview = {
       return validationError;
     }
 
-    // Parse the spreadsheet
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const parseResult = await parseSpreadsheetFile(buffer, file.name);
-    if (parseResult.kind === 'error') {
-      return apiError(BE_ERRORS.IMPORT_PARSE_ERROR, parseResult.message);
-    }
-    const parsed = parseResult.data;
-
-    if (parsed.totalRows === 0) {
-      return apiError(BE_ERRORS.IMPORT_EMPTY_SHEET);
+    // Strictly validate extension to prevent path traversal / format exploits
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'xlsx';
+    if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+      return apiError(BE_ERRORS.IMPORT_INVALID_FORMAT, 'Invalid file extension. Accepted: xlsx, xls, csv');
     }
 
-    // Generate preview ID and store parsed JSON in S3
     const previewId = randomUUIDv7();
-    const s3Key = `${previewId}.json`;
+    const s3FileName = `${previewId}.${ext}`;
 
-    const MAX_PREVIEW_JSON_SIZE = 10 * 1024 * 1024; // 10MB
-    const jsonBuffer = Buffer.from(JSON.stringify({
-      headers: parsed.headers,
-      rows: parsed.rows,
-      totalRows: parsed.totalRows,
-      fileName: file.name,
-      fileSize: file.size,
-      parsedAt: new Date().toISOString()
-    }));
-
-    if (jsonBuffer.length > MAX_PREVIEW_JSON_SIZE) {
-      return apiError(BE_ERRORS.FILE_TOO_LARGE,
-        `Parsed data too large (${(jsonBuffer.length / 1024 / 1024).toFixed(1)}MB). Max: 10MB.`
-      );
-    }
-
+    // Upload raw file to rawImportStorage (imports/raw)
+    const buffer = Buffer.from(await file.arrayBuffer());
+    let s3Key: string;
     try {
-      await importStorage.save(s3Key, jsonBuffer);
+      s3Key = await rawImportStorage.save(s3FileName, buffer);
     } catch (err) {
-      logger.error('S3 save failed for preview', { s3Key, size: jsonBuffer.length, error: String(err) });
-      return apiError(BE_ERRORS.FILE_STORAGE_ERROR, 'Failed to store preview data');
+      logger.error('S3 raw save failed for preview', { s3FileName, size: buffer.length, error: String(err) });
+      return apiError(BE_ERRORS.FILE_STORAGE_ERROR, 'Failed to store raw preview file');
     }
 
-    // Create import log with preview status
+    // Create import log with queued status
     await importRepo.createLog({
       id: previewId,
       userId: user.id,
       fileName: file.name,
       fileSize: file.size,
-      status: 'preview',
+      status: 'queued',
       previewLogId: null,
-      totalRows: parsed.totalRows,
+      totalRows: null,
       importedCount: null,
       errorCount: null,
       errors: null,
@@ -101,34 +78,40 @@ export const importPreview = {
       completedAt: null
     });
 
-    // Suggest column mapping
-    const suggestedMapping = suggestColumnMapping(parsed.headers);
+    // Enqueue job for background processing
+    const jobPayload = createWorkerJob('preview', {
+      userId: user.id,
+      fileName: file.name,
+      storageKey: s3Key,
+      config: { fileSize: file.size },
+      previewLogId: previewId
+    });
 
-    // Generate preview rows (first 10)
-    const previewRows = generatePreviewRows(parsed.rows, SHARED_CONSTANTS.IMPORT.PREVIEW_ROWS);
+    const queued = await enqueueJob('imports', jobPayload as unknown as Record<string, unknown>);
+    if (!queued) {
+      logger.warn('Redis enqueue unavailable, SQLite polling fallback will pick queued preview job', { previewId });
+    }
 
     logActivity({
       userId: user.id,
       action: 'import_preview',
       resource: 'import',
       resourceId: previewId,
-      metadata: { fileName: file.name, totalRows: parsed.totalRows, headers: parsed.headers }
+      metadata: { fileName: file.name, status: 'queued' }
     });
 
-    return apiSuccess({
+    return apiAccepted({
       previewId,
-      headers: parsed.headers,
-      previewRows,
-      totalRows: parsed.totalRows,
-      suggestedMapping,
+      jobId: previewId,
+      status: 'queued',
       fileName: file.name
-    }, 'Preview generated successfully');
+    }, 'File uploaded and preview generation queued successfully');
   },
 
   /**
    * POST /data/import/:id/start
    * Starts import from a preview using column mapping.
-   * Enqueues job for background processing via Redis queue.
+   * Enqueues job for background processing via Redis/SQLite queue.
    */
   startFromPreview: async ({ params, body, user }: ImportFromPreviewContext) => {
     const { columnMapping, startRow = 1 } = body as { columnMapping?: Record<string, string>; startRow?: number };
@@ -147,37 +130,40 @@ export const importPreview = {
       return apiError(BE_ERRORS.IMPORT_INVALID_FORMAT, 'Import log is not in preview status');
     }
 
-    // Read parsed JSON from S3 to validate it exists
+    // Read config from log
     const config = log.config ? JSON.parse(log.config as string) : {};
     const s3Key = config.s3Key;
 
     if (!s3Key) {
-      return apiError(BE_ERRORS.FILE_STORAGE_ERROR, 'Preview data not found in storage');
+      return apiError(BE_ERRORS.FILE_STORAGE_ERROR, 'Raw file path not found in config');
     }
 
-    // Validate S3 data is readable
+    // Validate raw spreadsheet is readable in S3
     try {
-      await importStorage.read(s3Key);
+      await rawImportStorage.read(s3Key);
     } catch (err) {
-      return apiError(BE_ERRORS.FILE_STORAGE_ERROR, `Failed to read preview data: ${err instanceof Error ? err.message : String(err)}`);
+      return apiError(BE_ERRORS.FILE_STORAGE_ERROR, `Failed to read raw file: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    // Update log status to queued
+    // Update log status to queued and record mapping
     await importRepo.updateLog(log.id, {
       status: 'queued',
       config: JSON.stringify({ s3Key, columnMapping, startRow })
     });
 
-    // Enqueue job for background processing (format expected by apps/worker)
+    // Enqueue job for background processing
     const jobPayload = createWorkerJob('import', {
       userId: user.id,
-      fileName: `import-${log.id}.json`,
+      fileName: log.fileName,
       storageKey: s3Key,
       config: { mapping: columnMapping as any, startRow },
       previewLogId: log.id
     });
 
-    await enqueueJob('imports', jobPayload as unknown as Record<string, unknown>);
+    const queued = await enqueueJob('imports', jobPayload as unknown as Record<string, unknown>);
+    if (!queued) {
+      logger.warn('Redis enqueue unavailable, SQLite polling fallback will pick queued import job', { id: log.id });
+    }
 
     logActivity({
       userId: user.id,
@@ -192,5 +178,45 @@ export const importPreview = {
       status: 'queued',
       totalRows: log.totalRows
     }, 'Import queued for background processing');
+  },
+
+  /**
+   * GET /data/import/:id/preview-data
+   * Returns parsed spreadsheet preview columns, rows, and auto-mapping from Redis/S3.
+   */
+  getPreviewData: async ({ params, user }: AuthenticatedHandlerContext<unknown, { id: string }>) => {
+    const { id } = params;
+
+    // Enforce ownership: only allow the user who uploaded the file to retrieve its preview data
+    const log = await importRepo.getLogById(id, user.id);
+    if (!log) {
+      return apiError(GEN_ERRORS.NOT_FOUND, 'Import log not found or unauthorized');
+    }
+
+    // 1. Try Redis first (fast path)
+    try {
+      const cached = await cache.get<ImportPreviewData>(`preview_data:${id}`);
+      if (cached) {
+        logger.info('Preview data loaded from Redis cache', { id });
+        return apiSuccess(cached);
+      }
+    } catch (err) {
+      logger.warn('Failed to get preview data from Redis cache', { id, error: String(err) });
+    }
+
+    // 2. Fallback to S3 (durable path)
+    try {
+      const s3Data = await importStorage.read(`${id}.json`);
+      if (s3Data) {
+        const parsed = JSON.parse(s3Data.toString('utf-8')) as ImportPreviewData;
+        logger.info('Preview data loaded from S3 fallback', { id });
+        return apiSuccess(parsed);
+      }
+    } catch (err) {
+      logger.error('Failed to read preview data from S3 fallback', { id, error: String(err) });
+    }
+
+    return apiError(BE_ERRORS.IMPORT_PARSE_ERROR, 'Preview data not available. Please wait or re-upload.');
   }
 };
+
