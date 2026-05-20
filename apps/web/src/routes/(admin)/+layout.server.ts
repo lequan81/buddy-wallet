@@ -45,7 +45,8 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		canExportData:
 			user.role === 'admin' ||
 			permissions.includes('admin:view') ||
-			permissions.includes('data:export')
+			permissions.includes('data:export') ||
+			permissions.includes('debt:create')
 	};
 
 	return {

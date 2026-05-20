@@ -17,6 +17,9 @@ export type Permission =
   | 'admin:manage-user'
   | 'admin:import'
   | 'admin:broadcast'
+  // Data permissions
+  | 'data:import'
+  | 'data:export'
   // User permissions
   | 'user:view-profile'
   | 'user:update-profile'

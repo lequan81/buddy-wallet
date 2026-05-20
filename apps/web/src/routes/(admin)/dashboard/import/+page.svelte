@@ -18,6 +18,11 @@
 		'preview-ready': ['idle', 'uploading', 'error'],
 		error: ['idle', 'uploading']
 	};
+
+	type ActionFailurePayload = {
+		code?: string;
+		message?: string;
+	};
 	import { IMPORT_DB_FIELDS } from '@repo/config/shared';
 	import * as m from '$lib/paraglide/messages';
 	import type { UploadState } from '$lib/types';
@@ -305,10 +310,16 @@
 											setUploadStatus('error');
 											uploadState.error = actionData?.message || 'Upload failed';
 										}
+									} else if (result.type === 'failure') {
+										const failure = result.data as ActionFailurePayload;
+										const message = failure?.message || 'Upload failed';
+										setUploadStatus('error');
+										uploadState.error = message;
+										toast.error(message);
 									} else {
 										setUploadStatus('error');
 										uploadState.error = 'Server error during upload';
-										toast.error('Upload failed. Please check file format.');
+										toast.error('Server error during upload');
 									}
 								};
 							}}
@@ -367,6 +378,9 @@
 									} else {
 										toast.error(actionData?.message || 'Import failed');
 									}
+								} else if (result.type === 'failure') {
+									const failure = result.data as ActionFailurePayload;
+									toast.error(failure?.message || 'Import failed');
 								} else {
 									toast.error('Server error during import submission');
 								}

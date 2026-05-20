@@ -26,6 +26,10 @@ export const PERMISSIONS = {
   ADMIN_IMPORT: 'admin:import',
   ADMIN_BROADCAST: 'admin:broadcast',
 
+  // Data permissions
+  DATA_IMPORT: 'data:import',
+  DATA_EXPORT: 'data:export',
+
   // User permissions
   USER_VIEW_PROFILE: 'user:view-profile',
   USER_UPDATE_PROFILE: 'user:update-profile',
@@ -60,6 +64,8 @@ export const PERMISSIONS = {
 export const DEFAULT_USER_PERMISSIONS: Permission[] = [
   PERMISSIONS.USER_VIEW_PROFILE,
   PERMISSIONS.USER_UPDATE_PROFILE,
+  PERMISSIONS.DATA_IMPORT,
+  PERMISSIONS.DATA_EXPORT,
   PERMISSIONS.DEBT_CREATE,
   PERMISSIONS.DEBT_VIEW_OWN,
   PERMISSIONS.DEBT_UPDATE_OWN,
