@@ -143,14 +143,17 @@ export function createApp() {
         }
       }
     })
-    // Global error handler
     .onError(({ code, error, set, request }) => {
+      const errorObj = error as { message?: unknown; code?: unknown } | undefined;
+      const errorMessage = typeof errorObj?.message === 'string' ? errorObj.message : '';
+      const errorCode = typeof errorObj?.code === 'string' ? errorObj.code : '';
+
       const isNotFound =
         code === 'NOT_FOUND' ||
         String(code) === 'NOT_FOUND' ||
-        error?.message?.includes('NOT_FOUND') ||
-        error?.message?.includes('not found') ||
-        (error as any)?.code === 'NOT_FOUND';
+        errorCode === 'NOT_FOUND' ||
+        errorMessage.includes('NOT_FOUND') ||
+        errorMessage.includes('not found');
 
       if (isNotFound) {
         let path = '/';

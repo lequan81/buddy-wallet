@@ -71,8 +71,7 @@ export async function isS3Available(): Promise<boolean> {
     const file = globalS3Client.file('_health_check_nonexistent');
     
     // Generous promise race timeout (3000ms) to accommodate slower connections.
-    // Both branches resolve and never reject, eliminating any unhandled promise rejections.
-    let timeoutId: any;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const existsPromise = file.exists();
     const timeoutPromise = new Promise<boolean>((resolve) => {
       timeoutId = setTimeout(() => resolve(false), 3000);
