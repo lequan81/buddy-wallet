@@ -26,6 +26,19 @@ export class MinimalSpanExporter implements SpanExporter {
           span.attributes['http.route'] ||
           '/'
         );
+
+        // Skip unpopulated/empty spans generated for early 404s/unknown routes
+        if (
+          method === 'REQ' &&
+          path === '/' &&
+          !span.attributes['http.method'] &&
+          !span.attributes['http.request.method'] &&
+          !span.attributes['http.target'] &&
+          !span.attributes['url.path']
+        ) {
+          continue;
+        }
+
         const status = Number(
           span.attributes['http.status_code'] || span.attributes['http.Response.status_code'] || 0
         );

@@ -4,10 +4,7 @@
 
 import type { Result } from '@repo/types';
 import { BE_ERRORS } from '@repo/errors';
-import { SHARED_CONSTANTS } from '@repo/config';
-
-/** Supported currencies — kept in sync with frontend currency picker */
-const VALID_CURRENCIES = ['USD', 'VND', 'EUR', 'GBP', 'JPY', 'CNY'] as const;
+import { SHARED_CONSTANTS, VALID_CURRENCIES } from '@repo/config';
 
 /**
  * Validate debt amount

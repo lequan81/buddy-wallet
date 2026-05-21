@@ -11,7 +11,9 @@ import {
   checkStorageHealth,
   getUptime,
   getSystemInfo,
-  determineHealthStatus
+  determineHealthStatus,
+  getMemoryUsage,
+  getCpuUsage
 } from '../services/system.service';
 import { status as elysiaStatus } from 'elysia';
 import type { SystemContext } from '../types/handler.types';
@@ -32,7 +34,11 @@ async function getHealthPayload() {
     uptime: getUptime(),
     version: '1.0.0',
     environment: configs.APP.NODE_ENV || 'development',
-    services
+    services,
+    system: {
+      memory: getMemoryUsage(),
+      cpu: getCpuUsage()
+    }
   };
 }
 

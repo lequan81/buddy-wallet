@@ -14,6 +14,7 @@ import { BE_ERRORS, GEN_ERRORS } from '@repo/errors';
 import { apiSuccess, apiError, apiAccepted } from '@/commons/http/response';
 import { logActivity } from '@/commons/logging/activity-logger';
 import { enqueueJob, createWorkerJob, getJobStatus } from '@/providers/redis/queue';
+import { isRedisAvailable } from '@/providers/redis';
 import type { ImportDataContext, ImportLogsContext, ImportProgressContext, ImportRemapContext } from '../types/handler.types';
 import { logger } from '@repo/logger';
 
@@ -22,6 +23,11 @@ const importRepo = new ImportRepository(db);
 export const dataImport = {
   /** POST /data/import — Enqueue import job for background processing */
   importData: async ({ body, user }: ImportDataContext) => {
+    // Fail-fast if Redis is down
+    if (!isRedisAvailable()) {
+      return apiError(BE_ERRORS.REDIS_UNAVAILABLE, 'Queue and cache server (Redis) is currently down. Please try again later.');
+    }
+
     const { type, data: importData } = body;
 
     if (type !== 'debts') {
@@ -154,6 +160,11 @@ export const dataImport = {
 
   /** POST /data/import/:id/remap — Re-map columns from existing import */
   remap: async ({ params, body, user }: ImportRemapContext) => {
+    // Fail-fast if Redis is down
+    if (!isRedisAvailable()) {
+      return apiError(BE_ERRORS.REDIS_UNAVAILABLE, 'Queue and cache server (Redis) is currently down. Please try again later.');
+    }
+
     const log = await importRepo.getLogById(params.id, user.id);
     if (!log) {
       return apiError(GEN_ERRORS.NOT_FOUND);

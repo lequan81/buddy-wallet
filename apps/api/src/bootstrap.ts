@@ -10,6 +10,7 @@ import { Elysia } from 'elysia';
 import { swagger } from '@elysiajs/swagger';
 import { etag } from '@bogeychan/elysia-etag';
 import { randomUUIDv7 } from 'bun';
+import { traceStore } from '@/providers/telemetry';
 
 // Config & Validation
 import { configs, validateRuntimeEnv } from '@/config';
@@ -38,8 +39,9 @@ import { dataRoutes } from '@/modules/data/routes';
 import { notificationRoutes } from '@/modules/notification/routes';
 import { proofRoutes } from '@/modules/proof/routes';
 import { activityRoutes } from '@/modules/activity/routes';
-import { systemRoutes } from '@/modules/system';
+import { healthRoutes, debugRoutes } from '@/modules/system';
 import { publicRoutes } from '@/modules/public';
+import { system } from '@/modules/system/handlers/system.handler';
 
 const MAX_REQUEST_BYTES = 10 * 1024 * 1024; // 10MB
 const MAX_QUERY_PARAM_LENGTH = 1024; // 1KB
@@ -51,6 +53,42 @@ const MAX_QUERY_PARAM_LENGTH = 1024; // 1KB
  */
 export function createApp() {
   return new Elysia()
+    // --- LAYER -1: URL NORMALIZATION & SECURITY MIDDLEWARE ---
+    .onRequest(({ request, set }) => {
+      const url = new URL(request.url);
+      const pathname = url.pathname;
+
+      let decodedPath = pathname;
+      try {
+        decodedPath = decodeURIComponent(pathname);
+      } catch (_e) {
+        // Keep original if decoding fails
+      }
+
+      // Block path traversal attempts
+      if (decodedPath.includes('..') || decodedPath.includes('./') || decodedPath.includes('/.')) {
+        set.status = 400;
+        return apiError(GEN_ERRORS.INVALID_INPUT, 'Invalid URL path pattern');
+      }
+
+      let normalizedPath = decodedPath;
+
+      // 1. Normalize duplicate slashes (e.g., //auth//login -> /auth/login)
+      if (normalizedPath.includes('//')) {
+        normalizedPath = normalizedPath.replace(/\/+/g, '/');
+      }
+
+      // 2. Normalize trailing slashes (except for root "/")
+      if (normalizedPath.length > 1 && normalizedPath.endsWith('/')) {
+        normalizedPath = normalizedPath.slice(0, -1);
+      }
+
+      // 3. Rewrite request URL if changed via clean, native HTTP redirection
+      if (normalizedPath !== pathname) {
+        url.pathname = normalizedPath;
+        return Response.redirect(url.href, 301);
+      }
+    })
     // --- LAYER 0: API DOCUMENTATION ---
     .use(swagger({
       path: '/docs',
@@ -106,10 +144,49 @@ export function createApp() {
       }
     })
     // Global error handler
-    .onError(({ code, error, set }) => {
+    .onError(({ code, error, set, request }) => {
+      const isNotFound =
+        code === 'NOT_FOUND' ||
+        String(code) === 'NOT_FOUND' ||
+        error?.message?.includes('NOT_FOUND') ||
+        error?.message?.includes('not found') ||
+        (error as any)?.code === 'NOT_FOUND';
+
+      if (isNotFound) {
+        let path = '/';
+        try {
+          const urlObj = new URL(request?.url || '');
+          path = urlObj.pathname + urlObj.search;
+        } catch (_e) {
+          // Keep default
+        }
+
+        logger.app(`Route not found: ${request?.method || 'GET'} ${request?.url || ''}`);
+
+        traceStore.add({
+          id: randomUUIDv7(),
+          traceId: (request?.headers?.get('X-Request-ID') as string | undefined) || randomUUIDv7(),
+          name: 'request',
+          method: request?.method || 'GET',
+          path: path,
+          status: 'error',
+          duration: 0.2,
+          startTime: Date.now(),
+          timestamp: new Date(),
+          attributes: {
+            'http.status_code': 404
+          }
+        });
+
+        set.status = 404;
+        return apiError(GEN_ERRORS.NOT_FOUND, `Route not found: ${path}`);
+      }
+
       logger.app('Global error caught', {
         code,
         error: String(error),
+        url: request?.url,
+        method: request?.method,
         stack: (error as Error)?.stack
       });
 
@@ -134,15 +211,34 @@ export function createApp() {
     .use(redisPlugin)
     .use(requestLoggerPlugin)
 
-    // --- LAYER 3: AUTH CONTEXT ---
-    .use(actor)
+    // --- LAYER 4: ROOT HEALTH & STATUS ENDPOINTS ---
+    .get('/', () => system.root())
+    .get('/favicon.ico', ({ set }) => {
+      set.status = 204;
+      return;
+    })
+    .use(healthRoutes)
+    .use(debugRoutes)
+    .get('/css/:filename', async ({ params, set }) => {
+      const filePath = `${import.meta.dir}/static/css/${params.filename}`;
+      const file = Bun.file(filePath);
+      if (await file.exists()) {
+        set.headers['content-type'] = 'text/css; charset=utf-8';
+        return file;
+      }
+      set.status = 404;
+      return apiError(GEN_ERRORS.NOT_FOUND, 'CSS file not found');
+    })
 
-    // --- LAYER 4: API ROUTES ---
+    // --- LAYER 5: API ROUTES ---
     .group('/v1', (v1) => v1
         // Public routes (no auth required)
         .use(publicRoutes)
-        // System routes
-        .use(systemRoutes)
+
+        // --- LAYER 3: AUTH CONTEXT ---
+        // Applied only to routes that require authentication
+        .use(actor)
+
         // Business logic routes (protected)
         .use(authRoutes)
         .use(userRoutes)

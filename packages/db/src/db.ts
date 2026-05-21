@@ -25,5 +25,9 @@ const sqlite = new Database(bdUrl);
 sqlite.exec('PRAGMA journal_mode=WAL');
 sqlite.exec('PRAGMA busy_timeout=30000');
 sqlite.exec('PRAGMA foreign_keys=ON');
+sqlite.exec('PRAGMA synchronous=NORMAL');
+sqlite.exec('PRAGMA cache_size=-64000'); // 64MB cache
+sqlite.exec('PRAGMA temp_store=MEMORY');
+sqlite.exec('PRAGMA mmap_size=268435456'); // 256MB memory map
 
 export const db = drizzle(sqlite, { schema });

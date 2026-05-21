@@ -129,6 +129,11 @@ export const IMPORT_DB_FIELDS = [
   { key: 'dueDate', required: false }
 ] as const;
 
+/** Supported currencies — kept in sync with frontend currency picker */
+export const VALID_CURRENCIES = ['USD', 'VND', 'EUR', 'GBP', 'JPY', 'CNY'] as const;
+export type ValidCurrency = typeof VALID_CURRENCIES[number];
+
+
 /**
  * Debt Constants (Legacy aliases for easier import)
  */

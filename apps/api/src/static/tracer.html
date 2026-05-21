@@ -6,80 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Buddy Wallet API Tracer</title>
   <meta http-equiv="refresh" content="5" />
-  <style>
-    body {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      background: #020617;
-      color: #e2e8f0;
-      margin: 0;
-      padding: 24px;
-    }
-
-    h1 {
-      margin-top: 0;
-    }
-
-    .stats {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 18px;
-    }
-
-    .card {
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 10px;
-      padding: 10px 14px;
-    }
-
-    .v {
-      font-size: 22px;
-      font-weight: 700;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #0f172a;
-      border: 1px solid #334155;
-    }
-
-    th,
-    td {
-      padding: 10px;
-      border-bottom: 1px solid #1e293b;
-      text-align: left;
-    }
-
-    th {
-      color: #94a3b8;
-    }
-
-    .ok {
-      color: #86efac;
-    }
-
-    .err {
-      color: #fca5a5;
-    }
-
-    .warn {
-      color: #fde68a;
-    }
-
-    a,
-    button {
-      color: #93c5fd;
-    }
-
-    button {
-      background: transparent;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      padding: 6px 10px;
-      cursor: pointer;
-    }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/base.styles.css">
+  <link rel="stylesheet" href="/css/tracer.styles.css">
 </head>
 
 <body>
@@ -98,11 +29,20 @@
       <div class="v">{{AVG_DURATION}}</div>
     </div>
   </div>
-  <p>
-    <button onclick="fetch('/debug/traces/clear', { method: 'POST' }).then(() => location.reload())">Clear
-      traces</button>
-    <a href="/debug/traces/json">json</a>
-  </p>
+  <div class="btn-group">
+    <button onclick="fetch('/debug/traces/clear', { method: 'POST' }).then(() => location.reload())" class="btn btn-danger">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+      Clear Traces
+    </button>
+    <a href="/debug/traces/json" class="btn btn-secondary" target="_blank">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"></path></svg>
+      View Raw JSON Traces
+    </a>
+    <a href="/health" class="btn btn-primary">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+      Health Dashboard
+    </a>
+  </div>
   <table>
     <thead>
       <tr>

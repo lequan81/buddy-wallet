@@ -12,7 +12,7 @@ interface HealthData {
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		const { data, error } = await locals.api.v1.system.health.get();
+		const { data, error } = await locals.api.health.json.get();
 
 		if (error) {
 			return {

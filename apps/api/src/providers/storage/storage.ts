@@ -62,3 +62,30 @@ export const rawImportStorage = createStorageService(
   STORAGE_CONFIG.BUCKET!,
   toOptional(STORAGE_CONFIG.PUBLIC_BASE_URL)
 );
+
+/**
+ * Check if S3 storage is available and healthy by doing a fast HEAD check
+ */
+export async function isS3Available(): Promise<boolean> {
+  try {
+    const file = globalS3Client.file('_health_check_nonexistent');
+    
+    // Generous promise race timeout (3000ms) to accommodate slower connections.
+    // Both branches resolve and never reject, eliminating any unhandled promise rejections.
+    let timeoutId: any;
+    const existsPromise = file.exists();
+    const timeoutPromise = new Promise<boolean>((resolve) => {
+      timeoutId = setTimeout(() => resolve(false), 3000);
+    });
+
+    const result = await Promise.race([
+      existsPromise.then(() => true).catch(() => false),
+      timeoutPromise
+    ]);
+
+    clearTimeout(timeoutId);
+    return result;
+  } catch (_err) {
+    return false;
+  }
+}

@@ -15,7 +15,6 @@ import type { EmailMessage, SendResult } from '../types/handler.types';
 // ── Singleton Transport ─────────────────────────────────
 
 let transport: SmtpTransport | null = null;
-const HEADER_CONTROL_CHARS_REGEX = /[\r\n\x00-\x1F\x7F]/g;
 
 function getTransport(): SmtpTransport {
   if (!transport) {
@@ -33,11 +32,28 @@ function getTransport(): SmtpTransport {
 }
 
 function sanitizeHeaderValue(value: string): string {
-  return value.replace(HEADER_CONTROL_CHARS_REGEX, '').trim();
+  let result = '';
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    const code = char.charCodeAt(0);
+    // Exclude CR (13), LF (10), DEL (127), and ASCII control characters (0-31)
+    if (code > 31 && code !== 127) {
+      result += char;
+    }
+  }
+  return result.trim();
 }
 
 function sanitizeTemplateValue(value: string): string {
-  return value.replace(HEADER_CONTROL_CHARS_REGEX, '').trim();
+  let result = '';
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    const code = char.charCodeAt(0);
+    if (code > 31 && code !== 127) {
+      result += char;
+    }
+  }
+  return result.trim();
 }
 
 // ── Template Rendering ──────────────────────────────────

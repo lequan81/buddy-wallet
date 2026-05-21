@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { checkDebt } from '../system/handlers/check-debt.handler';
+import { checkDebt } from './handlers/check-debt.handler';
 import * as v from 'valibot';
 
 /**

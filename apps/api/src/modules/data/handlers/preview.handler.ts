@@ -8,10 +8,9 @@
  */
 
 import { randomUUIDv7 } from 'bun';
-import { SHARED_CONSTANTS } from '@repo/config';
 import { db } from '@/providers/database';
 import { ImportRepository } from '@/repositories/data/import.repo';
-import { importStorage, rawImportStorage } from '@/providers/storage/storage';
+import { importStorage, rawImportStorage } from '@/providers/storage';
 import { BE_ERRORS, GEN_ERRORS } from '@repo/errors';
 import { apiSuccess, apiError, apiAccepted } from '@/commons/http/response';
 import { validateImportUploadFile } from '@/commons/validation/import';
@@ -19,7 +18,7 @@ import { logActivity } from '@/commons/logging/activity-logger';
 import { enqueueJob, createWorkerJob } from '@/providers/redis/queue';
 import type { PreviewHandlerContext, ImportFromPreviewContext, ImportPreviewData } from '../types/handler.types';
 import { logger } from '@repo/logger';
-import { cache } from '@/providers/redis';
+import { cache, isRedisAvailable } from '@/providers/redis';
 import type { AuthenticatedHandlerContext } from '@repo/types/api/handler-context';
 
 const importRepo = new ImportRepository(db);
@@ -31,6 +30,11 @@ export const importPreview = {
    * Uploads file to S3 raw area, inserts queued database log, and enqueues background preview job.
    */
   preview: async ({ body, user }: PreviewHandlerContext) => {
+    // Fail-fast if Redis is down
+    if (!isRedisAvailable()) {
+      return apiError(BE_ERRORS.REDIS_UNAVAILABLE, 'Queue and cache server (Redis) is currently down. Please try again later.');
+    }
+
     const file = (body as { file?: File })?.file;
 
     if (!file || !(file instanceof File) || file.size === 0) {
@@ -114,6 +118,11 @@ export const importPreview = {
    * Enqueues job for background processing via Redis/SQLite queue.
    */
   startFromPreview: async ({ params, body, user }: ImportFromPreviewContext) => {
+    // Fail-fast if Redis is down
+    if (!isRedisAvailable()) {
+      return apiError(BE_ERRORS.REDIS_UNAVAILABLE, 'Queue and cache server (Redis) is currently down. Please try again later.');
+    }
+
     const { columnMapping, startRow = 1 } = body as { columnMapping?: Record<string, string>; startRow?: number };
 
     if (!columnMapping || Object.keys(columnMapping).length === 0) {
@@ -156,7 +165,7 @@ export const importPreview = {
       userId: user.id,
       fileName: log.fileName,
       storageKey: s3Key,
-      config: { mapping: columnMapping as any, startRow },
+      config: { mapping: columnMapping as unknown as import('@repo/types').ColumnMapping, startRow },
       previewLogId: log.id
     });
 

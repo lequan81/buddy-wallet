@@ -3,4 +3,4 @@
  * @logicType infrastructure
  */
 
-export { uploadStorage, proofStorage } from './storage';
+export { uploadStorage, proofStorage, importStorage, rawImportStorage, isS3Available } from './storage';

@@ -1,0 +1,100 @@
+body {
+  font-family: var(--font-mono);
+  padding: 24px;
+}
+
+h1 {
+  margin-top: 0;
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 2.2rem;
+  margin-bottom: 24px;
+}
+
+.stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 14px 20px;
+  min-width: 120px;
+  font-family: var(--font-sans);
+}
+
+.card div:first-child {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.v {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+th,
+td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--card-border);
+  text-align: left;
+}
+
+th {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: rgba(31, 41, 55, 0.4);
+}
+
+td {
+  font-size: 0.9rem;
+}
+
+.ok {
+  color: #34d399;
+  font-weight: 600;
+}
+
+.err {
+  color: #f87171;
+  font-weight: 600;
+}
+
+.warn {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Unified premium buttons are loaded from base.styles.css */
+

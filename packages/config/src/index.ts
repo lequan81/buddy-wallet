@@ -24,7 +24,9 @@ export {
   isValidImportFile,
   TIMEOUTS,
   MAX_IMAGE_FILE_SIZE,
-  ACCEPTED_IMAGE_MIME_TYPES
+  ACCEPTED_IMAGE_MIME_TYPES,
+  VALID_CURRENCIES,
+  type ValidCurrency
 } from './shared';
 export {
   env,

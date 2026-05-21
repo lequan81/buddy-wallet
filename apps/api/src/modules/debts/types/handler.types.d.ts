@@ -2,9 +2,11 @@ import type { AuthenticatedHandlerContext } from '@repo/types/api/handler-contex
 import type { EntityIdParams } from '@repo/types/api/common-params';
 import type { ListQuery } from '@repo/types/api/common-queries';
 
-export type { DebtStatus, DebtDirection, Debt } from '@repo/types/shared/debt';
-import type { Debt } from '@repo/types/shared/debt';
-import type { CreateDebtInput } from '@repo/types/shared/debt';
+import type { Debt, DebtStatus, DebtDirection, CreateDebtInput } from '@repo/types';
+
+export type { DebtStatus, DebtDirection, Debt };
+import type { DebtRepository } from '@/repositories/debt/debt.repo';
+import type { UserRepository } from '@/repositories/user/user.repo';
 
 /**
  * Debt update data shape for repositories.
@@ -51,13 +53,12 @@ export interface RespondSuggestionBody {
   accept: boolean;
 }
 
-import type { DebtRepository } from '@/repositories/debt/debt.repo';
-import type { UserRepository } from '@/repositories/user/user.repo';
-
 export interface DebtDeps {
   debtRepo?: DebtRepository;
   userRepo?: UserRepository;
 }
+
+export interface RejectProofBody { reason?: string }
 
 export type CreateDebtContext = AuthenticatedHandlerContext<CreateDebtBody, Record<string, string>, Record<string, unknown>, DebtDeps>;
 export type GetDebtContext = AuthenticatedHandlerContext<unknown, DebtIdParams, Record<string, unknown>, DebtDeps>;
@@ -72,10 +73,6 @@ export type RespondSuggestionContext = AuthenticatedHandlerContext<RespondSugges
 export type GenerateQRContext = AuthenticatedHandlerContext<unknown, DebtIdParams, Record<string, unknown>, DebtDeps>;
 
 export type DebtProofParams = { id: string; proofId: string };
-
-export interface RejectProofBody {
-  reason?: string;
-}
 
 export type ApproveProofContext = AuthenticatedHandlerContext<unknown, DebtProofParams, Record<string, unknown>, DebtDeps>;
 export type RejectProofContext = AuthenticatedHandlerContext<RejectProofBody, DebtProofParams, Record<string, unknown>, DebtDeps>;

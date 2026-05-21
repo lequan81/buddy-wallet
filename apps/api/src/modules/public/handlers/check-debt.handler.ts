@@ -11,7 +11,6 @@ import { DebtRepository } from '@/repositories/debt/debt.repo';
 import { normalizePhoneNumber } from '@repo/utils';
 import { BE_ERRORS } from '@repo/errors';
 import { apiSuccess, apiError } from '@/commons/http/response';
-import type { SystemContext } from '../types/handler.types';
 
 const debtRepo = new DebtRepository(db);
 
@@ -25,7 +24,7 @@ function maskPhone(phone: string): string {
 
 export const checkDebt = {
   /** GET /check-debt?phone=xxx — Public debt check */
-  handler: async ({ query }: SystemContext & { query: { phone: string } }) => {
+  handler: async ({ query }: { query: { phone: string } }) => {
     const { phone } = query;
 
     if (!phone) {
