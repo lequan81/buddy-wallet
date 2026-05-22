@@ -169,11 +169,12 @@ export async function publishProgress(channel: string, data: Record<string, unkn
  */
 export function createWorkerJob(
   type: 'import' | 'preview' | 'notification' | 'image_processing',
-  payload: Omit<WorkerJobPayload, 'type' | 'jobId'>
+  payload: Omit<WorkerJobPayload, 'type' | 'jobId'> & { jobId?: string }
 ): WorkerJobPayload {
+  const { jobId, ...rest } = payload;
   return {
     type,
-    jobId: randomUUIDv7(),
-    ...payload
-  };
+    jobId: jobId || randomUUIDv7(),
+    ...rest
+  } as unknown as WorkerJobPayload;
 }

@@ -10,14 +10,52 @@
 	import { api } from '$lib/services/api';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
+	import type { DebtDetails } from '@repo/types/shared/debt';
+	import type { DashboardState } from '$lib/dashboard/state.svelte';
 
 	interface Props {
-		readonly debt: any;
-		readonly dashState: any;
+		readonly debt: DebtDetails;
+		readonly dashState: DashboardState;
 	}
 
 	let { debt, dashState }: Props = $props();
 	let canDelete = $derived(dashState.canDeleteDebt(debt));
+
+	let counterpartyInfo = $derived.by(() => {
+		const direction = debt.direction || 'LEND';
+		const isLender = direction === 'LEND';
+		const isRegistered = isLender ? !!debt.debtorId : !!debt.creditorId;
+		const registeredName = isLender ? debt.debtorName : debt.creditorName;
+		const customName = isLender ? debt.customDebtorName : debt.customCreditorName;
+		const isMismatch = !!(isRegistered && customName && registeredName && customName !== registeredName);
+		return {
+			isRegistered,
+			registeredName,
+			customName,
+			isMismatch,
+			direction
+		};
+	});
+
+	async function unifyName(id: string, name: string, direction: 'LEND' | 'BORROW') {
+		try {
+			const body = direction === 'LEND'
+				? { customDebtorName: name }
+				: { customCreditorName: name };
+
+			const { error } = await (api.v1.debts({ id }).patch as (
+				data: typeof body
+			) => Promise<{ error: unknown }>)(body);
+			if (error) {
+				toast.error('Failed to unify name');
+				return;
+			}
+			toast.success('Display name unified successfully!');
+			await invalidateAll();
+		} catch {
+			toast.error('Error unifying name');
+		}
+	}
 </script>
 
 <Table.Row class={cn(dashState.selectedIds.has(debt.id) && 'bg-muted/50')}>
@@ -37,8 +75,27 @@
 			<span class="h-4 w-4"></span>
 		{/if}
 	</Table.Cell>
-	<Table.Cell class="max-w-50 truncate font-medium">
-		{debt.description || 'â€”'}
+	<Table.Cell class="max-w-64 font-medium">
+		<div class="truncate">{debt.description || '—'}</div>
+		<div class="text-[11px] text-muted-foreground mt-0.5 font-normal flex items-center flex-wrap gap-1">
+			{#if counterpartyInfo.isMismatch}
+				<span class="text-warning-foreground font-semibold">
+					{counterpartyInfo.registeredName} <span class="font-normal text-muted-foreground opacity-80">({counterpartyInfo.customName})</span>
+				</span>
+				<button
+					type="button"
+					class="inline-flex items-center px-1.5 py-0.5 rounded border border-warning/30 bg-warning/10 text-[9px] text-warning-foreground font-semibold hover:bg-warning/20 cursor-pointer transition-colors"
+					onclick={async (e) => {
+						e.stopPropagation();
+						await unifyName(debt.id, counterpartyInfo.registeredName || '', counterpartyInfo.direction);
+					}}
+				>
+					Unify Name
+				</button>
+			{:else}
+				<span>{counterpartyInfo.registeredName || counterpartyInfo.customName || 'Unregistered'}</span>
+			{/if}
+		</div>
 	</Table.Cell>
 	<Table.Cell>
 		<DebtStatusBadge status={debt.status} />

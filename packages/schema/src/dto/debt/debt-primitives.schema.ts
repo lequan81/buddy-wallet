@@ -86,7 +86,7 @@ export const debtQuerySchema = v.object({
   status: v.optional(debtStatusSchema),
   direction: v.optional(debtDirectionSchema),
   page: v.optional(v.pipe(v.number(), v.minValue(1))),
-  limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(100))),
+  limit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(1000))),
 });
 
 export type DebtQueryInput = v.InferOutput<typeof debtQuerySchema>;

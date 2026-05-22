@@ -12,6 +12,39 @@ import type { AuthenticatedUser } from '@repo/types/api/handler-context';
 import { onDebtConfirmed } from '@/modules/notification/services/notification-triggers.service';
 import { validateStatusTransition } from './validation.service';
 import type { ServiceResult } from './debt.service';
+import { RaceConditionException } from '@/commons/errors/exceptions';
+
+interface ConfirmationUpdateInput {
+  userId: string;
+  creditorId: string | null;
+  debtorId: string | null;
+  confirmedByCreditor: boolean;
+  confirmedByDebtor: boolean;
+}
+
+export function computeConfirmationUpdate(input: ConfirmationUpdateInput) {
+  const isCreditor = input.userId === input.creditorId;
+  const isDebtor = input.userId === input.debtorId;
+
+  const updateData = {
+    updatedAt: new Date(),
+    confirmedByCreditor: isCreditor ? true : undefined,
+    creditorConfirmedAt: isCreditor ? new Date() : undefined,
+    confirmedByDebtor: isDebtor ? true : undefined,
+    debtorConfirmedAt: isDebtor ? new Date() : undefined,
+    status: undefined as 'confirmed' | undefined
+  };
+
+  const bothConfirmed =
+    (isCreditor ? true : input.confirmedByCreditor) &&
+    (isDebtor ? true : input.confirmedByDebtor);
+
+  if (bothConfirmed) {
+    updateData.status = 'confirmed';
+  }
+
+  return updateData;
+}
 
 export async function confirmDebt(
   debtId: string,
@@ -24,19 +57,16 @@ export async function confirmDebt(
     return { error: BE_ERRORS.DEBT_NOT_FOUND };
   }
 
-  const transition = validateStatusTransition(
-    debt.status,
-    'confirmed',
-    user.id,
-    debt.creditorId || '',
-    debt.debtorId || ''
-  );
+  const transition = validateStatusTransition({
+    currentStatus: debt.status,
+    newStatus: 'confirmed',
+    userId: user.id,
+    creditorId: debt.creditorId || '',
+    debtorId: debt.debtorId || ''
+  });
 
   if ('code' in transition) {
-    if (transition.code === BE_ERRORS.DEBT_PERMISSION_DENIED.code) {
-      return { error: BE_ERRORS.DEBT_PERMISSION_DENIED };
-    }
-    return { error: BE_ERRORS.DEBT_INVALID_STATUS };
+    return { error: transition };
   }
 
   let updated: Debt;
@@ -46,40 +76,26 @@ export async function confirmDebt(
 
       const txDebt = await txDebtRepo.findById(debtId);
       if (!txDebt) {
-        throw new Error('RACE_CONDITION_DEBT_GONE');
+        throw new RaceConditionException();
       }
 
-      // Two-party confirmation: mark the confirming party's flag
-      const isCreditor = user.id === txDebt.creditorId;
-      const isDebtor = user.id === txDebt.debtorId;
-
-      const updateData = {
-        updatedAt: new Date(),
-        confirmedByCreditor: isCreditor ? true : undefined,
-        creditorConfirmedAt: isCreditor ? new Date() : undefined,
-        confirmedByDebtor: isDebtor ? true : undefined,
-        debtorConfirmedAt: isDebtor ? new Date() : undefined,
-        status: undefined as 'confirmed' | undefined
-      };
-
-      // If both parties have confirmed, mark as fully confirmed
-      const bothConfirmed =
-        (isCreditor ? true : txDebt.confirmedByCreditor) &&
-        (isDebtor ? true : txDebt.confirmedByDebtor);
-
-      if (bothConfirmed) {
-        updateData.status = 'confirmed';
-      }
+      const updateData = computeConfirmationUpdate({
+        userId: user.id,
+        creditorId: txDebt.creditorId,
+        debtorId: txDebt.debtorId,
+        confirmedByCreditor: txDebt.confirmedByCreditor,
+        confirmedByDebtor: txDebt.confirmedByDebtor
+      });
 
       const result = await txDebtRepo.update(debtId, updateData);
       if (!result) {
-        throw new Error('RACE_CONDITION_DEBT_GONE');
+        throw new RaceConditionException();
       }
 
       return result;
     });
   } catch (err) {
-    if (err instanceof Error && err.message === 'RACE_CONDITION_DEBT_GONE') {
+    if (err instanceof RaceConditionException) {
       return { error: BE_ERRORS.DEBT_NOT_FOUND };
     }
     throw err;

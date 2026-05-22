@@ -26,3 +26,15 @@ export function buildS3Endpoint(endpoint: string, ssl: boolean): string {
   if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) return endpoint;
   return `${ssl ? 'https' : 'http'}://${endpoint}`;
 }
+
+export const PROOF_IMAGE_CONFIG = {
+  MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
+  ALLOWED_MIME_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const,
+  PROCESSING: {
+    maxWidth: 1920,
+    maxHeight: 1080,
+    displayQuality: 80,
+    downloadQuality: 100
+  }
+} as const;
+

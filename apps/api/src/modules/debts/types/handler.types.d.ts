@@ -17,18 +17,11 @@ export type DebtUpdateData = Partial<Omit<Debt, 'id' | 'createdAt' | 'updatedAt'
 
 export type DebtIdParams = EntityIdParams;
 
-export interface CreateDebtBody extends Omit<CreateDebtInput, 'direction' | 'counterpartyPhone'> {
-  debtorId: string;
-  debtorPhone?: string;
-  creditorPhone?: string;
-}
+import type * as v from 'valibot';
+import type { CreateDebtSchema, UpdateDebtSchema } from '../schema';
 
-export type UpdateDebtBody = {
-  amount?: number;
-  currency?: string;
-  description?: string;
-  dueDate?: string | Date | null;
-};
+export type CreateDebtBody = v.InferInput<typeof CreateDebtSchema>;
+export type UpdateDebtBody = v.InferInput<typeof UpdateDebtSchema>;
 
 export interface CancelDebtBody {
   reason?: string;

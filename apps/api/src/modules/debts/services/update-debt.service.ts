@@ -17,18 +17,19 @@ export async function updateDebt(
   user: AuthenticatedUser,
   debtRepo: DebtRepository
 ): Promise<ServiceResult<Debt | null>> {
-  const { amount, currency, description, dueDate } = body;
+  const { amount, currency, description, dueDate, customDebtorName, customCreditorName } = body;
   const debt = await debtRepo.findById(debtId);
 
   if (!debt) {
     return { error: BE_ERRORS.DEBT_NOT_FOUND };
   }
 
-  if (debt.creditorId !== user.id) {
+  if (debt.uploadedById !== user.id && debt.creditorId !== user.id && debt.debtorId !== user.id) {
     return { error: BE_ERRORS.DEBT_PERMISSION_DENIED };
   }
 
-  if (debt.status !== 'pending' && debt.status !== 'disputed') {
+  const isUpdatingFinancials = amount !== undefined || currency !== undefined || description !== undefined || dueDate !== undefined;
+  if (isUpdatingFinancials && debt.status !== 'pending' && debt.status !== 'disputed') {
     return { error: BE_ERRORS.DEBT_INVALID_STATUS };
   }
 
@@ -51,6 +52,8 @@ export async function updateDebt(
     currency: currency ? currency.toUpperCase() : debt.currency,
     description: description ?? debt.description,
     expiresAt: dueDate ? new Date(dueDate) : debt.expiresAt,
+    customDebtorName: customDebtorName ?? debt.customDebtorName,
+    customCreditorName: customCreditorName ?? debt.customCreditorName,
     updatedAt: new Date()
   });
 

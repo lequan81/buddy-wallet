@@ -54,7 +54,7 @@ export async function respondSuggestion(
       changes: { after: updateData as unknown as Record<string, unknown> }
     });
 
-    onSuggestionResponded(debt, true).catch(() => {});
+    onSuggestionResponded(debt, { accepted: true }).catch(() => {});
 
     return { data: updated };
   }
@@ -74,7 +74,7 @@ export async function respondSuggestion(
     resourceId: debtId
   });
 
-  onSuggestionResponded(debt, false).catch(() => {});
+  onSuggestionResponded(debt, { accepted: false }).catch(() => {});
 
   return { data: updated };
 }

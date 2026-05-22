@@ -59,7 +59,7 @@
 
 	// Check if we have the file in cache
 	let cachedFile = $derived(log ? importProgress.fileCache.get(log.id) : null);
-	let hasFile = $derived(!!cachedFile || !!selectedFile);
+	let hasFile = $derived(!!cachedFile || !!selectedFile || log?.status === 'preview');
 	let activeFile = $derived(selectedFile || cachedFile);
 
 	// Status helpers
@@ -69,7 +69,7 @@
 			case 'failed': return { icon: XCircle, color: 'text-red-600', label: 'Failed', badge: 'destructive' };
 			case 'processing': return { icon: Loader2, color: 'text-blue-600', label: 'Processing', badge: 'secondary' };
 			case 'queued': return { icon: Clock, color: 'text-yellow-600', label: 'Queued', badge: 'secondary' };
-			case 'preview': return { icon: FileSpreadsheet, color: 'text-purple-600', label: 'Waiting', badge: 'outline' };
+			case 'preview': return { icon: FileSpreadsheet, color: 'text-purple-600', label: 'Preview', badge: 'outline' };
 			default: return { icon: Clock, color: 'text-yellow-600', label: 'Waiting', badge: 'secondary' };
 		}
 	};
@@ -199,7 +199,9 @@
 										<Settings2 class="h-5 w-5" /> Detailed Column Mapping
 									</Card.Title>
 									{#if hasFile}
-										<Badge variant="default" class="bg-green-100 text-green-700">File Connected</Badge>
+										<Badge variant="default" class="bg-green-100 text-green-700">
+											{activeFile ? 'File Connected' : 'Preview Available'}
+										</Badge>
 									{/if}
 								</div>
 							</Card.Header>
@@ -242,7 +244,9 @@
 												action="?/import" 
 												use:enhance={({ formData }) => {
 													isSubmitting = true;
-													formData.append('file', activeFile!);
+													if (activeFile) {
+														formData.append('file', activeFile);
+													}
 													formData.append('config', JSON.stringify({ mapping: localMapping, startRow: localStartRow }));
 													formData.append('previewLogId', log.id);
 													return async ({ result }) => {

@@ -9,13 +9,12 @@
 import { db } from '@/providers/database';
 import { BankAccountRepository } from '@/repositories/bank/bank-account.repo';
 import { DebtRepository } from '@/repositories/debt/debt.repo';
+import { BANK_CONFIG } from '@repo/config';
 import { BE_ERRORS } from '@repo/errors';
 import { apiSuccess, apiError } from '@/commons/http/response';
 import type { GenerateQRContext } from '../types/handler.types';
 
 const bankAccountRepo = new BankAccountRepository(db);
-
-const VIETQR_BASE = 'https://img.vietqr.io/image';
 
 export const qr = {
   /** GET /debts/:id/qr — Generate VietQR payment URL for a debt */
@@ -53,7 +52,7 @@ export const qr = {
     const amount = debt.amount;
     const addInfo = `Thanh toan no ${debt.id}`;
 
-    const qrUrl = `${VIETQR_BASE}/${bankBin}-${accountNumber}-qr_only.jpg?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}`;
+    const qrUrl = `${BANK_CONFIG.VIETQR_IMAGE_BASE}/${bankBin}-${accountNumber}-qr_only.jpg?amount=${amount}&addInfo=${encodeURIComponent(addInfo)}`;
 
     return apiSuccess({
       qrUrl,

@@ -28,13 +28,14 @@ export function validateCurrency(currency: string): Result<void> {
 /**
  * Validate debt status transition
  */
-export function validateStatusTransition(
-  currentStatus: string,
-  newStatus: string,
-  userId: string,
-  creditorId: string,
-  debtorId: string
-): Result<void> {
+export function validateStatusTransition(input: {
+  currentStatus: string;
+  newStatus: string;
+  userId: string;
+  creditorId: string;
+  debtorId: string;
+}): Result<void> {
+  const { currentStatus, newStatus, userId, creditorId, debtorId } = input;
   const validTransitions: Record<string, string[]> = {
     pending: ['confirmed', 'cancelled'],
     confirmed: ['paid', 'cancelled'],
@@ -62,19 +63,11 @@ export function validateStatusTransition(
 }
 
 /**
- * Direction lookup map for debt relationship
- */
-const directionMap: Record<string, (uid: string, id: string) => boolean> = {
-  LEND: (uid, cid) => uid === cid,
-  BORROW: (uid, did) => uid === did
-};
-
-/**
  * Calculate debt direction for user
  */
 export function getDebtDirection(userId: string, creditorId: string, debtorId: string): 'LEND' | 'BORROW' | null {
-  if (directionMap.LEND(userId, creditorId)) return 'LEND';
-  if (directionMap.BORROW(userId, debtorId)) return 'BORROW';
+  if (userId === creditorId) return 'LEND';
+  if (userId === debtorId) return 'BORROW';
   return null;
 }
 

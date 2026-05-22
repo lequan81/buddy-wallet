@@ -2,12 +2,9 @@
 	import { Upload, X, Loader2 } from '@repo/icons';
 	import * as Card from '@repo/ui/components/ui/card';
 	import { Button } from '@repo/ui/components/ui/button';
-	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
-	import type { DebtDetails } from '@repo/types/shared/debt';
-
-	let { debt } = $props<{ debt: DebtDetails }>();
+	import { uploadProof } from '$lib/remotes/proofs.remote';
 
 	let isUploading = $state(false);
 	let fileInput = $state<HTMLInputElement>();
@@ -48,23 +45,24 @@
 				</div>
 			{:else}
 				<form
-					method="POST"
-					action="?/uploadProof"
-					enctype="multipart/form-data"
-					use:enhance={({ formData }) => {
-						if (selectedFile) formData.append('file', selectedFile);
+					{...uploadProof.enhance(async ({ submit, data }) => {
+						if (selectedFile) data.proof = selectedFile;
 						isUploading = true;
-						return async ({ result }) => {
-							isUploading = false;
-							if (result.type === 'success') {
+						try {
+							await submit();
+							const result = uploadProof.result;
+							if (result?.success) {
 								toast.success('Proof uploaded successfully');
 								selectedFile = null;
 								await invalidateAll();
-							} else {
-								toast.error('Failed to upload proof');
+							} else if (result?.message) {
+								toast.error(result.message as string);
 							}
-						};
-					}}
+						} catch {
+							toast.error('Failed to upload proof');
+						}
+						isUploading = false;
+					})}
 					class="flex items-center justify-between rounded-lg border p-3 bg-muted/30"
 				>
 					<div class="flex items-center gap-3 overflow-hidden">

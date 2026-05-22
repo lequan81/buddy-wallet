@@ -59,11 +59,11 @@ export const actions: Actions = {
 	import: async ({ request, locals }) => {
 		try {
 			const formData = await request.formData();
-			const file = formData.get('file') as File;
+			const file = formData.get('file') as File | null;
 			const configRaw = formData.get('config') as string;
 			const previewLogId = formData.get('previewLogId') as string | null;
 
-			if (!file || file.size === 0) {
+			if (!previewLogId && (!file || file.size === 0)) {
 				return fail(400, {
 					code: FE_ERRORS.FILE_NOT_SELECTED.code,
 					message: FE_ERRORS.FILE_NOT_SELECTED.message
@@ -78,9 +78,12 @@ export const actions: Actions = {
 			}
 
 			// Clone file to RAM blob to prevent SvelteKit stream consumption issues
-			const safeBuffer = await file.arrayBuffer();
-			const safeBlob = new Blob([safeBuffer], { type: file.type });
-			const safeFile = new File([safeBlob], file.name, { type: file.type });
+			let safeFile: File | undefined;
+			if (file && file.size > 0) {
+				const safeBuffer = await file.arrayBuffer();
+				const safeBlob = new Blob([safeBuffer], { type: file.type });
+				safeFile = new File([safeBlob], file.name, { type: file.type });
+			}
 
 			try {
 				const config = JSON.parse(configRaw);
@@ -89,7 +92,7 @@ export const actions: Actions = {
 
 				// Use the new start-from-preview endpoint if we have a previewLogId
 				if (previewLogId) {
-				const { data, error } = await locals.api.v1.data['import']({ id: previewLogId }).start.post({
+					const { data, error } = await locals.api.v1.data['import']({ id: previewLogId }).start.post({
 						columnMapping: mapping,
 						startRow
 					});
@@ -112,13 +115,19 @@ export const actions: Actions = {
 				}
 
 				// Fallback: legacy JSON import
-					const body = {
-						file: safeFile,
-						config: configRaw
-					};
-	
-					// Legacy endpoint body shape differs from typed schema
-					const { data, error } = await locals.api.v1.data.import.post(body as unknown as Parameters<typeof locals.api.v1.data.import.post>[0]);
+				if (!safeFile) {
+					return fail(400, {
+						code: FE_ERRORS.FILE_NOT_SELECTED.code,
+						message: FE_ERRORS.FILE_NOT_SELECTED.message
+					});
+				}
+				const body = {
+					file: safeFile,
+					config: configRaw
+				};
+
+				// Legacy endpoint body shape differs from typed schema
+				const { data, error } = await locals.api.v1.data.import.post(body as unknown as Parameters<typeof locals.api.v1.data.import.post>[0]);
 
 				if (error) {
 					const errVal = error.value as { code?: string; message?: string };

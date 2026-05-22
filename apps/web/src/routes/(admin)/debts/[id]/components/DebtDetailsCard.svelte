@@ -40,8 +40,14 @@
 		<div class="grid grid-cols-2 gap-4">
 			<div class="space-y-1">
 				<p class="text-xs text-muted-foreground">Creditor</p>
-				<div class="flex items-center gap-2">
-					<p class="text-sm font-medium">{debt.creditor?.name ?? debt.creditorPhone}</p>
+				<div class="flex flex-wrap items-center gap-2">
+					{#if debt.creditorId && debt.customCreditorName && debt.creditorName && debt.customCreditorName !== debt.creditorName}
+						<p class="text-sm font-medium">
+							{debt.creditorName} <span class="text-xs text-muted-foreground">({debt.customCreditorName})</span>
+						</p>
+					{:else}
+						<p class="text-sm font-medium">{debt.creditorName || debt.customCreditorName || debt.creditorPhone}</p>
+					{/if}
 				</div>
 				<p class="text-xs text-muted-foreground flex items-center gap-1">
 					<Phone class="h-3 w-3" /> {debt.creditorPhone}
@@ -49,8 +55,14 @@
 			</div>
 			<div class="space-y-1">
 				<p class="text-xs text-muted-foreground">Debtor</p>
-				<div class="flex items-center gap-2">
-					<p class="text-sm font-medium">{debt.debtor?.name ?? debt.debtorPhone}</p>
+				<div class="flex flex-wrap items-center gap-2">
+					{#if debt.debtorId && debt.customDebtorName && debt.debtorName && debt.customDebtorName !== debt.debtorName}
+						<p class="text-sm font-medium">
+							{debt.debtorName} <span class="text-xs text-muted-foreground">({debt.customDebtorName})</span>
+						</p>
+					{:else}
+						<p class="text-sm font-medium">{debt.debtorName || debt.customDebtorName || debt.debtorPhone}</p>
+					{/if}
 				</div>
 				<p class="text-xs text-muted-foreground flex items-center gap-1">
 					<Phone class="h-3 w-3" /> {debt.debtorPhone}

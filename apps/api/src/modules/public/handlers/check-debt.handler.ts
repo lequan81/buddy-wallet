@@ -8,11 +8,13 @@
 
 import { db } from '@/providers/database';
 import { DebtRepository } from '@/repositories/debt/debt.repo';
+import { UserRepository } from '@/repositories/user/user.repo';
 import { normalizePhoneNumber } from '@repo/utils';
 import { BE_ERRORS } from '@repo/errors';
 import { apiSuccess, apiError } from '@/commons/http/response';
 
 const debtRepo = new DebtRepository(db);
+const userRepo = new UserRepository(db);
 
 /**
  * Mask phone number for privacy: 0123***678
@@ -37,10 +39,12 @@ export const checkDebt = {
     }
 
     const count = await debtRepo.countActiveDebtsForPhone(normalizedPhone);
+    const existingUser = await userRepo.findByPhone(normalizedPhone);
 
     return apiSuccess({
       hasDebts: count > 0,
-      phone: maskPhone(normalizedPhone)
+      phone: maskPhone(normalizedPhone),
+      isRegistered: !!existingUser
     });
   }
 };

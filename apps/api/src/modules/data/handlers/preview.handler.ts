@@ -84,6 +84,7 @@ export const importPreview = {
 
     // Enqueue job for background processing
     const jobPayload = createWorkerJob('preview', {
+      jobId: previewId,
       userId: user.id,
       fileName: file.name,
       storageKey: s3Key,
@@ -162,6 +163,7 @@ export const importPreview = {
 
     // Enqueue job for background processing
     const jobPayload = createWorkerJob('import', {
+      jobId: log.id,
       userId: user.id,
       fileName: log.fileName,
       storageKey: s3Key,

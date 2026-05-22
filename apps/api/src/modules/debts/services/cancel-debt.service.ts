@@ -20,19 +20,16 @@ export async function cancelDebt(
     return { error: BE_ERRORS.DEBT_NOT_FOUND };
   }
 
-  const transition = validateStatusTransition(
-    debt.status,
-    'cancelled',
-    user.id,
-    debt.creditorId || '',
-    debt.debtorId || ''
-  );
+  const transition = validateStatusTransition({
+    currentStatus: debt.status,
+    newStatus: 'cancelled',
+    userId: user.id,
+    creditorId: debt.creditorId || '',
+    debtorId: debt.debtorId || ''
+  });
 
   if ('code' in transition) {
-    if (transition.code === BE_ERRORS.DEBT_PERMISSION_DENIED.code) {
-      return { error: BE_ERRORS.DEBT_PERMISSION_DENIED };
-    }
-    return { error: BE_ERRORS.DEBT_INVALID_STATUS };
+    return { error: transition };
   }
 
   const updated = await debtRepo.update(debtId, {

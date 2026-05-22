@@ -9,13 +9,15 @@ import * as v from 'valibot';
 
 // Create debt schema
 export const CreateDebtSchema = v.object({
-  debtorId: v.pipe(v.string(), v.uuid()),
+  debtorId: v.optional(v.pipe(v.string(), v.uuid())),
   debtorPhone: v.optional(v.pipe(v.string(), v.minLength(9), v.maxLength(20))),
   creditorPhone: v.optional(v.pipe(v.string(), v.minLength(9), v.maxLength(20))),
   amount: v.pipe(v.number(), v.minValue(1)),
   currency: v.pipe(v.string(), v.minLength(3), v.maxLength(3)),
   description: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(500))),
-  dueDate: v.optional(v.date())
+  dueDate: v.optional(v.date()),
+  customDebtorName: v.optional(v.pipe(v.string(), v.maxLength(100))),
+  customCreditorName: v.optional(v.pipe(v.string(), v.maxLength(100)))
 });
 
 // Update debt schema
@@ -23,7 +25,9 @@ export const UpdateDebtSchema = v.object({
   amount: v.optional(v.pipe(v.number(), v.minValue(1))),
   currency: v.optional(v.pipe(v.string(), v.minLength(3), v.maxLength(3))),
   description: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(500))),
-  dueDate: v.optional(v.date())
+  dueDate: v.optional(v.date()),
+  customDebtorName: v.optional(v.pipe(v.string(), v.maxLength(100))),
+  customCreditorName: v.optional(v.pipe(v.string(), v.maxLength(100)))
 });
 
 // Debt status schema
@@ -58,7 +62,7 @@ export const ListDebtsQuerySchema = v.object({
   sortBy: v.optional(v.picklist(['createdAt', 'amount', 'status', 'updatedAt'])),
   sortOrder: v.optional(v.picklist(['asc', 'desc'])),
   page: v.optional(v.pipe(v.unknown(), v.transform((v) => Number(v)), v.number(), v.minValue(1))),
-  limit: v.optional(v.pipe(v.unknown(), v.transform((v) => Number(v)), v.number(), v.minValue(1), v.maxValue(100)))
+  limit: v.optional(v.pipe(v.unknown(), v.transform((v) => Number(v)), v.number(), v.minValue(1), v.maxValue(1000)))
 });
 
 // Suggest edit schema

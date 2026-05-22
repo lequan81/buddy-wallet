@@ -19,6 +19,10 @@ export const debts = sqliteTable('debts', {
   debtorId: text('debtor_id', { length: 24 }).references(() => users.id, { onDelete: 'set null' }),
   creditorId: text('creditor_id', { length: 24 }).references(() => users.id, { onDelete: 'set null' }),
 
+  // Custom names assigned during creation (especially if counterparty is unregistered)
+  customDebtorName: text('custom_debtor_name'),
+  customCreditorName: text('custom_creditor_name'),
+
   // Who uploaded this debt record
   uploadedById: text('uploaded_by_id', { length: 24 })
     .notNull()

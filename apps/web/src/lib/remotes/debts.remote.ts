@@ -51,7 +51,8 @@ export const createDebtRemote = form('unchecked' as const, async (data) => {
 	// We send phone-based fields; the handler looks up users server-side.
 	// ensureAuthenticated() guarantees locals.user is non-null.
 	const userPhone = locals.user!.phoneNumber ?? '';
-	const isLend = direction === 'LEND';
+	const isLender = direction === 'LEND';
+	const counterpartyName = typeof data.counterpartyName === 'string' ? data.counterpartyName : '';
 	const body = {
 		amount,
 		currency: 'VND',
@@ -59,8 +60,10 @@ export const createDebtRemote = form('unchecked' as const, async (data) => {
 		dueDate,
 		// When LENDING: current user is creditor, counterparty is debtor
 		// When BORROWING: current user is debtor, counterparty is creditor
-		debtorPhone: isLend ? counterpartyPhone : userPhone,
-		creditorPhone: isLend ? userPhone : counterpartyPhone,
+		debtorPhone: isLender ? counterpartyPhone : userPhone,
+		creditorPhone: isLender ? userPhone : counterpartyPhone,
+		customDebtorName: isLender ? (counterpartyName || undefined) : undefined,
+		customCreditorName: isLender ? undefined : (counterpartyName || undefined),
 		// Pass a placeholder debtorId to satisfy the Elysia schema; the handler resolves by phone
 		debtorId: '00000000-0000-0000-0000-000000000000'
 	};
@@ -163,12 +166,16 @@ export const updateDebt = form('unchecked' as const, async (data) => {
 
 	const description = typeof data.description === 'string' ? data.description : undefined;
 	const amount = typeof data.amount === 'string' ? data.amount : undefined;
+	const customDebtorName = typeof data.customDebtorName === 'string' ? data.customDebtorName : undefined;
+	const customCreditorName = typeof data.customCreditorName === 'string' ? data.customCreditorName : undefined;
 	const debtId = params.id;
 	if (!debtId) error(400, { code: 'BAD_REQUEST', message: 'Debt ID not found in URL' });
 
 	const body: Record<string, unknown> = {};
-	if (description) body.description = description;
-	if (amount) body.amount = Number(amount);
+	if (description !== undefined) body.description = description;
+	if (amount !== undefined) body.amount = Number(amount);
+	if (customDebtorName !== undefined) body.customDebtorName = customDebtorName;
+	if (customCreditorName !== undefined) body.customCreditorName = customCreditorName;
 
 	const { error: apiError } = await locals.api.v1.debts({ id: debtId }).patch(body);
 	if (apiError) {

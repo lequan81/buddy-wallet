@@ -16,7 +16,7 @@
 	let phoneNumber = $state('');
 	let checking = $state(false);
 
-	let result: { hasDebts: boolean; phone: string } | null = $state(null);
+	let result: { hasDebts: boolean; phone: string; isRegistered: boolean } | null = $state(null);
 	let checkError = $state('');
 
 	type ValidationState = 'default' | 'success' | 'error' | 'warning';
@@ -125,6 +125,24 @@
 						>
 					{/if}
 				</div>
+
+				{#if !result.isRegistered}
+					<div class="mt-4 rounded-lg border border-warning/20 bg-warning/5 p-4 text-center">
+						<p class="text-sm font-medium text-warning-foreground">
+							⚠️ This user ({result.phone}) has not registered an account on Buddy Wallet yet.
+						</p>
+						<p class="text-xs text-muted-foreground mt-1">
+							Debts can still be searched publicly, but they won't be able to log in or settle them directly.
+						</p>
+						<Button 
+							href="/signup" 
+							class="mt-3 w-full font-medium" 
+							variant="outline"
+						>
+							Register Now
+						</Button>
+					</div>
+				{/if}
 			{/if}
 		</Card.Content>
 	</Card.Root>

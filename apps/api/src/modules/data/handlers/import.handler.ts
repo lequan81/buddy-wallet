@@ -14,8 +14,9 @@ import { BE_ERRORS, GEN_ERRORS } from '@repo/errors';
 import { apiSuccess, apiError, apiAccepted } from '@/commons/http/response';
 import { logActivity } from '@/commons/logging/activity-logger';
 import { enqueueJob, createWorkerJob, getJobStatus } from '@/providers/redis/queue';
-import { isRedisAvailable } from '@/providers/redis';
-import type { ImportDataContext, ImportLogsContext, ImportProgressContext, ImportRemapContext } from '../types/handler.types';
+import { isRedisAvailable, cache } from '@/providers/redis';
+import { importStorage } from '@/providers/storage/storage';
+import type { ImportDataContext, ImportLogsContext, ImportProgressContext, ImportRemapContext, ImportPreviewData } from '../types/handler.types';
 import { logger } from '@repo/logger';
 
 const importRepo = new ImportRepository(db);
@@ -65,6 +66,7 @@ export const dataImport = {
 
     // Enqueue job for background processing (format expected by apps/worker)
     const jobPayload = createWorkerJob('import', {
+      jobId: logId,
       userId: user.id,
       fileName: `import-${Date.now()}.json`,
       config: undefined, // Direct data mode doesn't use column mapping
@@ -116,29 +118,26 @@ export const dataImport = {
 
   /** GET /data/import/:id/progress — Get import progress */
   getProgress: async ({ params, user }: ImportProgressContext) => {
-    // 1. Try Redis first (real-time worker progress)
-    const redisStatus = await getJobStatus(params.id);
-    if (redisStatus?.progress) {
-      const progress = redisStatus.progress as Record<string, unknown>;
-      return apiSuccess({
-        id: params.id,
-        status: progress.status || 'processing',
-        totalRows: progress.total || 0,
-        importedCount: progress.current || 0,
-        errorCount: progress.errorCount || 0,
-        errors: progress.errors || undefined,
-        completedAt: progress.completedAt || null
-      });
-    }
-
-    // 2. Fallback to DB
+    // 1. Fetch DB log first to get static details (fileName, fileSize, userId, createdAt, config, previewLogId, etc.)
     const log = await importRepo.getLogById(params.id, user.id);
     if (!log) {
       return apiError(GEN_ERRORS.NOT_FOUND);
     }
 
-    let errors: string[] | undefined;
-    if (log.errors) {
+    // 2. Try Redis for real-time worker progress
+    const redisStatus = await getJobStatus(params.id);
+    const progress = redisStatus?.progress as Record<string, unknown> | undefined;
+
+    // Determine status and other dynamic fields
+    const status = progress?.status || log.status;
+    const totalRows = typeof progress?.total === 'number' ? progress.total : log.totalRows;
+    const importedCount = typeof progress?.current === 'number' ? progress.current : log.importedCount;
+    const errorCount = typeof progress?.errorCount === 'number' ? progress.errorCount : log.errorCount;
+    
+    let errors: string[] | undefined = undefined;
+    if (progress?.errors) {
+      errors = progress.errors as string[];
+    } else if (log.errors) {
       try {
         errors = JSON.parse(log.errors as string);
       } catch (_parseErr) {
@@ -147,14 +146,66 @@ export const dataImport = {
       }
     }
 
+    const completedAt = (progress?.completedAt || log.completedAt)
+      ? new Date((progress?.completedAt || log.completedAt) as string | number | Date)
+      : null;
+
+    // Parse column mapping config
+    let columnMapping: Record<string, string> | undefined = undefined;
+    let startRow: number | undefined = undefined;
+    if (log.config) {
+      try {
+        const configObj = JSON.parse(log.config as string);
+        columnMapping = configObj.mapping || {};
+        startRow = configObj.startRow ?? 2;
+      } catch (_e) {
+        // Ignore parsing error
+      }
+    }
+
+    // Load preview details if status is 'preview'
+    let columnHeaders: string[] | undefined = undefined;
+    let previewData: string[][] | undefined = undefined;
+    
+    if (status === 'preview') {
+      try {
+        // Try Cache first
+        let previewDetails = await cache.get<ImportPreviewData>(`preview_data:${params.id}`);
+        
+        // Try S3 if not in cache
+        if (!previewDetails) {
+          const s3Data = await importStorage.read(`${params.id}.json`);
+          if (s3Data) {
+            previewDetails = JSON.parse(s3Data.toString('utf-8')) as ImportPreviewData;
+          }
+        }
+
+        if (previewDetails) {
+          columnHeaders = previewDetails.columnHeaders;
+          previewData = previewDetails.previewRows || previewDetails.previewData?.slice(0, 10) || [];
+        }
+      } catch (err) {
+        logger.warn('Failed to load preview details for getProgress:', { logId: params.id, error: String(err) });
+      }
+    }
+
     return apiSuccess({
       id: log.id,
-      status: log.status,
-      totalRows: log.totalRows,
-      importedCount: log.importedCount,
-      errorCount: log.errorCount,
+      userId: log.userId,
+      fileName: log.fileName,
+      fileSize: log.fileSize,
+      status,
+      previewLogId: log.previewLogId,
+      totalRows,
+      importedCount,
+      errorCount,
       errors,
-      completedAt: log.completedAt
+      completedAt,
+      createdAt: log.createdAt,
+      columnMapping,
+      startRow,
+      columnHeaders,
+      previewData
     });
   },
 

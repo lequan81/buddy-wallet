@@ -3,6 +3,7 @@ import { phoneSchema, amountClientSchema, descriptionSchema, validateField } fro
 export class CreateDebtModalState {
 	// Form state
 	phoneNumber = $state('');
+	counterpartyName = $state('');
 	amount = $state('');
 	description = $state('');
 	direction = $state<'LEND' | 'BORROW'>('LEND');
@@ -23,10 +24,12 @@ export class CreateDebtModalState {
 		initialPhone?: string;
 		initialAmount?: string;
 		initialDescription?: string;
+		initialCounterpartyName?: string;
 	}) {
 		this.hasBankAccount = config.hasBankAccount;
 		this.recentContacts = config.recentContacts;
 		this.phoneNumber = config.initialPhone || '';
+		this.counterpartyName = config.initialCounterpartyName || '';
 		this.amount = config.initialAmount || '';
 		this.description = config.initialDescription || '';
 	}
@@ -51,8 +54,9 @@ export class CreateDebtModalState {
 		this.amountResult.state === 'success' && this.descriptionResult.state === 'success'
 	);
 
-	reset(initialPhone = '', initialAmount = '', initialDescription = '') {
+	reset(initialPhone = '', initialAmount = '', initialDescription = '', initialCounterpartyName = '') {
 		this.phoneNumber = initialPhone;
+		this.counterpartyName = initialCounterpartyName;
 		this.amount = initialAmount;
 		this.description = initialDescription;
 		this.direction = 'LEND';

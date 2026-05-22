@@ -131,10 +131,11 @@ export async function onSuggestionReceived(
  */
 export async function onSuggestionResponded(
   debt: DebtEvent,
-  accepted: boolean
+  options: { accepted: boolean }
 ): Promise<void> {
   if (!debt.suggestedById) return;
 
+  const { accepted } = options;
   const action = accepted ? 'accepted' : 'rejected';
   await createAndPush(
     debt.suggestedById,

@@ -135,7 +135,7 @@
 						<div class="absolute w-full mt-1 z-50 rounded-md border border-border/50 bg-popover shadow-md overflow-hidden">
 							<div class="py-1">
 								<p class="px-3 py-1.5 text-xs font-semibold uppercase text-muted-foreground opacity-70">Recent Contacts</p>
-								{#each ms.autocompleteContacts as contact}
+								{#each ms.autocompleteContacts as contact (contact)}
 									<button
 										type="button"
 										class="flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-muted"
@@ -153,6 +153,17 @@
 							</div>
 						</div>
 					{/if}
+				</div>
+
+				<div class="space-y-3">
+					<Label for="counterpartyName" class="text-sm font-medium">Counterparty Custom Display Name (Optional)</Label>
+					<FormInput
+						id="counterpartyName"
+						name="counterpartyName"
+						type="text"
+						placeholder="e.g. Bobby, Uncle Sam..."
+						bind:value={ms.counterpartyName}
+					/>
 				</div>
 
 				<div class="space-y-3">

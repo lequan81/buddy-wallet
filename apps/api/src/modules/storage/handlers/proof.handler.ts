@@ -20,8 +20,7 @@ import { logger } from '@repo/logger';
 import { enqueueJob } from '@/providers/redis/queue';
 import { randomUUIDv7 } from 'bun';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+import { PROOF_IMAGE_CONFIG } from '@repo/config';
 
 export const proof = {
   /** POST /storage/payment-proof/:debtId */
@@ -40,9 +39,9 @@ export const proof = {
       return apiError(BE_ERRORS.DEBT_PERMISSION_DENIED);
     }
 
-    const typeV = validateFileType(file.type, ALLOWED_IMAGE_TYPES);
+    const typeV = validateFileType(file.type, PROOF_IMAGE_CONFIG.ALLOWED_MIME_TYPES as unknown as string[]);
     if ('code' in typeV) { return apiError(BE_ERRORS.FILE_INVALID_TYPE, typeV.error); }
-    const sizeV = validateFileSize(file.size, MAX_FILE_SIZE);
+    const sizeV = validateFileSize(file.size, PROOF_IMAGE_CONFIG.MAX_FILE_SIZE);
     if ('code' in sizeV) { return apiError(BE_ERRORS.FILE_TOO_LARGE, sizeV.error); }
 
     // Upload original (will be kept)
@@ -59,7 +58,7 @@ export const proof = {
       fileName: file.name,
       storageKey: key,
       imageType: 'proof' as const,
-      config: { proof: { maxWidth: 1920, maxHeight: 1080, displayQuality: 80, downloadQuality: 100 } }
+      config: { proof: PROOF_IMAGE_CONFIG.PROCESSING }
     };
     const queued = await enqueueJob('image_processing', jobPayload as unknown as Record<string, unknown>);
     if (!queued) {

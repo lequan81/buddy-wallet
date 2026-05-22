@@ -24,5 +24,11 @@ export const AUTH_CONSTANTS = {
     ALGORITHM: 'argon2id' as const,
     MEMORY_COST: 65536,
     TIME_COST: 3
+  },
+
+  // Throttle configs
+  SESSION_THROTTLE: {
+    LAST_ACTIVE_THROTTLE_MS: 5 * 60 * 1000,
+    LAST_ACTIVE_DEDUP_TTL_SECONDS: 5 * 60
   }
 } as const;

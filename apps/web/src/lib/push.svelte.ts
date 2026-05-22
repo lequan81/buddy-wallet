@@ -13,12 +13,7 @@ import { unwrapData } from '$lib/services/api-helpers';
 import { getDeviceInfo } from '$lib/utils/device';
 import { getCookie, setCookie, deleteCookie } from '$lib/utils/cookie-utils';
 
-type ApiCallResult = { data?: unknown; error?: { value?: unknown } | null };
-type NotificationEndpoint = {
-	get?: (...args: unknown[]) => Promise<ApiCallResult>;
-	post?: (...args: unknown[]) => Promise<ApiCallResult>;
-};
-const notificationsApi = api.v1.notifications as unknown as Record<string, NotificationEndpoint> & NotificationEndpoint;
+
 
 const COOKIE_KEYS = {
 	PUSH_BANNER_DISMISSED: 'bw-push-dismissed',
@@ -89,7 +84,7 @@ export async function fetchVapidKey(): Promise<string | null> {
 
 	try {
 		
-		const { data, error } = (await notificationsApi['vapid-key']?.get?.()) || {};
+		const { data, error } = (await (api.v1.notifications as any)['vapid-key'].get()) || {};
 		const publicKey = unwrapData<{ publicKey: string }>(data)?.publicKey;
 		const errorMessage = (error?.value as { message?: string })?.message || 'Failed to fetch VAPID key';
 
@@ -202,7 +197,7 @@ export async function subscribeToPush(): Promise<boolean> {
 
 		// Send subscription to server
 		
-		const { error } = (await notificationsApi.subscribe?.post?.({
+		const { error } = (await (api.v1.notifications as any).subscribe.post({
 				endpoint: subscription.endpoint,
 				keys: {
 					p256dh: arrayBufferToBase64Url(p256dhKey),
@@ -252,7 +247,7 @@ export async function unsubscribeFromPush(): Promise<boolean> {
 
 		// Remove from server
 		
-		await notificationsApi.unsubscribe?.post?.({ endpoint: subscription.endpoint });
+		await (api.v1.notifications as any).unsubscribe.post({ endpoint: subscription.endpoint });
 
 		pushState.isSubscribed = false;
 		pushState.isLoading = false;
@@ -271,7 +266,7 @@ export async function unsubscribeFromPush(): Promise<boolean> {
 export async function sendTestNotification(): Promise<boolean> {
 	try {
 		
-		const { error } = (await notificationsApi.test?.post?.()) || {};
+		const { error } = (await (api.v1.notifications as any).test.post()) || {};
 		return !error;
 	} catch {
 		return false;

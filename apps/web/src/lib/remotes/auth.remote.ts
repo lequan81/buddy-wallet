@@ -169,10 +169,11 @@ export const checkDebtRemote = form(
 				invalid((error.value?.message || 'Failed to check debts'));
 			}
 
-			const result = data?.data as { hasDebts?: boolean } | undefined;
+			const result = data?.data as { hasDebts?: boolean; phone?: string; isRegistered?: boolean } | undefined;
 			return {
 				hasDebts: result?.hasDebts ?? false,
-				phone: phoneNumber
+				phone: result?.phone ?? phoneNumber,
+				isRegistered: result?.isRegistered ?? false
 			};
 		} catch (err) {
 			console.error('[auth.remote:checkDebtRemote] Error:', err);

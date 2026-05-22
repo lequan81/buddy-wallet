@@ -1,31 +1,13 @@
-import { create } from './create.handler';
-import { get } from './get.handler';
-import { list } from './list.handler';
-import { update } from './update.handler';
-import { remove } from './remove.handler';
-import { cancel } from './cancel.handler';
-import { confirm } from './confirm.handler';
-import { complete } from './complete.handler';
-import { suggest } from './suggest.handler';
-import { respondSuggestion } from './respond-suggestion.handler';
-import { qr } from './qr.handler';
-import { batchRemove } from './batch-remove.handler';
-import { removeAll } from './remove-all.handler';
-
-export const debt = {
-  create,
-  get,
-  list,
-  update,
-  remove,
-  cancel,
-  confirm,
-  complete,
-  suggest,
-  respondSuggestion,
-  qr,
-  batchRemove,
-  removeAll
-};
-
-export { create, get, list, update, remove, cancel, confirm, complete, suggest, respondSuggestion, qr, batchRemove, removeAll };
+export { create } from './create.handler';
+export { get } from './get.handler';
+export { list } from './list.handler';
+export { update } from './update.handler';
+export { remove } from './remove.handler';
+export { cancel } from './cancel.handler';
+export { confirm } from './confirm.handler';
+export { complete } from './complete.handler';
+export { suggest } from './suggest.handler';
+export { respondSuggestion } from './respond-suggestion.handler';
+export { qr } from './qr.handler';
+export { batchRemove } from './batch-remove.handler';
+export { removeAll } from './remove-all.handler';

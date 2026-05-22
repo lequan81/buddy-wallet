@@ -23,10 +23,12 @@ import { cache, isRedisAvailable, sessionCache, jwtBlacklist } from '@/providers
 import { UserRepository } from '@/repositories/user/user.repo';
 import { SessionRepository } from '@/repositories/auth/session.repo';
 
+import { AUTH_CONSTANTS } from '@repo/config';
+
 const userRepo = new UserRepository();
 const sessionRepo = new SessionRepository();
-const LAST_ACTIVE_THROTTLE_MS = 5 * 60 * 1000;
-const LAST_ACTIVE_DEDUP_TTL_SECONDS = Math.ceil(LAST_ACTIVE_THROTTLE_MS / 1000);
+const LAST_ACTIVE_THROTTLE_MS = AUTH_CONSTANTS.SESSION_THROTTLE.LAST_ACTIVE_THROTTLE_MS;
+const LAST_ACTIVE_DEDUP_TTL_SECONDS = AUTH_CONSTANTS.SESSION_THROTTLE.LAST_ACTIVE_DEDUP_TTL_SECONDS;
 
 export const sessionAuth = new Elysia({ name: 'Session_Auth' })
   .use(jwtAuth)

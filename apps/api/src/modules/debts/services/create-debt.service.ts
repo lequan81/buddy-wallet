@@ -20,7 +20,7 @@ export async function createDebt(
   debtRepo: DebtRepository,
   userRepo: UserRepository
 ): Promise<ServiceResult<Debt & { duplicateWarning?: { count: number; message: string } }>> {
-  const { debtorId, amount, currency, description, dueDate, debtorPhone, creditorPhone } = body;
+  const { debtorId, amount, currency, description, dueDate, debtorPhone, creditorPhone, customDebtorName, customCreditorName } = body;
 
   const amountValidation = validateDebtAmount(amount);
   if ('code' in amountValidation) {
@@ -32,12 +32,13 @@ export async function createDebt(
     return { error: { ...BE_ERRORS.CURRENCY_INVALID, message: currencyValidation.error ?? 'Invalid currency' } };
   }
 
-  const debtor = await userRepo.findById(debtorId);
-  if (!debtor) {
-    return { error: BE_ERRORS.USER_NOT_FOUND };
+  const cpPhone = creditorPhone || user.phoneNumber;
+  const dpPhone = debtorPhone;
+  if (!dpPhone) {
+    return { error: { ...BE_ERRORS.AUTH_INVALID_PHONE, message: 'Debtor phone number is required' } };
   }
 
-  if (debtorId === user.id) {
+  if (dpPhone === cpPhone) {
     return { error: BE_ERRORS.DEBT_SELF_NOT_ALLOWED };
   }
 
@@ -48,18 +49,28 @@ export async function createDebt(
   }
 
   // Check for duplicate debts
-  const cpPhone = creditorPhone || user.phoneNumber;
-  const dpPhone = debtorPhone || debtor.phoneNumber;
   const tolerance = amount * SHARED_CONSTANTS.DEBT.DUPLICATE_TOLERANCE;
   const duplicates = await debtRepo.findPotentialDuplicates(
     dpPhone, cpPhone, amount, tolerance, SHARED_CONSTANTS.DEBT.DUPLICATE_CHECK_DAYS
   );
 
+  // Look up registered users dynamically
+  const registeredDebtor = await userRepo.findByPhone(dpPhone);
+  const registeredCreditor = await userRepo.findByPhone(cpPhone);
+
+  const resolvedDebtorId = registeredDebtor ? registeredDebtor.id : (dpPhone === user.phoneNumber ? user.id : null);
+  const resolvedCreditorId = registeredCreditor ? registeredCreditor.id : (cpPhone === user.phoneNumber ? user.id : null);
+
+  const finalDebtorName = customDebtorName || (dpPhone === user.phoneNumber ? user.name : (registeredDebtor ? registeredDebtor.name : 'Unregistered User'));
+  const finalCreditorName = customCreditorName || (cpPhone === user.phoneNumber ? user.name : (registeredCreditor ? registeredCreditor.name : 'Unregistered User'));
+
   const result = await debtRepo.create({
     creditorPhone: cpPhone,
     debtorPhone: dpPhone,
-    creditorId: user.id,
-    debtorId,
+    creditorId: resolvedCreditorId,
+    debtorId: resolvedDebtorId,
+    customDebtorName: finalDebtorName,
+    customCreditorName: finalCreditorName,
     uploadedById: user.id,
     amount,
     currency: currency.toUpperCase(),
@@ -73,11 +84,13 @@ export async function createDebt(
     action: 'create',
     resource: 'debt',
     resourceId: result.id,
-    changes: { after: { amount, currency, description, debtorId } }
+    changes: { after: { amount, currency, description, debtorId: resolvedDebtorId } }
   });
 
-  // Fire-and-forget: notify counterparty
-  onDebtCreated(result, user.id).catch(() => {});
+  // Fire-and-forget: notify counterparty if registered
+  if (resolvedDebtorId && resolvedCreditorId) {
+    onDebtCreated(result, user.id).catch(() => {});
+  }
 
   return {
     data: {

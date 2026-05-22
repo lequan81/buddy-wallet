@@ -78,3 +78,8 @@ export const MAJOR_BANKS_FALLBACK = [
     logo: 'https://api.vietqr.io/img/TPB.png',
   }
 ];
+
+export const BANK_CONFIG = {
+  VIETQR_IMAGE_BASE: 'https://img.vietqr.io/image',
+} as const;
+

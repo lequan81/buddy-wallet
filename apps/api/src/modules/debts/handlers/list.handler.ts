@@ -48,8 +48,10 @@ export const list = async ({
     ...debt,
     direction: getDebtDirection(user.id, debt.creditorId || '', debt.debtorId || ''),
     overdue: isDebtOverdue(debt.expiresAt ? new Date(debt.expiresAt) : null, debt.status),
-    creditorName: debt.creditorId ? userMap.get(debt.creditorId)?.name || null : null,
-    debtorName: debt.debtorId ? userMap.get(debt.debtorId)?.name || null : null,
+    creditorName: debt.creditorId ? userMap.get(debt.creditorId)?.name || null : (debt.customCreditorName || null),
+    debtorName: debt.debtorId ? userMap.get(debt.debtorId)?.name || null : (debt.customDebtorName || null),
+    customCreditorName: debt.customCreditorName || null,
+    customDebtorName: debt.customDebtorName || null,
   }));
 
   return apiSuccess(debts, undefined, calculatePagination(result.pagination.total || 0, page, limit) as unknown as Record<string, unknown>);

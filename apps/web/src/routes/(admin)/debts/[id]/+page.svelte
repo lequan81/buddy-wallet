@@ -53,7 +53,7 @@
 				<div class="grid gap-8 sm:grid-cols-2">
 					<PaymentProofsCard {debt} isCreditor={isCreditor || false} />
 					{#if isDebtor && debt.status !== 'paid' && debt.status !== 'cancelled'}
-						<ProofUploadCard {debt} />
+						<ProofUploadCard />
 					{/if}
 				</div>
 

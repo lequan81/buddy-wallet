@@ -87,15 +87,6 @@ export class UserRepository {
     return user || null;
   }
 
-  async findByPhoneWithPassword(phone: string): Promise<User | null> {
-    const user = await this.database.select().from(users).where(eq(users.phoneNumber, phone)).get();
-    return user || null;
-  }
-
-  async findByEmailWithPassword(email: string): Promise<User | null> {
-    const user = await this.database.select().from(users).where(eq(users.email, email)).get();
-    return user || null;
-  }
 
   async findByEmailAndPhone(email: string, phone: string): Promise<User | null> {
     const user = await this.database

@@ -44,6 +44,12 @@ export interface DebtDetails extends Debt {
   debtor?: UserResponse | null;
   creditor?: UserResponse | null;
   uploader?: UserResponse | null;
+  creditorName?: string | null;
+  debtorName?: string | null;
+  customCreditorName?: string | null;
+  customDebtorName?: string | null;
+  direction?: DebtDirection;
+  overdue?: boolean;
 }
 
 export interface DebtResultData {

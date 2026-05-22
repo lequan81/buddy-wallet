@@ -9,7 +9,7 @@
  */
 import { logger } from '@repo/logger';
 import { BACKEND_CONSTANTS, env } from '@repo/config';
-import { initRedis, getRedis, closeRedis } from './providers/redis';
+import { initRedis, getRedis, closeRedis, isRedisHealthy } from './providers/redis';
 import { validatePayload, isStorageConfigured } from './utils/validation';
 import { processImportJob } from './jobs/import.job';
 import { dispatchOutboxBatch } from './jobs/outbox-dispatch.job';
@@ -20,6 +20,24 @@ import { db, importLogs, eq, or, and, asc } from '@repo/db';
 
 // ── Startup & Configuration ────────────────────────────────
 const KILL_TIMEOUT_MS = BACKEND_CONSTANTS.WORKER.KILL_TIMEOUT_MS || 300000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMsg = 'Operation timed out'): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(errorMsg));
+    }, timeoutMs);
+
+    promise
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
 const OUTBOX_BATCH_SIZE = env.int('OUTBOX_BATCH_SIZE', 25);
 const DRAIN_TIMEOUT_MS = env.int('WORKER_DRAIN_TIMEOUT_MS', 10000);
 let shuttingDown = false;
@@ -40,16 +58,28 @@ async function waitForDrain(): Promise<void> {
   }
 }
 
-const killTimeout = setTimeout(() => {
-  logger.error(`[Worker] Kill timeout reached (${KILL_TIMEOUT_MS / 1000 / 60} min)`);
-  process.exit(0);
-}, KILL_TIMEOUT_MS);
+let watchdogTimer: ReturnType<typeof setTimeout> | undefined;
+
+function refreshWatchdog(): void {
+  if (watchdogTimer) {
+    clearTimeout(watchdogTimer);
+  }
+  watchdogTimer = setTimeout(() => {
+    logger.error(`[Worker] Watchdog kill timeout reached (${KILL_TIMEOUT_MS / 1000 / 60} min). Force-killing hung process.`);
+    process.exit(1);
+  }, KILL_TIMEOUT_MS);
+}
+
+// Initial watchdog boot
+refreshWatchdog();
 
 async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
 
-  clearTimeout(killTimeout);
+  if (watchdogTimer) {
+    clearTimeout(watchdogTimer);
+  }
   logger.info(`[Worker] Shutdown signal received: ${signal}`);
 
   try {
@@ -91,6 +121,13 @@ async function pollSqliteJobs(): Promise<boolean> {
       .get();
 
     if (!queuedJob) return false;
+
+    // Safety: If Redis is healthy and connected, we let the Redis queue process the job first.
+    // We only fallback to SQLite polling if the job has been stuck in queue for more than 30 seconds.
+    const ageMs = Date.now() - new Date(queuedJob.createdAt).getTime();
+    if (isRedisHealthy() && ageMs < 30000) {
+      return false; // Skip for now, let Redis handle it
+    }
 
     // 2. Lock the job atomically by updating its status to 'processing'
     const lockResult = await db
@@ -178,11 +215,16 @@ async function main() {
   let consecutiveErrors = 0;
 
   while (!shuttingDown) {
+    refreshWatchdog();
     try {
       const redis = getRedis();
 
       // ── Import Jobs ──────────────────────────────────────
-      const importResult = await redis.blpop('bw:queue:imports', 5);
+      const importResult = await withTimeout(
+        redis.blpop('bw:queue:imports', 5) as Promise<[string, string] | null>,
+        10000,
+        'Redis blpop imports timed out'
+      );
 
       if (importResult && importResult.length === 2) {
         consecutiveErrors = 0;
@@ -214,7 +256,11 @@ async function main() {
       }
 
       // ── Push Notification Jobs ───────────────────────────
-      const pushResult = await redis.blpop('bw:queue:push_notifications', 5);
+      const pushResult = await withTimeout(
+        redis.blpop('bw:queue:push_notifications', 5) as Promise<[string, string] | null>,
+        10000,
+        'Redis blpop push_notifications timed out'
+      );
 
       if (pushResult && pushResult.length === 2) {
         consecutiveErrors = 0;
@@ -244,7 +290,11 @@ async function main() {
       }
 
       // ── Image Processing Jobs ─────────────────────────────
-      const imageResult = await redis.blpop('bw:queue:image_processing', 5);
+      const imageResult = await withTimeout(
+        redis.blpop('bw:queue:image_processing', 5) as Promise<[string, string] | null>,
+        10000,
+        'Redis blpop image_processing timed out'
+      );
 
       if (imageResult && imageResult.length === 2) {
         consecutiveErrors = 0;

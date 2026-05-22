@@ -136,7 +136,11 @@ sw.addEventListener('fetch', (event) => {
 				try {
 					// Try network first
 					return await fetch(event.request);
-				} catch {
+				} catch (err) {
+					// Don't intercept AbortErrors (SvelteKit navigation cancellations)
+					if (err instanceof Error && err.name === 'AbortError') {
+						throw err;
+					}
 					// If offline, try to return cached page or a fallback
 					const cache = await caches.open('pages-cache');
 					const cachedResponse = await cache.match(event.request);
