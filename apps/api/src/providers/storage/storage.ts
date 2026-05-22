@@ -69,7 +69,7 @@ export const rawImportStorage = createStorageService(
 export async function isS3Available(): Promise<boolean> {
   try {
     const file = globalS3Client.file('_health_check_nonexistent');
-    
+
     // Generous promise race timeout (3000ms) to accommodate slower connections.
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const existsPromise = file.exists();

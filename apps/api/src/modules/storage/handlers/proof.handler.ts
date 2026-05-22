@@ -19,7 +19,6 @@ import type { UploadProofContext, ApproveProofContext, RejectProofContext } from
 import { logger } from '@repo/logger';
 import { enqueueJob } from '@/providers/redis/queue';
 import { randomUUIDv7 } from 'bun';
-import type { WorkerJobPayload } from '@repo/types';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];

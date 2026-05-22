@@ -3,7 +3,9 @@
  */
 
 import { BE_ERRORS } from '@repo/errors';
-import type { Debt, DbClient } from '@repo/db';
+import type { Debt } from '@repo/types';
+// eslint-disable-next-line no-restricted-imports
+import { db, type DbClient } from '@repo/db';
 import { DebtRepository } from '@/repositories/debt/debt.repo';
 import { logActivity } from '@/commons/logging/activity-logger';
 import type { AuthenticatedUser } from '@repo/types/api/handler-context';
@@ -39,7 +41,7 @@ export async function confirmDebt(
 
   let updated: Debt;
   try {
-    updated = await (txDb as typeof txDb & { transaction: (fn: (tx: DbClient) => Promise<Debt>) => Promise<Debt> }).transaction(async (tx: DbClient) => {
+    updated = await (txDb as typeof db).transaction(async (tx) => {
       const txDebtRepo = new DebtRepository(tx);
 
       const txDebt = await txDebtRepo.findById(debtId);
@@ -51,12 +53,13 @@ export async function confirmDebt(
       const isCreditor = user.id === txDebt.creditorId;
       const isDebtor = user.id === txDebt.debtorId;
 
-      const updateData: Partial<Debt> & { updatedAt: Date } = {
+      const updateData = {
         updatedAt: new Date(),
         confirmedByCreditor: isCreditor ? true : undefined,
         creditorConfirmedAt: isCreditor ? new Date() : undefined,
         confirmedByDebtor: isDebtor ? true : undefined,
-        debtorConfirmedAt: isDebtor ? new Date() : undefined
+        debtorConfirmedAt: isDebtor ? new Date() : undefined,
+        status: undefined as 'confirmed' | undefined
       };
 
       // If both parties have confirmed, mark as fully confirmed

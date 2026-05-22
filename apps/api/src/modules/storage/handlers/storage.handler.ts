@@ -18,7 +18,6 @@ import { apiSuccess, apiError, apiCreated } from '@/commons/http/response';
 import { logActivity } from '@/commons/logging/activity-logger';
 import { enqueueJob } from '@/providers/redis/queue';
 import { randomUUIDv7 } from 'bun';
-import type { WorkerJobPayload } from '@repo/types';
 
 const MAX_FILE_SIZE = SHARED_CONSTANTS.IMPORT.MAX_FILE_SIZE;
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];

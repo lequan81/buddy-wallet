@@ -3,7 +3,7 @@
  */
 
 import { BE_ERRORS } from '@repo/errors';
-import type { Debt } from '@repo/db';
+import type { Debt } from '@repo/types';
 import type { DebtRepository } from '@/repositories/debt/debt.repo';
 import { logActivity } from '@/commons/logging/activity-logger';
 import type { AuthenticatedUser } from '@repo/types/api/handler-context';
@@ -34,20 +34,15 @@ export async function respondSuggestion(
   const { accept } = body;
 
   if (accept) {
-    const updateData: Partial<Debt> & { updatedAt: Date } = {
+    const updateData = {
       updatedAt: new Date(),
       suggestedAmount: null,
       suggestedDescription: null,
       suggestedById: null,
-      suggestedAt: null
+      suggestedAt: null,
+      amount: debt.suggestedAmount !== null ? debt.suggestedAmount : undefined,
+      description: debt.suggestedDescription !== null ? debt.suggestedDescription : undefined
     };
-
-    if (debt.suggestedAmount !== null) {
-      updateData.amount = debt.suggestedAmount;
-    }
-    if (debt.suggestedDescription !== null) {
-      updateData.description = debt.suggestedDescription;
-    }
 
     const updated = await debtRepo.update(debtId, updateData);
 

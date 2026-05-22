@@ -14,8 +14,6 @@
 import ExcelJS from 'exceljs';
 import { normalizePhoneNumber } from '@repo/utils';
 import type {
-  ParsedSpreadsheet,
-  PreviewResult,
   ValidationResult,
   ColumnMapping,
   ParseResult

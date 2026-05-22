@@ -11,7 +11,7 @@
 
 import { ActivityRepository } from '@/repositories/system/activity.repo';
 import { logger } from '@repo/logger';
-import type { ActivityAction, ActivityResource, LogActivityParams } from '@repo/types/api';
+import type { LogActivityParams } from '@repo/types/api';
 
 const activityRepo = new ActivityRepository();
 

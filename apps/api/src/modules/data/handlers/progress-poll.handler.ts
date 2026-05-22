@@ -15,6 +15,7 @@ import type { AuthenticatedHandlerContext } from '@repo/types/api/handler-contex
 import { logger } from '@repo/logger';
 import { cache } from '@/providers/redis';
 import { importStorage } from '@/providers/storage/storage';
+import type { ImportPreviewData } from '../types/handler.types';
 
 const importRepo = new ImportRepository(db);
 
@@ -50,18 +51,22 @@ export const progressPoll = {
           // Check if this is a preview log in DB
           const log = await importRepo.getLogById(logId, user.id);
           if (log && log.status === 'preview') {
-            let previewDetails: any = null;
+            let previewDetails: ImportPreviewData | null = null;
             try {
-              previewDetails = await cache.get(`preview_data:${logId}`);
-            } catch {}
+              previewDetails = await cache.get<ImportPreviewData>(`preview_data:${logId}`);
+            } catch {
+              // Ignore cache fetch error
+            }
 
             if (!previewDetails) {
               try {
                 const s3Data = await importStorage.read(`${logId}.json`);
                 if (s3Data) {
-                  previewDetails = JSON.parse(s3Data.toString('utf-8'));
+                  previewDetails = JSON.parse(s3Data.toString('utf-8')) as ImportPreviewData;
                 }
-              } catch {}
+              } catch {
+                // Ignore S3 read error
+              }
             }
 
             if (previewDetails) {
@@ -98,12 +103,12 @@ export const progressPoll = {
           }
         }
 
-        let result: any = undefined;
+        let result: Record<string, unknown> | undefined = undefined;
         if (log.status === 'preview') {
           try {
             const s3Data = await importStorage.read(`${logId}.json`);
             if (s3Data) {
-              const previewDetails = JSON.parse(s3Data.toString('utf-8'));
+              const previewDetails = JSON.parse(s3Data.toString('utf-8')) as ImportPreviewData;
               result = {
                 data: {
                   columnHeaders: previewDetails.columnHeaders,
@@ -114,7 +119,9 @@ export const progressPoll = {
                 }
               };
             }
-          } catch {}
+          } catch {
+            // Ignore S3 read error
+          }
         }
 
         results[logId] = {

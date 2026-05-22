@@ -3,7 +3,7 @@
  */
 
 import { BE_ERRORS } from '@repo/errors';
-import type { Debt } from '@repo/db';
+import type { Debt } from '@repo/types';
 import type { DebtRepository } from '@/repositories/debt/debt.repo';
 import { logActivity } from '@/commons/logging/activity-logger';
 import type { AuthenticatedUser } from '@repo/types/api/handler-context';
