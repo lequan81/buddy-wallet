@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { buttonVariants } from '@repo/ui/components/ui/button';
-	import { Wallet } from '@repo/icons';
+	import { buttonVariants } from '$lib/components/ui/button';
+	import Wallet from '~icons/lucide/wallet';
 
 	let { children } = $props();
 	let user = $derived(page.data.user);

@@ -1,17 +1,16 @@
-import {
-	Dialog,
-	DialogTrigger,
-	DialogClose,
-	DialogTitle,
-	DialogDescription,
-	DialogHeader,
-	DialogFooter,
-	DialogOverlay
-	// We don't export Portal because we use custom one internally
-} from '@repo/ui/components/ui/dialog';
+import { Dialog as DialogPrimitive } from 'bits-ui';
 
 import DialogContent from './dialog-content.svelte';
 import DialogPortal from './custom-portal.svelte';
+import DialogOverlay from './dialog-overlay.svelte';
+import DialogHeader from './dialog-header.svelte';
+import DialogFooter from './dialog-footer.svelte';
+import DialogTitle from './dialog-title.svelte';
+import DialogDescription from './dialog-description.svelte';
+
+const Dialog = DialogPrimitive.Root;
+const DialogTrigger = DialogPrimitive.Trigger;
+const DialogClose = DialogPrimitive.Close;
 
 export {
 	Dialog,

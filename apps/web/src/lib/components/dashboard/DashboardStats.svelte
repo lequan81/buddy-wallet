@@ -1,6 +1,8 @@
 <script lang="ts">
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Users, FileText, Clock } from '@repo/icons';
+	import * as Card from '$lib/components/ui/card';
+	import Users from '~icons/lucide/users';
+import FileText from '~icons/lucide/file-text';
+import Clock from '~icons/lucide/clock';
 	import { resolve } from '$app/paths';
 
 	let { 

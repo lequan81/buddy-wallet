@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Badge } from '@repo/ui/components/ui/badge';
+	import { Badge } from '$lib/components/ui/badge';
 	import { cn } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
 

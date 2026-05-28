@@ -143,7 +143,6 @@ export default defineConfig({
 			'@inlang/paraglide-js'
 		],
 		exclude: [
-			'@repo/ui',
 			'@repo/config',
 			'@repo/config/frontend',
 			'@repo/config/shared',
@@ -154,29 +153,26 @@ export default defineConfig({
 	},
 	ssr: {
 		noExternal: [
-			'@repo/ui',
 			'@repo/config',
 			'@repo/config/shared',
 			'@repo/config/frontend',
 			'@repo/schema',
 			'@repo/errors',
 			'@repo/utils',
-			'@repo/types',
-			'@repo/icons'
+			'@repo/types'
 		],
 		external: ['async_hooks', 'bun'] // Extends Node's async_hooks with Bun to prevent rollup crash on API imports
 	},
 	resolve: {
 		dedupe: ['svelte'],
 		alias: {
-			'@repo/ui/lib/utils.js': path.resolve(__dirname, '../../packages/ui/src/lib/utils.ts'),
 			'@repo/errors': path.resolve(__dirname, '../../packages/errors/src'),
 			'@repo/schema': path.resolve(__dirname, '../../packages/schema/src'),
 			'@repo/utils': path.resolve(__dirname, '../../packages/utils/src'),
 			'@repo/types': path.resolve(__dirname, '../../packages/types/src'),
 			'@repo/config': path.resolve(__dirname, '../../packages/config/src')
 		},
-		extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.svelte']
+		extensions: ['.ts', '.svelte']
 	},
 	cacheDir: '.vite',
 	server: {

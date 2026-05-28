@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Plus } from '@repo/icons';
-	import { Button } from '@repo/ui/components/ui/button';
+	import Plus from '~icons/lucide/plus';
+	import { Button } from '$lib/components/ui/button';
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import type { PageData } from './$types';

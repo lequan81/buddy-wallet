@@ -4,8 +4,8 @@
 
 	import { untrack } from 'svelte'; 
 	import { invalidateAll } from '$app/navigation';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Button } from '@repo/ui/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import QuickActions from '$lib/components/dashboard/QuickActions.svelte';
@@ -18,12 +18,10 @@
 	import DashboardStats from '$lib/components/dashboard/DashboardStats.svelte';
 	import DebtsTable from '$lib/components/dashboard/DebtsTable.svelte';
 	
-	import {
-		Plus,
-		Download,
-		FileSpreadsheet,
-		Clock
-	} from '@repo/icons';
+	import Plus from '~icons/lucide/plus';
+import Download from '~icons/lucide/download';
+import FileSpreadsheet from '~icons/lucide/file-spreadsheet';
+import Clock from '~icons/lucide/clock';
 
 	let { data }: { data: PageData } = $props();
 

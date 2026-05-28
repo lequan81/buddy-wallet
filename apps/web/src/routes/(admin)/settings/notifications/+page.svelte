@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { updateNotifications } from '$lib/remotes/notifications.remote';
-	import { AlertTriangle, Bell, Mail } from '@repo/icons';
+	import AlertTriangle from '~icons/lucide/alert-triangle';
+import Bell from '~icons/lucide/bell';
+import Mail from '~icons/lucide/mail';
 // ...
 	import { toast } from 'svelte-sonner';
-	import { Button } from '@repo/ui/components/ui/button';
-	import { Label } from '@repo/ui/components/ui/label';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Separator } from '@repo/ui/components/ui/separator';
-	import { Switch } from '@repo/ui/components/ui/switch';
+	import { Button } from '$lib/components/ui/button';
+	import { Label } from '$lib/components/ui/label';
+	import * as Card from '$lib/components/ui/card';
+	import { Separator } from '$lib/components/ui/separator';
+	import { Switch } from '$lib/components/ui/switch';
 
 	let { data } = $props();
 

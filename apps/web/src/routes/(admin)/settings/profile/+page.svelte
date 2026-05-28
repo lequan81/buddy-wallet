@@ -1,12 +1,14 @@
 <script lang="ts">
-	import { Phone, User, Pencil } from '@repo/icons';
+	import Phone from '~icons/lucide/phone';
+import User from '~icons/lucide/user';
+import Pencil from '~icons/lucide/pencil';
 	import { updateProfile } from '$lib/remotes/profile.remote';
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
-	import { Button } from '@repo/ui/components/ui/button';
-	import { Label } from '@repo/ui/components/ui/label';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Separator } from '@repo/ui/components/ui/separator';
+	import { Button } from '$lib/components/ui/button';
+	import { Label } from '$lib/components/ui/label';
+	import * as Card from '$lib/components/ui/card';
+	import { Separator } from '$lib/components/ui/separator';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 	import { getParam } from '$lib/services/navigation';
 	import { ProfileState } from './profile-state.svelte';

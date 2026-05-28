@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { Dialog as DialogPrimitive } from 'bits-ui';
 	import DialogPortal from './custom-portal.svelte';
-	import { DialogOverlay } from '@repo/ui/components/ui/dialog';
+	import DialogOverlay from './dialog-overlay.svelte';
 	import { cn } from '$lib/utils';
-	import { X as XIcon } from '@repo/icons';
+	import XIcon from '~icons/lucide/x';
 	import type { Snippet } from 'svelte';
 	import type { ComponentProps } from 'svelte';
 

@@ -12,7 +12,7 @@ const databasePath = process.env.DATABASE_URL
   : resolve(__dirname, '../../data/buddy-wallet.sqlite');
 
 export default defineConfig({
-  schema: './src/schema/index.ts',
+  schema: '../schema/src/db/index.ts',
   out: './drizzle',
   dialect: 'sqlite',
   verbose: true,

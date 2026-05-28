@@ -37,7 +37,6 @@ const config = {
 		adapter: adapter(),
 		alias: {
 			$contents: 'src/contents',
-			'@repo/icons': '../../packages/icons/src',
 			'@repo/config': '../../packages/config/src',
 			'@repo/utils': '../../packages/utils/src',
 			'@repo/schema': '../../packages/schema/src',

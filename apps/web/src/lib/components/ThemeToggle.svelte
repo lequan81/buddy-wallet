@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { Moon, Sun } from '@repo/icons';
-	import { Button } from '@repo/ui/components/ui/button';
+	import Moon from '~icons/lucide/moon';
+import Sun from '~icons/lucide/sun';
+	import { Button } from '$lib/components/ui/button';
 	import { useTheme } from '$lib/hooks';
 	import { cn } from '$lib/utils';
 

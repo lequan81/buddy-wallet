@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { AlertTriangle, Loader2, Lock } from '@repo/icons';
+	import AlertTriangle from '~icons/lucide/alert-triangle';
+import Loader2 from '~icons/lucide/loader2';
+import Lock from '~icons/lucide/lock';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
-	import * as Alert from '@repo/ui/components/ui/alert';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import * as Alert from '$lib/components/ui/alert';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 	import { cn } from '$lib/utils';
 

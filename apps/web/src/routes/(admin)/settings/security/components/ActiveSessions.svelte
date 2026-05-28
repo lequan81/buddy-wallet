@@ -1,7 +1,10 @@
 <script lang="ts">
-	import { LogOut, Monitor, Smartphone, Tablet } from '@repo/icons';
+	import LogOut from '~icons/lucide/log-out';
+import Monitor from '~icons/lucide/monitor';
+import Smartphone from '~icons/lucide/smartphone';
+import Tablet from '~icons/lucide/tablet';
 	import { formatDate } from '@repo/utils/format';
-	import { Button } from '@repo/ui/components/ui/button';
+	import { Button } from '$lib/components/ui/button';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { toast } from 'svelte-sonner';
 	import { logoutAll } from '$lib/remotes/security.remote';

@@ -1,11 +1,18 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ExternalLink, FileSpreadsheet, Loader2, X } from '@repo/icons';
+	import AlertCircle from '~icons/lucide/alert-circle';
+import CheckCircle from '~icons/lucide/check-circle';
+import ChevronDown from '~icons/lucide/chevron-down';
+import ChevronUp from '~icons/lucide/chevron-up';
+import ExternalLink from '~icons/lucide/external-link';
+import FileSpreadsheet from '~icons/lucide/file-spreadsheet';
+import Loader2 from '~icons/lucide/loader2';
+import X from '~icons/lucide/x';
 	import { goto } from '$app/navigation';
 	import { importProgress } from '$lib/stores/import-progress.svelte';
 	import { slide } from 'svelte/transition';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
 	import { cn } from '$lib/utils';
 
 	let expanded = $state(true);

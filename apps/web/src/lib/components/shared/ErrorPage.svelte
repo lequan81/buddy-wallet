@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { AlertCircle, ArrowLeft, HelpCircle, Home, Loader2, RotateCcw, Wallet } from '@repo/icons';
+	import AlertCircle from '~icons/lucide/alert-circle';
+import ArrowLeft from '~icons/lucide/arrow-left';
+import HelpCircle from '~icons/lucide/help-circle';
+import Home from '~icons/lucide/home';
+import Loader2 from '~icons/lucide/loader2';
+import RotateCcw from '~icons/lucide/rotate-ccw';
+import Wallet from '~icons/lucide/wallet';
 	import { invalidateAll, afterNavigate } from '$app/navigation';
 	import { getErrorInfo, getErrorMessage } from '$lib/errors';
 	import { cn } from '$lib/utils';

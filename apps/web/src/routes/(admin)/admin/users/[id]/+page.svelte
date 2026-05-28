@@ -1,6 +1,15 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ArrowLeft, Calendar, DollarSign, Phone, Shield, TrendingDown, TrendingUp, User, UserCheck, UserX } from '@repo/icons';
+	import ArrowLeft from '~icons/lucide/arrow-left';
+import Calendar from '~icons/lucide/calendar';
+import DollarSign from '~icons/lucide/dollar-sign';
+import Phone from '~icons/lucide/phone';
+import Shield from '~icons/lucide/shield';
+import TrendingDown from '~icons/lucide/trending-down';
+import TrendingUp from '~icons/lucide/trending-up';
+import User from '~icons/lucide/user';
+import UserCheck from '~icons/lucide/user-check';
+import UserX from '~icons/lucide/user-x';
 	import { invalidateAll } from '$app/navigation';
 	import { formatCurrency, formatDate } from '@repo/utils/format';
 	import { DEBT_STATUS } from '@repo/config/shared/status';

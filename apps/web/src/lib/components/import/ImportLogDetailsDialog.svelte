@@ -1,7 +1,9 @@
 <script lang="ts">
-	import * as Dialog from '@repo/ui/components/ui/dialog';
-	import { Button } from '@repo/ui/components/ui/button';
-	import { FileSpreadsheet, Settings2, Eye } from '@repo/icons';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import { Button } from '$lib/components/ui/button';
+	import FileSpreadsheet from '~icons/lucide/file-spreadsheet';
+import Settings2 from '~icons/lucide/settings-2';
+import Eye from '~icons/lucide/eye';
 	import type { ImportLog } from '@repo/types/shared/import';
 	import { formatDate } from '$lib/utils/status';
 	import { goto } from '$app/navigation';

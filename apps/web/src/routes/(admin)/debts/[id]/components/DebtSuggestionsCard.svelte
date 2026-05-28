@@ -1,8 +1,10 @@
 <script lang="ts">
-	import { Check, X, Clock } from '@repo/icons';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Button } from '@repo/ui/components/ui/button';
-	import { Badge } from '@repo/ui/components/ui/badge';
+	import Check from '~icons/lucide/check';
+import X from '~icons/lucide/x';
+import Clock from '~icons/lucide/clock';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import { formatCurrency } from '@repo/utils/format';
 	import { api } from '$lib/services/api';
 	import { toast } from 'svelte-sonner';

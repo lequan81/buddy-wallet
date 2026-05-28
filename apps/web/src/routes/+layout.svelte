@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { AlertTriangle, X } from '@repo/icons';
+	import AlertTriangle from '~icons/lucide/alert-triangle';
+import X from '~icons/lucide/x';
 	import { onMount } from 'svelte';
 	import { onNavigate } from '$app/navigation';
 	import { Toaster } from 'svelte-sonner';
@@ -8,7 +9,6 @@
 	import GlobalProgressToast from '$lib/components/shared/GlobalProgressToast.svelte';
 	import ErrorBoundary from '$lib/components/shared/ErrorBoundary.svelte';
 	import favicon from '$lib/assets/favicon.svg';
-	import '@repo/ui/layout.css';
 	import '../app.css';
 
 	let mounted = $state(false);

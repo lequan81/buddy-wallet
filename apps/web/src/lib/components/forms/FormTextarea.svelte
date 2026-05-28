@@ -1,7 +1,9 @@
 ﻿<script lang="ts">
-	import { AlertCircle, AlertTriangle, CheckCircle2 } from '@repo/icons';
-	import { Textarea } from '@repo/ui/components/ui/textarea';
-	import { Label } from '@repo/ui/components/ui/label';
+	import AlertCircle from '~icons/lucide/alert-circle';
+import AlertTriangle from '~icons/lucide/alert-triangle';
+import CheckCircle2 from '~icons/lucide/check-circle-2';
+	import { Textarea } from '$lib/components/ui/textarea';
+	import { Label } from '$lib/components/ui/label';
 	import { cn } from '$lib/utils';
 
 	import type { HTMLTextareaAttributes } from 'svelte/elements';

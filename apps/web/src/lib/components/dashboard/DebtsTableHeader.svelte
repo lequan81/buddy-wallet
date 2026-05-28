@@ -1,6 +1,10 @@
 <script lang="ts">
-	import * as Table from '@repo/ui/components/ui/table';
-	import { CheckSquare, Square, ArrowUp, ArrowDown, ArrowUpDown } from '@repo/icons';
+	import * as Table from '$lib/components/ui/table';
+	import CheckSquare from '~icons/lucide/check-square';
+import Square from '~icons/lucide/square';
+import ArrowUp from '~icons/lucide/arrow-up';
+import ArrowDown from '~icons/lucide/arrow-down';
+import ArrowUpDown from '~icons/lucide/arrow-up-down';
 
 	interface Props {
 		readonly dashState: any;

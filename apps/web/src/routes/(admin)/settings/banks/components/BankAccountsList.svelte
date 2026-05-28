@@ -1,8 +1,10 @@
 <script lang="ts">
-	import { Landmark, Pencil, Trash2 } from '@repo/icons';
+	import Landmark from '~icons/lucide/landmark';
+import Pencil from '~icons/lucide/pencil';
+import Trash2 from '~icons/lucide/trash-2';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Button } from '@repo/ui/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
 	import type { BankAccount } from '@repo/types/shared/bank';

@@ -1,6 +1,8 @@
 ﻿<script lang="ts">
-	import { ArrowDown, ArrowUp, TrendingUp } from '@repo/icons';
-	import * as Card from '@repo/ui/components/ui/card';
+	import ArrowDown from '~icons/lucide/arrow-down';
+import ArrowUp from '~icons/lucide/arrow-up';
+import TrendingUp from '~icons/lucide/trending-up';
+	import * as Card from '$lib/components/ui/card';
 	import { cn } from '$lib/utils';
 	import { formatCurrency } from '@repo/utils/format';
 

@@ -1,8 +1,10 @@
 <script lang="ts" generics="T extends Record<string, unknown>, U extends FormPath<T>">
-	import * as Form from '@repo/ui/components/ui/form';
-	import { Input } from '@repo/ui/components/ui/input';
+	import * as Form from '$lib/components/ui/form';
+	import { Input } from '$lib/components/ui/input';
 	import { cn } from '$lib/utils';
-	import { AlertCircle, Eye, EyeOff } from '@repo/icons';
+	import AlertCircle from '~icons/lucide/alert-circle';
+import Eye from '~icons/lucide/eye';
+import EyeOff from '~icons/lucide/eye-off';
 	import type { FormPath } from 'sveltekit-superforms';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import type { Component } from 'svelte';

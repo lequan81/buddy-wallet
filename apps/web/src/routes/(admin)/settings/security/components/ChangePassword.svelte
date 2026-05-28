@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Key } from '@repo/icons';
-	import { Button } from '@repo/ui/components/ui/button';
+	import Key from '~icons/lucide/key';
+	import { Button } from '$lib/components/ui/button';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 	import { changePassword } from '$lib/remotes/security.remote';
 	import { toast } from 'svelte-sonner';

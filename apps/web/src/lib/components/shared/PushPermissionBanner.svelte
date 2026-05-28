@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { Bell, Loader2, X } from '@repo/icons';
+	import Bell from '~icons/lucide/bell';
+import Loader2 from '~icons/lucide/loader2';
+import X from '~icons/lucide/x';
 	import { onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
 	import {

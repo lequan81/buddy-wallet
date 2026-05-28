@@ -1,7 +1,12 @@
 <script lang="ts">
-	import { FileSpreadsheet, Upload, Loader2, CheckCircle, AlertTriangle, X } from '@repo/icons';
-	import { Button } from '@repo/ui/components/ui/button';
-	import { Progress } from '@repo/ui/components/ui/progress';
+	import FileSpreadsheet from '~icons/lucide/file-spreadsheet';
+import Upload from '~icons/lucide/upload';
+import Loader2 from '~icons/lucide/loader2';
+import CheckCircle from '~icons/lucide/check-circle';
+import AlertTriangle from '~icons/lucide/alert-triangle';
+import X from '~icons/lucide/x';
+	import { Button } from '$lib/components/ui/button';
+	import { Progress } from '$lib/components/ui/progress';
 	import type { UploadState } from '$lib/types';
 
 	let {

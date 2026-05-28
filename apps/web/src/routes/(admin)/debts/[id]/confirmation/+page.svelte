@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ArrowRight, CheckCircle, Home, PartyPopper, TrendingDown, TrendingUp } from '@repo/icons';
-	import { Button } from '@repo/ui/components/ui/button';
+	import ArrowRight from '~icons/lucide/arrow-right';
+import CheckCircle from '~icons/lucide/check-circle';
+import Home from '~icons/lucide/home';
+import PartyPopper from '~icons/lucide/party-popper';
+import TrendingDown from '~icons/lucide/trending-down';
+import TrendingUp from '~icons/lucide/trending-up';
+	import { Button } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils';
 	import { formatCurrency } from '@repo/utils/format';
 	import { DEBT_STATUS } from '@repo/config/shared/status';

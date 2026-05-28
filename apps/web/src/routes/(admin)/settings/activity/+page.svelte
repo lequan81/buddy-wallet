@@ -1,12 +1,26 @@
 <script lang="ts">
-	import { Activity, AlertTriangle, Check, Edit, FileText, LogIn, LogOut, Plus, Shield, Trash2, User, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from '@repo/icons';
+	import Activity from '~icons/lucide/activity';
+import AlertTriangle from '~icons/lucide/alert-triangle';
+import Check from '~icons/lucide/check';
+import Edit from '~icons/lucide/edit';
+import FileText from '~icons/lucide/file-text';
+import LogIn from '~icons/lucide/log-in';
+import LogOut from '~icons/lucide/log-out';
+import Plus from '~icons/lucide/plus';
+import Shield from '~icons/lucide/shield';
+import Trash2 from '~icons/lucide/trash-2';
+import User from '~icons/lucide/user';
+import ChevronLeft from '~icons/lucide/chevron-left';
+import ChevronRight from '~icons/lucide/chevron-right';
+import ChevronsLeft from '~icons/lucide/chevrons-left';
+import ChevronsRight from '~icons/lucide/chevrons-right';
 	import { formatDate } from '@repo/utils/format';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Button } from '@repo/ui/components/ui/button';
-	import { Separator } from '@repo/ui/components/ui/separator';
-	import * as Select from '@repo/ui/components/ui/select';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import { Separator } from '$lib/components/ui/separator';
+	import * as Select from '$lib/components/ui/select';
 	import { cn } from '$lib/utils';
 
 	let { data } = $props();

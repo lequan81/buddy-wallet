@@ -1,9 +1,13 @@
 <script lang="ts">
-	import { AlertCircle, CheckCircle2, Clock, Cpu, Users } from '@repo/icons';
+	import AlertCircle from '~icons/lucide/alert-circle';
+import CheckCircle2 from '~icons/lucide/check-circle-2';
+import Clock from '~icons/lucide/clock';
+import Cpu from '~icons/lucide/cpu';
+import Users from '~icons/lucide/users';
 	import { invalidateAll } from '$app/navigation';
 	import { onDestroy, onMount } from 'svelte';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Progress } from '@repo/ui/components/ui/progress';
+	import * as Card from '$lib/components/ui/card';
+	import { Progress } from '$lib/components/ui/progress';
 	import { cn } from '$lib/utils';
 
 	let { data } = $props();

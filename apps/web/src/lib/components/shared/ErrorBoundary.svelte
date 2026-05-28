@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { AlertTriangle, RotateCcw, Loader2 } from '@repo/icons';
+	import AlertTriangle from '~icons/lucide/alert-triangle';
+import RotateCcw from '~icons/lucide/rotate-ccw';
+import Loader2 from '~icons/lucide/loader2';
 	/**
 	 * ErrorBoundary Component
 	 *

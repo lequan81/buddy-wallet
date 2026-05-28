@@ -1,7 +1,7 @@
 <script lang="ts">
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
-	import { Separator } from '@repo/ui/components/ui/separator';
-	import { Button } from '@repo/ui/components/ui/button';
+	import { Separator } from '$lib/components/ui/separator';
+	import { Button } from '$lib/components/ui/button';
 	import type { PageData } from './$types';
 	
 	// Sub-components

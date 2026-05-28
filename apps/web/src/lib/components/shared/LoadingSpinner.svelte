@@ -1,5 +1,5 @@
 ﻿<script lang="ts">
-	import { Loader2 } from '@repo/icons';
+	import Loader2 from '~icons/lucide/loader2';
 	import { cn } from '$lib/utils';
 
 	let {

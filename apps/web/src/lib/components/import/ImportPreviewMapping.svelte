@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { Settings2, Loader2 } from '@repo/icons';
-	import { Button } from '@repo/ui/components/ui/button';
-	import { Input } from '@repo/ui/components/ui/input';
-	import { Label } from '@repo/ui/components/ui/label';
-	import * as Card from '@repo/ui/components/ui/card';
-	import * as Table from '@repo/ui/components/ui/table';
-	import * as Select from '@repo/ui/components/ui/select';
+	import Settings2 from '~icons/lucide/settings-2';
+import Loader2 from '~icons/lucide/loader2';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Card from '$lib/components/ui/card';
+	import * as Table from '$lib/components/ui/table';
+	import * as Select from '$lib/components/ui/select';
 	import type { UploadState } from '$lib/types';
 
 	let {

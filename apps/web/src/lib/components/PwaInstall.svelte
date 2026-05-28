@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { Download } from '@repo/icons';
+	import Download from '~icons/lucide/download';
 	import { onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
-	import { Button } from '@repo/ui/components/ui/button';
+	import { Button } from '$lib/components/ui/button';
 	import { getCookie, setCookie } from '$lib/utils/cookie-utils';
 
 	interface BeforeInstallPromptEvent extends Event {

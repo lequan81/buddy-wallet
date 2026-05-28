@@ -1,8 +1,11 @@
 <script lang="ts">
-	import * as Table from '@repo/ui/components/ui/table';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
-	import { CheckSquare, Square, Eye, Trash2 } from '@repo/icons';
+	import * as Table from '$lib/components/ui/table';
+	import { Button } from '$lib/components/ui/button';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import CheckSquare from '~icons/lucide/check-square';
+import Square from '~icons/lucide/square';
+import Eye from '~icons/lucide/eye';
+import Trash2 from '~icons/lucide/trash-2';
 	import { formatCurrency, formatDate } from '@repo/utils/format';
 	import { cn } from '$lib/utils';
 	import { resolve } from '$app/paths';

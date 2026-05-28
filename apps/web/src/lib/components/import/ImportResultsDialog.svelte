@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { ExternalLink, FileSpreadsheet } from '@repo/icons';
+	import ExternalLink from '~icons/lucide/external-link';
+import FileSpreadsheet from '~icons/lucide/file-spreadsheet';
 	import { createEventDispatcher } from 'svelte';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Badge } from '@repo/ui/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Badge } from '$lib/components/ui/badge';
 	import { formatDate } from '@repo/utils/format';
 	import type { ImportLog, ImportDetailResult } from '@repo/types/shared/import';
 	import { getImportResults } from '$lib/remotes/import.remote';

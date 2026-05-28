@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { Activity } from '@repo/icons';
-	import * as Card from '@repo/ui/components/ui/card';
-	import * as Table from '@repo/ui/components/ui/table';
-	import { Badge } from '@repo/ui/components/ui/badge';
+	import Activity from '~icons/lucide/activity';
+	import * as Card from '$lib/components/ui/card';
+	import * as Table from '$lib/components/ui/table';
+	import { Badge } from '$lib/components/ui/badge';
 	import { formatDuration, TRACE_STATUS_COLORS, cn } from '$lib/utils';
 
 	interface Trace {

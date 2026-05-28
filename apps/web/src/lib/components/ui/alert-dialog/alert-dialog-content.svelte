@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { AlertDialog as AlertDialogPrimitive } from 'bits-ui';
 	import AlertDialogPortal from './alert-dialog-portal.svelte';
-	import { AlertDialogOverlay } from '@repo/ui/components/ui/alert-dialog';
+	import AlertDialogOverlay from './alert-dialog-overlay.svelte';
 	import { cn } from '$lib/utils';
-	import type { ComponentProps, Snippet } from 'svelte';
+	import type { ComponentProps } from 'svelte';
 
 	// Define types compatible with bits-ui
 	type ContentProps = ComponentProps<typeof AlertDialogPrimitive.Content>;

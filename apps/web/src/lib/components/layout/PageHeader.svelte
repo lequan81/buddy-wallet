@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Separator } from '@repo/ui/components/ui/separator';
+	import { Separator } from '$lib/components/ui/separator';
 	import { cn } from '$lib/utils';
 	import type { Snippet } from 'svelte';
 

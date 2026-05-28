@@ -1,7 +1,11 @@
 <script lang="ts">
-	import { AlertCircle, AlertTriangle, CheckCircle2, Eye, EyeOff } from '@repo/icons';
-	import { Input } from '@repo/ui/components/ui/input';
-	import { Label } from '@repo/ui/components/ui/label';
+	import AlertCircle from '~icons/lucide/alert-circle';
+import AlertTriangle from '~icons/lucide/alert-triangle';
+import CheckCircle2 from '~icons/lucide/check-circle-2';
+import Eye from '~icons/lucide/eye';
+import EyeOff from '~icons/lucide/eye-off';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 	import { cn } from '$lib/utils';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import type { Component } from 'svelte';

@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@repo/ui/components/ui/card';
-	import { Button } from '@repo/ui/components/ui/button';
-	import { AlertTriangle, Clock, Mail } from '@repo/icons';
+	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import AlertTriangle from '~icons/lucide/alert-triangle';
+import Clock from '~icons/lucide/clock';
+import Mail from '~icons/lucide/mail';
 	import { getParam } from '$lib/services/navigation';
 	import { formatDate } from '@repo/utils/format';
 

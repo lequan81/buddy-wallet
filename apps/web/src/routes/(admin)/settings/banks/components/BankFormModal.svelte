@@ -1,8 +1,8 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
-	import { Button } from '@repo/ui/components/ui/button';
-	import { Label } from '@repo/ui/components/ui/label';
-	import * as Select from '@repo/ui/components/ui/select';
+	import { Button } from '$lib/components/ui/button';
+	import { Label } from '$lib/components/ui/label';
+	import * as Select from '$lib/components/ui/select';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 	import { api } from '$lib/services/api';
 	import type { VietQRBank } from '@repo/types/shared/bank';

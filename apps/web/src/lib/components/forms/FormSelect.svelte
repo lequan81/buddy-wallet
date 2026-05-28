@@ -1,7 +1,9 @@
 ﻿<script lang="ts">
-	import { AlertCircle, AlertTriangle, CheckCircle2 } from '@repo/icons';
-	import { Label } from '@repo/ui/components/ui/label';
-	import * as Select from '@repo/ui/components/ui/select';
+	import AlertCircle from '~icons/lucide/alert-circle';
+import AlertTriangle from '~icons/lucide/alert-triangle';
+import CheckCircle2 from '~icons/lucide/check-circle-2';
+	import { Label } from '$lib/components/ui/label';
+	import * as Select from '$lib/components/ui/select';
 	import { cn } from '$lib/utils';
 
 	let {

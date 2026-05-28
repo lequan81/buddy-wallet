@@ -1,12 +1,21 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Eye, Phone, Search, User, UserCheck, UserX } from '@repo/icons';
+	import ChevronLeft from '~icons/lucide/chevron-left';
+import ChevronRight from '~icons/lucide/chevron-right';
+import ChevronsLeft from '~icons/lucide/chevrons-left';
+import ChevronsRight from '~icons/lucide/chevrons-right';
+import Eye from '~icons/lucide/eye';
+import Phone from '~icons/lucide/phone';
+import Search from '~icons/lucide/search';
+import User from '~icons/lucide/user';
+import UserCheck from '~icons/lucide/user-check';
+import UserX from '~icons/lucide/user-x';
 
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { useDebounce } from '$lib/hooks/use-debounce.svelte';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Select from '@repo/ui/components/ui/select';
+	import { Button } from '$lib/components/ui/button';
+	import * as Select from '$lib/components/ui/select';
 	import { cn } from '$lib/utils';
 
 	import { type PageData } from './$types';

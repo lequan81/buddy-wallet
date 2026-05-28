@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Shield, AlertTriangle } from '@repo/icons';
+	import Shield from '~icons/lucide/shield';
+import AlertTriangle from '~icons/lucide/alert-triangle';
 </script>
 
 <div class="rounded-lg border bg-muted/30 p-4">

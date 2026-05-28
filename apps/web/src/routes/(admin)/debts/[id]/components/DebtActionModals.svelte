@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Button } from '@repo/ui/components/ui/button';
+	import { Button } from '$lib/components/ui/button';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 	import { updateDebt, suggestEdit } from '$lib/remotes/debts.remote';
 	import { api } from '$lib/services/api';

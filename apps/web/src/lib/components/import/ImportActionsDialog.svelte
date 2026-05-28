@@ -1,9 +1,11 @@
 <script lang="ts">
-	import { Download, FileText, Share } from '@repo/icons';
+	import Download from '~icons/lucide/download';
+import FileText from '~icons/lucide/file-text';
+import Share from '~icons/lucide/share';
 	import { createEventDispatcher } from 'svelte';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Badge } from '@repo/ui/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Badge } from '$lib/components/ui/badge';
 	import { formatDate } from '@repo/utils/format';
 	import type { ImportLog } from '@repo/types/shared/import';
 	import { getImportExport } from '$lib/remotes/import.remote';

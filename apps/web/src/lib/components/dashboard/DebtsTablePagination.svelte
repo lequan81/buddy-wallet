@@ -1,7 +1,10 @@
 <script lang="ts">
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Select from '@repo/ui/components/ui/select';
-	import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from '@repo/icons';
+	import { Button } from '$lib/components/ui/button';
+	import * as Select from '$lib/components/ui/select';
+	import ChevronsLeft from '~icons/lucide/chevrons-left';
+import ChevronLeft from '~icons/lucide/chevron-left';
+import ChevronRight from '~icons/lucide/chevron-right';
+import ChevronsRight from '~icons/lucide/chevrons-right';
 
 	interface Props {
 		readonly dashState: any;

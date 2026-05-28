@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { ArrowLeft } from '@repo/icons';
+	import ArrowLeft from '~icons/lucide/arrow-left';
 	import { onMount, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { enhance } from '$app/forms';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
 	import { api } from '$lib/services/api';
 	import { unwrapData, unwrapPagination } from '$lib/services/api-helpers';
 	import { importProgress } from '$lib/stores/import-progress.svelte';

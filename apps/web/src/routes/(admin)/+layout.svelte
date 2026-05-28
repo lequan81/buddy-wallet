@@ -5,10 +5,10 @@
 	import { preloadData } from '$app/navigation';
 	import { onMount, type Snippet } from 'svelte';
 	
-	import * as DropdownMenu from '@repo/ui/components/ui/dropdown-menu';
-	import * as Avatar from '@repo/ui/components/ui/avatar';
-	import * as Sheet from '@repo/ui/components/ui/sheet';
-	import { Button } from '@repo/ui/components/ui/button';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as Avatar from '$lib/components/ui/avatar';
+	import * as Sheet from '$lib/components/ui/sheet';
+	import { Button } from '$lib/components/ui/button';
 	
 	import PushPermissionBanner from '$lib/components/shared/PushPermissionBanner.svelte';
 	import PwaInstall from '$lib/components/PwaInstall.svelte';
@@ -16,20 +16,18 @@
 	import { getCookie, setCookie } from '$lib/utils/cookie-utils';
 
 	// Icons
-	import {
-		LayoutDashboard,
-		Server,
-		Activity,
-		Users,
-		FileText,
-		User as UserIcon,
-		Shield,
-		Bell,
-		Wallet,
-		Menu,
-		LogOut,
-		X
-	} from '@repo/icons';
+	import LayoutDashboard from '~icons/lucide/layout-dashboard';
+import Server from '~icons/lucide/server';
+import Activity from '~icons/lucide/activity';
+import Users from '~icons/lucide/users';
+import FileText from '~icons/lucide/file-text';
+import UserIcon from '~icons/lucide/user';
+import Shield from '~icons/lucide/shield';
+import Bell from '~icons/lucide/bell';
+import Wallet from '~icons/lucide/wallet';
+import Menu from '~icons/lucide/menu';
+import LogOut from '~icons/lucide/log-out';
+import X from '~icons/lucide/x';
 
 	let { children, data } = $props<{ children: Snippet; data: Record<string, unknown> }>();
 	

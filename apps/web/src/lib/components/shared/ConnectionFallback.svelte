@@ -1,7 +1,9 @@
 <script lang="ts">
-	import { AlertTriangle, RefreshCw, WifiOff } from '@repo/icons';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
+	import AlertTriangle from '~icons/lucide/alert-triangle';
+import RefreshCw from '~icons/lucide/refresh-cw';
+import WifiOff from '~icons/lucide/wifi-off';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
 
 	interface Props {
 		onRetry: () => void;

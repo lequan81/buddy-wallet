@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { CheckCircle, Loader2, Mail, Phone } from '@repo/icons';
+	import CheckCircle from '~icons/lucide/check-circle';
+import Loader2 from '~icons/lucide/loader2';
+import Mail from '~icons/lucide/mail';
+import Phone from '~icons/lucide/phone';
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
 	import { emailSchema, phoneSchema, validateField } from '@repo/schema/dto/auth';

@@ -1,6 +1,9 @@
 <script lang="ts">
-	import { Circle, CheckCircle2, XCircle, Clock } from '@repo/icons';
-	import * as Card from '@repo/ui/components/ui/card';
+	import Circle from '~icons/lucide/circle';
+import CheckCircle2 from '~icons/lucide/check-circle-2';
+import XCircle from '~icons/lucide/x-circle';
+import Clock from '~icons/lucide/clock';
+	import * as Card from '$lib/components/ui/card';
 	import { formatDate } from '@repo/utils/format';
 	import type { DebtDetails } from '@repo/types/shared/debt';
 

@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { Loader2, ShieldCheck } from '@repo/icons';
+	import Loader2 from '~icons/lucide/loader2';
+import ShieldCheck from '~icons/lucide/shield-check';
 	import { toast } from 'svelte-sonner';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
 	import { createTreatyClient } from '$lib/services/api';
 		import { goto } from '$app/navigation';
 

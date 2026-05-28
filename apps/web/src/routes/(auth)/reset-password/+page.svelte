@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { Loader2, Lock } from '@repo/icons';
+	import Loader2 from '~icons/lucide/loader2';
+import Lock from '~icons/lucide/lock';
 	import { toast } from 'svelte-sonner';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
 	import { resetPasswordRemote } from '$lib/remotes/auth.remote';

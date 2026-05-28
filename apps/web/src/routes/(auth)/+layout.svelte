@@ -1,6 +1,6 @@
 <script>
 	import { resolve } from '$app/paths';
-	import { Wallet } from '@repo/icons';
+	import Wallet from '~icons/lucide/wallet';
 
 	let { children } = $props();
 </script>

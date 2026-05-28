@@ -1,6 +1,6 @@
 {
   "name": "@repo/api",
-  "version": "1.0.50",
+  "version": "1.0.51",
   "scripts": {
     "test": "bun test",
     "lint": "eslint .",
@@ -8,8 +8,7 @@
     "build": "bun build src/index.ts --outdir=dist --target=bun --external @repo/* --external @elysiajs/* --external @bogeychan/* --external @opentelemetry/* --external @minilibs/* --external @upyo/* --sourcemap --minify",
     "generate-types": "dts-bundle-generator --project tsconfig.types.json --no-check --silent -o dist/index.d.ts src/index.ts",
     "start": "bun run dist/index.js",
-    "check-types": "bunx tsc --noEmit && bun run generate-types",
-    "clean": "powershell -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\""
+    "check-types": "bunx tsc --noEmit && bun run generate-types"
   },
   "dependencies": {
     "@bogeychan/elysia-etag": "^0.1.0",
@@ -37,14 +36,14 @@
     "elysia": "^1.4.28",
     "exceljs": "^4.4.0",
     "jose": "^6.2.3",
-    "valibot": "^1.4.0",
+    "valibot": "^1.4.1",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@opentelemetry/api": "^1.9.1",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^25.9.0",
+    "@types/node": "^25.9.1",
     "@types/web-push": "^3.6.4",
     "eslint": "^9.39.4",
     "typescript": "^6.0.3"

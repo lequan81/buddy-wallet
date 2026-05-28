@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Plus, Clock, FileSpreadsheet } from '@repo/icons';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import Plus from '~icons/lucide/plus';
+import Clock from '~icons/lucide/clock';
+import FileSpreadsheet from '~icons/lucide/file-spreadsheet';
 	import { formatDate } from '@repo/utils/format';
 
 	interface RecentDebtItem {

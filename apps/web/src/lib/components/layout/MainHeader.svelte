@@ -1,12 +1,16 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { LayoutDashboard, LogOut, Menu, User, Wallet } from '@repo/icons';
+	import LayoutDashboard from '~icons/lucide/layout-dashboard';
+import LogOut from '~icons/lucide/log-out';
+import Menu from '~icons/lucide/menu';
+import User from '~icons/lucide/user';
+import Wallet from '~icons/lucide/wallet';
 	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
-	import { Button, buttonVariants } from '@repo/ui/components/ui/button';
-	import * as Sheet from '@repo/ui/components/ui/sheet';
-	import * as DropdownMenu from '@repo/ui/components/ui/dropdown-menu';
-	import * as Avatar from '@repo/ui/components/ui/avatar';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
+	import * as Sheet from '$lib/components/ui/sheet';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import * as Avatar from '$lib/components/ui/avatar';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import { cn } from '$lib/utils';
 

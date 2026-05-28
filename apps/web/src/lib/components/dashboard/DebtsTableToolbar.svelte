@@ -1,7 +1,11 @@
 <script lang="ts">
-	import { Search, X, Filter, Trash2, Plus } from '@repo/icons';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
+	import Search from '~icons/lucide/search';
+import X from '~icons/lucide/x';
+import Filter from '~icons/lucide/filter';
+import Trash2 from '~icons/lucide/trash-2';
+import Plus from '~icons/lucide/plus';
+	import { Button } from '$lib/components/ui/button';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { cn } from '$lib/utils';
 	import { api } from '$lib/services/api';
 	import { toast } from 'svelte-sonner';

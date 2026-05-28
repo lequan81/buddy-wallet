@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Card from '@repo/ui/components/ui/card';
+	import * as Card from '$lib/components/ui/card';
 </script>
 
 <!-- Skeleton loading state for dashboard -->

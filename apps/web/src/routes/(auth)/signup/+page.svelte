@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { Check, Circle, Loader2 } from '@repo/icons';
+	import Check from '~icons/lucide/check';
+import Circle from '~icons/lucide/circle';
+import Loader2 from '~icons/lucide/loader2';
 	import { toast } from 'svelte-sonner';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 
 	import { registerRemote } from '$lib/remotes/auth.remote';

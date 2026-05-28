@@ -1,27 +1,25 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { 
-		ArrowLeft, 
-		FileSpreadsheet, 
-		CheckCircle, 
-		XCircle, 
-		Clock,
-		Loader2,
-		Eye,
-		Settings2,
-		HelpCircle,
-		Upload,
-		Info,
-		AlertCircle
-	} from '@repo/icons';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Badge } from '@repo/ui/components/ui/badge';
-	import { Progress } from '@repo/ui/components/ui/progress';
-	import { Input } from '@repo/ui/components/ui/input';
-	import { Label } from '@repo/ui/components/ui/label';
-	import * as Select from '@repo/ui/components/ui/select';
-	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@repo/ui/components/ui/table';
+	import ArrowLeft from '~icons/lucide/arrow-left';
+import FileSpreadsheet from '~icons/lucide/file-spreadsheet';
+import CheckCircle from '~icons/lucide/check-circle';
+import XCircle from '~icons/lucide/x-circle';
+import Clock from '~icons/lucide/clock';
+import Loader2 from '~icons/lucide/loader2';
+import Eye from '~icons/lucide/eye';
+import Settings2 from '~icons/lucide/settings-2';
+import HelpCircle from '~icons/lucide/help-circle';
+import Upload from '~icons/lucide/upload';
+import Info from '~icons/lucide/info';
+import AlertCircle from '~icons/lucide/alert-circle';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Progress } from '$lib/components/ui/progress';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
+	import * as Select from '$lib/components/ui/select';
+	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
 	import { formatDate } from '$lib/utils/status';
 	import { IMPORT_DB_FIELDS } from '@repo/config/shared';
 	import { importProgress } from '$lib/stores/import-progress.svelte';

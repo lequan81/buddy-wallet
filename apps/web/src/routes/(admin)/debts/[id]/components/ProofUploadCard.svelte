@@ -1,7 +1,9 @@
 <script lang="ts">
-	import { Upload, X, Loader2 } from '@repo/icons';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Button } from '@repo/ui/components/ui/button';
+	import Upload from '~icons/lucide/upload';
+import X from '~icons/lucide/x';
+import Loader2 from '~icons/lucide/loader2';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
 	import { uploadProof } from '$lib/remotes/proofs.remote';

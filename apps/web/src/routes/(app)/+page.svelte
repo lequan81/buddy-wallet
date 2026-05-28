@@ -1,13 +1,18 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { goto } from '$app/navigation';
-	import { Button } from '@repo/ui/components/ui/button';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Skeleton } from '@repo/ui/components/ui/skeleton';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 	import { cn } from '$lib/utils';
 
-	import { Phone, Loader2, Users, FileCheck, Lock, Zap } from '@repo/icons';
+	import Phone from '~icons/lucide/phone';
+import Loader2 from '~icons/lucide/loader2';
+import Users from '~icons/lucide/users';
+import FileCheck from '~icons/lucide/file-check';
+import Lock from '~icons/lucide/lock';
+import Zap from '~icons/lucide/zap';
 	import { checkDebtRemote } from '$lib/remotes/auth.remote';
 
 	let { data } = $props();

@@ -30,16 +30,23 @@
     "./adapters": {
       "types": "./src/adapters/index.ts",
       "default": "./src/adapters/index.ts"
+    },
+    "./db": {
+      "types": "./src/db/index.ts",
+      "default": "./src/db/index.ts"
     }
   },
   "dependencies": {
-    "valibot": "^1.0.0"
+    "@paralleldrive/cuid2": "^3.3.0",
+    "drizzle-orm": "^0.45.2",
+    "drizzle-valibot": "^0.2.0",
+    "valibot": "^1.4.1"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "bun-types": "1.3.14",
-    "eslint": "^9.0.0",
-    "typescript": "^6.0.0"
+    "eslint": "^9.39.4",
+    "typescript": "^6.0.3"
   }
 }

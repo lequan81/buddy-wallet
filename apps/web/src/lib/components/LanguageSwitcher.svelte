@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Check, ChevronDown } from '@repo/icons';
+	import Check from '~icons/lucide/check';
+import ChevronDown from '~icons/lucide/chevron-down';
 	import { useLanguage } from '$lib/hooks';
 	import { onMount } from 'svelte';
 	import { cn } from '$lib/utils';

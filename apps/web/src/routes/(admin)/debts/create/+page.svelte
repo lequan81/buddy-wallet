@@ -1,14 +1,20 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { AlertTriangle, ArrowDown, ArrowLeft, ArrowUp, Landmark, Plus, User } from '@repo/icons';
+	import AlertTriangle from '~icons/lucide/alert-triangle';
+import ArrowDown from '~icons/lucide/arrow-down';
+import ArrowLeft from '~icons/lucide/arrow-left';
+import ArrowUp from '~icons/lucide/arrow-up';
+import Landmark from '~icons/lucide/landmark';
+import Plus from '~icons/lucide/plus';
+import User from '~icons/lucide/user';
 	import { goto } from '$app/navigation';
 
-	import { Button } from '@repo/ui/components/ui/button';
-	import { Label } from '@repo/ui/components/ui/label';
-	import * as Card from '@repo/ui/components/ui/card';
-	import * as AlertDialog from '@repo/ui/components/ui/alert-dialog';
-	import { Badge } from '@repo/ui/components/ui/badge';
-	import * as Select from '@repo/ui/components/ui/select';
+	import { Button } from '$lib/components/ui/button';
+	import { Label } from '$lib/components/ui/label';
+	import * as Card from '$lib/components/ui/card';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import { Badge } from '$lib/components/ui/badge';
+	import * as Select from '$lib/components/ui/select';
 
 	import { toast } from 'svelte-sonner';
 	import FormInput from '$lib/components/forms/FormInput.svelte';

@@ -1,6 +1,8 @@
 <script lang="ts">
-	import { ArrowLeft, Check, X } from '@repo/icons';
-	import { Button } from '@repo/ui/components/ui/button';
+	import ArrowLeft from '~icons/lucide/arrow-left';
+import Check from '~icons/lucide/check';
+import X from '~icons/lucide/x';
+	import { Button } from '$lib/components/ui/button';
 	import DebtStatusBadge from '$lib/components/DebtStatusBadge.svelte';
 	import { api } from '$lib/services/api';
 	import { toast } from 'svelte-sonner';

@@ -1,10 +1,17 @@
 <script lang="ts">
-	import { Loader2, Eye, FileSpreadsheet, Settings2, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from '@repo/icons';
-	import { Button } from '@repo/ui/components/ui/button';
-	import { Badge } from '@repo/ui/components/ui/badge';
-	import * as Table from '@repo/ui/components/ui/table';
-	import { Progress } from '@repo/ui/components/ui/progress';
-	import * as Select from '@repo/ui/components/ui/select';
+	import Loader2 from '~icons/lucide/loader2';
+import Eye from '~icons/lucide/eye';
+import FileSpreadsheet from '~icons/lucide/file-spreadsheet';
+import Settings2 from '~icons/lucide/settings-2';
+import ChevronsLeft from '~icons/lucide/chevrons-left';
+import ChevronLeft from '~icons/lucide/chevron-left';
+import ChevronRight from '~icons/lucide/chevron-right';
+import ChevronsRight from '~icons/lucide/chevrons-right';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
+	import * as Table from '$lib/components/ui/table';
+	import { Progress } from '$lib/components/ui/progress';
+	import * as Select from '$lib/components/ui/select';
 	import ConnectionFallback from '$lib/components/shared/ConnectionFallback.svelte';
 	import { cn } from '$lib/utils';
 	import { getImportStatusColor, formatDate } from '$lib/utils/status';

@@ -1,8 +1,9 @@
 <script lang="ts">
-	import * as Card from '@repo/ui/components/ui/card';
-	import * as Table from '@repo/ui/components/ui/table';
-	import { Button } from '@repo/ui/components/ui/button';
-	import { Plus, FileText } from '@repo/icons';
+	import * as Card from '$lib/components/ui/card';
+	import * as Table from '$lib/components/ui/table';
+	import { Button } from '$lib/components/ui/button';
+	import Plus from '~icons/lucide/plus';
+import FileText from '~icons/lucide/file-text';
 	import type { Debt } from '@repo/types/shared/debt';
 	import DebtsTableToolbar from './DebtsTableToolbar.svelte';
 	import DebtsTableHeader from './DebtsTableHeader.svelte';

@@ -1,7 +1,11 @@
 <script lang="ts">
-	import { Calendar, Phone, FileText, Edit, Clock } from '@repo/icons';
-	import * as Card from '@repo/ui/components/ui/card';
-	import { Button } from '@repo/ui/components/ui/button';
+	import Calendar from '~icons/lucide/calendar';
+import Phone from '~icons/lucide/phone';
+import FileText from '~icons/lucide/file-text';
+import Edit from '~icons/lucide/edit';
+import Clock from '~icons/lucide/clock';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
 	import { formatCurrency, formatDate } from '@repo/utils/format';
 	import type { DebtDetails } from '@repo/types/shared/debt';
 

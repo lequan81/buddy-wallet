@@ -1,25 +1,23 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { onMount, untrack } from 'svelte';
-	import * as Dialog from '@repo/ui/components/ui/dialog';
-	import * as Drawer from '@repo/ui/components/ui/drawer';
-	import { Button } from '@repo/ui/components/ui/button';
-	import { Label } from '@repo/ui/components/ui/label';
+	import * as Dialog from '$lib/components/ui/dialog';
+	import * as Drawer from '$lib/components/ui/drawer';
+	import { Button } from '$lib/components/ui/button';
+	import { Label } from '$lib/components/ui/label';
 	import FormInput from '$lib/components/forms/FormInput.svelte';
 	import { toast } from 'svelte-sonner';
 	import { cn } from '$lib/utils';
-	import { Badge } from '@repo/ui/components/ui/badge';
+	import { Badge } from '$lib/components/ui/badge';
 	
-	import {
-		Phone,
-		User as UserIcon,
-		ArrowUp,
-		ArrowDown,
-		ArrowRight,
-		ArrowLeft,
-		Landmark,
-		Loader2
-	} from '@repo/icons';
+	import Phone from '~icons/lucide/phone';
+import UserIcon from '~icons/lucide/user';
+import ArrowUp from '~icons/lucide/arrow-up';
+import ArrowDown from '~icons/lucide/arrow-down';
+import ArrowRight from '~icons/lucide/arrow-right';
+import ArrowLeft from '~icons/lucide/arrow-left';
+import Landmark from '~icons/lucide/landmark';
+import Loader2 from '~icons/lucide/loader2';
 
 	import { createDebtRemote } from '$lib/remotes/debts.remote';
 	import { CreateDebtModalState } from './create-debt-modal-state.svelte';

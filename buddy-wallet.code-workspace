@@ -13,10 +13,6 @@
       "path": "apps/worker"
     },
     {
-      "name": "ui",
-      "path": "packages/ui"
-    },
-    {
       "name": "database",
       "path": "packages/db"
     },
