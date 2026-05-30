@@ -12,27 +12,7 @@ import {
 
 export { API_URL, WEB_URL, getDefaultHeaders, getAuthHeaders, getServerHeaders } from './api-config';
 
-// --- Type Utilities ---
 
-/**
- * Recursive type that unwraps ApiResponse envelopes from Eden Treaty results.
- * This ensures the frontend works with normalized payloads directly.
- *
- * Key fix: preserves intersection types where an endpoint is BOTH callable
- * (for parametrized routes like `debts({ id })`) AND has object properties
- * (for direct routes like `debts.get()`).
- */
-type FlattenTreaty<T> = T extends (...args: infer Args) => infer R
-	? ((...args: Args) => FlattenTreaty<R>) & {
-		[K in keyof T as K extends keyof ((...args: unknown[]) => unknown) ? never : K]: FlattenTreaty<T[K]>
-	  }
-	: T extends Promise<infer R>
-	? Promise<FlattenTreaty<R>>
-	: T extends { data: infer D; error: infer E; status: infer S; response: infer Res }
-	? { data: D; error: E; status: S; response: Res }
-	: T extends object
-	? { [K in keyof T]: FlattenTreaty<T[K]> }
-	: T;
 
 // Shared refresh logic — single source of truth (prevents dual refresh races)
 import { refreshAccessToken } from './auth-refresh';
@@ -95,8 +75,7 @@ export const createTreatyClient = (
 		}
 	});
 
-	// Cast to a function/object-preserving type without modifying runtime payload shape
-	return client as unknown as FlattenTreaty<typeof client>;
+	return client;
 };
 
 let _api: ReturnType<typeof createTreatyClient> | undefined;

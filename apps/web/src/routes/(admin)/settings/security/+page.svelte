@@ -1,7 +1,6 @@
 <script lang="ts">
 	import PageContainer from '$lib/components/layout/PageContainer.svelte';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
-	import { Separator } from '$lib/components/ui/separator';
 	import type { PageData } from './$types';
 	
 	// Sub-components
@@ -24,7 +23,7 @@
 			currentSessionId={data.currentSessionId} 
 		/>
 		
-		<Separator />
+		<div class="h-px w-full bg-zinc-100/50 dark:bg-zinc-800/30"></div>
 		
 		<div class="grid gap-8 lg:grid-cols-2">
 			<ChangePassword />

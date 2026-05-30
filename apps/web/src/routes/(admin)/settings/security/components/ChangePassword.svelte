@@ -42,14 +42,14 @@
 	});
 </script>
 
-<div class="space-y-4">
-	<div class="flex items-center gap-2">
+<div class="rounded-lg bg-white p-6 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:bg-zinc-900 dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)]">
+	<div class="mb-6 flex items-center gap-2 border-b border-zinc-100 pb-4 dark:border-zinc-800">
 		<Key class="h-4 w-4 text-muted-foreground" />
 		<h4 class="text-sm font-medium">Change Password</h4>
 	</div>
 
 	<form
-		{...changePassword.enhance(async ({ submit }: { submit: () => Promise<void> }) => {
+		{...changePassword.enhance(async ({ submit }) => {
 			isSubmitting = true;
 			try {
 				await submit();
@@ -84,7 +84,7 @@
 			/>
 			
 			<div class="grid grid-cols-2 gap-x-4 gap-y-1 pt-1">
-				{#each passwordRules as rule}
+				{#each passwordRules as rule (rule.label)}
 					<div class="flex items-center gap-1.5 text-[10px]">
 						<div class="h-1.5 w-1.5 rounded-full {rule.valid ? 'bg-success' : 'bg-muted'}"></div>
 						<span class={rule.valid ? 'text-success' : 'text-muted-foreground'}>{rule.label}</span>
@@ -104,7 +104,7 @@
 			required
 		/>
 
-		<div class="flex justify-end">
+		<div class="flex justify-end pt-2">
 			<Button type="submit" disabled={isSubmitting}>
 				{isSubmitting ? 'Updating...' : 'Update Password'}
 			</Button>

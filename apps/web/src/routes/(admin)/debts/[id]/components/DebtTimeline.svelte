@@ -2,7 +2,6 @@
 	import Circle from '~icons/lucide/circle';
 import CheckCircle2 from '~icons/lucide/check-circle-2';
 import XCircle from '~icons/lucide/x-circle';
-import Clock from '~icons/lucide/clock';
 	import * as Card from '$lib/components/ui/card';
 	import { formatDate } from '@repo/utils/format';
 	import type { DebtDetails } from '@repo/types/shared/debt';
@@ -47,15 +46,15 @@ import Clock from '~icons/lucide/clock';
 	].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
 </script>
 
-<Card.Root>
+<Card.Root class="border-0 bg-white dark:bg-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)] rounded-lg">
 	<Card.Header>
 		<Card.Title class="text-sm font-medium">Activity Timeline</Card.Title>
 	</Card.Header>
 	<Card.Content>
-		<div class="relative space-y-6 before:absolute before:inset-y-0 before:left-2 before:w-px before:bg-border">
-			{#each events as event}
+		<div class="relative space-y-6 before:absolute before:inset-y-0 before:left-2 before:w-px before:bg-zinc-100 dark:before:bg-zinc-800">
+			{#each events as event (event.id)}
 				<div class="relative pl-8">
-					<div class="absolute left-0 flex h-4 w-4 items-center justify-center rounded-full bg-background ring-2 ring-border">
+					<div class="absolute left-0 flex h-4 w-4 items-center justify-center rounded-full bg-white dark:bg-zinc-950 ring-1 ring-zinc-200 dark:ring-zinc-850">
 						<event.icon class="h-3 w-3 text-muted-foreground" />
 					</div>
 					<div class="flex flex-col gap-1">

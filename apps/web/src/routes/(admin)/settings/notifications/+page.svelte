@@ -54,17 +54,6 @@ import Mail from '~icons/lucide/mail';
 		}
 	});
 
-	// Prevent enabling push if email not verified
-	function handlePushToggle(event: Event) {
-		const target = event.target as HTMLInputElement;
-		if (target.checked && !canEnablePush) {
-			event.preventDefault();
-			target.checked = false;
-			toast.error('Please verify your email first to enable push notifications');
-			return;
-		}
-		pushEnabled = target.checked;
-	}
 </script>
 
 <div class="space-y-6">
@@ -77,7 +66,7 @@ import Mail from '~icons/lucide/mail';
 	<Separator />
 
 	{#if !canEnablePush}
-		<Card.Root class="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20">
+		<Card.Root class="border border-amber-100 bg-amber-50/50 dark:border-amber-900/30 dark:bg-amber-950/10 shadow-none">
 			<Card.Content class="flex items-start gap-3 pt-6">
 				<AlertTriangle class="h-5 w-5 text-amber-600 dark:text-amber-400" />
 				<div>
@@ -92,9 +81,7 @@ import Mail from '~icons/lucide/mail';
 	{/if}
 
 	<form
-		{...updateNotifications.enhance(async ({ data: formData, submit }) => {
-			formData.emailNotificationsEnabled = emailEnabled ? 'true' : 'false';
-			formData.pushNotificationsEnabled = pushEnabled ? 'true' : 'false';
+		{...updateNotifications.enhance(async ({ submit }) => {
 			isSubmitting = true;
 			try {
 				await submit();
@@ -103,15 +90,17 @@ import Mail from '~icons/lucide/mail';
 			}
 		})}
 	>
-		<Card.Root>
+		<input type="hidden" name="emailNotificationsEnabled" value={emailEnabled ? 'true' : 'false'} />
+		<input type="hidden" name="pushNotificationsEnabled" value={pushEnabled ? 'true' : 'false'} />
+		<Card.Root class="border-0 bg-white dark:bg-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)] rounded-lg">
 			<Card.Content class="space-y-6 pt-6">
 				<!-- Email Notifications -->
 				<div class="flex items-center justify-between">
 					<div class="flex items-start gap-3">
 						<div
-							class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30"
+							class="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-350"
 						>
-							<Mail class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+							<Mail class="h-4.5 w-4.5" />
 						</div>
 						<div class="space-y-1">
 							<Label for="emailNotifications" class="text-base font-medium">
@@ -135,9 +124,9 @@ import Mail from '~icons/lucide/mail';
 				<div class="flex items-center justify-between">
 					<div class="flex items-start gap-3">
 						<div
-							class="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30"
+							class="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-350"
 						>
-							<Bell class="h-5 w-5 text-purple-600 dark:text-purple-400" />
+							<Bell class="h-4.5 w-4.5" />
 						</div>
 						<div class="space-y-1">
 							<Label for="pushNotifications" class="text-base font-medium">
@@ -169,7 +158,7 @@ import Mail from '~icons/lucide/mail';
 
 			</Card.Content>
 
-			<Card.Footer class="border-t pt-6">
+			<Card.Footer class="border-t border-zinc-100 dark:border-zinc-800 pt-6">
 				<Button type="submit" disabled={isSubmitting}>
 					{isSubmitting ? 'Saving...' : 'Save Preferences'}
 				</Button>

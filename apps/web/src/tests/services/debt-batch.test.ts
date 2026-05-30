@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { normalizeDebtIdList } from '../../lib/services/debt-batch';
+import { normalizeDebtIdList } from '../../lib/services/api-helpers';
 
 describe('normalizeDebtIdList', () => {
 	test('normalizes comma-separated string ids', () => {

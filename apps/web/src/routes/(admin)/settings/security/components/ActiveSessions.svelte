@@ -40,14 +40,14 @@ import Tablet from '~icons/lucide/tablet';
 		</Button>
 	</div>
 
-	<div class="divide-y rounded-md border">
-		{#each sessions as session}
+	<div class="divide-y divide-zinc-100 dark:divide-zinc-800 rounded-lg bg-white dark:bg-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)] overflow-hidden">
+		{#each sessions as session (session.id)}
 			{@const isCurrent = session.id === currentSessionId}
 			{@const Icon = getDeviceIcon(session.deviceType)}
 			<div class="flex items-center justify-between p-4">
 				<div class="flex items-center gap-3">
-					<div class="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-						<Icon class="h-5 w-5 text-muted-foreground" />
+					<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-350">
+						<Icon class="h-4.5 w-4.5" />
 					</div>
 					<div>
 						<div class="flex items-center gap-2">
@@ -92,7 +92,7 @@ import Tablet from '~icons/lucide/tablet';
 			</AlertDialog.Description>
 		</AlertDialog.Header>
 		<form
-			{...logoutAll.enhance(async ({ submit }: { submit: () => Promise<void> }) => {
+			{...logoutAll.enhance(async ({ submit }) => {
 				isLoggingOutAll = true;
 				try {
 					await submit();

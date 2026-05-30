@@ -44,7 +44,7 @@ import X from '~icons/lucide/x';
 		role="button"
 		tabindex="0"
 		aria-label="Drag and drop your file here, or click to browse"
-		class="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-primary/50"
+		class="rounded-lg border border-dashed border-zinc-200 dark:border-zinc-800 p-8 text-center bg-zinc-50/10 dark:bg-zinc-950/10 transition-colors hover:border-zinc-400 dark:hover:border-zinc-650"
 		ondragover={handleDragOver}
 		ondragenter={handleDragOver}
 		ondrop={handleDrop}

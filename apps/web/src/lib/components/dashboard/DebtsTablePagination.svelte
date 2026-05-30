@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import * as Select from '$lib/components/ui/select';
+	import type { DashboardState } from '$lib/dashboard/state.svelte';
 	import ChevronsLeft from '~icons/lucide/chevrons-left';
 import ChevronLeft from '~icons/lucide/chevron-left';
 import ChevronRight from '~icons/lucide/chevron-right';
 import ChevronsRight from '~icons/lucide/chevrons-right';
 
 	interface Props {
-		readonly dashState: any;
+		readonly dashState: DashboardState;
 		readonly totalItems: number;
 		readonly totalPagesValue: number;
 		readonly pageItems: Array<number | 'ellipsis'>;
@@ -16,7 +17,7 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 	let { dashState, totalItems, totalPagesValue, pageItems }: Props = $props();
 </script>
 
-<div class="flex flex-wrap items-center justify-between gap-3 border-t px-6 py-4">
+<div class="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 dark:border-zinc-800 px-6 py-4">
 	<div class="flex items-center gap-2 text-sm text-muted-foreground">
 		<span>
 			Showing {(dashState.currentPage - 1) * dashState.pageSize + 1} to {Math.min(
@@ -25,10 +26,13 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 			)} of {totalItems} debts
 		</span>
 		<Select.Root
+			type="single"
 			value={dashState.pageSize.toString()}
-			onValueChange={(v) => dashState.setPageSize(parseInt(v))}
+			onValueChange={(v: string) => {
+				if (v) dashState.setPageSize(parseInt(v));
+			}}
 		>
-			<Select.Trigger class="ml-2 h-8 w-auto rounded border px-2 py-1 text-sm font-medium">
+			<Select.Trigger class="ml-2 h-8 w-auto rounded border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2 py-1 text-sm font-medium">
 				<Select.Value />
 			</Select.Trigger>
 			<Select.Content>

@@ -8,10 +8,10 @@
 		ref = $bindable(null),
 		children,
 		...restProps
-	}: ComponentProps<typeof LabelPrimitive> = $props();
+	}: ComponentProps<typeof LabelPrimitive.Root> = $props();
 </script>
 
-<LabelPrimitive
+<LabelPrimitive.Root
 	bind:ref
 	class={cn(
 		'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 select-none',
@@ -20,4 +20,4 @@
 	{...restProps}
 >
 	{@render children?.()}
-</LabelPrimitive>
+</LabelPrimitive.Root>

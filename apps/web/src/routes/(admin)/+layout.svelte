@@ -65,7 +65,7 @@ import X from '~icons/lucide/x';
 		}
 	});
 
-	const navItems = $derived(() => {
+	const navItems = $derived.by(() => {
 		const items = [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }];
 
 		if (permissions?.isAdmin) {
@@ -96,7 +96,7 @@ import X from '~icons/lucide/x';
 
 {#snippet navigationLinks()}
 	<nav class="flex-1 space-y-1 py-4">
-		{#each navItems() as item}
+		{#each navItems as item (item.href)}
 			<a
 				href={item.href}
 				onclick={handleNavigate}
@@ -108,7 +108,7 @@ import X from '~icons/lucide/x';
 						: 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
 				)}
 			>
-				<item.icon class="h-[18px] w-[18px]" />
+				<item.icon class="h-4.5 w-4.5" />
 				{item.label}
 			</a>
 		{/each}
@@ -117,7 +117,7 @@ import X from '~icons/lucide/x';
 			<p class="mb-2 px-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase opacity-70">
 				Settings
 			</p>
-			{#each settingsItems as item}
+			{#each settingsItems as item (item.href)}
 				<a
 					href={item.href}
 					onclick={handleNavigate}
@@ -129,7 +129,7 @@ import X from '~icons/lucide/x';
 							: 'text-muted-foreground hover:bg-secondary/50 hover:text-foreground'
 					)}
 				>
-					<item.icon class="h-[18px] w-[18px]" />
+					<item.icon class="h-4.5 w-4.5" />
 					{item.label}
 				</a>
 			{/each}
@@ -139,8 +139,8 @@ import X from '~icons/lucide/x';
 
 <div class="flex min-h-dvh bg-muted/20">
 	<!-- Desktop Sidebar -->
-	<aside class="hidden border-r border-border/60 bg-background lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-		<div class="flex h-16 items-center border-b border-border/60 px-6">
+	<aside class="hidden border-r border-zinc-100 dark:border-zinc-800/80 bg-background lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+		<div class="flex h-16 items-center border-b border-zinc-100 dark:border-zinc-800/80 px-6">
 			<a href={resolve(`/`, {})} class="flex items-center space-x-2.5 transition-opacity hover:opacity-90">
 				<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
 					<Wallet class="h-5 w-5 text-primary" />
@@ -154,9 +154,9 @@ import X from '~icons/lucide/x';
 		</div>
 
 		<!-- User Section -->
-		<div class="border-t border-border/60 p-4">
+		<div class="border-t border-zinc-100 dark:border-zinc-800/80 p-4">
 			<div class="flex items-center gap-3 rounded-xl border border-transparent p-2 transition-colors hover:bg-secondary/50">
-				<Avatar.Root class="h-9 w-9 border border-border/50 shadow-sm">
+				<Avatar.Root class="h-9 w-9 border border-zinc-100 dark:border-zinc-800 shadow-xs">
 					<Avatar.Fallback class="text-xs bg-muted font-medium">{avatarInitial}</Avatar.Fallback>
 				</Avatar.Root>
 				<div class="flex-1 overflow-hidden">
@@ -170,7 +170,7 @@ import X from '~icons/lucide/x';
 	<!-- Mobile Sidebar (Sheet) -->
 	<Sheet.Root bind:open={sidebarOpen}>
 		<Sheet.Content side="left" class="w-72 p-0 flex flex-col">
-			<Sheet.Header class="h-16 border-b border-border/60 px-6 flex flex-row items-center justify-start text-left">
+			<Sheet.Header class="h-16 border-b border-zinc-100 dark:border-zinc-800 px-6 flex flex-row items-center justify-start text-left">
 				<a href={resolve(`/`, {})} class="flex items-center space-x-2.5" onclick={handleNavigate}>
 					<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
 						<Wallet class="h-5 w-5 text-primary" />
@@ -187,7 +187,7 @@ import X from '~icons/lucide/x';
 	<!-- Main Content Wrapper -->
 	<div class="flex flex-1 flex-col lg:pl-64">
 		<!-- Top header -->
-		<header class="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/95 backdrop-blur px-4 sm:px-6">
+		<header class="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-zinc-100 dark:border-zinc-850 bg-background/95 backdrop-blur px-4 sm:px-6">
 			<div class="flex items-center">
 				<Button 
 					variant="ghost" 
@@ -205,7 +205,7 @@ import X from '~icons/lucide/x';
 
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger
-						class="flex items-center gap-2 rounded-full border border-border/50 hover:bg-muted/50 p-1 pl-3 pr-1 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary"
+						class="flex items-center gap-2 rounded-full border border-zinc-200/60 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 p-1 pl-3 pr-1 text-sm transition-colors outline-none focus-visible:ring-0"
 					>
 						<span class="hidden font-medium sm:block">{displayName}</span>
 						<Avatar.Root class="h-8 w-8 shadow-sm">
@@ -213,13 +213,13 @@ import X from '~icons/lucide/x';
 						</Avatar.Root>
 					</DropdownMenu.Trigger>
 					<DropdownMenu.Content align="end" class="w-60 p-2">
-						<DropdownMenu.Label class="px-2 py-1.5">
+						<div class="px-2 py-1.5">
 							<div class="flex flex-col space-y-1">
 								<span class="font-medium text-sm leading-none">{displayName}</span>
 								<span class="text-xs text-muted-foreground leading-none">{user?.email || user?.phoneNumber}</span>
 								<span class="text-xs font-semibold text-primary capitalize mt-1.5">{user?.role}</span>
 							</div>
-						</DropdownMenu.Label>
+						</div>
 						<DropdownMenu.Separator class="my-1" />
 						<DropdownMenu.Group>
 							<DropdownMenu.Item class="cursor-pointer rounded-md p-2">
@@ -273,10 +273,9 @@ import X from '~icons/lucide/x';
 			</div>
 		</header>
 
-		<!-- Email Verification Banner -->
 		{#if showVerificationBanner}
 			<div
-				class="border-b border-warning/30 bg-warning/5 px-4 py-3"
+				class="border-b border-warning/20 bg-warning/5 px-4 py-3"
 			>
 				<div class="flex items-center justify-between gap-4">
 					<div class="flex items-center gap-2.5 text-sm text-warning-foreground font-medium">

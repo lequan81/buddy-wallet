@@ -21,7 +21,6 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 	import { Button } from '$lib/components/ui/button';
 	import { Separator } from '$lib/components/ui/separator';
 	import * as Select from '$lib/components/ui/select';
-	import { cn } from '$lib/utils';
 
 	let { data } = $props();
 
@@ -135,7 +134,7 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 		</div>
 	{/if}
 
-	<Card.Root>
+	<Card.Root class="border-0 bg-white dark:bg-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)] rounded-lg">
 		<Card.Header>
 			<Card.Title class="flex items-center gap-2">
 				<Activity class="h-5 w-5" />
@@ -156,16 +155,13 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 						{@const ActionIcon = actionCfg.icon}
 						{@const ResourceIcon = getResourceIcon(log.resource)}
 						<div
-							class="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50"
+							class="flex items-start gap-4 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-850"
 						>
 							<!-- Action Icon -->
 							<div
-								class={cn(
-									'flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
-									getActionConfig(log.action).color
-								)}
+								class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-50 dark:bg-zinc-800 text-zinc-650 dark:text-zinc-300"
 							>
-								<ActionIcon class="h-5 w-5" />
+								<ActionIcon class="h-4.5 w-4.5" />
 							</div>
 
 							<!-- Content -->
@@ -216,7 +212,7 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 				<!-- Pagination -->
 				{#if pagination.total > 0}
 					{@const pageItems = buildPageItems(currentPage, totalPages)}
-					<div class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+					<div class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 dark:border-zinc-800 pt-4">
 						<div class="flex items-center gap-2 text-sm text-muted-foreground">
 							<span>
 								Showing {(currentPage - 1) * pageSize + 1} to {Math.min(
@@ -225,11 +221,13 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 								)} of {pagination.total} entries
 							</span>
 							<Select.Root
+								type="single"
 								value={pageSize.toString()}
-								onValueChange={(v) =>
-									navigateWithParams({ pageSize: parseInt(v), page: 1 })}
+								onValueChange={(v: string) => {
+									if (v) navigateWithParams({ pageSize: parseInt(v), page: 1 });
+								}}
 							>
-								<Select.Trigger class="ml-2 h-8 w-auto rounded border px-2 py-1 text-sm">
+								<Select.Trigger class="ml-2 h-8 w-auto rounded border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2 py-1 text-sm text-muted-foreground font-medium">
 									<Select.Value />
 								</Select.Trigger>
 								<Select.Content>
@@ -298,7 +296,7 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 								min={1}
 								max={totalPages}
 								placeholder={currentPage.toString()}
-								class="h-8 w-16 rounded border bg-background px-2 py-1 text-xs"
+								class="h-8 w-16 rounded border border-zinc-100 bg-white dark:border-zinc-800 dark:bg-zinc-950 px-2 py-1 text-xs focus:border-zinc-300 dark:focus:border-zinc-700 focus:outline-hidden transition-colors"
 								bind:value={jumpPage}
 								onkeydown={(event) => {
 									if (event.key === 'Enter') {

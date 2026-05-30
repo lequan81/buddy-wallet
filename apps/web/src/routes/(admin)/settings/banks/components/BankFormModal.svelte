@@ -119,12 +119,12 @@
 
 			<div class="grid gap-2">
 				<Label>Bank</Label>
-				<Select.Root bind:value={bankCode} required>
+				<Select.Root type="single" bind:value={bankCode} required>
 					<Select.Trigger class="w-full">
 						<Select.Value placeholder="Select a bank" />
 					</Select.Trigger>
 					<Select.Content>
-						{#each banks as bank}
+						{#each banks as bank (bank.code)}
 							<Select.Item value={bank.code} label="{bank.shortName} - {bank.name}" />
 						{/each}
 					</Select.Content>
@@ -169,7 +169,7 @@
 					type="checkbox"
 					id="isDefault"
 					bind:checked={isDefault}
-					class="h-4 w-4 rounded border-gray-300"
+					class="h-4 w-4 rounded border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 transition-colors focus:ring-0"
 				/>
 				<Label for="isDefault">Set as default account</Label>
 			</div>

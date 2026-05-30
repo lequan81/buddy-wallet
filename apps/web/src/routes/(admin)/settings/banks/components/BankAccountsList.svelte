@@ -38,19 +38,19 @@ import Trash2 from '~icons/lucide/trash-2';
 <div class="space-y-4">
 	{#if accounts.length === 0}
 		<div
-			class="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center text-muted-foreground"
+			class="flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-200 dark:border-zinc-800 p-8 text-center text-muted-foreground bg-zinc-50/10 dark:bg-zinc-950/10"
 		>
 			<Landmark class="mb-4 h-8 w-8 opacity-50" />
 			<p>No bank accounts added yet.</p>
 			<p class="text-sm">Add an account to easier receive payments.</p>
 		</div>
 	{:else}
-		{#each accounts as account}
-			<Card.Root>
+		{#each accounts as account (account.id)}
+			<Card.Root class="border-0 bg-white dark:bg-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)] rounded-lg">
 				<div class="flex items-center justify-between p-6">
 					<div class="flex items-center gap-4">
-						<div class="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-							<Landmark class="h-5 w-5 text-muted-foreground" />
+						<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-350">
+							<Landmark class="h-4.5 w-4.5" />
 						</div>
 						<div>
 							<div class="flex items-center gap-2">

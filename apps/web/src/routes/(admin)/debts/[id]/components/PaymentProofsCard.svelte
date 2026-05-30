@@ -4,7 +4,7 @@ import X from '~icons/lucide/x';
 import Image from '~icons/lucide/image';
 import FileText from '~icons/lucide/file-text';
 	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { cn } from '$lib/utils';
 	import { api } from '$lib/services/api';
@@ -40,7 +40,7 @@ import FileText from '~icons/lucide/file-text';
 	const proofs = $derived(debt.paymentProofs || []);
 </script>
 
-<Card.Root>
+<Card.Root class="border-0 bg-white dark:bg-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)] rounded-lg">
 	<Card.Header>
 		<Card.Title class="text-sm font-medium">Payment Proofs</Card.Title>
 	</Card.Header>
@@ -52,11 +52,11 @@ import FileText from '~icons/lucide/file-text';
 			</div>
 		{:else}
 			<div class="grid gap-4">
-				{#each proofs as proof}
-					<div class="flex items-center justify-between rounded-lg border p-3">
+				{#each proofs as proof (proof.id)}
+					<div class="flex items-center justify-between rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-800/20 p-3">
 						<div class="flex items-center gap-3">
-							<div class="flex h-10 w-10 items-center justify-center rounded bg-muted">
-								<FileText class="h-5 w-5 text-muted-foreground" />
+							<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-50 dark:bg-zinc-800 text-zinc-650 dark:text-zinc-300">
+								<FileText class="h-4.5 w-4.5" />
 							</div>
 							<div>
 								<p class="text-xs font-medium">Payment Proof</p>
@@ -72,9 +72,9 @@ import FileText from '~icons/lucide/file-text';
 						</div>
 						
 						<div class="flex items-center gap-2">
-							<Button variant="ghost" size="sm" href={proof.url} target="_blank">
+							<a class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), "text-xs font-semibold px-3 py-1")} href={proof.url} target="_blank">
 								View
-							</Button>
+							</a>
 							{#if isCreditor && proof.status === 'pending'}
 								<Button 
 									variant="ghost" 

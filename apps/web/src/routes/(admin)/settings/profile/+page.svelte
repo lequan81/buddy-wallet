@@ -37,7 +37,7 @@ import Pencil from '~icons/lucide/pencil';
 	{/if}
 
 	{#if getParam(page.url, 'error') === 'missing_phone'}
-		<Card.Root class="border-warning bg-warning/5">
+		<Card.Root class="border border-warning/30 bg-warning/5 shadow-none">
 			<Card.Content class="pt-6">
 				<p class="font-semibold text-warning">Phone Number Required</p>
 				<p class="mt-1 text-sm text-muted-foreground">
@@ -48,7 +48,7 @@ import Pencil from '~icons/lucide/pencil';
 	{/if}
 
 	<form
-		{...updateProfile.enhance(async ({ submit }: { submit: () => Promise<void> }) => {
+		{...updateProfile.enhance(async ({ submit }) => {
 			ps.isSubmitting = true;
 			try {
 				await submit();
@@ -57,7 +57,7 @@ import Pencil from '~icons/lucide/pencil';
 			}
 		})}
 	>
-		<Card.Root>
+		<Card.Root class="border-0 bg-white dark:bg-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)] rounded-lg">
 			<Card.Content class="space-y-6 pt-6">
 				<div class="flex items-center gap-4">
 					<div class="relative h-16 w-16 overflow-hidden rounded-full bg-muted">
@@ -79,7 +79,7 @@ import Pencil from '~icons/lucide/pencil';
 						<div class="flex items-center gap-2">
 							<Label
 								for="avatar-upload"
-								class="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+								class="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 text-xs font-medium transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
 							>
 								<Pencil class="h-3 w-3" />
 								Change photo

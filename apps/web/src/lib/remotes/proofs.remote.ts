@@ -1,6 +1,8 @@
 import { form, getRequestEvent } from '$app/server';
 import { invalid, error } from '@sveltejs/kit';
 import { unwrapData } from '$lib/services/api-helpers';
+import * as v from 'valibot';
+import { toStandardSchema } from '@repo/schema/adapters/standard-schema';
 
 type ApiErrorResult = {
 	value?: unknown;
@@ -69,26 +71,33 @@ export const rejectProof = form('unchecked' as const, async (data) => {
 	return { success: true, rejected: true };
 });
 
-export const uploadProof = form('unchecked' as const, async (data) => {
-	ensureAuthenticated();
-	const { params } = getRequestEvent();
+export const uploadProof = form(
+	toStandardSchema(
+		v.object({
+			proof: v.any()
+		})
+	),
+	async ({ proof }) => {
+		ensureAuthenticated();
+		const { params } = getRequestEvent();
 
-	const proof = data.proof as File;
-	const debtId = params.id;
-	if (!debtId) error(400, { code: 'BAD_REQUEST', message: 'Debt ID not found in URL' });
+		const proofFile = proof as File;
+		const debtId = params.id;
+		if (!debtId) error(400, { code: 'BAD_REQUEST', message: 'Debt ID not found in URL' });
 
-	const { fetch: reqFetch } = getRequestEvent();
-	const formData = new FormData();
-	formData.append('file', proof);
+		const { fetch: reqFetch } = getRequestEvent();
+		const formData = new FormData();
+		formData.append('file', proofFile);
 
-	const res = await reqFetch(`/v1/proof/${debtId}/upload`, {
-		method: 'POST',
-		body: formData
-	}).then(r => r.json());
-	const { error: apiError } = res;
-	if (apiError) {
-		parseApiFailure(apiError, 'Failed to upload proof');
+		const res = await reqFetch(`/v1/proof/${debtId}/upload`, {
+			method: 'POST',
+			body: formData
+		}).then(r => r.json());
+		const { error: apiError } = res;
+		if (apiError) {
+			parseApiFailure(apiError, 'Failed to upload proof');
+		}
+
+		return { success: true, message: 'Proof uploaded successfully' };
 	}
-
-	return { success: true, message: 'Proof uploaded successfully' };
-});
+);

@@ -108,8 +108,8 @@ import FileText from '~icons/lucide/file-text';
 	let pageItems = $derived(buildPageItems(dashState.currentPage, totalPagesValue));
 </script>
 
-<Card.Root>
-	<Card.Header>
+<Card.Root class="border-0 bg-white dark:bg-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)] overflow-hidden rounded-lg">
+	<Card.Header class="pb-2 pt-4 px-4">
 		<DebtsTableToolbar 
 			{dashState} 
 			hasDebts={debts.length > 0} 

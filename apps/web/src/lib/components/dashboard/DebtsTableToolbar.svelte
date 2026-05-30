@@ -42,7 +42,7 @@ import Plus from '~icons/lucide/plus';
 				type="text"
 				placeholder="Search debts..."
 				bind:value={dashState.searchQuery}
-				class="h-9 w-48 rounded-md border bg-background pr-8 pl-9 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none"
+				class="h-9 w-48 rounded-md border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 pr-8 pl-9 text-sm placeholder:text-zinc-400 focus:border-zinc-300 dark:focus:border-zinc-600 focus:outline-hidden transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
 			/>
 			{#if dashState.searchQuery}
 				<button
@@ -55,9 +55,9 @@ import Plus from '~icons/lucide/plus';
 		</div>
 
 		<!-- Status Filter -->
-		<div class="flex items-center gap-1 rounded-lg border p-1">
+		<div class="flex items-center gap-1 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-white/50 dark:bg-zinc-950/50 p-1">
 			<Filter class="ml-1 h-4 w-4 text-muted-foreground" />
-			{#each ['all', 'pending', 'confirmed', 'paid', 'disputed', 'cancelled'] as status}
+			{#each ['all', 'pending', 'confirmed', 'paid', 'disputed', 'cancelled'] as status (status)}
 				<button
 					class={cn(
 						'rounded px-2 py-1 text-xs font-medium transition-colors',

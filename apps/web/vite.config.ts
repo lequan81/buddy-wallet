@@ -172,7 +172,7 @@ export default defineConfig({
 			'@repo/types': path.resolve(__dirname, '../../packages/types/src'),
 			'@repo/config': path.resolve(__dirname, '../../packages/config/src')
 		},
-		extensions: ['.ts', '.svelte']
+		extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json', '.svelte']
 	},
 	cacheDir: '.vite',
 	server: {

@@ -43,7 +43,7 @@ import Clock from '~icons/lucide/clock';
 	const suggestionDate = $derived(debt.suggestedAt ? new Date(debt.suggestedAt).toLocaleString() : '');
 </script>
 
-<Card.Root>
+<Card.Root class="border-0 bg-white dark:bg-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)] rounded-lg">
 	<Card.Header>
 		<Card.Title class="text-sm font-medium">Edit Suggestions</Card.Title>
 	</Card.Header>
@@ -55,7 +55,7 @@ import Clock from '~icons/lucide/clock';
 			</div>
 		{:else}
 			<div class="grid gap-4">
-				<div class="flex flex-col gap-3 rounded-lg border p-4">
+				<div class="flex flex-col gap-3 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-800/20 p-4">
 					<div class="flex items-center justify-between">
 						<Badge variant="default" class="bg-warning hover:bg-warning/80">
 							pending

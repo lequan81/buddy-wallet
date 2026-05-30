@@ -16,7 +16,7 @@ import Clock from '~icons/lucide/clock';
 	} = $props();
 </script>
 
-<Card.Root>
+<Card.Root class="border-0 bg-white dark:bg-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)] rounded-lg">
 	<Card.Header class="pb-3">
 		<div class="flex items-center justify-between">
 			<Card.Title class="text-sm font-medium">Debt Overview</Card.Title>
@@ -36,8 +36,8 @@ import Clock from '~icons/lucide/clock';
 					{formatCurrency(debt.amount, debt.currency)}
 				</p>
 			</div>
-			<div class="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-				<FileText class="h-6 w-6 text-primary" />
+			<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-350">
+				<FileText class="h-4.5 w-4.5" />
 			</div>
 		</div>
 

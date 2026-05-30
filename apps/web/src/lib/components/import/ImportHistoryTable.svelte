@@ -92,7 +92,7 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 	<Table.Body>
 		{#if showConnectionFallback}
 			<Table.Row>
-				<Table.Cell colspan={3} class="p-4">
+				<td colspan={3} class="p-4">
 					<ConnectionFallback
 						onRetry={() => onFetchLogs(historyPage)}
 						onUseOffline={() => {}}
@@ -100,7 +100,7 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 						errorMessage={connectionError}
 						timeoutSeconds={15}
 					/>
-				</Table.Cell>
+				</td>
 			</Table.Row>
 		{:else if loadingHistory && logs.length === 0}
 			<Table.Row>
@@ -115,7 +115,7 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 				</Table.Cell>
 			</Table.Row>
 		{:else}
-			{#each logs as log}
+			{#each logs as log (log.id)}
 				{@const activeJob = importProgress.getJob(log.id)}
 				<Table.Row class="group transition-colors hover:bg-muted/50">
 					<Table.Cell class="py-3 align-top">
@@ -123,7 +123,7 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 							<div class="flex items-start justify-between gap-2">
 								<button
 									type="button"
-									class="max-w-[140px] cursor-pointer truncate border-0 bg-transparent p-0 text-left text-xs leading-tight font-medium hover:text-primary transition-colors"
+									class="max-w-35 cursor-pointer truncate border-0 bg-transparent p-0 text-left text-xs leading-tight font-medium hover:text-primary transition-colors"
 									title={log.fileName}
 									onclick={() => onViewDetails(log)}
 								>
@@ -215,7 +215,7 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 </Table.Root>
 
 {#if logs.length > 0}
-	<div class="flex flex-wrap items-center justify-between gap-3 border-t border-border/40 px-4 py-3 bg-muted/20">
+	<div class="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 dark:border-zinc-800 px-4 py-3 bg-zinc-50/10 dark:bg-zinc-950/10">
 		<div class="flex items-center gap-1">
 			<Button
 				variant="outline"
@@ -236,7 +236,7 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 				<ChevronLeft class="h-4 w-4" />
 			</Button>
 			<div class="flex items-center gap-1 mx-1">
-				{#each pageItems as item}
+				{#each pageItems as item, itemIndex (itemIndex)}
 					{#if item === 'ellipsis'}
 						<span class="px-1 text-sm text-muted-foreground tracking-tighter">...</span>
 					{:else}
@@ -275,17 +275,18 @@ import ChevronsRight from '~icons/lucide/chevrons-right';
 		<div class="flex items-center gap-2">
 			<span class="text-xs text-muted-foreground font-medium">Go to</span>
 			<Select.Root
+				type="single"
 				value={jumpPage}
 				onValueChange={(v: string) => {
 					jumpPage = v;
 					handleJump();
 				}}
 			>
-				<Select.Trigger class="h-8 w-auto rounded-md border px-2 py-1 text-xs text-muted-foreground">
+				<Select.Trigger class="h-8 w-auto rounded-md border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2 py-1 text-xs text-muted-foreground">
 					<Select.Value />
 				</Select.Trigger>
 				<Select.Content>
-					{#each Array(totalHistoryPages) as _, i}
+					{#each Array(totalHistoryPages) as _, i (i)}
 						<Select.Item value={(i + 1).toString()} label={(i + 1).toString()} />
 					{/each}
 				</Select.Content>

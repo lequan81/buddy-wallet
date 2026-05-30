@@ -4,7 +4,6 @@
 	import { onMount, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import { enhance } from '$app/forms';
-	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
 	import { api } from '$lib/services/api';
 	import { unwrapData, unwrapPagination } from '$lib/services/api-helpers';
@@ -263,10 +262,10 @@
 			<h1 class="text-2xl font-bold tracking-tight">Import Debts</h1>
 			<p class="text-muted-foreground italic">Bulk import debts from spreadsheet files</p>
 		</div>
-		<Button href={resolve(`/dashboard`, {})} variant="ghost" class="h-9 transition-colors hover:bg-muted">
+		<a href={resolve(`/dashboard`, {})} class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 hover:bg-muted h-9 px-4 py-2">
 			<ArrowLeft class="mr-2 h-4 w-4" />
 			Back to Dashboard
-		</Button>
+		</a>
 	</div>
 
 	{#if ui.isInitialLoading}
@@ -275,8 +274,8 @@
 		<div class="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1.3fr_1fr]">
 			<!-- Left Side: Import Form -->
 			<div class="space-y-6">
-				<Card.Root class="overflow-hidden">
-					<Card.Header class="bg-muted/30">
+				<Card.Root class="border-0 bg-white dark:bg-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)] overflow-hidden rounded-lg">
+					<Card.Header class="bg-zinc-50/50 dark:bg-zinc-800/20">
 						<Card.Title class="text-lg">Step 1: Upload File</Card.Title>
 						<Card.Description>Select an Excel or CSV file to begin parsing headers.</Card.Description>
 					</Card.Header>
@@ -404,8 +403,8 @@
 
 			<!-- Right Side: History -->
 			<div class="space-y-6">
-				<Card.Root class="sticky top-6 overflow-hidden">
-					<Card.Header class="bg-muted/30 border-b pb-3">
+				<Card.Root class="sticky top-6 border-0 bg-white dark:bg-zinc-900 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.2)] overflow-hidden rounded-lg">
+					<Card.Header class="bg-zinc-50/50 dark:bg-zinc-800/20 border-b border-zinc-100 dark:border-zinc-800 pb-3">
 						<Card.Title class="text-base flex items-center gap-2">
 							Recent Imports
 						</Card.Title>
